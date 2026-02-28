@@ -37,3 +37,13 @@ Router → **Router agent**:
 - `GET /cgi-bin/api.sh?cmd=neighbors`
 
 If you set a token in `/opt/zash-agent/agent.env` (TOKEN=...), UI should send `Authorization: Bearer <token>`.
+
+### status payload
+
+In addition to capability flags (tc/iptables/hashlimit), `status` also reports basic system metrics (best-effort):
+
+- `cpuPct` (0..100)
+- `load1` (1-minute load average)
+- `uptimeSec`
+- `memUsedPct` (0..100)
+- `memUsed`, `memTotal` (bytes)

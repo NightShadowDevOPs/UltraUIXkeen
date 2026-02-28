@@ -9,6 +9,13 @@ type AgentStatus = {
   tc?: boolean
   iptables?: boolean
   hashlimit?: boolean
+  // optional system metrics (agent >= 0.4)
+  cpuPct?: number
+  load1?: string
+  uptimeSec?: number
+  memTotal?: number
+  memUsed?: number
+  memUsedPct?: number
   error?: string
 }
 

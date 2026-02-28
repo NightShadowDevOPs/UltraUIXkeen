@@ -513,11 +513,58 @@ status() {
   have_hashlimit=0
   iptables -m hashlimit -h >/dev/null 2>&1 && have_hashlimit=1
 
-  reply_ok "$(printf '{"ok":true,"version":"0.3","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s}' \
+  # --- System metrics (best effort) ---
+  cpu_pct=0
+  if [ -r /proc/stat ]; then
+    read _ u1 n1 s1 i1 w1 irq1 sirq1 stl1 rest < /proc/stat
+    t1=$((u1+n1+s1+i1+w1+irq1+sirq1+stl1))
+    id1=$((i1+w1))
+    sleep 0.2
+    read _ u2 n2 s2 i2 w2 irq2 sirq2 stl2 rest < /proc/stat
+    t2=$((u2+n2+s2+i2+w2+irq2+sirq2+stl2))
+    id2=$((i2+w2))
+    dt=$((t2-t1))
+    did=$((id2-id1))
+    if [ "$dt" -gt 0 ]; then
+      cpu_pct=$(( (100*(dt-did))/dt ))
+    fi
+  fi
+  [ "$cpu_pct" -lt 0 ] && cpu_pct=0
+  [ "$cpu_pct" -gt 100 ] && cpu_pct=100
+
+  load1="0"
+  [ -r /proc/loadavg ] && load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+  [ -n "$load1" ] || load1="0"
+
+  uptime_sec=0
+  [ -r /proc/uptime ] && uptime_sec="$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
+  echo "$uptime_sec" | grep -qE '^[0-9]+$' || uptime_sec=0
+
+  mem_total_kb=0
+  mem_avail_kb=0
+  if [ -r /proc/meminfo ]; then
+    mem_total_kb="$(awk '/MemTotal:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+    mem_avail_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+    [ -n "$mem_avail_kb" ] || mem_avail_kb="$(awk '/MemFree:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+  fi
+  echo "$mem_total_kb" | grep -qE '^[0-9]+$' || mem_total_kb=0
+  echo "$mem_avail_kb" | grep -qE '^[0-9]+$' || mem_avail_kb=0
+
+  mem_used_kb=$((mem_total_kb-mem_avail_kb))
+  [ "$mem_used_kb" -lt 0 ] && mem_used_kb=0
+  mem_used_pct=0
+  if [ "$mem_total_kb" -gt 0 ]; then
+    mem_used_pct=$(( (100*mem_used_kb)/mem_total_kb ))
+  fi
+  mem_total_b=$((mem_total_kb*1024))
+  mem_used_b=$((mem_used_kb*1024))
+
+  reply_ok "$(printf '{"ok":true,"version":"0.4","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
-    $( [ $have_hashlimit -eq 1 ] && echo true || echo false ))"
+    $( [ $have_hashlimit -eq 1 ] && echo true || echo false ) \
+    "$cpu_pct" "$load1" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_used_pct")"
 }
 
 case "$cmd" in
