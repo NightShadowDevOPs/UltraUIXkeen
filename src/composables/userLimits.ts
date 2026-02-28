@@ -349,9 +349,8 @@ const shouldDisconnect = (connId: string) => {
 }
 
 const enforceNow = async () => {
-  const useDisconnect = !!autoDisconnectLimitedUsers.value
-  const useHardBlock = !!hardBlockLimitedUsers.value
-  if (!useDisconnect && !useHardBlock) return
+  const cfgDisconnect = !!autoDisconnectLimitedUsers.value
+  const cfgHardBlock = !!hardBlockLimitedUsers.value
 
   cleanupDisconnectCache()
 
@@ -421,13 +420,26 @@ const enforceNow = async () => {
     return false
   }
 
+  // Compute blocked users once (manual block OR exceeded limits).
+  const blockedUsers: string[] = []
+  for (const [user] of Object.entries(userLimits.value)) {
+    if (isUserBlocked(user)) blockedUsers.push(user)
+  }
+
+  const hasBlockedUsers = blockedUsers.length > 0
+  // If user explicitly blocks someone or limits are exceeded, enforcement should still apply
+  // even if global toggles are off (best-effort UX).
+  const useHardBlock = cfgHardBlock || hasBlockedUsers
+  const useDisconnect = cfgDisconnect || useHardBlock || hasBlockedUsers
+
+  const hasAnyManaged =
+    (managedLanDisallowedCidrs.value || []).length > 0 || Object.keys(managedAgentBlocks.value || {}).length > 0
+
+  // Nothing to do, and nothing to clean up.
+  if (!useHardBlock && !useDisconnect && !hasAnyManaged) return
+
   // --- Hard block via Mihomo `lan-disallowed-ips` ---
   if (useHardBlock) {
-    const blockedUsers: string[] = []
-    for (const [user] of Object.entries(userLimits.value)) {
-      if (isUserBlocked(user)) blockedUsers.push(user)
-    }
-
     // If router-agent is enabled, prefer MAC-based blocks to keep blocks stable across DHCP IP changes.
     // We still keep Mihomo `lan-disallowed-ips` in sync (IP-based) as an additional layer.
     const desiredBlockedMacs: string[] = []
@@ -508,12 +520,12 @@ const enforceNow = async () => {
     }
   }
 
-  // Disconnect active connections for blocked users
+  // Disconnect active connections for blocked users (makes blocks immediate).
   const tasks: Promise<any>[] = []
-  // If hard-block is enabled we still disconnect to make the block immediate.
-  if (useDisconnect || useHardBlock) {
+  if (useDisconnect) {
+    const blockedSet = new Set(blockedUsers)
     for (const [user, ids] of connsByUser.entries()) {
-      if (!isUserBlocked(user)) continue
+      if (!blockedSet.has(user) && !isUserBlocked(user)) continue
       for (const id of ids) {
         if (!shouldDisconnect(id)) continue
         tasks.push(disconnectByIdSilentAPI(id).catch(() => null))

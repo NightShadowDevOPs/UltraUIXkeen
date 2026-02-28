@@ -855,24 +855,56 @@ const refreshMac = async () => {
   try {
     const macs = new Set<string>()
 
+    const macRe = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i
+    const extractMac = (val: any): string => {
+      if (!val) return ''
+      if (typeof val === 'string') {
+        const v = val.trim().toLowerCase()
+        return macRe.test(v) ? v : ''
+      }
+      if (typeof val !== 'object') return ''
+      const candidates = [
+        (val as any).mac,
+        (val as any).MAC,
+        (val as any).result,
+        (val as any).value,
+        (val as any).data?.mac,
+        (val as any).data?.value,
+      ]
+      for (const c of candidates) {
+        const m = extractMac(c)
+        if (m) return m
+      }
+      return ''
+    }
+
     // Lazy import to avoid increasing initial bundle work.
     const { agentIpToMacAPI, agentNeighborsAPI } = await import('@/api/agent')
+
+    // Neighbors fallback (single request), used when ip2mac fails or returns unexpected shape.
+    let neighbors: any[] | null = null
+    const loadNeighbors = async () => {
+      if (neighbors !== null) return neighbors
+      const n = await agentNeighborsAPI().catch(() => null)
+      neighbors = n?.ok && n.items ? (n.items as any[]) : []
+      return neighbors
+    }
 
     // Prefer a direct ip->mac lookup (new agent). Fall back to neighbors list.
     for (const ip of ips) {
       const r = await agentIpToMacAPI(ip)
-      const mac = (r?.mac || '').trim().toLowerCase()
-      if (r?.ok && mac) macs.add(mac)
-      // If command is unsupported, fall back to neighbors.
-      if (!r?.ok && (r?.error || '').includes('unknown-cmd')) {
-        const n = await agentNeighborsAPI()
-        if (n?.ok && n.items) {
-          for (const it of n.items) {
-            if ((it.ip || '').trim() !== ip) continue
-            const m = (it.mac || '').trim().toLowerCase()
-            if (m) macs.add(m)
-          }
-        }
+      const mac = extractMac(r)
+      if ((r as any)?.ok && mac) {
+        macs.add(mac)
+        continue
+      }
+
+      // Fallback: neighbors table.
+      const nitems = await loadNeighbors()
+      for (const it of nitems) {
+        if ((it?.ip || '').trim() !== ip) continue
+        const m = extractMac(it?.mac)
+        if (m) macs.add(m)
       }
     }
 
@@ -912,7 +944,7 @@ const clearMac = () => {
   macCandidates.value = []
 }
 
-const saveLimits = () => {
+const saveLimits = async () => {
   const user = limitsUser.value
   if (!user) return
 
@@ -940,20 +972,37 @@ const saveLimits = () => {
   })
 
   limitsDialogOpen.value = false
+
+  // Apply right away so that manual block/limits feel instant.
+  try {
+    await applyUserEnforcementNow()
+  } catch {
+    // ignore
+  }
 }
 
-const clearLimits = () => {
+const clearLimits = async () => {
   const user = limitsUser.value
   if (!user) return
   clearUserLimit(user)
   limitsDialogOpen.value = false
+  try {
+    await applyUserEnforcementNow()
+  } catch {
+    // ignore
+  }
 }
 
-const resetCounter = () => {
+const resetCounter = async () => {
   const user = limitsUser.value
   if (!user) return
   setUserLimit(user, {
     resetAt: Date.now(),
   })
+  try {
+    await applyUserEnforcementNow()
+  } catch {
+    // ignore
+  }
 }
 </script>

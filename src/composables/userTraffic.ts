@@ -97,7 +97,9 @@ export const initUserTrafficRecorder = () => {
         seen.add(id)
 
         const ip = c?.metadata?.sourceIP || ''
-        const user = getIPLabelFromMap(ip)
+        // Some configs can have empty labels; never drop traffic because of that.
+        const mapped = getIPLabelFromMap(ip)
+        const user = (mapped || ip || '').toString()
 
         const curDl = Number((c as any)?.download ?? 0) || 0
         const curUl = Number((c as any)?.upload ?? 0) || 0
@@ -111,6 +113,16 @@ export const initUserTrafficRecorder = () => {
         }
         if (!Number.isFinite(d) || d < 0) d = 0
         if (!Number.isFinite(u) || u < 0) u = 0
+
+        // Fallback: if totals are not available for some builds but per-tick deltas exist.
+        if (d === 0 && u === 0) {
+          const sd = Number((c as any)?.downloadSpeed ?? 0) || 0
+          const su = Number((c as any)?.uploadSpeed ?? 0) || 0
+          if (sd > 0 || su > 0) {
+            d = sd
+            u = su
+          }
+        }
 
         add(user, d, u, now)
 

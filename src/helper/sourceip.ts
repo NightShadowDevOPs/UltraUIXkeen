@@ -53,16 +53,20 @@ export const getIPLabelFromMap = (ip: string) => {
   if (isIPv6) {
     for (const [key, label] of sourceIPMap.entries()) {
       if (ip.endsWith(key)) {
-        return cacheResult(ip, label)
+        // If label is empty, fall back to the key itself.
+        return cacheResult(ip, (label || '').trim() ? label : key)
       }
     }
   } else if (sourceIPMap.has(ip)) {
-    return cacheResult(ip, sourceIPMap.get(ip)!)
+    const label = sourceIPMap.get(ip)!
+    // If label is empty, fall back to IP itself.
+    return cacheResult(ip, (label || '').trim() ? label : ip)
   }
 
   for (const { regex, label } of sourceIPRegexList) {
     if (regex.test(ip)) {
-      return cacheResult(ip, label)
+      // If label is empty, fall back to IP itself.
+      return cacheResult(ip, (label || '').trim() ? label : ip)
     }
   }
 
