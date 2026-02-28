@@ -4,6 +4,7 @@
     ref="proxiesRef"
     @scroll.passive="handleScroll"
   >
+    <ProxyProvidersHealthSummary />
     <template v-if="displayTwoColumns">
       <div class="grid grid-cols-2 gap-1">
         <div
@@ -38,6 +39,7 @@
 import ProxyGroup from '@/components/proxies/ProxyGroup.vue'
 import ProxyGroupForMobile from '@/components/proxies/ProxyGroupForMobile.vue'
 import ProxyProvider from '@/components/proxies/ProxyProvider.vue'
+import ProxyProvidersHealthSummary from '@/components/proxies/ProxyProvidersHealthSummary.vue'
 import { renderGroups } from '@/composables/proxies'
 import { PROXY_TAB_TYPE } from '@/constant'
 import { isMiddleScreen } from '@/helper/utils'

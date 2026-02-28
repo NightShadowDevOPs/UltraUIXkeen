@@ -8,6 +8,12 @@
     <div ref="chart" class="h-full w-full" />
     <span class="border-base-content/30 text-base-content/10 bg-base-100/70 hidden" ref="colorRef" />
 
+    <div v-if="filterMode !== 'none'" class="absolute left-2 top-2 z-10">
+      <button class="badge badge-outline cursor-pointer hover:opacity-80" @click.stop="clearFilter" :title="$t('clear')">
+        {{ filterMode === 'only' ? $t('topologyFilterOnly') : $t('topologyFilterExclude') }}
+      </button>
+    </div>
+
     <button
       :class="
         twMerge(
@@ -49,6 +55,131 @@
       </button>
     </div>
   </Teleport>
+
+  <!-- details sidebar (node click) -->
+  <Teleport to="body">
+    <div
+      v-if="focus"
+      class="fixed inset-0 z-[10010]"
+      tabindex="-1"
+      @keydown.esc.stop.prevent="closeDetails"
+    >
+      <div class="absolute inset-0 bg-black/30" @click="closeDetails" />
+      <div
+        class="bg-base-100 absolute right-2 top-2 bottom-2 w-[420px] max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl overflow-hidden"
+        @click.stop
+      >
+        <div class="flex items-start justify-between gap-2 border-b border-base-content/10 p-3">
+          <div class="min-w-0">
+            <div class="text-sm opacity-70">{{ focusHeader.stageLabel }}</div>
+            <div class="font-semibold leading-tight truncate" :title="focusHeader.title">{{ focusHeader.title }}</div>
+            <div v-if="focusHeader.subTitle" class="text-xs opacity-70 truncate" :title="focusHeader.subTitle">
+              {{ focusHeader.subTitle }}
+            </div>
+          </div>
+
+          <button class="btn btn-ghost btn-circle btn-sm" @click="closeDetails" :title="$t('close')">
+            <XMarkIcon class="h-5 w-5" />
+          </button>
+        </div>
+
+        <div class="p-3 flex flex-col gap-3 overflow-y-auto h-full">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="btn btn-xs"
+              :class="filterMode === 'only' && isSameFocus(filterFocus, focus) ? 'btn-active' : 'btn-outline'"
+              :disabled="focus.kind !== 'value'"
+              @click="applyOnly"
+            >
+              <FunnelIcon class="h-4 w-4" />
+              {{ $t('topologyOnlyThis') }}
+            </button>
+            <button
+              class="btn btn-xs"
+              :class="filterMode === 'exclude' && isSameFocus(filterFocus, focus) ? 'btn-active' : 'btn-outline'"
+              :disabled="focus.kind !== 'value'"
+              @click="applyExclude"
+            >
+              <NoSymbolIcon class="h-4 w-4" />
+              {{ $t('topologyExcludeThis') }}
+            </button>
+            <button class="btn btn-xs btn-ghost" :disabled="filterMode === 'none'" @click="clearFilter">
+              {{ $t('clear') }}
+            </button>
+          </div>
+
+          <div class="stats stats-vertical lg:stats-horizontal shadow-sm">
+            <div class="stat py-2">
+              <div class="stat-title">{{ $t('traffic') }}</div>
+              <div class="stat-value text-lg">{{ prettyBytesHelper(detailsTotals.bytes) }}</div>
+            </div>
+            <div class="stat py-2">
+              <div class="stat-title">{{ $t('count') }}</div>
+              <div class="stat-value text-lg">{{ detailsTotals.count }}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3">
+            <div class="card bg-base-200/40">
+              <div class="card-body p-3">
+                <div class="font-semibold">{{ $t('topologyTopUsers') }}</div>
+                <div class="divider my-1" />
+                <div class="space-y-1">
+                  <button
+                    v-for="it in topUsers"
+                    :key="it.key"
+                    class="btn btn-ghost btn-sm w-full justify-between"
+                    @click="setFocus({ stage: 'C', kind: 'value', value: it.key })"
+                    :title="it.title"
+                  >
+                    <span class="truncate text-left">{{ it.label }}</span>
+                    <span class="ml-2 shrink-0 text-xs opacity-70">{{ it.metric }}</span>
+                  </button>
+                  <div v-if="!topUsers.length" class="text-sm opacity-70">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-base-200/40">
+              <div class="card-body p-3">
+                <div class="font-semibold">{{ $t('topologyTopRules') }}</div>
+                <div class="divider my-1" />
+                <div class="space-y-1">
+                  <button
+                    v-for="it in topRules"
+                    :key="it.key"
+                    class="btn btn-ghost btn-sm w-full justify-between"
+                    @click="setFocus({ stage: 'R', kind: 'value', value: it.key })"
+                    :title="it.title"
+                  >
+                    <span class="truncate text-left">{{ it.label }}</span>
+                    <span class="ml-2 shrink-0 text-xs opacity-70">{{ it.metric }}</span>
+                  </button>
+                  <div v-if="!topRules.length" class="text-sm opacity-70">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-base-200/40">
+              <div class="card-body p-3">
+                <div class="font-semibold">{{ $t('topologyTopProviders') }}</div>
+                <div class="divider my-1" />
+                <div class="space-y-1">
+                  <div v-for="it in topProviders" :key="it.key" class="flex items-center justify-between gap-2">
+                    <span class="truncate" :title="it.title">{{ it.label }}</span>
+                    <span class="shrink-0 text-xs opacity-70">{{ it.metric }}</span>
+                  </div>
+                  <div v-if="!topProviders.length" class="text-sm opacity-70">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="opacity-0 h-10" />
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -68,7 +199,7 @@ import {
 } from '@/store/settings'
 import { activeBackend } from '@/store/setup'
 import type { Connection } from '@/types'
-import { ArrowsPointingInIcon, ArrowsPointingOutIcon } from '@heroicons/vue/24/outline'
+import { ArrowsPointingInIcon, ArrowsPointingOutIcon, FunnelIcon, NoSymbolIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useElementSize, useStorage } from '@vueuse/core'
 import { SankeyChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
@@ -202,6 +333,62 @@ const colorFromKey = (key: string) => {
   return `hsl(${h % 360} 70% 55%)`
 }
 
+type FocusStage = 'C' | 'R' | 'G' | 'S'
+type Focus = { stage: FocusStage; kind: 'value' | 'other'; value?: string }
+type FilterMode = 'none' | 'only' | 'exclude'
+
+const focus = ref<Focus | null>(null)
+const filterMode = ref<FilterMode>('none')
+const filterFocus = ref<Focus | null>(null)
+
+const setFocus = (v: Focus) => {
+  focus.value = v
+}
+
+const closeDetails = () => {
+  focus.value = null
+}
+
+const isSameFocus = (a: Focus | null, b: Focus | null) => {
+  if (!a || !b) return false
+  if (a.stage !== b.stage || a.kind !== b.kind) return false
+  if (a.kind === 'other') return true
+  return (a.value || '') === (b.value || '')
+}
+
+const clearFilter = () => {
+  filterMode.value = 'none'
+  filterFocus.value = null
+}
+
+const applyOnly = () => {
+  if (!focus.value || focus.value.kind !== 'value') return
+  filterMode.value = 'only'
+  filterFocus.value = { ...focus.value }
+}
+
+const applyExclude = () => {
+  if (!focus.value || focus.value.kind !== 'value') return
+  filterMode.value = 'exclude'
+  filterFocus.value = { ...focus.value }
+}
+
+const otherLabels = computed(() => {
+  const OTHER = t('other')
+  return {
+    C: `${OTHER}`,
+    R: `${OTHER} (${t('rule')})`,
+    G: `${OTHER} (${t('proxyGroup')})`,
+    S: `${OTHER} (${t('proxies')})`,
+  } as const
+})
+
+const ipFromClientLabel = (label: string) => {
+  const s = (label || '').trim()
+  const m = s.match(/\(([^()]+)\)\s*$/)
+  return (m?.[1] || s).trim()
+}
+
 // ----- snapshot (обновляемся каждые 5 секунд) -----
 const snapshot = ref<Connection[]>([])
 const deltaBytesById = ref<Record<string, number>>({})
@@ -258,41 +445,82 @@ const startTimer = () => {
   timer = window.setInterval(refreshSnapshot, 5000)
 }
 
+const bytesOf = (c: Connection) => {
+  const id = (c as any).id || ''
+  if (id && deltaBytesById.value[id] !== undefined) return Number(deltaBytesById.value[id]) || 0
+  return (Number((c as any).downloadSpeed) || 0) + (Number((c as any).uploadSpeed) || 0)
+}
+
+const fmtRule = (c: Connection) => {
+  const rt = normalize((c as any).rule)
+  const rp = String((c as any).rulePayload || '').trim()
+  return rp ? `${rt}: ${normalize(rp)}` : rt
+}
+
+const getGroupServer = (c: Connection) => {
+  const arr = (c.chains || []).map(normalize).filter((x) => x && x !== '-')
+  const group = arr[0] || 'DIRECT'
+  const server = arr[arr.length - 1] || group
+  return { group, server }
+}
+
 type LinkAgg = { value: number; bytes: number; count: number; colorVotes: Record<string, number> }
 
 type NodeMeta = { bytes: number; count: number; provider?: string }
 
-const sankeyData = computed(() => {
+type SankeyModel = {
+  nodes: any[]
+  links: any[]
+  nodeMeta: Map<string, NodeMeta>
+  topClients: Set<string>
+  topRules: Set<string>
+  topGroups: Set<string>
+  topServers: Set<string>
+  OTHER_CLIENT: string
+  OTHER_RULE: string
+  OTHER_GROUP: string
+  OTHER_SERVER: string
+}
+
+const filteredSnapshot = computed(() => {
   const conns = snapshot.value || []
+  if (filterMode.value === 'none' || !filterFocus.value) return conns
+  const f = filterFocus.value
+  if (f.kind !== 'value' || !f.value) return conns
+
+  const match = (c: Connection) => {
+    const ip = c.metadata?.sourceIP || ''
+    const rule = fmtRule(c)
+    const { group, server } = getGroupServer(c)
+    if (f.stage === 'C') return ip === f.value
+    if (f.stage === 'R') return rule === f.value
+    if (f.stage === 'G') return group === f.value
+    return server === f.value
+  }
+
+  const keep = filterMode.value === 'only'
+  return conns.filter((c) => (keep ? match(c) : !match(c)))
+})
+
+const sankeyData = computed(() => {
+  const conns = filteredSnapshot.value || []
 
   const topClientsN = Math.max(10, Number(proxiesRelationshipTopN.value) || 40)
   const topRulesN = Math.max(10, Math.floor(topClientsN * 1.5))
   const topGroupsN = Math.max(10, Math.floor(topClientsN * 1.2))
   const topServersN = topGroupsN
 
-  const bytes = (c: Connection) => {
-    const id = (c as any).id || ''
-    if (id && deltaBytesById.value[id] !== undefined) return Number(deltaBytesById.value[id]) || 0
-    return (Number((c as any).downloadSpeed) || 0) + (Number((c as any).uploadSpeed) || 0)
-  }
-
   const metricForTop = (c: Connection) => {
     if (proxiesRelationshipWeightMode.value === 'count') return 1
-    return bytes(c)
+    return bytesOf(c)
   }
 
   const weight = (c: Connection) => {
     if (proxiesRelationshipWeightMode.value === 'count') return 1
-    const b = bytes(c)
+    const b = bytesOf(c)
     if (b <= 0) return 0
     // log compression to avoid "giant bars"
     return Math.min(1 + Math.log1p(b) / 6, 18)
-  }
-
-  const fmtRule = (c: Connection) => {
-    const rt = normalize((c as any).rule)
-    const rp = String((c as any).rulePayload || '').trim()
-    return rp ? `${rt}: ${normalize(rp)}` : rt
   }
 
   const colorKeyOf = (rawRule: string, group: string, server: string, c: Connection) => {
@@ -304,12 +532,6 @@ const sankeyData = computed(() => {
     return server || group || rawRule
   }
 
-  const getGroupServer = (c: Connection) => {
-    const arr = (c.chains || []).map(normalize).filter((x) => x && x !== '-')
-    const group = arr[0] || 'DIRECT'
-    const server = arr[arr.length - 1] || group
-    return { group, server }
-  }
 
   const totalsClients = new Map<string, number>()
   const totalsRules = new Map<string, number>()
@@ -360,11 +582,10 @@ const sankeyData = computed(() => {
       .map(([k]) => k),
   )
 
-  const OTHER = t('other')
-  const OTHER_CLIENT = `${OTHER}`
-  const OTHER_RULE = `${OTHER} (${t('rule')})`
-  const OTHER_GROUP = `${OTHER} (${t('proxyGroup')})`
-  const OTHER_SERVER = `${OTHER} (${t('proxies')})`
+  const OTHER_CLIENT = otherLabels.value.C
+  const OTHER_RULE = otherLabels.value.R
+  const OTHER_GROUP = otherLabels.value.G
+  const OTHER_SERVER = otherLabels.value.S
 
   const node = (stage: 'C' | 'R' | 'G' | 'S', label: string) => `${stage}:${label}`
 
@@ -390,7 +611,7 @@ const sankeyData = computed(() => {
   }
 
   const add = (s: string, tname: string, c: Connection, colorKey: string) => {
-    const b = bytes(c)
+    const b = bytesOf(c)
     const v = weight(c)
     if (v <= 0 && b <= 0) return
     const key = `${s}\u0000${tname}`
@@ -480,7 +701,134 @@ const sankeyData = computed(() => {
       }
     })
 
-  return { nodes, links, nodeMeta }
+  return {
+    nodes,
+    links,
+    nodeMeta,
+    topClients,
+    topRules,
+    topGroups,
+    topServers,
+    OTHER_CLIENT,
+    OTHER_RULE,
+    OTHER_GROUP,
+    OTHER_SERVER,
+  } satisfies SankeyModel
+})
+
+const matchesFocus = (c: Connection, f: Focus, model: SankeyModel) => {
+  const ip = c.metadata?.sourceIP || ''
+  const rule = fmtRule(c)
+  const { group, server } = getGroupServer(c)
+
+  if (f.stage === 'C') return f.kind === 'other' ? !model.topClients.has(ip) : ip === (f.value || '')
+  if (f.stage === 'R') return f.kind === 'other' ? !model.topRules.has(rule) : rule === (f.value || '')
+  if (f.stage === 'G') return f.kind === 'other' ? !model.topGroups.has(group) : group === (f.value || '')
+  return f.kind === 'other' ? !model.topServers.has(server) : server === (f.value || '')
+}
+
+const detailsConns = computed(() => {
+  if (!focus.value) return []
+  const model = sankeyData.value
+  return (filteredSnapshot.value || []).filter((c) => matchesFocus(c, focus.value!, model))
+})
+
+const detailsTotals = computed(() => {
+  let b = 0
+  let cnt = 0
+  for (const c of detailsConns.value) {
+    b += bytesOf(c)
+    cnt += 1
+  }
+  return { bytes: b, count: cnt }
+})
+
+type ListItem = { key: string; label: string; title: string; bytes: number; count: number; metric: string }
+
+const listMetric = (it: { bytes: number; count: number }) => {
+  return proxiesRelationshipWeightMode.value === 'count' ? `${it.count}` : prettyBytesHelper(it.bytes)
+}
+
+const buildTopList = (m: Map<string, { bytes: number; count: number }>, makeLabel: (k: string) => string) => {
+  const arr: ListItem[] = Array.from(m.entries()).map(([key, v]) => {
+    const label = makeLabel(key)
+    return { key, label, title: label, bytes: v.bytes, count: v.count, metric: listMetric(v) }
+  })
+  const sortByCount = proxiesRelationshipWeightMode.value === 'count'
+  arr.sort((a, b) => (sortByCount ? b.count - a.count : b.bytes - a.bytes))
+  return arr.slice(0, 10)
+}
+
+const topUsers = computed(() => {
+  const m = new Map<string, { bytes: number; count: number }>()
+  for (const c of detailsConns.value) {
+    const ip = c.metadata?.sourceIP || ''
+    if (!ip) continue
+    const cur = m.get(ip) || { bytes: 0, count: 0 }
+    cur.bytes += bytesOf(c)
+    cur.count += 1
+    m.set(ip, cur)
+  }
+  return buildTopList(m, (ip) => {
+    const lbl = labelForIp(ip)
+    return lbl ? `${lbl} (${ip})` : ip
+  })
+})
+
+const topRules = computed(() => {
+  const m = new Map<string, { bytes: number; count: number }>()
+  for (const c of detailsConns.value) {
+    const rule = fmtRule(c)
+    const cur = m.get(rule) || { bytes: 0, count: 0 }
+    cur.bytes += bytesOf(c)
+    cur.count += 1
+    m.set(rule, cur)
+  }
+  return buildTopList(m, (k) => k)
+})
+
+const topProviders = computed(() => {
+  const m = new Map<string, { bytes: number; count: number }>()
+  for (const c of detailsConns.value) {
+    const { group, server } = getGroupServer(c)
+    const p = providerOf(server) || providerOf(group) || t('none')
+    const cur = m.get(p) || { bytes: 0, count: 0 }
+    cur.bytes += bytesOf(c)
+    cur.count += 1
+    m.set(p, cur)
+  }
+  return buildTopList(m, (k) => k)
+})
+
+const focusHeader = computed(() => {
+  const f = focus.value
+  if (!f) return { stageLabel: '', title: '', subTitle: '' }
+
+  const stageLabel =
+    f.stage === 'C'
+      ? t('proxiesRelationshipClients')
+      : f.stage === 'R'
+        ? t('rule')
+        : f.stage === 'G'
+          ? t('proxyGroup')
+          : t('proxies')
+
+  if (f.kind === 'other') {
+    const m = sankeyData.value
+    const title = f.stage === 'C' ? m.OTHER_CLIENT : f.stage === 'R' ? m.OTHER_RULE : f.stage === 'G' ? m.OTHER_GROUP : m.OTHER_SERVER
+    return { stageLabel, title, subTitle: '' }
+  }
+
+  const v = (f.value || '').trim()
+  if (f.stage === 'C') {
+    const lbl = labelForIp(v)
+    return { stageLabel, title: lbl ? `${lbl} (${v})` : v, subTitle: '' }
+  }
+  if (f.stage === 'S') {
+    const p = providerOf(v)
+    return { stageLabel, title: v, subTitle: p ? `${t('provider')}: ${p}` : '' }
+  }
+  return { stageLabel, title: v, subTitle: '' }
 })
 
 const tooltipFormatter = (p: any) => {
@@ -605,6 +953,31 @@ const options = computed(() => ({
 let mainChart: echarts.ECharts | null = null
 let fsChart: echarts.ECharts | null = null
 
+const handleNodeClick = (params: any) => {
+  if (!params || params.dataType !== 'node') return
+  const name = String(params.name || '')
+  const st = stageOf(name) as FocusStage
+  const lbl = labelOf(name)
+
+  const isOther =
+    (st === 'C' && lbl === otherLabels.value.C) ||
+    (st === 'R' && lbl === otherLabels.value.R) ||
+    (st === 'G' && lbl === otherLabels.value.G) ||
+    (st === 'S' && lbl === otherLabels.value.S)
+
+  if (isOther) {
+    setFocus({ stage: st, kind: 'other' })
+    return
+  }
+
+  if (st === 'C') {
+    setFocus({ stage: 'C', kind: 'value', value: ipFromClientLabel(lbl) })
+    return
+  }
+
+  setFocus({ stage: st, kind: 'value', value: lbl })
+}
+
 const render = (force = false) => {
   if (!mainChart) return
   mainChart.setOption(options.value as any, { notMerge: force, lazyUpdate: true })
@@ -623,13 +996,17 @@ onMounted(() => {
 
   mainChart = echarts.init(chart.value)
   mainChart.setOption(options.value as any)
+  mainChart.on('click', handleNodeClick)
 
   watch(options, () => render(false))
 
   watch(isFullScreen, async (v) => {
     if (v) {
       await nextTick()
-      if (!fsChart) fsChart = echarts.init(fullScreenChart.value)
+      if (!fsChart) {
+        fsChart = echarts.init(fullScreenChart.value)
+        fsChart.on('click', handleNodeClick)
+      }
       fsChart.resize()
       render(true)
     } else {

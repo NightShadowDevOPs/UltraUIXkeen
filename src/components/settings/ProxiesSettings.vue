@@ -160,6 +160,14 @@
           />
         </div>
         <div class="flex items-center gap-2">
+          {{ $t('autoSortProxyProvidersByHealth') }}
+          <input
+            class="toggle"
+            type="checkbox"
+            v-model="autoSortProxyProvidersByHealth"
+          />
+        </div>
+        <div class="flex items-center gap-2">
           {{ $t('proxyGroupIconSize') }}
           <input
             type="number"
@@ -207,6 +215,7 @@ import {
   hideUnusedProxyProviders,
   twoColumnProxyGroup,
 } from '@/store/settings'
+import { autoSortProxyProvidersByHealth } from '@/store/providerHealth'
 import { QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
 import { useI18n } from 'vue-i18n'
 import TextInput from '../common/TextInput.vue'

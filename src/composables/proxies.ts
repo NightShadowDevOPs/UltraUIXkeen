@@ -1,9 +1,11 @@
 import { isSingBox } from '@/api'
 import { GLOBAL, PROXY_TAB_TYPE } from '@/constant'
 import { isHiddenGroup } from '@/helper'
+import { getProviderHealth } from '@/helper/providerHealth'
 import { configs } from '@/store/config'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
 import { customGlobalNode, displayGlobalByMode, hideUnusedProxyProviders, manageHiddenGroup } from '@/store/settings'
+import { agentProviderByName, autoSortProxyProvidersByHealth, providerHealthFilter } from '@/store/providerHealth'
 import { isEmpty } from 'lodash'
 import { computed } from 'vue'
 
@@ -34,9 +36,26 @@ export const renderGroups = computed(() => {
       return (provider.proxies || []).some((p: any) => usedProxyNames.has(p.name))
     }
 
-    return proxyProviederList.value
-      .filter((p) => !hideUnusedProxyProviders.value || isUsed(p))
-      .map((p) => p.name)
+    let list = proxyProviederList.value.filter((p) => !hideUnusedProxyProviders.value || isUsed(p))
+
+    if (providerHealthFilter.value) {
+      const target = providerHealthFilter.value
+      list = list.filter((p: any) => {
+        const h = getProviderHealth(p as any, agentProviderByName.value[p.name])
+        return h.status === target
+      })
+    }
+
+    if (autoSortProxyProvidersByHealth.value) {
+      list = [...list].sort((a: any, b: any) => {
+        const ha = getProviderHealth(a as any, agentProviderByName.value[a.name])
+        const hb = getProviderHealth(b as any, agentProviderByName.value[b.name])
+        if (ha.severity !== hb.severity) return ha.severity - hb.severity
+        return String(a.name).localeCompare(String(b.name))
+      })
+    }
+
+    return list.map((p) => p.name)
   }
 
   if (displayGlobalByMode.value) {
