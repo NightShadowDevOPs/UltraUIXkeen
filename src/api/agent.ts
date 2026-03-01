@@ -208,6 +208,33 @@ export const agentGeoInfoAPI = async (): Promise<{
 }
 
 
+export const agentGeoUpdateAPI = async (): Promise<{
+  ok: boolean
+  items?: Array<{
+    kind?: string
+    path?: string
+    changed?: boolean
+    mtimeSec?: number | string
+    sizeBytes?: number | string
+    method?: string
+    source?: string
+    error?: string
+  }>
+  note?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'geo_update' },
+      timeout: 30000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+
 export const agentRulesInfoAPI = async (): Promise<{
   ok: boolean
   dir?: string

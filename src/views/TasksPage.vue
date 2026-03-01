@@ -78,11 +78,27 @@
 
 
     <div class="card gap-2 p-3">
-      <div class="flex items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('dataFreshness') }}</div>
-        <button type="button" class="btn btn-sm btn-ghost" @click="refreshFreshness" :disabled="freshnessBusy">
-          {{ $t('refresh') }}
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-sm" @click="updateGeoNow" :disabled="geoUpdateBusy || !agentEnabled">
+            {{ $t('updateGeoNow') }}
+          </button>
+          <button type="button" class="btn btn-sm" @click="updateRuleProvidersNow" :disabled="providersUpdateBusy">
+            {{ $t('updateRuleProvidersNow') }}
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="rescanLocalRules" :disabled="rulesRescanBusy || !agentEnabled">
+            {{ $t('rescanLocalRules') }}
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="refreshFreshness" :disabled="freshnessBusy">
+            {{ $t('refresh') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="text-xs opacity-70">
+        <span class="opacity-60">{{ $t('lastUiRefresh') }}:</span>
+        <span class="ml-1 font-mono">{{ fmtTs(lastFreshnessOkAt) }}</span>
       </div>
 
       <div class="grid gap-2 md:grid-cols-2">
@@ -112,7 +128,8 @@
           <div class="mb-1 text-sm font-semibold">{{ $t('filterPoliciesFiles') }}</div>
           <div v-if="providersBusy" class="text-sm opacity-70">…</div>
           <div v-else>
-            <div v-if="!ruleProviders.length" class="text-sm opacity-70">—</div>
+            <div v-if="providersError" class="text-xs text-error">{{ providersError }}</div>
+            <div v-else-if="!ruleProviders.length" class="text-sm opacity-70">—</div>
             <div v-else class="flex flex-col gap-1 text-xs">
               <div>
                 <span class="opacity-70">{{ $t('ruleProvidersCount') }}:</span>
@@ -261,9 +278,10 @@
 </template>
 
 <script setup lang="ts">
-import { fetchRuleProvidersAPI, zashboardVersion, version as coreVersion } from '@/api'
-import { agentGeoInfoAPI, agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentRulesInfoAPI, agentStatusAPI } from '@/api/agent'
+import { fetchRuleProvidersAPI, updateRuleProviderSilentAPI, zashboardVersion, version as coreVersion } from '@/api'
+import { agentGeoInfoAPI, agentGeoUpdateAPI, agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentRulesInfoAPI, agentStatusAPI } from '@/api/agent'
 import BackendVersion from '@/components/common/BackendVersion.vue'
+import { useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
@@ -407,6 +425,8 @@ watch([logsAuto, logSource, logLines, agentEnabled], () => {
 // --- Data freshness (GEO files + filter policy files) ---
 const { t } = useI18n()
 
+const lastFreshnessOkAt = useStorage<number>('runtime/tasks-last-freshness-ok-at-v1', 0)
+
 type GeoInfoItem = {
   kind: string
   path: string
@@ -420,6 +440,7 @@ const geoError = ref('')
 const geoItems = ref<GeoInfoItem[]>([])
 
 const providersBusy = ref(false)
+const providersError = ref('')
 const ruleProviders = ref<RuleProvider[]>([])
 
 const sortedProviders = computed(() => {
@@ -456,6 +477,11 @@ const fmtUpdatedAt = (s?: string) => {
   const d = dayjs(s || '')
   if (!d.isValid()) return '—'
   return d.format('DD-MM-YYYY HH:mm:ss')
+}
+
+const fmtTs = (ts?: number) => {
+  if (!ts || !Number.isFinite(ts)) return '—'
+  return dayjs(ts).format('DD-MM-YYYY HH:mm:ss')
 }
 
 const shortPath = (p?: string) => {
@@ -500,11 +526,13 @@ const refreshGeoInfo = async () => {
 
 const refreshRuleProviders = async () => {
   providersBusy.value = true
+  providersError.value = ''
   try {
     const { data } = await fetchRuleProvidersAPI()
     ruleProviders.value = Object.values((data as any)?.providers || {})
-  } catch {
+  } catch (e: any) {
     ruleProviders.value = []
+    providersError.value = e?.message || 'failed'
   } finally {
     providersBusy.value = false
   }
@@ -559,6 +587,13 @@ const refreshRulesInfo = async () => {
 const freshnessBusy = computed(() => geoBusy.value || providersBusy.value || rulesBusy.value)
 const refreshFreshness = async () => {
   await Promise.all([refreshGeoInfo(), refreshRuleProviders(), refreshRulesInfo()])
+
+  const okProviders = !providersError.value
+  const okGeo = !agentEnabled.value || !geoError.value
+  const okRules = !agentEnabled.value || !rulesError.value
+  if (okProviders && okGeo && okRules) {
+    lastFreshnessOkAt.value = Date.now()
+  }
 }
 
 // --- Diagnostics report ---
@@ -720,6 +755,96 @@ const refreshSsl = async () => {
     }
   } finally {
     busy.value = false
+  }
+}
+
+
+// --- Data refresh operations (panel) ---
+const geoUpdateBusy = ref(false)
+const providersUpdateBusy = ref(false)
+const rulesRescanBusy = ref(false)
+
+const updateGeoNow = async () => {
+  if (!agentEnabled.value) {
+    showNotification({ content: 'agentDisabled', type: 'alert-warning', timeout: 2000 })
+    return
+  }
+  if (geoUpdateBusy.value) return
+  geoUpdateBusy.value = true
+  const id = startJob(t('updateGeoNow'))
+  try {
+    const r: any = await agentGeoUpdateAPI()
+    if (!r?.ok) {
+      finishJob(id, { ok: false, error: r?.error || 'failed' })
+      showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+      return
+    }
+    const items = Array.isArray(r?.items) ? r.items : []
+    const changed = items.filter((x: any) => x?.changed).map((x: any) => x.kind).join(', ')
+    finishJob(id, { ok: true, meta: { changed: changed || '—' } })
+    showNotification({ content: 'updateGeoSuccess', type: 'alert-success', timeout: 1600 })
+    await refreshFreshness()
+  } catch (e: any) {
+    finishJob(id, { ok: false, error: e?.message || 'failed' })
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    geoUpdateBusy.value = false
+  }
+}
+
+const updateRuleProvidersNow = async () => {
+  if (providersUpdateBusy.value) return
+  providersUpdateBusy.value = true
+  const id = startJob(t('updateRuleProvidersNow'))
+  try {
+    // Ensure we have the list
+    if (!ruleProviders.value.length) await refreshRuleProviders()
+    const names = (ruleProviders.value || []).map((p) => p.name).filter(Boolean) as string[]
+    let ok = 0
+    let fail = 0
+    for (const name of names) {
+      try {
+        await updateRuleProviderSilentAPI(name)
+        ok += 1
+      } catch {
+        fail += 1
+      }
+    }
+    await refreshRuleProviders()
+    finishJob(id, { ok: fail === 0, meta: { total: names.length, ok, fail } })
+    showNotification({ content: fail === 0 ? 'operationDone' : 'operationFailed', type: fail === 0 ? 'alert-success' : 'alert-warning', timeout: 2200 })
+    await refreshFreshness()
+  } catch (e: any) {
+    finishJob(id, { ok: false, error: e?.message || 'failed' })
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    providersUpdateBusy.value = false
+  }
+}
+
+const rescanLocalRules = async () => {
+  if (!agentEnabled.value) {
+    showNotification({ content: 'agentDisabled', type: 'alert-warning', timeout: 2000 })
+    return
+  }
+  if (rulesRescanBusy.value) return
+  rulesRescanBusy.value = true
+  const id = startJob(t('rescanLocalRules'))
+  try {
+    await refreshRulesInfo()
+    if (rulesError.value) {
+      finishJob(id, { ok: false, error: rulesError.value })
+      showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+      return
+    }
+    finishJob(id, { ok: true, meta: { files: rulesCount.value } })
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+    await refreshFreshness()
+  } catch (e: any) {
+    finishJob(id, { ok: false, error: e?.message || 'failed' })
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    rulesRescanBusy.value = false
   }
 }
 </script>

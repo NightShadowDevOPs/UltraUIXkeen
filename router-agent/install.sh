@@ -49,6 +49,11 @@ MIHOMO_CONFIG="/opt/etc/mihomo/config.yaml"
 # Optional: explicit path to Mihomo log file (if log-file is not set in config)
 MIHOMO_LOG=""
 
+# Optional: custom GEO download URLs (used by cmd=geo_update)
+GEOIP_URL="https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
+GEOSITE_URL="https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
+ASN_URL="https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb"
+
 # Optional: set a token to require Authorization: Bearer <token>
 TOKEN=""
 
@@ -75,6 +80,9 @@ BLOCKS_FILE="${BLOCKS_FILE:-/opt/zash-agent/var/blocks.db}"
 TOKEN="${TOKEN:-}"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
+GEOIP_URL="${GEOIP_URL:-https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat}"
+GEOSITE_URL="${GEOSITE_URL:-https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat}"
+ASN_URL="${ASN_URL:-https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb}"
 WAN_RATE="${WAN_RATE:-1000}"
 LAN_RATE="${LAN_RATE:-1000}"
 
@@ -320,6 +328,167 @@ geo_info_json() {
   add_item mmdb "$mmdb_path"
   printf ']}'
 }
+
+geo_update_json() {
+  # Update GeoIP/GeoSite/ASN database files on router.
+  # Prefer xkeen if available (xkeen -ugi / -ugs). Fallback to direct downloads via wget/curl.
+
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  cfg_dir="$(dirname "$MIHOMO_CONFIG" 2>/dev/null || echo /opt/etc/mihomo)"
+  [ -d "$cfg_dir" ] || cfg_dir="/opt/etc/mihomo"
+
+  pick_target() {
+    kind="$1"
+    case "$kind" in
+      geoip)
+        for f in GeoIP.dat geoip.dat; do
+          [ -f "$cfg_dir/$f" ] && { echo "$cfg_dir/$f"; return; }
+        done
+        echo "$cfg_dir/GeoIP.dat"
+        ;;
+      geosite)
+        for f in GeoSite.dat geosite.dat; do
+          [ -f "$cfg_dir/$f" ] && { echo "$cfg_dir/$f"; return; }
+        done
+        echo "$cfg_dir/GeoSite.dat"
+        ;;
+      asn)
+        for f in ASN.mmdb GeoLite2-ASN.mmdb asn.mmdb; do
+          [ -f "$cfg_dir/$f" ] && { echo "$cfg_dir/$f"; return; }
+        done
+        echo "$cfg_dir/ASN.mmdb"
+        ;;
+    esac
+  }
+
+  pick_fetcher() {
+    # Prefer Entware wget/curl for HTTPS
+    if [ -x /opt/bin/wget ]; then echo '/opt/bin/wget'; return; fi
+    if command -v wget >/dev/null 2>&1; then echo 'wget'; return; fi
+    if [ -x /opt/bin/curl ]; then echo '/opt/bin/curl'; return; fi
+    if command -v curl >/dev/null 2>&1; then echo 'curl'; return; fi
+    echo ''
+  }
+
+  fetcher="$(pick_fetcher)"
+
+  dl_to() {
+    url="$1"
+    out="$2"
+    tmp="${out}.tmp.$$"
+    rm -f "$tmp" 2>/dev/null || true
+
+    if [ -z "$fetcher" ]; then
+      return 2
+    fi
+
+    if echo "$fetcher" | grep -q wget; then
+      "$fetcher" -qO "$tmp" "$url" 2>/dev/null || return 1
+    else
+      "$fetcher" -fsSL "$url" -o "$tmp" 2>/dev/null || return 1
+    fi
+
+    sz="$(wc -c < "$tmp" 2>/dev/null || echo 0)"
+    echo "$sz" | grep -qE '^[0-9]+$' || sz=0
+    # sanity check: avoid overwriting with a tiny HTML error page
+    [ "$sz" -ge 1024 ] || { rm -f "$tmp" 2>/dev/null || true; return 3; }
+
+    mv -f "$tmp" "$out" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; return 4; }
+    return 0
+  }
+
+  # Targets
+  t_geoip="$(pick_target geoip)"
+  t_geosite="$(pick_target geosite)"
+  t_asn="$(pick_target asn)"
+
+  b_geoip=0; [ -f "$t_geoip" ] && b_geoip="$(stat_mtime_sec "$t_geoip")"
+  b_geosite=0; [ -f "$t_geosite" ] && b_geosite="$(stat_mtime_sec "$t_geosite")"
+  b_asn=0; [ -f "$t_asn" ] && b_asn="$(stat_mtime_sec "$t_asn")"
+
+  # Try xkeen built-in updater when present
+  used_xkeen=0
+  if command -v xkeen >/dev/null 2>&1; then
+    used_xkeen=1
+    xkeen -ugi >/dev/null 2>&1 || true
+    xkeen -ugs >/dev/null 2>&1 || true
+  fi
+
+  items=''
+  first=1
+  add_res() {
+    kind="$1"; path="$2"; changed="$3"; ok="$4"; method_="$5"; src="$6"; err="$7"
+    m=0; s=0
+    if [ -f "$path" ]; then
+      m="$(stat_mtime_sec "$path")"
+      s="$(stat_size_bytes "$path")"
+    fi
+    [ "$first" -eq 0 ] && items="$items,"
+    first=0
+    items="$items{\"kind\":\"$(jesc "$kind")\",\"path\":\"$(jesc "$path")\",\"ok\":$ok,\"changed\":$changed,\"mtimeSec\":$m,\"sizeBytes\":$s,\"method\":\"$(jesc "$method_")\",\"source\":\"$(jesc "$src")\",\"error\":\"$(jesc "$err")\"}"
+  }
+
+  # Snapshot after xkeen attempt
+  a_geoip=0; [ -f "$t_geoip" ] && a_geoip="$(stat_mtime_sec "$t_geoip")"
+  a_geosite=0; [ -f "$t_geosite" ] && a_geosite="$(stat_mtime_sec "$t_geosite")"
+  a_asn=0; [ -f "$t_asn" ] && a_asn="$(stat_mtime_sec "$t_asn")"
+
+  # GEOIP
+  if [ $used_xkeen -eq 1 ] && [ -f "$t_geoip" ] && [ "$a_geoip" -gt "$b_geoip" ]; then
+    add_res geoip "$t_geoip" true true 'xkeen' 'xkeen -ugi' ''
+  else
+    rc=0
+    dl_to "$GEOIP_URL" "$t_geoip"; rc=$?
+    if [ $rc -eq 0 ]; then
+      add_res geoip "$t_geoip" true true 'download' "$GEOIP_URL" ''
+    else
+      add_res geoip "$t_geoip" false false 'download' "$GEOIP_URL" "download-failed($rc)"
+    fi
+  fi
+
+  # GEOSITE
+  if [ $used_xkeen -eq 1 ] && [ -f "$t_geosite" ] && [ "$a_geosite" -gt "$b_geosite" ]; then
+    add_res geosite "$t_geosite" true true 'xkeen' 'xkeen -ugs' ''
+  else
+    rc=0
+    dl_to "$GEOSITE_URL" "$t_geosite"; rc=$?
+    if [ $rc -eq 0 ]; then
+      add_res geosite "$t_geosite" true true 'download' "$GEOSITE_URL" ''
+    else
+      add_res geosite "$t_geosite" false false 'download' "$GEOSITE_URL" "download-failed($rc)"
+    fi
+  fi
+
+  # ASN
+  if [ -f "$t_asn" ] && [ "$a_asn" -gt "$b_asn" ]; then
+    add_res asn "$t_asn" true true 'xkeen' 'xkeen' ''
+  else
+    rc=0
+    dl_to "$ASN_URL" "$t_asn"; rc=$?
+    if [ $rc -eq 0 ]; then
+      add_res asn "$t_asn" true true 'download' "$ASN_URL" ''
+    else
+      add_res asn "$t_asn" false false 'download' "$ASN_URL" "download-failed($rc)"
+    fi
+  fi
+
+  ok=true
+  echo "$items" | grep -q '"ok":false' && ok=false
+
+  if [ "$ok" = true ]; then
+    reply_ok "{\"ok\":true,\"items\":[${items}],\"note\":\"Restart mihomo if geo data is cached.\"}"
+  else
+    reply_ok "{\"ok\":false,\"items\":[${items}],\"error\":\"some-downloads-failed\"}"
+  fi
+}
+
 
 
 rules_info_json() {
@@ -811,7 +980,7 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.8","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.9","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1056,6 +1225,9 @@ case "$cmd" in
     ;;
   geo_info)
     geo_info_json
+    ;;
+  geo_update)
+    geo_update_json
     ;;
   rules_info)
     rules_info_json
