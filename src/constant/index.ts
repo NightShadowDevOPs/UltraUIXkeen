@@ -8,6 +8,7 @@ import {
   SwatchIcon,
   UserGroupIcon,
   WrenchScrewdriverIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/vue/24/outline'
 
 export const IS_APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
@@ -131,6 +132,7 @@ export enum ROUTE_NAME {
   logs = 'logs',
   rules = 'rules',
   users = 'users',
+  policies = 'policies',
   settings = 'settings',
   setup = 'setup',
 }
@@ -144,6 +146,7 @@ export const ROUTE_ICON_MAP = {
   [ROUTE_NAME.rules]: SwatchIcon,
   [ROUTE_NAME.logs]: DocumentTextIcon,
   [ROUTE_NAME.users]: UserGroupIcon,
+  [ROUTE_NAME.policies]: ClipboardDocumentListIcon,
   [ROUTE_NAME.settings]: Cog6ToothIcon,
   [ROUTE_NAME.setup]: CubeTransparentIcon,
 }

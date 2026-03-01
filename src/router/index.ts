@@ -9,6 +9,7 @@ import LogsPage from '@/views/LogsPage.vue'
 import OverviewPage from '@/views/OverviewPage.vue'
 import RouterPage from '@/views/RouterPage.vue'
 import TasksPage from '@/views/TasksPage.vue'
+import PoliciesPage from '@/views/PoliciesPage.vue'
 import ProxiesPage from '@/views/ProxiesPage.vue'
 import RulesPage from '@/views/RulesPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
@@ -58,6 +59,11 @@ const childrenRouter = [
     path: 'users',
     name: ROUTE_NAME.users,
     component: UsersPage,
+  },
+  {
+    path: 'policies',
+    name: ROUTE_NAME.policies,
+    component: PoliciesPage,
   },
   {
     path: 'settings',

@@ -78,7 +78,7 @@
                     <div class="flex items-center gap-1">
                       <span
                         v-if="b.trafficLimitBytes"
-                        class="inline-flex items-center pointer-events-auto"
+                        class="inline-flex pointer-events-auto"
                         :title="trafficIconTitle(b.trafficLimitBytes, b.periodKey, b.limitEnabled)"
                       >
                         <CircleStackIcon
@@ -88,7 +88,7 @@
                       </span>
                       <span
                         v-if="b.bandwidthLimitBps"
-                        class="inline-flex items-center pointer-events-auto"
+                        class="inline-flex pointer-events-auto"
                         :title="bandwidthIconTitle(b.bandwidthLimitBps, b.limitEnabled)"
                       >
                         <BoltIcon
@@ -162,10 +162,47 @@
         </div>
       </div>
 
+
+      <div v-if="selectedList.length" class="rounded-lg border border-base-content/10 bg-base-200/30 p-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm font-semibold">{{ $t('selected') }}: {{ selectedList.length }}</div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select class="select select-sm" v-model="bulkProfileId">
+              <option value="">{{ $t('applyProfile') }}</option>
+              <option v-for="p in limitProfiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+            <button type="button" class="btn btn-sm" @click="applyProfileBulk" :disabled="!bulkProfileId || bulkBusy">
+              {{ $t('apply') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" @click="bulkUnblockReset" :disabled="bulkBusy">
+              {{ $t('unblockAndReset') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" @click="bulkDisableLimits" :disabled="bulkBusy">
+              {{ $t('disableLimits') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" @click="goPolicies">
+              {{ $t('limitProfiles') }}
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" @click="clearSelection">
+              {{ $t('clearSelection') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="overflow-x-auto">
         <table class="table table-sm">
           <thead>
             <tr>
+              <th style="width: 38px">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  :checked="allSelected"
+                  @click="toggleSelectAll"
+                  :title="$t('selectAll')"
+                />
+              </th>
               <th class="cursor-pointer select-none" @click="setSort('user')">
                 {{ $t('user') }}
                 <span class="opacity-60" v-if="sortKey === 'user'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
@@ -193,6 +230,15 @@
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.user">
+              <td>
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  v-model="selectedMap[row.user]"
+                  @click.stop
+                  :title="$t('selectUser')"
+                />
+              </td>
               <td class="font-medium">
                 <div class="flex items-center gap-2">
                   <LockClosedIcon
@@ -212,7 +258,7 @@
                     <div class="flex items-center gap-1">
                       <span
                         v-if="limitStates[row.user]?.trafficLimitBytes"
-                        class="inline-flex items-center pointer-events-auto"
+                        class="inline-flex pointer-events-auto"
                         :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
                       >
                         <CircleStackIcon
@@ -222,7 +268,7 @@
                       </span>
                       <span
                         v-if="limitStates[row.user]?.bandwidthLimitBps"
-                        class="inline-flex items-center pointer-events-auto"
+                        class="inline-flex pointer-events-auto"
                         :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
                       >
                         <BoltIcon
@@ -255,25 +301,17 @@
                     :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
                   >
                     <span>{{ limitStates[row.user].periodLabel }} · {{ limitStates[row.user].percent }}%</span>
-                    <span
-                      class="inline-flex items-center pointer-events-auto"
+                    <CircleStackIcon
+                      class="h-4 w-4"
+                      :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
                       :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
-                    >
-                      <CircleStackIcon
-                        class="h-4 w-4"
-                        :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                      />
-                    </span>
-                    <span
+                    />
+                    <BoltIcon
                       v-if="limitStates[row.user].bandwidthLimitBps"
-                      class="inline-flex items-center pointer-events-auto"
+                      class="h-4 w-4"
+                      :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
                       :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
-                    >
-                      <BoltIcon
-                        class="h-4 w-4"
-                        :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
-                      />
-                    </span>
+                    />
                   </div>
                 </template>
                 <template v-else>
@@ -622,6 +660,7 @@ import { showNotification } from '@/helper/notification'
 import { activeConnections } from '@/store/connections'
 import { sourceIPLabelList } from '@/store/settings'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, userLimits, type UserLimitPeriod } from '@/store/userLimits'
+import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { agentEnabled, agentEnforceBandwidth, agentShaperStatus } from '@/store/agent'
 import {
   clearUserLimit,
@@ -632,6 +671,7 @@ import {
   reapplyAgentShapingForUser,
   setUserLimit,
 } from '@/composables/userLimits'
+import { applyProfileToUsers, disableLimitsForUsers, unblockResetUsers } from '@/composables/userLimitProfiles'
 import {
   clearUserTrafficHistory,
   formatTraffic,
@@ -643,6 +683,7 @@ import {
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
 import {
   AdjustmentsHorizontalIcon,
@@ -662,6 +703,80 @@ type Row = { user: string; keys: string; dl: number; ul: number }
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
+
+const router = useRouter()
+
+// --- Bulk actions (profiles / mass apply) ---
+const selectedMap = ref<Record<string, boolean>>({})
+const selectedList = computed(() => Object.keys(selectedMap.value || {}).filter((u) => selectedMap.value[u]))
+const clearSelection = () => {
+  selectedMap.value = {}
+}
+
+const limitProfiles = computed(() => userLimitProfiles.value || [])
+const bulkProfileId = ref<string>('')
+const bulkBusy = ref(false)
+
+const allSelected = computed(() => {
+  const list = rows.value || []
+  if (!list.length) return false
+  return list.every((r) => !!selectedMap.value[r.user])
+})
+
+const toggleSelectAll = () => {
+  const list = rows.value || []
+  const want = !allSelected.value
+  const next: Record<string, boolean> = { ...(selectedMap.value || {}) }
+  for (const r of list) next[r.user] = want
+  selectedMap.value = next
+}
+
+const applyProfileBulk = async () => {
+  const id = (bulkProfileId.value || '').trim()
+  if (!id) return
+  const p = (limitProfiles.value || []).find((x) => x.id === id)
+  if (!p) return
+  if (bulkBusy.value) return
+  bulkBusy.value = true
+  try {
+    await applyProfileToUsers(selectedList.value, p)
+    clearSelection()
+  } finally {
+    bulkBusy.value = false
+  }
+}
+
+const bulkUnblockReset = async () => {
+  if (bulkBusy.value) return
+  bulkBusy.value = true
+  try {
+    await unblockResetUsers(selectedList.value)
+    clearSelection()
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    bulkBusy.value = false
+  }
+}
+
+const bulkDisableLimits = async () => {
+  if (bulkBusy.value) return
+  bulkBusy.value = true
+  try {
+    await disableLimitsForUsers(selectedList.value)
+    clearSelection()
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    bulkBusy.value = false
+  }
+}
+
+const goPolicies = () => {
+  router.push({ name: 'policies' })
+}
 
 const looksLikeIP = (s: string) => {
   const v = (s || '').trim()

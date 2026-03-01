@@ -60,6 +60,26 @@
       </div>
     </div>
 
+
+    <div class="card gap-2 p-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="font-semibold">{{ $t('diagnostics') }}</div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="btn btn-sm" @click="downloadDiagnostics" :disabled="diagBusy">
+          {{ $t('downloadReport') }}
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="copyDiagnostics" :disabled="diagBusy">
+          {{ $t('copy') }}
+        </button>
+      </div>
+
+      <div class="text-xs opacity-70">
+        {{ $t('diagnosticsTip') }}
+      </div>
+    </div>
+
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('operationsHistory') }}</div>
@@ -119,15 +139,20 @@
 </template>
 
 <script setup lang="ts">
-import { agentLogsAPI, agentMihomoProvidersAPI } from '@/api/agent'
+import { agentLogsAPI, agentMihomoProvidersAPI, agentStatusAPI } from '@/api/agent'
+import { zashboardVersion, version as coreVersion } from '@/api'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import { getLabelFromBackend } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
-import { agentEnabled } from '@/store/agent'
+import { agentEnabled, agentUrl } from '@/store/agent'
+import { userLimitProfiles } from '@/store/userLimitProfiles'
+import { userLimitSnapshots } from '@/store/userLimitSnapshots'
+import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowedCidrs, userLimits } from '@/store/userLimits'
+import { activeConnections } from '@/store/connections'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
-import { applyUserEnforcementNow } from '@/composables/userLimits'
+import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
 import dayjs from 'dayjs'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -189,6 +214,115 @@ watch([logsAuto, logSource, logLines, agentEnabled], () => {
   refreshLogs()
   startTimer()
 })
+
+// --- Diagnostics report ---
+const diagBusy = ref(false)
+
+const buildDiagnostics = async () => {
+  const ts = new Date().toISOString()
+  const agentStatus = await agentStatusAPI()
+
+  const takeLog = async (type: 'mihomo' | 'agent' | 'config') => {
+    const r: any = await agentLogsAPI({ type, lines: 200 })
+    return {
+      ok: !!r?.ok,
+      path: r?.path || '',
+      content: decodeB64Utf8(r?.contentB64) || (r?.error || ''),
+    }
+  }
+
+  const logs = {
+    mihomo: await takeLog('mihomo'),
+    agent: await takeLog('agent'),
+    config: await takeLog('config'),
+  }
+
+  const blocked = [] as any[]
+  const keys = Object.keys(userLimits.value || {})
+  for (const u of keys) {
+    const st = getUserLimitState(u)
+    if (st.blocked) {
+      blocked.push({
+        user: u,
+        reasonManual: !!st.limit.disabled,
+        trafficExceeded: !!st.trafficExceeded,
+        bandwidthExceeded: !!st.bandwidthExceeded,
+        usageBytes: st.usageBytes,
+        trafficLimitBytes: st.limit.trafficLimitBytes || 0,
+        bandwidthLimitBps: st.limit.bandwidthLimitBps || 0,
+        mac: st.limit.mac || '',
+      })
+    }
+  }
+
+  return {
+    kind: 'zash-diagnostics',
+    generatedAt: ts,
+    uiVersion: zashboardVersion.value,
+    coreVersion: coreVersion.value,
+    backend: activeBackend.value ? {
+      label: activeBackend.value.label,
+      host: activeBackend.value.host,
+      port: activeBackend.value.port,
+      protocol: activeBackend.value.protocol,
+      secondaryPath: activeBackend.value.secondaryPath,
+    } : null,
+    agent: {
+      enabled: !!agentEnabled.value,
+      url: agentUrl.value,
+      status: agentStatus,
+    },
+    limits: {
+      autoDisconnectLimitedUsers: !!autoDisconnectLimitedUsers.value,
+      hardBlockLimitedUsers: !!hardBlockLimitedUsers.value,
+      managedLanDisallowedCidrs: managedLanDisallowedCidrs.value || [],
+      profiles: userLimitProfiles.value || [],
+      snapshotsCount: (userLimitSnapshots.value || []).length,
+      userLimits: userLimits.value || {},
+      blockedUsers: blocked,
+    },
+    connections: {
+      activeCount: (activeConnections.value || []).length,
+    },
+    logs,
+    ua: navigator.userAgent,
+  }
+}
+
+const downloadDiagnostics = async () => {
+  if (diagBusy.value) return
+  diagBusy.value = true
+  try {
+    const rep = await buildDiagnostics()
+    const blob = new Blob([JSON.stringify(rep, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `zash-diagnostics-${dayjs().format('YYYYMMDD-HHmmss')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1400 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    diagBusy.value = false
+  }
+}
+
+const copyDiagnostics = async () => {
+  if (diagBusy.value) return
+  diagBusy.value = true
+  try {
+    const rep = await buildDiagnostics()
+    const text = JSON.stringify(rep, null, 2)
+    await navigator.clipboard.writeText(text)
+    showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    diagBusy.value = false
+  }
+}
 
 const fmtTime = (ts: number) => dayjs(ts).format('HH:mm:ss')
 const fmtMs = (ms: number) => {
