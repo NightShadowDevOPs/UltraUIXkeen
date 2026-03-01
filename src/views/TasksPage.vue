@@ -63,6 +63,75 @@
 
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
+        <div class="font-semibold">{{ $t('dataFreshness') }}</div>
+        <button type="button" class="btn btn-sm btn-ghost" @click="refreshFreshness" :disabled="freshnessBusy">
+          {{ $t('refresh') }}
+        </button>
+      </div>
+
+      <div class="grid gap-2 md:grid-cols-2">
+        <div class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+          <div class="mb-1 text-sm font-semibold">{{ $t('geoFiles') }}</div>
+          <div v-if="!agentEnabled" class="text-sm opacity-70">
+            {{ $t('agentDisabled') }}
+          </div>
+          <div v-else-if="geoBusy" class="text-sm opacity-70">…</div>
+          <div v-else>
+            <div v-if="geoError" class="text-xs text-error">{{ geoError }}</div>
+            <div v-else-if="!geoItems.length" class="text-sm opacity-70">—</div>
+            <div v-else class="flex flex-col gap-1">
+              <div v-for="g in geoItems" :key="g.kind + ':' + g.path" class="flex items-center justify-between gap-2 text-xs">
+                <div class="min-w-0">
+                  <span class="opacity-70">{{ geoKindLabel(g.kind) }}:</span>
+                  <span class="ml-1 font-mono opacity-70" :title="g.path">{{ shortPath(g.path) }}</span>
+                  <span v-if="typeof g.sizeBytes === 'number' && g.sizeBytes >= 0" class="ml-2 opacity-60">({{ prettyBytesHelper(g.sizeBytes) }})</span>
+                </div>
+                <div class="shrink-0 font-mono opacity-80">{{ fmtMtime(g.mtimeSec) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+          <div class="mb-1 text-sm font-semibold">{{ $t('filterPoliciesFiles') }}</div>
+          <div v-if="providersBusy" class="text-sm opacity-70">…</div>
+          <div v-else>
+            <div v-if="!ruleProviders.length" class="text-sm opacity-70">—</div>
+            <div v-else class="flex flex-col gap-1 text-xs">
+              <div>
+                <span class="opacity-70">{{ $t('ruleProvidersCount') }}:</span>
+                <span class="ml-1 font-mono">{{ ruleProviders.length }}</span>
+              </div>
+              <div>
+                <span class="opacity-70">{{ $t('newestUpdate') }}:</span>
+                <span class="ml-1 font-mono">{{ fmtUpdatedAt(newestProviderAt) }}</span>
+              </div>
+              <div>
+                <span class="opacity-70">{{ $t('oldestUpdate') }}:</span>
+                <span class="ml-1 font-mono">{{ fmtUpdatedAt(oldestProviderAt) }}</span>
+              </div>
+              <details class="mt-1">
+                <summary class="cursor-pointer opacity-80">{{ $t('showList') }}</summary>
+                <div class="mt-2 flex flex-col gap-1">
+                  <div v-for="p in sortedProviders" :key="p.name" class="flex items-center justify-between gap-2">
+                    <span class="min-w-0 truncate font-mono" :title="p.name">{{ p.name }}</span>
+                    <span class="shrink-0 font-mono opacity-70">{{ fmtUpdatedAt(p.updatedAt) }}</span>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-[11px] opacity-60">
+        {{ $t('dataFreshnessTip') }}
+      </div>
+    </div>
+
+
+    <div class="card gap-2 p-3">
+      <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('diagnostics') }}</div>
       </div>
 
@@ -139,10 +208,10 @@
 </template>
 
 <script setup lang="ts">
-import { agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentStatusAPI } from '@/api/agent'
-import { zashboardVersion, version as coreVersion } from '@/api'
+import { fetchRuleProvidersAPI, zashboardVersion, version as coreVersion } from '@/api'
+import { agentGeoInfoAPI, agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentStatusAPI } from '@/api/agent'
 import BackendVersion from '@/components/common/BackendVersion.vue'
-import { getLabelFromBackend } from '@/helper/utils'
+import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
@@ -155,6 +224,8 @@ import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
 import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
 import dayjs from 'dayjs'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { RuleProvider } from '@/types'
+import { useI18n } from 'vue-i18n'
 
 const busy = ref(false)
 const jobs = computed(() => jobHistory.value || [])
@@ -249,6 +320,7 @@ const startTimer = () => {
 onMounted(() => {
   refreshLogs()
   startTimer()
+  refreshFreshness()
 })
 
 onBeforeUnmount(() => {
@@ -260,6 +332,117 @@ watch([logsAuto, logSource, logLines, agentEnabled], () => {
   refreshLogs()
   startTimer()
 })
+
+
+// --- Data freshness (GEO files + filter policy files) ---
+const { t } = useI18n()
+
+type GeoInfoItem = {
+  kind: string
+  path: string
+  exists: boolean
+  mtimeSec?: number
+  sizeBytes?: number
+}
+
+const geoBusy = ref(false)
+const geoError = ref('')
+const geoItems = ref<GeoInfoItem[]>([])
+
+const providersBusy = ref(false)
+const ruleProviders = ref<RuleProvider[]>([])
+
+const sortedProviders = computed(() => {
+  return [...(ruleProviders.value || [])].sort((a, b) => {
+    const ta = dayjs(a.updatedAt).valueOf()
+    const tb = dayjs(b.updatedAt).valueOf()
+    return tb - ta
+  })
+})
+
+const newestProviderAt = computed(() => sortedProviders.value[0]?.updatedAt || '')
+const oldestProviderAt = computed(() => {
+  const arr = [...(ruleProviders.value || [])].sort(
+    (a, b) => dayjs(a.updatedAt).valueOf() - dayjs(b.updatedAt).valueOf(),
+  )
+  return arr[0]?.updatedAt || ''
+})
+
+const geoKindLabel = (kind: string) => {
+  const k = (kind || '').toLowerCase()
+  if (k === 'geoip') return t('geoipFile')
+  if (k === 'geosite') return t('geositeFile')
+  if (k === 'mmdb') return t('mmdbFile')
+  return kind || '—'
+}
+
+const fmtMtime = (mtimeSec?: number) => {
+  if (!mtimeSec || !Number.isFinite(mtimeSec)) return '—'
+  return dayjs.unix(mtimeSec).format('YYYY-MM-DD HH:mm:ss')
+}
+
+const fmtUpdatedAt = (s?: string) => {
+  const d = dayjs(s || '')
+  if (!d.isValid()) return '—'
+  return d.format('YYYY-MM-DD HH:mm:ss')
+}
+
+const shortPath = (p?: string) => {
+  const s = (p || '').trim()
+  if (!s) return '—'
+  const parts = s.split('/').filter(Boolean)
+  if (parts.length <= 3) return s
+  return `…/${parts.slice(-3).join('/')}`
+}
+
+const refreshGeoInfo = async () => {
+  geoError.value = ''
+  geoItems.value = []
+  if (!agentEnabled.value) return
+  geoBusy.value = true
+  try {
+    const r: any = await agentGeoInfoAPI()
+    if (!r?.ok) {
+      geoError.value = r?.error || 'failed'
+      return
+    }
+    const items = Array.isArray(r?.items) ? r.items : []
+    geoItems.value = items
+      .filter((x: any) => x && x.path)
+      .map((x: any) => ({
+        kind: String(x.kind || ''),
+        path: String(x.path || ''),
+        exists: !!x.exists,
+        mtimeSec:
+          typeof x.mtimeSec === 'number' ? x.mtimeSec : Number(x.mtimeSec || 0) || undefined,
+        sizeBytes:
+          typeof x.sizeBytes === 'number' ? x.sizeBytes : Number(x.sizeBytes || 0) || undefined,
+      }))
+      .filter((x) => x.exists)
+      .sort((a, b) => (a.kind || '').localeCompare(b.kind || ''))
+  } catch (e: any) {
+    geoError.value = e?.message || 'failed'
+  } finally {
+    geoBusy.value = false
+  }
+}
+
+const refreshRuleProviders = async () => {
+  providersBusy.value = true
+  try {
+    const { data } = await fetchRuleProvidersAPI()
+    ruleProviders.value = Object.values((data as any)?.providers || {})
+  } catch {
+    ruleProviders.value = []
+  } finally {
+    providersBusy.value = false
+  }
+}
+
+const freshnessBusy = computed(() => geoBusy.value || providersBusy.value)
+const refreshFreshness = async () => {
+  await Promise.all([refreshGeoInfo(), refreshRuleProviders()])
+}
 
 // --- Diagnostics report ---
 const diagBusy = ref(false)

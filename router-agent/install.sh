@@ -206,6 +206,78 @@ mihomo_providers_json() {
   reply_ok "$out"
 }
 
+jesc() {
+  # Minimal JSON string escape (quotes + backslashes)
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+stat_mtime_sec() {
+  p="$1"
+  stat -c %Y "$p" 2>/dev/null || stat -f %m "$p" 2>/dev/null || echo 0
+}
+
+stat_size_bytes() {
+  p="$1"
+  stat -c %s "$p" 2>/dev/null || stat -f %z "$p" 2>/dev/null || wc -c <"$p" 2>/dev/null || echo 0
+}
+
+geo_info_json() {
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  cfg_dir="$(dirname "$MIHOMO_CONFIG" 2>/dev/null || echo /opt/etc/mihomo)"
+
+  geoip_path=""
+  geosite_path=""
+  mmdb_path=""
+
+  for d in "$cfg_dir" /opt/etc/mihomo /opt/share/mihomo /opt/var/lib/mihomo /opt/var/mihomo /opt/etc/mihomo/geodata /opt/var/mihomo/geodata; do
+    [ -n "$geoip_path" ] || {
+      for f in geoip.dat GeoIP.dat geoip.dat.new GeoIP.dat.new; do
+        [ -f "$d/$f" ] && geoip_path="$d/$f" && break
+      done
+    }
+    [ -n "$geosite_path" ] || {
+      for f in geosite.dat GeoSite.dat geosite.dat.new GeoSite.dat.new; do
+        [ -f "$d/$f" ] && geosite_path="$d/$f" && break
+      done
+    }
+    [ -n "$mmdb_path" ] || {
+      for f in Country.mmdb country.mmdb GeoLite2-Country.mmdb; do
+        [ -f "$d/$f" ] && mmdb_path="$d/$f" && break
+      done
+    }
+  done
+
+  printf '{"ok":true,"items":['
+  first=1
+  add_item() {
+    kind="$1"; path="$2"
+    [ -n "$path" ] || return 0
+    ex=false
+    m=0
+    s=0
+    if [ -f "$path" ]; then
+      ex=true
+      m="$(stat_mtime_sec "$path")"
+      s="$(stat_size_bytes "$path")"
+    fi
+    [ "$first" -eq 0 ] && printf ','
+    first=0
+    printf '{"kind":"%s","path":"%s","exists":%s,"mtimeSec":%s,"sizeBytes":%s}' \
+      "$(jesc "$kind")" "$(jesc "$path")" "$ex" "$m" "$s"
+  }
+  add_item geoip "$geoip_path"
+  add_item geosite "$geosite_path"
+  add_item mmdb "$mmdb_path"
+  printf ']}'
+}
+
 if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
   reply_ok "{}"
   exit 0
@@ -638,7 +710,7 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.4","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.5","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -842,6 +914,17 @@ case "$cmd" in
     [ -n "$type" ] || type="mihomo"
     [ -n "$lines" ] || lines="200"
     [ -n "$offset" ] || offset="0"
+    # Fallback for older/partial agent installs: if tail_follow_b64 is missing, return full tail.
+    type tail_follow_b64 >/dev/null 2>&1 || {
+      if [ "$type" = "agent" ]; then
+        tail_b64 agent "$lines"
+      elif [ "$type" = "config" ]; then
+        config_b64
+      else
+        tail_b64 mihomo "$lines"
+      fi
+      exit 0
+    }
     if [ "$type" = "agent" ]; then
       tail_follow_b64 agent "$lines" "$offset"
     elif [ "$type" = "config" ]; then
@@ -869,6 +952,9 @@ case "$cmd" in
     ;;
   mihomo_providers)
     mihomo_providers_json
+    ;;
+  geo_info)
+    geo_info_json
     ;;
   *) reply_ok '{"ok":false,"error":"unknown-cmd"}' ;;
 esac

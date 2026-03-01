@@ -186,6 +186,28 @@ export const agentLogsFollowAPI = async (args: {
 }
 
 
+export const agentGeoInfoAPI = async (): Promise<{
+  ok: boolean
+  items?: Array<{
+    kind?: string
+    path?: string
+    exists?: boolean
+    mtimeSec?: number | string
+    sizeBytes?: number | string
+  }>
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'geo_info' },
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+
 export const agentUnblockMacAPI = async (mac: string): Promise<{ ok: boolean; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
