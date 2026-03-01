@@ -50,9 +50,9 @@ MIHOMO_CONFIG="/opt/etc/mihomo/config.yaml"
 MIHOMO_LOG=""
 
 # Optional: custom GEO download URLs (used by cmd=geo_update)
-GEOIP_URL="https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat"
-GEOSITE_URL="https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat"
-ASN_URL="https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb"
+GEOIP_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat"
+GEOSITE_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+ASN_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"
 
 # Optional: set a token to require Authorization: Bearer <token>
 TOKEN=""
@@ -80,9 +80,9 @@ BLOCKS_FILE="${BLOCKS_FILE:-/opt/zash-agent/var/blocks.db}"
 TOKEN="${TOKEN:-}"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
-GEOIP_URL="${GEOIP_URL:-https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat}"
-GEOSITE_URL="${GEOSITE_URL:-https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat}"
-ASN_URL="${ASN_URL:-https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb}"
+GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
+GEOSITE_URL="${GEOSITE_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat}"
+ASN_URL="${ASN_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb}"
 WAN_RATE="${WAN_RATE:-1000}"
 LAN_RATE="${LAN_RATE:-1000}"
 
@@ -404,6 +404,24 @@ geo_update_json() {
     return 0
   }
 
+  dl_to_any() {
+    out="$1"; shift
+    last_rc=1
+    last_url=""
+    for url in "$@"; do
+      last_url="$url"
+      dl_to "$url" "$out"
+      rc=$?
+      if [ $rc -eq 0 ]; then
+        echo "$url"
+        return 0
+      fi
+      last_rc=$rc
+    done
+    echo "$last_url"
+    return $last_rc
+  }
+
   # Targets
   t_geoip="$(pick_target geoip)"
   t_geosite="$(pick_target geosite)"
@@ -445,11 +463,12 @@ geo_update_json() {
     add_res geoip "$t_geoip" true true 'xkeen' 'xkeen -ugi' ''
   else
     rc=0
-    dl_to "$GEOIP_URL" "$t_geoip"; rc=$?
+    used="$(dl_to_any "$t_geoip" "$GEOIP_URL"       "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat"       "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"       "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat")"
+    rc=$?
     if [ $rc -eq 0 ]; then
-      add_res geoip "$t_geoip" true true 'download' "$GEOIP_URL" ''
+      add_res geoip "$t_geoip" true true 'download' "$used" ''
     else
-      add_res geoip "$t_geoip" false false 'download' "$GEOIP_URL" "download-failed($rc)"
+      add_res geoip "$t_geoip" false false 'download' "$used" "download-failed($rc)"
     fi
   fi
 
@@ -458,11 +477,12 @@ geo_update_json() {
     add_res geosite "$t_geosite" true true 'xkeen' 'xkeen -ugs' ''
   else
     rc=0
-    dl_to "$GEOSITE_URL" "$t_geosite"; rc=$?
+    used="$(dl_to_any "$t_geosite" "$GEOSITE_URL"       "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"       "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat")"
+    rc=$?
     if [ $rc -eq 0 ]; then
-      add_res geosite "$t_geosite" true true 'download' "$GEOSITE_URL" ''
+      add_res geosite "$t_geosite" true true 'download' "$used" ''
     else
-      add_res geosite "$t_geosite" false false 'download' "$GEOSITE_URL" "download-failed($rc)"
+      add_res geosite "$t_geosite" false false 'download' "$used" "download-failed($rc)"
     fi
   fi
 
@@ -471,11 +491,12 @@ geo_update_json() {
     add_res asn "$t_asn" true true 'xkeen' 'xkeen' ''
   else
     rc=0
-    dl_to "$ASN_URL" "$t_asn"; rc=$?
+    used="$(dl_to_any "$t_asn" "$ASN_URL"       "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb"       "https://github.com/xishang0128/geoip/releases/download/latest/GeoLite2-ASN.mmdb")"
+    rc=$?
     if [ $rc -eq 0 ]; then
-      add_res asn "$t_asn" true true 'download' "$ASN_URL" ''
+      add_res asn "$t_asn" true true 'download' "$used" ''
     else
-      add_res asn "$t_asn" false false 'download' "$ASN_URL" "download-failed($rc)"
+      add_res asn "$t_asn" false false 'download' "$used" "download-failed($rc)"
     fi
   fi
 
@@ -980,7 +1001,7 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.9","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.10","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
