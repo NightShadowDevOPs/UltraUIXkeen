@@ -84,6 +84,8 @@
                         <CircleStackIcon
                           class="h-4 w-4"
                           :class="b.limitEnabled ? 'text-info' : 'opacity-40'"
+                          @mouseenter="showTip($event, trafficIconTitle(b.trafficLimitBytes, b.periodKey, b.limitEnabled))"
+                          @mouseleave="hideTip"
                         />
                       </span>
                       <span
@@ -94,6 +96,8 @@
                         <BoltIcon
                           class="h-4 w-4"
                           :class="b.limitEnabled ? 'text-warning' : 'opacity-40'"
+                          @mouseenter="showTip($event, bandwidthIconTitle(b.bandwidthLimitBps, b.limitEnabled))"
+                          @mouseleave="hideTip"
                         />
                       </span>
                     </div>
@@ -264,6 +268,8 @@
                         <CircleStackIcon
                           class="h-4 w-4"
                           :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                          @mouseleave="hideTip"
                         />
                       </span>
                       <span
@@ -274,6 +280,8 @@
                         <BoltIcon
                           class="h-4 w-4"
                           :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                          @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
+                          @mouseleave="hideTip"
                         />
                       </span>
                     </div>
@@ -305,12 +313,16 @@
                       class="h-4 w-4"
                       :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
                       :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
+                      @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                      @mouseleave="hideTip"
                     />
                     <BoltIcon
                       v-if="limitStates[row.user].bandwidthLimitBps"
                       class="h-4 w-4"
                       :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
                       :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
+                      @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
+                      @mouseleave="hideTip"
                     />
                   </div>
                 </template>
@@ -686,6 +698,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { v4 as uuidv4 } from 'uuid'
+import { useTooltip } from '@/helper/tooltip'
 import {
   AdjustmentsHorizontalIcon,
   ArrowPathIcon,
@@ -707,6 +720,7 @@ const editingName = ref('')
 
 const router = useRouter()
 const { t } = useI18n()
+const { showTip, hideTip } = useTooltip()
 
 // --- Bulk actions (profiles / mass apply) ---
 const selectedMap = ref<Record<string, boolean>>({})
