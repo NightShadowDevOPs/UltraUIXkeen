@@ -18,6 +18,22 @@
         <div>• {{ $t('applyEnforcementTip') }}</div>
         <div>• {{ $t('refreshProvidersSslTip') }}</div>
       </div>
+
+      <div class="mt-2 rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-xs font-semibold opacity-80">{{ $t('routerUiUrlTitle') }}</div>
+          <div class="flex items-center gap-2">
+            <button type="button" class="btn btn-xs btn-ghost" @click="copyRouterUiUrl(false)">
+              {{ $t('copy') }}
+            </button>
+            <button type="button" class="btn btn-xs btn-ghost" @click="copyRouterUiUrl(true)">
+              {{ $t('copyYamlLine') }}
+            </button>
+          </div>
+        </div>
+        <div class="mt-1 text-[11px] opacity-60">{{ $t('routerUiUrlTip') }}</div>
+        <div class="mt-1 break-all font-mono text-xs opacity-80">{{ routerUiUrl }}</div>
+      </div>
     </div>
 
     <div class="card gap-2 p-3">
@@ -266,6 +282,23 @@ import { useI18n } from 'vue-i18n'
 
 const busy = ref(false)
 const jobs = computed(() => jobHistory.value || [])
+
+// --- Router external-ui-url helper (anti-cache) ---
+const routerUiUrl = computed(() => {
+  const v = encodeURIComponent(zashboardVersion.value || '')
+  return `https://github.com/messireL/ZashUIFork/releases/download/rolling/dist.zip?v=${v}`
+})
+
+const copyRouterUiUrl = async (asYaml: boolean) => {
+  try {
+    const text = asYaml ? `external-ui-url: "${routerUiUrl.value}"` : routerUiUrl.value
+    await navigator.clipboard.writeText(text)
+    showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  }
+}
+
 
 // --- Live logs (router-agent) ---
 const logSource = ref<'mihomo' | 'config' | 'agent'>('mihomo')
