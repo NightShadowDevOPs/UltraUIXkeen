@@ -72,6 +72,12 @@ export const clearUserLimit = (user: string) => {
   userLimits.value = next
 }
 
+const normalizeResetAt = (ts: number) => {
+  const d = dayjs(ts)
+  if (d.minute() === 0 && d.second() === 0 && d.millisecond() === 0) return ts
+  return d.add(1, 'hour').startOf('hour').valueOf()
+}
+
 const getWindow = (period: UserLimitPeriod, resetAt?: number) => {
   const now = dayjs()
   let start: dayjs.Dayjs
@@ -80,7 +86,7 @@ const getWindow = (period: UserLimitPeriod, resetAt?: number) => {
   else start = now.subtract(30, 'day')
 
   let startTs = start.valueOf()
-  if (resetAt && Number.isFinite(resetAt) && resetAt > startTs) startTs = resetAt
+  if (resetAt && Number.isFinite(resetAt) && resetAt > startTs) startTs = normalizeResetAt(resetAt)
 
   return { startTs, endTs: now.valueOf() }
 }

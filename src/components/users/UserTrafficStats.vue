@@ -733,13 +733,19 @@ const clearHistory = () => {
 }
 
 // --- Limits aggregation for the table ---
+const normalizeResetAt = (ts: number) => {
+  const d = dayjs(ts)
+  if (d.minute() === 0 && d.second() === 0 && d.millisecond() === 0) return ts
+  return d.add(1, 'hour').startOf('hour').valueOf()
+}
+
 const windowForLimit = (period: UserLimitPeriod, resetAt?: number) => {
   const now = dayjs()
   let start = now.subtract(30, 'day')
   if (period === '1d') start = now.subtract(24, 'hour')
   if (period === 'month') start = now.startOf('month')
   let startTs = start.valueOf()
-  if (resetAt && resetAt > startTs) startTs = resetAt
+  if (resetAt && resetAt > startTs) startTs = normalizeResetAt(resetAt)
   return { startTs, endTs: now.valueOf() }
 }
 
@@ -893,7 +899,7 @@ const unblockAndReset = async (user: string) => {
     setUserLimit(user, {
       disabled: false,
       // Reset usage baseline so traffic limits stop re-blocking immediately.
-      resetAt: Date.now(),
+      resetAt: normalizeResetAt(Date.now()),
       // Keep enabled as-is.
       enabled: l.enabled,
     })
@@ -912,7 +918,7 @@ const disableLimitsQuick = async (user: string) => {
   if (blockedActionBusy.value) return
   blockedActionBusy.value = true
   try {
-    setUserLimit(user, { enabled: false, disabled: false, resetAt: Date.now() })
+    setUserLimit(user, { enabled: false, disabled: false, resetAt: normalizeResetAt(Date.now()) })
     await applyUserEnforcementNow()
     showNotification({ content: 'blockedDisableDone', params: { user }, type: 'alert-success', timeout: 2200 })
   } catch (e) {
@@ -1198,7 +1204,7 @@ const resetCounter = async () => {
   const user = limitsUser.value
   if (!user) return
   setUserLimit(user, {
-    resetAt: Date.now(),
+    resetAt: normalizeResetAt(Date.now()),
   })
   try {
     await applyUserEnforcementNow()
