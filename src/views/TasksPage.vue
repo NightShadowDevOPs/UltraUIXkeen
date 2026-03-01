@@ -203,11 +203,8 @@ const refreshLogs = async () => {
 
       // Keep last N lines (avoid runaway memory).
       const maxLines = Math.min(2000, Math.max(50, logLines.value || 200))
-      const arr = (logText.value || '').split(/
-?
-/)
-      if (arr.length > maxLines) logText.value = arr.slice(-maxLines).join('
-')
+      const arr = (logText.value || '').split(/\r?\n/)
+      if (arr.length > maxLines) logText.value = arr.slice(-maxLines).join('\n')
       return
     }
 

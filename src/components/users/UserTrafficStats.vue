@@ -891,6 +891,9 @@ const rows = computed<Row[]>(() => {
   for (const k of knownKeysByUser.value.keys()) allUsers.add(k)
   for (const k of agg.keys()) allUsers.add(k)
 
+  // Also include users with saved limits (after applying profiles)
+  for (const u of Object.keys(userLimits.value || {})) allUsers.add(u)
+
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
     const ip = (c as any)?.metadata?.sourceIP || ''
