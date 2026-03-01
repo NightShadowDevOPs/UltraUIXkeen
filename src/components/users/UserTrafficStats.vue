@@ -76,18 +76,26 @@
                     <LockClosedIcon class="h-4 w-4 text-error" />
                     <span class="truncate inline-block max-w-[240px]" :title="b.user">{{ b.user }}</span>
                     <div class="flex items-center gap-1">
-                      <CircleStackIcon
+                      <span
                         v-if="b.trafficLimitBytes"
-                        class="h-4 w-4"
-                        :class="b.limitEnabled ? 'text-info' : 'opacity-40'"
+                        class="inline-flex items-center pointer-events-auto"
                         :title="trafficIconTitle(b.trafficLimitBytes, b.periodKey, b.limitEnabled)"
-                      />
-                      <BoltIcon
+                      >
+                        <CircleStackIcon
+                          class="h-4 w-4"
+                          :class="b.limitEnabled ? 'text-info' : 'opacity-40'"
+                        />
+                      </span>
+                      <span
                         v-if="b.bandwidthLimitBps"
-                        class="h-4 w-4"
-                        :class="b.limitEnabled ? 'text-warning' : 'opacity-40'"
+                        class="inline-flex items-center pointer-events-auto"
                         :title="bandwidthIconTitle(b.bandwidthLimitBps, b.limitEnabled)"
-                      />
+                      >
+                        <BoltIcon
+                          class="h-4 w-4"
+                          :class="b.limitEnabled ? 'text-warning' : 'opacity-40'"
+                        />
+                      </span>
                     </div>
                     <span v-if="b.reasonManual" class="badge badge-error badge-outline">{{ $t('manualBlock') }}</span>
                     <span v-else-if="b.reasonTraffic" class="badge badge-warning badge-outline">{{ $t('trafficExceeded') }}</span>
@@ -202,18 +210,26 @@
                   <template v-else>
                     <span class="truncate inline-block max-w-[240px]" :title="row.user">{{ row.user }}</span>
                     <div class="flex items-center gap-1">
-                      <CircleStackIcon
+                      <span
                         v-if="limitStates[row.user]?.trafficLimitBytes"
-                        class="h-4 w-4"
-                        :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                        class="inline-flex items-center pointer-events-auto"
                         :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
-                      />
-                      <BoltIcon
+                      >
+                        <CircleStackIcon
+                          class="h-4 w-4"
+                          :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                        />
+                      </span>
+                      <span
                         v-if="limitStates[row.user]?.bandwidthLimitBps"
-                        class="h-4 w-4"
-                        :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                        class="inline-flex items-center pointer-events-auto"
                         :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
-                      />
+                      >
+                        <BoltIcon
+                          class="h-4 w-4"
+                          :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                        />
+                      </span>
                     </div>
                   </template>
                 </div>
@@ -239,17 +255,25 @@
                     :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
                   >
                     <span>{{ limitStates[row.user].periodLabel }} · {{ limitStates[row.user].percent }}%</span>
-                    <CircleStackIcon
-                      class="h-4 w-4"
-                      :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                    <span
+                      class="inline-flex items-center pointer-events-auto"
                       :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
-                    />
-                    <BoltIcon
+                    >
+                      <CircleStackIcon
+                        class="h-4 w-4"
+                        :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                      />
+                    </span>
+                    <span
                       v-if="limitStates[row.user].bandwidthLimitBps"
-                      class="h-4 w-4"
-                      :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                      class="inline-flex items-center pointer-events-auto"
                       :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
-                    />
+                    >
+                      <BoltIcon
+                        class="h-4 w-4"
+                        :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                      />
+                    </span>
                   </div>
                 </template>
                 <template v-else>
