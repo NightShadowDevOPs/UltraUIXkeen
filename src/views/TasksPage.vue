@@ -22,6 +22,45 @@
 
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
+        <div class="font-semibold">{{ $t('liveLogs') }}</div>
+        <div class="flex items-center gap-2">
+          <select class="select select-bordered select-sm" v-model="logSource">
+            <option value="mihomo">{{ $t('mihomoLog') }}</option>
+            <option value="agent">{{ $t('agentLog') }}</option>
+          </select>
+          <select class="select select-bordered select-sm" v-model.number="logLines">
+            <option :value="50">50</option>
+            <option :value="200">200</option>
+            <option :value="500">500</option>
+            <option :value="1000">1000</option>
+          </select>
+          <button type="button" class="btn btn-sm" @click="refreshLogs" :disabled="logsBusy || !agentEnabled">
+            {{ $t('refresh') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 text-xs opacity-70">
+        <div>
+          <span class="opacity-60">{{ $t('path') }}:</span>
+          <span class="font-mono">{{ logPath || '—' }}</span>
+        </div>
+        <label class="flex items-center gap-2">
+          <span>{{ $t('autoRefresh') }}</span>
+          <input type="checkbox" class="toggle toggle-sm" v-model="logsAuto" />
+        </label>
+      </div>
+
+      <div v-if="!agentEnabled" class="text-sm opacity-70">
+        {{ $t('agentDisabled') }}
+      </div>
+      <div v-else class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+        <pre class="max-h-[48vh] overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-4">{{ logText || '—' }}</pre>
+      </div>
+    </div>
+
+    <div class="card gap-2 p-3">
+      <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('operationsHistory') }}</div>
         <button type="button" class="btn btn-sm btn-ghost" @click="clearJobs" :disabled="!jobs.length">
           {{ $t('clear') }}
@@ -79,19 +118,76 @@
 </template>
 
 <script setup lang="ts">
-import { agentMihomoProvidersAPI } from '@/api/agent'
+import { agentLogsAPI, agentMihomoProvidersAPI } from '@/api/agent'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import { getLabelFromBackend } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
+import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
 import { agentEnabled } from '@/store/agent'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
 import { applyUserEnforcementNow } from '@/composables/userLimits'
 import dayjs from 'dayjs'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const busy = ref(false)
 const jobs = computed(() => jobHistory.value || [])
+
+// --- Live logs (router-agent) ---
+const logSource = ref<'mihomo' | 'agent'>('mihomo')
+const logLines = ref<number>(200)
+const logsAuto = ref(true)
+const logsBusy = ref(false)
+const logText = ref('')
+const logPath = ref('')
+
+let logTimer: any = null
+const refreshLogs = async () => {
+  if (!agentEnabled.value) return
+  if (logsBusy.value) return
+  logsBusy.value = true
+  try {
+    const r: any = await agentLogsAPI({ type: logSource.value, lines: logLines.value })
+    if (!r?.ok) {
+      logText.value = r?.error || 'failed'
+      return
+    }
+    logPath.value = r?.path || ''
+    logText.value = decodeB64Utf8(r?.contentB64) || ''
+  } finally {
+    logsBusy.value = false
+  }
+}
+
+const stopTimer = () => {
+  if (logTimer) {
+    clearInterval(logTimer)
+    logTimer = null
+  }
+}
+
+const startTimer = () => {
+  stopTimer()
+  if (!logsAuto.value) return
+  if (!agentEnabled.value) return
+  logTimer = setInterval(() => {
+    refreshLogs()
+  }, 2000)
+}
+
+onMounted(() => {
+  refreshLogs()
+  startTimer()
+})
+
+onBeforeUnmount(() => {
+  stopTimer()
+})
+
+watch([logsAuto, logSource, logLines, agentEnabled], () => {
+  refreshLogs()
+  startTimer()
+})
 
 const fmtTime = (ts: number) => dayjs(ts).format('HH:mm:ss')
 const fmtMs = (ms: number) => {

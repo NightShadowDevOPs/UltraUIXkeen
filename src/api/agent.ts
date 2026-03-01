@@ -108,13 +108,54 @@ export const agentIpToMacAPI = async (ip: string): Promise<{ ok: boolean; mac?: 
 
 export const agentBlockMacAPI = async (args: {
   mac: string
-  ports: number[]
+  /**
+   * 'all' = drop all traffic from the MAC.
+   * number[] = legacy mode (block only selected ports).
+   */
+  ports: number[] | 'all'
 }): Promise<{ ok: boolean; error?: string }> => {
   try {
+    const portsParam = args.ports === 'all' ? 'all' : args.ports.join(',')
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'blockmac', mac: args.mac, ports: args.ports.join(',') },
+      params: { cmd: 'blockmac', mac: args.mac, ports: portsParam },
     })
     return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentBlockIpAPI = async (ip: string): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'blockip', ip },
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentUnblockIpAPI = async (ip: string): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'unblockip', ip },
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentLogsAPI = async (args: {
+  type: 'mihomo' | 'agent'
+  lines?: number
+}): Promise<{ ok: boolean; kind?: string; path?: string; contentB64?: string; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'logs', type: args.type, lines: args.lines ?? 200 },
+    })
+    return (data || {}) as any
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }

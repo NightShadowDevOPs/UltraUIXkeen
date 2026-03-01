@@ -49,3 +49,12 @@ export const managedAgentBlocks = useStorage<Record<string, { ports: string }>>(
   'config/agent-managed-blocks-v1',
   {},
 )
+
+/**
+ * IP blocks managed by the UI (best-effort). Key = ip.
+ * Useful when a MAC cannot be resolved.
+ */
+export const managedAgentIpBlocks = useStorage<Record<string, true>>(
+  'config/agent-managed-ip-blocks-v1',
+  {},
+)

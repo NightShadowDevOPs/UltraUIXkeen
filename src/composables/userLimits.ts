@@ -1,11 +1,13 @@
 import { disconnectByIdSilentAPI, getConfigsSilentAPI, patchConfigsSilentAPI } from '@/api'
 import {
+  agentBlockIpAPI,
   agentBlockMacAPI,
   agentIpToMacAPI,
   agentNeighborsAPI,
   agentRemoveShapeAPI,
   agentSetShapeAPI,
   agentStatusAPI,
+  agentUnblockIpAPI,
   agentUnblockMacAPI,
 } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
@@ -16,6 +18,7 @@ import {
   agentEnforceBandwidth,
   agentShaperStatus,
   managedAgentBlocks,
+  managedAgentIpBlocks,
   managedAgentShapers,
 } from '@/store/agent'
 import {
@@ -230,7 +233,7 @@ const getMihomoPortsFromConfigs = (cfg: any): number[] => {
   return Array.from(new Set(out)).sort((a, b) => a - b)
 }
 
-const syncAgentMacBlocksNow = async (desiredMacs: string[], ports: number[]) => {
+const syncAgentMacBlocksNow = async (desiredMacs: string[], ports: number[] | 'all') => {
   const enabled = !!agentEnabled.value
   if (!enabled) return
 
@@ -241,7 +244,7 @@ const syncAgentMacBlocksNow = async (desiredMacs: string[], ports: number[]) => 
   const desired = Array.from(new Set(desiredMacs.map((m) => m.trim().toLowerCase()).filter(Boolean))).sort()
   const prev = managedAgentBlocks.value || {}
   const prevKeys = Object.keys(prev)
-  const portsStr = (ports || []).join(',')
+  const portsStr = ports === 'all' ? 'all' : (ports || []).join(',')
 
   // Remove blocks no longer desired.
   const toRemove = prevKeys.filter((m) => !desired.includes(m))
@@ -252,13 +255,42 @@ const syncAgentMacBlocksNow = async (desiredMacs: string[], ports: number[]) => 
   // Apply blocks.
   const toApply = desired.filter((m) => !prev[m] || prev[m].ports !== portsStr)
   if (toApply.length) {
-    await Promise.allSettled(toApply.map((m) => agentBlockMacAPI({ mac: m, ports })))
+    await Promise.allSettled(toApply.map((m) => agentBlockMacAPI({ mac: m, ports } as any)))
   }
 
   // Persist managed blocks.
   const next: Record<string, { ports: string }> = {}
   for (const m of desired) next[m] = { ports: portsStr }
   managedAgentBlocks.value = next
+}
+
+const syncAgentIpBlocksNow = async (desiredIps: string[]) => {
+  const enabled = !!agentEnabled.value
+  if (!enabled) return
+
+  const st = await agentStatusAPI()
+  if (!st?.ok) return
+  if (st.iptables === false) return
+
+  const norm = (s: string) => (s || '').trim().split('/')[0]
+  const desired = Array.from(new Set(desiredIps.map(norm).filter(Boolean))).sort()
+
+  const prev = managedAgentIpBlocks.value || {}
+  const prevKeys = Object.keys(prev)
+
+  const toRemove = prevKeys.filter((ip) => !desired.includes(ip))
+  if (toRemove.length) {
+    await Promise.allSettled(toRemove.map((ip) => agentUnblockIpAPI(ip)))
+  }
+
+  const toApply = desired.filter((ip) => !prev[ip])
+  if (toApply.length) {
+    await Promise.allSettled(toApply.map((ip) => agentBlockIpAPI(ip)))
+  }
+
+  const next: Record<string, true> = {}
+  for (const ip of desired) next[ip] = true
+  managedAgentIpBlocks.value = next
 }
 
 const looksLikeIP = (s: string) => {
@@ -279,12 +311,20 @@ const toCidr = (ipOrCidr: string) => {
 
 const ipsForUserLabel = (userLabel: string) => {
   const out: string[] = []
+  const want = (userLabel || '').trim()
+  const wantLc = want.toLowerCase()
+
+  const normIp = (k: string) => (k || '').trim().split('/')[0]
+
   for (const it of sourceIPLabelList.value) {
-    const label = it.label || it.key
-    if (label === userLabel || it.key === userLabel) out.push(it.key)
+    const label = String(it.label || it.key || '').trim()
+    const key = normIp(String(it.key || '').trim())
+    if (!key) continue
+    if (label === want || label.toLowerCase() === wantLc) out.push(key)
+    if (key === want) out.push(key)
   }
-  if (!out.length && looksLikeIP(userLabel)) out.push(userLabel)
-  return Array.from(new Set(out))
+  if (!out.length && looksLikeIP(want)) out.push(normIp(want))
+  return Array.from(new Set(out)).filter(Boolean)
 }
 
 export const getIpsForUser = (userLabel: string) => {
@@ -501,12 +541,13 @@ const enforceNow = async () => {
       await syncLanDisallowedIps(cidrs)
     }
 
-    // Apply MAC blocks via router-agent, targeting Mihomo listening ports.
+    // Apply blocks via router-agent.
+    // We block ALL traffic from the client (MAC/IP) to avoid bypasses in TProxy/redirect modes.
     if (agentEnabled.value) {
-      const cfgResp = await getConfigsSilentAPI().catch(() => null)
-      const ports = getMihomoPortsFromConfigs(cfgResp?.data) || []
-      const effectivePorts = ports.length ? ports : [7890, 7891, 1080, 1181, 1182]
-      await syncAgentMacBlocksNow(desiredBlockedMacs, effectivePorts)
+      await Promise.allSettled([
+        syncAgentMacBlocksNow(desiredBlockedMacs, 'all'),
+        syncAgentIpBlocksNow(cidrs.map((c) => c.split('/')[0])),
+      ])
     }
   } else {
     // If hard-block disabled, clean up only entries we previously managed.
@@ -514,9 +555,12 @@ const enforceNow = async () => {
       await syncLanDisallowedIps([])
     }
 
-    // Also remove any MAC blocks previously managed via agent.
+    // Also remove any MAC/IP blocks previously managed via agent.
     if (agentEnabled.value && Object.keys(managedAgentBlocks.value || {}).length) {
-      await syncAgentMacBlocksNow([], [])
+      await syncAgentMacBlocksNow([], 'all')
+    }
+    if (agentEnabled.value && Object.keys(managedAgentIpBlocks.value || {}).length) {
+      await syncAgentIpBlocksNow([])
     }
   }
 

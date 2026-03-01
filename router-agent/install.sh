@@ -208,7 +208,7 @@ if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
 fi
 
 # Parse query string (key=value&...)
-cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""
+cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""
 IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
@@ -222,6 +222,8 @@ for kv in $QUERY_STRING; do
     down) down="$val" ;;
     mac) mac="$val" ;;
     ports) ports="$val" ;;
+    type) type="$val" ;;
+    lines) lines="$val" ;;
     token) token_q="$val" ;;
   esac
 done
@@ -240,7 +242,9 @@ command -v tc >/dev/null 2>&1 && have_tc=1
 
 ensure_block_chain() {
   iptables -t filter -nL ZASH_BLOCK >/dev/null 2>&1 || iptables -t filter -N ZASH_BLOCK
+  # Block both access to router and forwarded traffic from LAN.
   iptables -t filter -C INPUT -i "$LAN_IF" -j ZASH_BLOCK >/dev/null 2>&1 || iptables -t filter -I INPUT 1 -i "$LAN_IF" -j ZASH_BLOCK
+  iptables -t filter -C FORWARD -i "$LAN_IF" -j ZASH_BLOCK >/dev/null 2>&1 || iptables -t filter -I FORWARD 1 -i "$LAN_IF" -j ZASH_BLOCK
 }
 
 ensure_iptables_chains() {
@@ -298,10 +302,17 @@ ip2mac() {
   ip_="$1"
   [ -n "$ip_" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; return; }
 
+  # Try to populate ARP/neighbor cache first.
+  ping -c 1 -W 1 "$ip_" >/dev/null 2>&1 || true
+
   mac_=""
-  mac_="$(ip neigh show dev "$LAN_IF" to "$ip_" 2>/dev/null | awk '/lladdr/{print $5; exit}' | tr 'A-Z' 'a-z')"
+  # Prefer neighbor table without binding to a specific dev (bridges may differ).
+  mac_="$(ip neigh show to "$ip_" 2>/dev/null | awk '/lladdr/{print $5; exit}' | tr 'A-Z' 'a-z')"
   if [ -z "$mac_" ]; then
-    mac_="$(arp -n "$ip_" 2>/dev/null | awk 'NR==2{print $3; exit}' | tr 'A-Z' 'a-z')"
+    mac_="$(ip neigh show 2>/dev/null | awk -v ip="$ip_" '$1==ip && /lladdr/ {print $5; exit}' | tr 'A-Z' 'a-z')"
+  fi
+  if [ -z "$mac_" ]; then
+    mac_="$(arp -n "$ip_" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i ~ /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/){print $i; exit}}' | tr 'A-Z' 'a-z')"
   fi
 
   if [ -n "$mac_" ] && echo "$mac_" | grep -qiE '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'; then
@@ -312,19 +323,22 @@ ip2mac() {
 }
 
 persist_block() {
-  m="$1"; p="$2"
+  kind="$1"; k="$2"; p="$3"
   mkdir -p "$(dirname "$BLOCKS_FILE")" >/dev/null 2>&1 || true
   tmp="${BLOCKS_FILE}.tmp"
-  [ -f "$BLOCKS_FILE" ] && grep -vi "^${m} " "$BLOCKS_FILE" > "$tmp" 2>/dev/null || true
-  echo "${m} ${p}" >> "$tmp"
+  # Remove previous entries for this key (kind+key) or legacy format.
+  if [ -f "$BLOCKS_FILE" ]; then
+    grep -vi "^${kind}[[:space:]]\+${k}[[:space:]]" "$BLOCKS_FILE" | grep -vi "^${k}[[:space:]]" > "$tmp" 2>/dev/null || true
+  fi
+  echo "${kind} ${k} ${p}" >> "$tmp"
   mv "$tmp" "$BLOCKS_FILE" 2>/dev/null || true
 }
 
 remove_persist_block() {
-  m="$1"
+  kind="$1"; k="$2"
   [ -f "$BLOCKS_FILE" ] || return 0
   tmp="${BLOCKS_FILE}.tmp"
-  grep -vi "^${m} " "$BLOCKS_FILE" > "$tmp" 2>/dev/null || true
+  grep -vi "^${kind}[[:space:]]\+${k}[[:space:]]" "$BLOCKS_FILE" | grep -vi "^${k}[[:space:]]" > "$tmp" 2>/dev/null || true
   mv "$tmp" "$BLOCKS_FILE" 2>/dev/null || true
 }
 
@@ -333,8 +347,14 @@ block_mac_ports() {
   [ -n "$m" ] || { reply_ok '{"ok":false,"error":"missing-mac"}'; return; }
   ensure_block_chain
 
-  # default ports if not provided
-  [ -n "$p" ] || p="7890,7891,1080,1181,1182"
+  # If ports are empty or 'all', block ALL traffic from this MAC (DROP).
+  if [ -z "$p" ] || [ "$p" = "all" ] || [ "$p" = "ALL" ]; then
+    iptables -t filter -C ZASH_BLOCK -m mac --mac-source "$m" -j DROP >/dev/null 2>&1 || \
+      iptables -t filter -A ZASH_BLOCK -m mac --mac-source "$m" -j DROP
+    persist_block "mac" "$m" "all"
+    reply_ok '{"ok":true}'
+    return
+  fi
 
   oldIFS="$IFS"
   IFS=','
@@ -348,7 +368,7 @@ block_mac_ports() {
   done
   IFS="$oldIFS"
 
-  persist_block "$m" "$p"
+  persist_block "mac" "$m" "$p"
   reply_ok '{"ok":true}'
 }
 
@@ -366,17 +386,64 @@ unblock_mac_ports() {
     iptables -t filter $drule >/dev/null 2>&1 || true
   done
 
-  remove_persist_block "$m"
+  remove_persist_block "mac" "$m"
+  reply_ok '{"ok":true}'
+}
+
+block_ip() {
+  ip_="$1"
+  [ -n "$ip_" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; return; }
+  ensure_block_chain
+  iptables -t filter -C ZASH_BLOCK -s "$ip_" -j DROP >/dev/null 2>&1 || \
+    iptables -t filter -A ZASH_BLOCK -s "$ip_" -j DROP
+  persist_block "ip" "$ip_" "all"
+  reply_ok '{"ok":true}'
+}
+
+unblock_ip() {
+  ip_="$1"
+  [ -n "$ip_" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; return; }
+  ensure_block_chain
+  while iptables -t filter -D ZASH_BLOCK -s "$ip_" -j DROP >/dev/null 2>&1; do :; done
+  remove_persist_block "ip" "$ip_"
   reply_ok '{"ok":true}'
 }
 
 rehydrate_blocks() {
   [ -f "$BLOCKS_FILE" ] || return 0
   ensure_block_chain
-  while read -r m p; do
+  while read -r a b c; do
+    [ -n "$a" ] || continue
+
+    kind="$a"
+    key="$b"
+    val="$c"
+
+    # Legacy format: <mac> <ports>
+    if [ "$kind" != "mac" ] && [ "$kind" != "ip" ]; then
+      kind="mac"
+      key="$a"
+      val="$b"
+    fi
+
+    if [ "$kind" = "ip" ]; then
+      [ -n "$key" ] || continue
+      iptables -t filter -C ZASH_BLOCK -s "$key" -j DROP >/dev/null 2>&1 || \
+        iptables -t filter -A ZASH_BLOCK -s "$key" -j DROP
+      continue
+    fi
+
+    m="$key"
+    p="$val"
     [ -n "$m" ] || continue
-    [ -n "$p" ] || p="7890,7891,1080,1181,1182"
-    # best-effort: re-add rules
+    [ -n "$p" ] || p="all"
+
+    if [ "$p" = "all" ] || [ "$p" = "ALL" ]; then
+      iptables -t filter -C ZASH_BLOCK -m mac --mac-source "$m" -j DROP >/dev/null 2>&1 || \
+        iptables -t filter -A ZASH_BLOCK -m mac --mac-source "$m" -j DROP
+      continue
+    fi
+
     oldIFS="$IFS"; IFS=','
     for port in $p; do
       port="$(echo "$port" | tr -d ' ')"
@@ -519,7 +586,13 @@ status() {
     read _ u1 n1 s1 i1 w1 irq1 sirq1 stl1 rest < /proc/stat
     t1=$((u1+n1+s1+i1+w1+irq1+sirq1+stl1))
     id1=$((i1+w1))
-    sleep 0.2
+    # Some router builds have a sleep that doesn't support fractional seconds.
+    # Prefer usleep if present, otherwise fall back to integer sleep.
+    if command -v usleep >/dev/null 2>&1; then
+      usleep 200000 2>/dev/null || true
+    else
+      sleep 0.2 2>/dev/null || sleep 1 2>/dev/null || true
+    fi
     read _ u2 n2 s2 i2 w2 irq2 sirq2 stl2 rest < /proc/stat
     t2=$((u2+n2+s2+i2+w2+irq2+sirq2+stl2))
     id2=$((i2+w2))
@@ -559,13 +632,80 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
-  reply_ok "$(printf '{"ok":true,"version":"0.4","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
     $( [ $have_hashlimit -eq 1 ] && echo true || echo false ) \
     "$cpu_pct" "$load1" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_used_pct")"
 }
+
+agent_log() {
+  # Best-effort command log for troubleshooting.
+  # Stored locally on router, can be viewed via cmd=logs&type=agent.
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+  printf '%s cmd=%s ip=%s mac=%s ports=%s type=%s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo 'date')" "$cmd" "$ip" "$mac" "$ports" "$type" >> /opt/zash-agent/var/agent.log 2>/dev/null || true
+}
+
+find_mihomo_log() {
+  # Try to discover Mihomo/Clash log file from config.
+  cfg="$MIHOMO_CONFIG"
+  if [ -f "$cfg" ]; then
+    lf="$(awk -F: 'BEGIN{IGNORECASE=1} $1 ~ /^[[:space:]]*log[-_]?file[[:space:]]*$/ {sub(/^[[:space:]]+/,"",$2); sub(/[[:space:]]+$/,"",$2); gsub(/^"|"$/,"",$2); gsub(/^\x27|\x27$/,"",$2); print $2; exit}' "$cfg" 2>/dev/null)"
+    if [ -n "$lf" ] && [ -f "$lf" ]; then
+      echo "$lf"
+      return 0
+    fi
+  fi
+
+  for p in \
+    /opt/var/log/mihomo.log \
+    /opt/var/log/mihomo/mihomo.log \
+    /opt/var/log/clash.log \
+    /opt/var/log/clash/clash.log \
+    /tmp/mihomo.log \
+    /tmp/clash.log \
+    /var/log/mihomo.log \
+    /var/log/clash.log
+  do
+    [ -f "$p" ] && { echo "$p"; return 0; }
+  done
+
+  echo ""
+  return 0
+}
+
+tail_b64() {
+  kind="$1"
+  n="$2"
+  echo "$n" | grep -qE '^[0-9]+$' || n=200
+  [ "$n" -gt 2000 ] && n=2000
+
+  path=""
+  txt=""
+
+  if [ "$kind" = "agent" ]; then
+    path="/opt/zash-agent/var/agent.log"
+    [ -f "$path" ] && txt="$(tail -n "$n" "$path" 2>/dev/null)"
+  else
+    path="$(find_mihomo_log)"
+    if [ -n "$path" ] && [ -f "$path" ]; then
+      txt="$(tail -n "$n" "$path" 2>/dev/null)"
+    elif command -v logread >/dev/null 2>&1; then
+      txt="$(logread 2>/dev/null | tail -n "$n" 2>/dev/null)"
+      path="logread"
+    fi
+  fi
+
+  # cap to ~200KB
+  txt="$(printf '%s' "$txt" | tail -c 204800 2>/dev/null || printf '%s' "$txt")"
+  b64="$(printf '%s' "$txt" | b64enc)"
+  esc_path="$(printf '%s' "$path" | sed 's/"/\\"/g')"
+  reply_ok "$(printf '{"ok":true,"kind":"%s","path":"%s","contentB64":"%s"}' "$kind" "$esc_path" "$b64")"
+}
+
+# Save a lightweight trace of requests (best effort).
+agent_log
 
 case "$cmd" in
   status|"") status ;;
@@ -587,11 +727,28 @@ case "$cmd" in
   rehydrate)
     rehydrate
     ;;
+  logs)
+    [ -n "$type" ] || type="mihomo"
+    [ -n "$lines" ] || lines="200"
+    if [ "$type" = "agent" ]; then
+      tail_b64 agent "$lines"
+    else
+      tail_b64 mihomo "$lines"
+    fi
+    ;;
   blockmac)
     block_mac_ports "$mac" "$ports"
     ;;
   unblockmac)
     unblock_mac_ports "$mac"
+    ;;
+  blockip)
+    [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
+    block_ip "$ip"
+    ;;
+  unblockip)
+    [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
+    unblock_ip "$ip"
     ;;
   mihomo_config)
     mihomo_config_json
