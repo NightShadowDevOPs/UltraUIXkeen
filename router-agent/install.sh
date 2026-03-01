@@ -212,7 +212,7 @@ if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
 fi
 
 # Parse query string (key=value&...)
-cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""
+cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""
 IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
@@ -228,6 +228,7 @@ for kv in $QUERY_STRING; do
     ports) ports="$val" ;;
     type) type="$val" ;;
     lines) lines="$val" ;;
+    offset) offset="$val" ;;
     token) token_q="$val" ;;
   esac
 done
@@ -637,7 +638,7 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.2","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.3","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -736,6 +737,71 @@ tail_b64() {
   b64="$(printf '%s' "$txt" | b64enc)"
   esc_path="$(printf '%s' "$path" | sed 's/"/\\"/g')"
   reply_ok "$(printf '{"ok":true,"kind":"%s","path":"%s","contentB64":"%s"}' "$kind" "$esc_path" "$b64")"
+tail_follow_b64() {
+  kind="$1"
+  n="$2"
+  off="$3"
+  echo "$n" | grep -qE '^[0-9]+$' || n=200
+  [ "$n" -gt 2000 ] && n=2000
+  echo "$off" | grep -qE '^[0-9]+$' || off=0
+
+  path=""
+  txt=""
+  mode="delta"
+  truncated=false
+
+  if [ "$kind" = "agent" ]; then
+    path="/opt/zash-agent/var/agent.log"
+  else
+    path="$(find_mihomo_log)"
+    if [ -z "$path" ] || [ ! -f "$path" ]; then
+      if command -v logread >/dev/null 2>&1; then
+        # logread cannot be tailed incrementally reliably; fall back to full snapshot
+        txt="$(logread 2>/dev/null | tail -n "$n" 2>/dev/null)"
+        path="logread"
+        mode="full"
+        off=0
+      else
+        path=""
+      fi
+    fi
+  fi
+
+  if [ -n "$path" ] && [ -f "$path" ]; then
+    sz="$(wc -c < "$path" 2>/dev/null | tr -d ' ')"
+    echo "$sz" | grep -qE '^[0-9]+$' || sz=0
+
+    if [ "$off" -le 0 ] || [ "$off" -gt "$sz" ]; then
+      txt="$(tail -n "$n" "$path" 2>/dev/null)"
+      mode="full"
+    else
+      delta=$((sz-off))
+      # cap per response
+      if [ "$delta" -gt 204800 ]; then
+        delta=204800
+        truncated=true
+      fi
+      [ "$delta" -gt 0 ] && txt="$(tail -c "$delta" "$path" 2>/dev/null)" || txt=""
+      mode="delta"
+    fi
+    off="$sz"
+  fi
+
+  if [ "$kind" != "agent" ] && [ -z "$path" ] && [ -z "$txt" ]; then
+    txt="No Mihomo log found. Set 'log-file:' in $MIHOMO_CONFIG, or set MIHOMO_LOG in /opt/zash-agent/agent.env. You can also view the config via cmd=logs&type=config."
+    path="$MIHOMO_CONFIG"
+    mode="full"
+    off=0
+  fi
+
+  # cap to ~200KB
+  txt="$(printf '%s' "$txt" | tail -c 204800 2>/dev/null || printf '%s' "$txt")"
+  b64="$(printf '%s' "$txt" | b64enc)"
+  esc_path="$(printf '%s' "$path" | sed 's/"/\\"/g')"
+  reply_ok "$(printf '{"ok":true,"kind":"%s","path":"%s","contentB64":"%s","offset":%s,"mode":"%s","truncated":%s}' "$kind" "$esc_path" "$b64" "$off" "$mode" "$truncated")"
+}
+
+
 }
 
 # Save a lightweight trace of requests (best effort).
@@ -770,6 +836,18 @@ case "$cmd" in
       config_b64
     else
       tail_b64 mihomo "$lines"
+    fi
+    ;;
+  logs_follow)
+    [ -n "$type" ] || type="mihomo"
+    [ -n "$lines" ] || lines="200"
+    [ -n "$offset" ] || offset="0"
+    if [ "$type" = "agent" ]; then
+      tail_follow_b64 agent "$lines" "$offset"
+    elif [ "$type" = "config" ]; then
+      config_b64
+    else
+      tail_follow_b64 mihomo "$lines" "$offset"
     fi
     ;;
   blockmac)

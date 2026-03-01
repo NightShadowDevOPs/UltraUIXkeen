@@ -161,6 +161,31 @@ export const agentLogsAPI = async (args: {
   }
 }
 
+export const agentLogsFollowAPI = async (args: {
+  type: 'mihomo' | 'agent'
+  lines?: number
+  offset?: number
+}): Promise<{
+  ok: boolean
+  kind?: string
+  path?: string
+  contentB64?: string
+  offset?: number
+  mode?: 'full' | 'delta'
+  truncated?: boolean
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'logs_follow', type: args.type, lines: args.lines ?? 200, offset: args.offset ?? 0 },
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+
 export const agentUnblockMacAPI = async (mac: string): Promise<{ ok: boolean; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {

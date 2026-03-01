@@ -35,7 +35,7 @@
             <option :value="500">500</option>
             <option :value="1000">1000</option>
           </select>
-          <button type="button" class="btn btn-sm" @click="refreshLogs" :disabled="logsBusy || !agentEnabled">
+          <button type="button" class="btn btn-sm" @click="forceRefreshLogs" :disabled="logsBusy || !agentEnabled">
             {{ $t('refresh') }}
           </button>
         </div>
@@ -139,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { agentLogsAPI, agentMihomoProvidersAPI, agentStatusAPI } from '@/api/agent'
+import { agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentStatusAPI } from '@/api/agent'
 import { zashboardVersion, version as coreVersion } from '@/api'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import { getLabelFromBackend } from '@/helper/utils'
@@ -166,6 +166,8 @@ const logsAuto = ref(true)
 const logsBusy = ref(false)
 const logText = ref('')
 const logPath = ref('')
+const logOffset = ref(0)
+const logMode = ref<'poll' | 'delta' | 'full'>('poll')
 
 let logTimer: any = null
 const refreshLogs = async () => {
@@ -173,17 +175,63 @@ const refreshLogs = async () => {
   if (logsBusy.value) return
   logsBusy.value = true
   try {
-    const r: any = await agentLogsAPI({ type: logSource.value, lines: logLines.value })
-    if (!r?.ok) {
-      logText.value = r?.error || 'failed'
+    if (logSource.value === 'config') {
+      const r: any = await agentLogsAPI({ type: 'config', lines: logLines.value })
+      logMode.value = 'full'
+      logOffset.value = 0
+      if (!r?.ok) {
+        logText.value = r?.error || 'failed'
+        return
+      }
+      logPath.value = r?.path || ''
+      logText.value = decodeB64Utf8(r?.contentB64) || ''
       return
     }
-    logPath.value = r?.path || ''
-    logText.value = decodeB64Utf8(r?.contentB64) || ''
+
+    // Prefer efficient incremental follow (agent >= 0.5.3). Fallback to full polling on older agents.
+    const r: any = await agentLogsFollowAPI({ type: logSource.value as any, lines: logLines.value, offset: logOffset.value })
+    if (r?.ok) {
+      logPath.value = r?.path || ''
+      const chunk = decodeB64Utf8(r?.contentB64) || ''
+      const mode = (r?.mode || 'delta') as 'full' | 'delta'
+      logMode.value = mode
+      const newOffset = typeof r?.offset === 'number' ? r.offset : logOffset.value
+      const resetLike = logOffset.value === 0 || mode === 'full' || newOffset < logOffset.value
+      if (resetLike) logText.value = chunk
+      else logText.value = (logText.value || '') + chunk
+      logOffset.value = newOffset
+
+      // Keep last N lines (avoid runaway memory).
+      const maxLines = Math.min(2000, Math.max(50, logLines.value || 200))
+      const arr = (logText.value || '').split(/
+?
+/)
+      if (arr.length > maxLines) logText.value = arr.slice(-maxLines).join('
+')
+      return
+    }
+
+    // Fallback: full fetch
+    const r2: any = await agentLogsAPI({ type: logSource.value, lines: logLines.value })
+    logMode.value = 'poll'
+    logOffset.value = 0
+    if (!r2?.ok) {
+      logText.value = r2?.error || 'failed'
+      return
+    }
+    logPath.value = r2?.path || ''
+    logText.value = decodeB64Utf8(r2?.contentB64) || ''
   } finally {
     logsBusy.value = false
   }
 }
+
+const forceRefreshLogs = () => {
+  logOffset.value = 0
+  logText.value = ''
+  refreshLogs()
+}
+
 
 const stopTimer = () => {
   if (logTimer) {
@@ -211,6 +259,7 @@ onBeforeUnmount(() => {
 })
 
 watch([logsAuto, logSource, logLines, agentEnabled], () => {
+  logOffset.value = 0
   refreshLogs()
   startTimer()
 })

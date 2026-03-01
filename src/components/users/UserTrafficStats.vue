@@ -891,6 +891,13 @@ const rows = computed<Row[]>(() => {
   for (const k of knownKeysByUser.value.keys()) allUsers.add(k)
   for (const k of agg.keys()) allUsers.add(k)
 
+  // Fallback: ensure active users are still visible even if traffic history is empty
+  for (const c of activeConnections.value || []) {
+    const ip = (c as any)?.metadata?.sourceIP || ''
+    const u = (getIPLabelFromMap(ip) || ip || '').toString()
+    if (u) allUsers.add(u)
+  }
+
   const list: Row[] = Array.from(allUsers).map((user) => {
     const t = agg.get(user) || { dl: 0, ul: 0 }
     const keys = (knownKeysByUser.value.get(user) || []).join(', ')
