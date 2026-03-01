@@ -88,7 +88,7 @@
       </div>
     </template>
     <template v-slot:preview>
-      <ProxyPreview :nodes="renderProxies" />
+      <ProxyPreview :nodes="renderProxies" :now="activeProxy" />
     </template>
     <template v-slot:content="{ showFullContent }">
       <ProxyNodeGrid>
@@ -158,6 +158,29 @@ const providerStats = computed(() => {
   }
 
   return { connections, bytes, speed }
+})
+
+// Highlight the "currently used" proxy inside this provider.
+// Best-effort: infer from active connections (leaf hop with max traffic).
+const activeProxy = computed(() => {
+  const set = new Set(allProxies.value || [])
+  let bestName = ''
+  let bestTotal = 0
+
+  for (const c of activeConnections.value || []) {
+    const chains = (c as any)?.chains
+    if (!Array.isArray(chains) || !chains.length) continue
+    const leaf = chains[chains.length - 1]
+    if (!leaf || !set.has(leaf)) continue
+
+    const total = (Number((c as any)?.download) || 0) + (Number((c as any)?.upload) || 0)
+    if (total > bestTotal) {
+      bestTotal = total
+      bestName = leaf
+    }
+  }
+
+  return bestName
 })
 
 const getAnyFromObj = (obj: any, candidates: string[]): any => {
