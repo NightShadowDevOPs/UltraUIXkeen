@@ -8,6 +8,18 @@ export const autoSortProxyProvidersByHealth = useStorage<boolean>(
   true,
 )
 
+/** Provider list sort mode on the Providers tab. */
+export const proxyProvidersSortMode = useStorage<'health' | 'activity' | 'name'>(
+  'config/proxy-providers-sort-mode',
+  'health',
+)
+
+/** Show only providers that currently have active connections (best-effort). */
+export const showOnlyActiveProxyProviders = useStorage<boolean>(
+  'config/show-only-active-proxy-providers',
+  false,
+)
+
 /** Optional quick filter for providers tab: expired | nearExpiry | offline | degraded | healthy */
 export const providerHealthFilter = useStorage<string>('config/provider-health-filter', '')
 

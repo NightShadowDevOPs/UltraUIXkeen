@@ -2,6 +2,7 @@
 import { getProviderHealth } from '@/helper/providerHealth'
 import { PROXY_TAB_TYPE } from '@/constant'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
+import { providerActivityByName } from '@/store/providerActivity'
 import { hideUnusedProxyProviders } from '@/store/settings'
 import {
   agentProviderByName,
@@ -11,6 +12,8 @@ import {
   agentProvidersOk,
   fetchAgentProviders,
   providerHealthFilter,
+  proxyProvidersSortMode,
+  showOnlyActiveProxyProviders,
 } from '@/store/providerHealth'
 import dayjs from 'dayjs'
 import { computed } from 'vue'
@@ -40,6 +43,14 @@ const counts = computed(() => {
     ;(c as any)[h.status]++
   }
   return c
+})
+
+const activeProvidersCount = computed(() => {
+  let n = 0
+  for (const p of providers.value || []) {
+    if ((providerActivityByName.value[p.name]?.connections || 0) > 0) n += 1
+  }
+  return n
 })
 
 const lastAgentUpdate = computed(() => {
@@ -117,6 +128,24 @@ const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
       </div>
 
       <div class="ml-auto flex items-center gap-2">
+        <button
+          class="badge badge-neutral cursor-pointer"
+          :class="showOnlyActiveProxyProviders ? '' : 'badge-outline'"
+          @click="showOnlyActiveProxyProviders = !showOnlyActiveProxyProviders"
+          :title="$t('providerOnlyActiveTip')"
+        >
+          {{ $t('providerOnlyActive') }}: {{ activeProvidersCount }}
+        </button>
+
+        <select
+          class="select select-bordered select-xs"
+          v-model="proxyProvidersSortMode"
+          :title="$t('sortBy')"
+        >
+          <option value="health">{{ $t('providerSortHealth') }}</option>
+          <option value="activity">{{ $t('providerSortActivity') }}</option>
+          <option value="name">{{ $t('providerSortName') }}</option>
+        </select>
         <div
           v-if="agentProvidersOk"
           class="text-xs opacity-70"

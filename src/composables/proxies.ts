@@ -3,9 +3,16 @@ import { GLOBAL, PROXY_TAB_TYPE } from '@/constant'
 import { isHiddenGroup } from '@/helper'
 import { getProviderHealth } from '@/helper/providerHealth'
 import { configs } from '@/store/config'
+import { providerActivityByName } from '@/store/providerActivity'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
 import { customGlobalNode, displayGlobalByMode, hideUnusedProxyProviders, manageHiddenGroup } from '@/store/settings'
-import { agentProviderByName, autoSortProxyProvidersByHealth, providerHealthFilter } from '@/store/providerHealth'
+import {
+  agentProviderByName,
+  autoSortProxyProvidersByHealth,
+  providerHealthFilter,
+  proxyProvidersSortMode,
+  showOnlyActiveProxyProviders,
+} from '@/store/providerHealth'
 import { isEmpty } from 'lodash'
 import { computed } from 'vue'
 
@@ -46,13 +53,35 @@ export const renderGroups = computed(() => {
       })
     }
 
-    if (autoSortProxyProvidersByHealth.value) {
+    // Optionally show only providers with active connections (best-effort).
+    if (showOnlyActiveProxyProviders.value) {
+      list = list.filter((p: any) => (providerActivityByName.value[p.name]?.connections || 0) > 0)
+    }
+
+    const mode = proxyProvidersSortMode.value || 'health'
+
+    if (mode === 'activity') {
       list = [...list].sort((a: any, b: any) => {
-        const ha = getProviderHealth(a as any, agentProviderByName.value[a.name])
-        const hb = getProviderHealth(b as any, agentProviderByName.value[b.name])
-        if (ha.severity !== hb.severity) return ha.severity - hb.severity
+        const aa = (providerActivityByName.value as any)[a.name] || { bytes: 0, connections: 0 }
+        const bb = (providerActivityByName.value as any)[b.name] || { bytes: 0, connections: 0 }
+        if (bb.bytes !== aa.bytes) return bb.bytes - aa.bytes
+        if (bb.connections !== aa.connections) return bb.connections - aa.connections
         return String(a.name).localeCompare(String(b.name))
       })
+    } else if (mode === 'name') {
+      list = [...list].sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)))
+    } else {
+      // mode === 'health'
+      if (autoSortProxyProvidersByHealth.value) {
+        list = [...list].sort((a: any, b: any) => {
+          const ha = getProviderHealth(a as any, agentProviderByName.value[a.name])
+          const hb = getProviderHealth(b as any, agentProviderByName.value[b.name])
+          if (ha.severity !== hb.severity) return ha.severity - hb.severity
+          return String(a.name).localeCompare(String(b.name))
+        })
+      } else {
+        list = [...list].sort((a: any, b: any) => String(a.name).localeCompare(String(b.name)))
+      }
     }
 
     return list.map((p) => p.name)
