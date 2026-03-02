@@ -12,7 +12,7 @@
 	    <div ref="controlsBar" class="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2">
       <div v-if="filterMode !== 'none'" class="flex items-center gap-1">
         <button
-          class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[280px] truncate"
+          class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[min(820px,calc(100vw-12rem))] truncate"
           @click.stop="clearFilter"
           :title="activeFilterChip?.title || $t('clear')"
         >
@@ -119,7 +119,7 @@
 		      <div ref="fsControlsBar" class="fixed left-4 top-4 z-[10020] flex flex-wrap items-center gap-2" @click.stop>
         <div v-if="filterMode !== 'none'" class="flex items-center gap-1">
           <button
-            class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[280px] truncate"
+            class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[min(920px,calc(100vw-12rem))] truncate"
             @click.stop="clearFilter"
             :title="activeFilterChip?.title || $t('clear')"
           >

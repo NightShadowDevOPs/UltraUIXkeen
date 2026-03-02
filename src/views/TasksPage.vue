@@ -411,6 +411,27 @@
       </div>
     </div>
 
+
+    <div class="card gap-2 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="font-semibold">{{ $t('usersDbSyncTitle') }}</div>
+        <span class="badge badge-ghost badge-sm">{{ $t('planned') }}</span>
+      </div>
+
+      <div class="text-sm opacity-80">
+        {{ $t('usersDbSyncDesc') }}
+      </div>
+
+      <div class="text-xs opacity-70">
+        <div>• {{ $t('usersDbSyncCurrent') }}</div>
+        <div>• {{ $t('usersDbSyncPlan') }}</div>
+      </div>
+
+      <div class="text-[11px] opacity-60">
+        {{ $t('usersDbSyncTip') }}
+      </div>
+    </div>
+
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('operationsHistory') }}</div>
