@@ -43,6 +43,8 @@ const ru: LANG_MESSAGE = {
   agentToken: 'Токен агента',
   enforceBandwidth: 'Применять лимит канала',
   agentDetected: 'Обнаружено',
+  agentVersion: 'Версия агента',
+  agentServerVersion: 'Версия на сервере',
   agentOfflineTip: 'Агент включён, но недоступен. Проверь URL/порт и что агент запущен на роутере.',
   agentDisabledTip: 'Включи агент, чтобы лимит канала применялся “по-взрослому” (tc/iptables) и для расширенного мониторинга.',
   disabled: 'Выключено',

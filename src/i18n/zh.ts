@@ -43,6 +43,8 @@ const zh: LANG_MESSAGE = {
   agentToken: '代理令牌',
   enforceBandwidth: '执行带宽限额',
   agentDetected: '检测到',
+  agentVersion: 'Agent 版本',
+  agentServerVersion: '服务器版本',
   agentOfflineTip: '代理已启用但离线，请检查 URL/端口并确认路由器上代理在运行。',
   agentDisabledTip: '启用代理以用 tc/iptables 执行带宽限额并获得更好的路由器监控。',
   disabled: '已禁用',

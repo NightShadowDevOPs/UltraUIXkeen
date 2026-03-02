@@ -802,6 +802,15 @@ const looksLikeIP = (s: string) => {
   return v4 || v6
 }
 
+// Normalize user display strings to prevent duplicates (case/whitespace variations).
+const normalizeUserName = (s: string) => {
+  return (s || '').toString().trim().replace(/\s+/g, ' ').toLowerCase()
+}
+const normalizeUserName = (s: string) => {
+  return (s || "").toString().trim().replace(/\s+/g, " ").toLowerCase()
+}
+
+
 const hasMapping = (user: string) => {
   const u = (user || '').trim()
   if (!u) return false
@@ -889,50 +898,113 @@ const range = computed(() => {
 })
 
 const knownKeysByUser = computed(() => {
+  // Map normalized display user -> list of IP keys.
   const map = new Map<string, string[]>()
-  for (const item of sourceIPLabelList.value) {
-    const user = item.label || item.key
-    const keys = map.get(user) || []
-    keys.push(item.key)
-    map.set(user, keys)
+  for (const item of sourceIPLabelList.value || []) {
+    const display = String((item as any)?.label || (item as any)?.key || '').trim()
+    const ip = String((item as any)?.key || '').trim()
+    if (!display || !ip) continue
+    const norm = normalizeUserName(display)
+    const keys = map.get(norm) || []
+    if (!keys.includes(ip)) keys.push(ip)
+    map.set(norm, keys)
+  }
+  return map
+})
+
+const canonicalUserByNorm = computed(() => {
+  // Prefer explicit labels over raw IPs for display.
+  const map = new Map<string, string>()
+  for (const item of sourceIPLabelList.value || []) {
+    const ip = String((item as any)?.key || '').trim()
+    const label = String((item as any)?.label || '').trim()
+    const display = (label || ip).trim()
+    if (!display) continue
+    const norm = normalizeUserName(display)
+    const prev = map.get(norm)
+    if (!prev) map.set(norm, display)
+    else if (label && looksLikeIP(prev)) map.set(norm, display)
   }
   return map
 })
 
 const rows = computed<Row[]>(() => {
   const { start, end } = range.value
-  // Traffic history is stored by stable keys (IP). Display names are derived from the SourceIP map.
+  // Traffic history buckets are primarily stored by stable keys (IP).
   const aggByKey = getTrafficRange(start, end)
 
+  const normToIps = new Map<string, Set<string>>()
+  for (const [norm, ips] of knownKeysByUser.value.entries()) {
+    normToIps.set(norm, new Set(ips))
+  }
+
+  // Legacy buckets could still be stored under a label/synthetic key.
+  const legacyKeysByNorm = new Map<string, Set<string>>()
+  for (const k of aggByKey.keys()) {
+    const key = String(k || '').trim()
+    if (!key) continue
+    if (looksLikeIP(key)) continue
+    const norm = normalizeUserName(key)
+    const set = legacyKeysByNorm.get(norm) || new Set<string>()
+    set.add(key)
+    legacyKeysByNorm.set(norm, set)
+  }
+
+  const canonicalFor = (s: string) => {
+    const raw = String(s || '').trim()
+    if (!raw) return ''
+    const norm = normalizeUserName(raw)
+    return canonicalUserByNorm.value.get(norm) || raw
+  }
+
+  const addUser = (map: Map<string, string>, raw: string) => {
+    const disp = canonicalFor(raw)
+    if (!disp) return
+    const norm = normalizeUserName(disp)
+    if (!map.has(norm)) map.set(norm, disp)
+  }
+
+  const all = new Map<string, string>()
+
+  // From saved mapping.
+  for (const [norm, ips] of normToIps.entries()) {
+    const disp = canonicalUserByNorm.value.get(norm) || (ips.values().next().value || '')
+    if (disp) all.set(norm, disp)
+  }
+
   const displayUserForKey = (k: string) => {
-    const key = (k || '').toString().trim()
+    const key = String(k || '').trim()
     if (!key) return ''
     if (looksLikeIP(key)) return (getIPLabelFromMap(key) || key).toString()
     return key
   }
 
-  const allUsers = new Set<string>()
-  for (const k of knownKeysByUser.value.keys()) allUsers.add(k)
+  // From traffic buckets.
   for (const k of aggByKey.keys()) {
-    const u = displayUserForKey(k)
-    if (u) allUsers.add(u)
+    addUser(all, displayUserForKey(String(k)))
   }
 
   // Also include users with saved limits (after applying profiles)
-  for (const u of Object.keys(userLimits.value || {})) allUsers.add(u)
+  for (const u of Object.keys(userLimits.value || {})) addUser(all, u)
 
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
-    const ip = (c as any)?.metadata?.sourceIP || ''
+    const ip = String((c as any)?.metadata?.sourceIP || '').trim()
     const u = (getIPLabelFromMap(ip) || ip || '').toString()
-    if (u) allUsers.add(u)
+    addUser(all, u)
   }
 
-  const list: Row[] = Array.from(allUsers).map((user) => {
-    const keysSet = new Set<string>(knownKeysByUser.value.get(user) || [])
+  const list: Row[] = Array.from(all.entries()).map(([norm, user]) => {
+    const keysSet = new Set<string>()
+
+    // IP keys from mapping.
+    for (const ip of normToIps.get(norm) || []) keysSet.add(ip)
+
+    // If the displayed user is an IP itself, include it.
     if (looksLikeIP(user)) keysSet.add(user)
-    // legacy: some buckets could still be stored under a label/synthetic key
-    if (!looksLikeIP(user)) keysSet.add(user)
+
+    // Legacy buckets stored under a label/synthetic key.
+    for (const lk of legacyKeysByNorm.get(norm) || []) keysSet.add(lk)
 
     let dl = 0
     let ul = 0
@@ -943,6 +1015,7 @@ const rows = computed<Row[]>(() => {
     }
 
     const ipKeys = Array.from(keysSet).filter((k) => looksLikeIP(k))
+    ipKeys.sort((a, b) => a.localeCompare(b))
     const keys = ipKeys.join(', ')
 
     return { user, keys, dl, ul }

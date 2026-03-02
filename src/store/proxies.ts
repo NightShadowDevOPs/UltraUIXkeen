@@ -178,6 +178,79 @@ export const fetchProxies = async () => {
   })
 }
 
+
+
+let providerFetchTime = 0
+
+/**
+ * Fetch ONLY proxy providers (no full proxies/groups refresh).
+ * Used after provider health-check/update to avoid re-rendering the whole Providers page.
+ */
+export const fetchProxyProvidersOnly = async () => {
+  const nowTime = Date.now()
+  providerFetchTime = nowTime
+
+  const providerRes = await fetchProxyProviderAPI()
+  const providerData = providerRes.data
+
+  if (providerFetchTime !== nowTime) {
+    return
+  }
+
+  const providers = Object.values(providerData.providers).filter(
+    (provider: any) => provider.name !== 'default' && provider.vehicleType !== 'Compatible',
+  ) as any[]
+
+  // Track old provider proxy names to remove stale ones.
+  const oldProviderProxyNames = new Set<string>()
+  for (const p of (proxyProviederList.value || []) as any[]) {
+    for (const n of ((p as any)?.proxies || []) as any[]) {
+      const nm = String((n as any)?.name || '').trim()
+      if (nm) oldProviderProxyNames.add(nm)
+    }
+  }
+
+  // proxyProviederList: keep array identity stable; reuse existing provider objects when possible.
+  const curProviders = proxyProviederList.value || []
+  const byName = new Map<string, any>()
+  for (const p of curProviders as any[]) byName.set(String((p as any)?.name || ''), p)
+  const nextProviders = providers.map((p: any) => {
+    const old = byName.get(String(p?.name || ''))
+    if (old && typeof old === 'object') {
+      Object.assign(old, p)
+      return old
+    }
+    return p
+  })
+  proxyProviederList.value.splice(0, proxyProviederList.value.length, ...nextProviders)
+
+  // proxyMap: update only provider nodes, in-place.
+  const curMap = (proxyMap.value || {}) as Record<string, any>
+  const newProviderProxyNames = new Set<string>()
+
+  for (const pr of providers) {
+    for (const node of ((pr as any)?.proxies || []) as any[]) {
+      const name = String((node as any)?.name || '').trim()
+      if (!name) continue
+      newProviderProxyNames.add(name)
+      if (curMap[name] && typeof curMap[name] === 'object') {
+        Object.assign(curMap[name], node)
+      } else {
+        curMap[name] = node
+      }
+    }
+  }
+
+  // Remove stale provider proxy nodes that disappeared.
+  for (const nm of oldProviderProxyNames) {
+    if (!newProviderProxyNames.has(nm)) {
+      delete curMap[nm]
+    }
+  }
+
+  proxyMap.value = curMap as any
+}
+
 export const handlerProxySelect = async (proxyGroupName: string, proxyName: string) => {
   const proxyGroup = proxyMap.value[proxyGroupName]
 

@@ -506,6 +506,14 @@
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
           <div><span class="opacity-60">rev:</span> <span class="font-mono">{{ usersDbRemoteRev }}</span></div>
           <div class="min-w-0"><span class="opacity-60">{{ $t('updated') }}:</span> <span class="font-mono">{{ usersDbRemoteUpdatedAt || '—' }}</span></div>
+          <div v-if="agentEnabled && (agentStatusLite.version || agentStatusLite.serverVersion)" class="min-w-0">
+            <span class="opacity-60">{{ $t('agentVersion') }}:</span>
+            <span class="font-mono ml-1">{{ agentStatusLite.version || '—' }}</span>
+            <template v-if="agentStatusLite.serverVersion">
+              <span class="opacity-60 ml-2">{{ $t('agentServerVersion') }}:</span>
+              <span class="font-mono ml-1">{{ agentStatusLite.serverVersion }}</span>
+            </template>
+          </div>
         </div>
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
           <div><span class="opacity-60">{{ $t('lastPull') }}:</span> <span class="font-mono">{{ usersDbLastPullAt ? fmtTs(usersDbLastPullAt) : '—' }}</span></div>
@@ -630,6 +638,20 @@ import {
 
 const busy = ref(false)
 const jobs = computed(() => jobHistory.value || [])
+// --- Router-agent status (versions) ---
+const agentStatusLite = ref<any>({ ok: false })
+const refreshAgentStatusLite = async () => {
+  if (!agentEnabled.value) {
+    agentStatusLite.value = { ok: false }
+    return
+  }
+  agentStatusLite.value = await agentStatusAPI()
+}
+
+watch([agentEnabled, agentUrl], () => {
+  refreshAgentStatusLite()
+})
+
 
 // --- Router external-ui-url helper (anti-cache) ---
 const routerUiUrl = computed(() => {
@@ -782,6 +804,7 @@ const startTimer = () => {
 }
 
 onMounted(() => {
+  refreshAgentStatusLite()
   refreshLogs()
   startTimer()
   refreshFreshness()

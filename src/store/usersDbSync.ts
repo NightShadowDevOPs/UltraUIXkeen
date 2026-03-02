@@ -67,10 +67,28 @@ const djb2 = (s: string) => {
   return (h >>> 0).toString(16)
 }
 
+
+
+const isLikelySourceKey = (k: string) => {
+  const key = (k || '').trim()
+  if (!key) return false
+  // allow regex: /.../
+  if (key.startsWith('/')) return true
+  // disallow whitespace in non-regex keys
+  if (/\s/.test(key)) return false
+  // allow CIDR
+  if (key.includes('/')) return true
+  // allow IPv4 / IPv6 / EUI64 suffixes
+  if (key.includes('.') || key.includes(':')) return true
+  // allow pure hex suffix (rare, but used for IPv6 endsWith matching)
+  if (/^[0-9a-fA-F]{2,}$/.test(key)) return true
+  return false
+}
 const normalizeLabel = (x: any): SourceIPLabel | null => {
   if (!x || typeof x !== 'object') return null
   const key = String((x as any).key || '').trim()
   const label = String((x as any).label || '').trim()
+  if (!isLikelySourceKey(key)) return null
   const scope = Array.isArray((x as any).scope) ? ((x as any).scope as any[]).map(String) : undefined
   if (!key || !label) return null
 

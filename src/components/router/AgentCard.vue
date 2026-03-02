@@ -42,9 +42,16 @@
       </label>
     </div>
 
-    <div class="text-xs opacity-70">
+        <div class="text-xs opacity-70">
       <div v-if="agentEnabled && status.ok">
         {{ $t('agentDetected') }}: {{ status.lan || 'br0' }} → {{ status.wan || 'eth4' }}
+        <div v-if="status.version || status.serverVersion" class="mt-0.5 flex flex-wrap items-center gap-2">
+          <span v-if="status.version" class="font-mono">v{{ status.version }}</span>
+          <span v-if="status.serverVersion" class="opacity-60">
+            latest <span class="font-mono">{{ status.serverVersion }}</span>
+          </span>
+          <span v-if="needsUpdate" class="badge badge-warning badge-sm">update</span>
+        </div>
       </div>
       <div v-else-if="agentEnabled && !status.ok">
         {{ $t('agentOfflineTip') }}
@@ -53,15 +60,20 @@
         {{ $t('agentDisabledTip') }}
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { agentStatusAPI } from '@/api/agent'
 import { agentEnabled, agentEnforceBandwidth, agentToken, agentUrl } from '@/store/agent'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
-const status = ref<{ ok: boolean; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
+const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
+
+const needsUpdate = computed(() => {
+  return Boolean(status.value?.ok && status.value?.version && status.value?.serverVersion && status.value.version !== status.value.serverVersion)
+})
 
 const refresh = async () => {
   if (!agentEnabled.value) {

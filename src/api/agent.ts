@@ -29,6 +29,7 @@ const parseMaybeCgiJson = (data: any) => {
 type AgentStatus = {
   ok: boolean
   version?: string
+  serverVersion?: string
   wan?: string
   lan?: string
   tc?: boolean

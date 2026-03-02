@@ -7,6 +7,7 @@ import { configs, updateConfigs } from '@/store/config'
 import {
   allProxiesLatencyTest,
   fetchProxies,
+  fetchProxyProvidersOnly,
   hasSmartGroup,
   proxiesFilter,
   proxiesTabShow,
@@ -59,10 +60,10 @@ export default defineComponent({
         await Promise.all(
           proxyProviederList.value.map((provider) => updateProxyProviderAPI(provider.name)),
         )
-        await fetchProxies()
+        await fetchProxyProvidersOnly()
         isUpgrading.value = false
       } catch {
-        await fetchProxies()
+        await fetchProxyProvidersOnly()
         isUpgrading.value = false
       }
     }

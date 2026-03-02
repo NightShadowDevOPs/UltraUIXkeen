@@ -274,7 +274,7 @@ import { useBounceOnVisible } from '@/composables/bouncein'
 import { useRenderProxies } from '@/composables/renderProxies'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
-import { fetchProxies, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
+import { fetchProxyProvidersOnly, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderPanelUrlMap, twoColumnProxyGroup } from '@/store/settings'
@@ -713,7 +713,7 @@ const healthCheckClickHandler = async () => {
   isHealthChecking.value = true
   try {
     await proxyProviderHealthCheckAPI(props.name)
-    await fetchProxies()
+    await fetchProxyProvidersOnly()
     isHealthChecking.value = false
   } catch {
     isHealthChecking.value = false
@@ -726,7 +726,7 @@ const updateProviderClickHandler = async () => {
   isUpdating.value = true
   try {
     await updateProxyProviderAPI(props.name)
-    await fetchProxies()
+    await fetchProxyProvidersOnly()
     isUpdating.value = false
   } catch {
     isUpdating.value = false
