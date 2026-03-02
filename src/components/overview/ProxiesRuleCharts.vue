@@ -9,7 +9,7 @@
     <span class="border-base-content/30 text-base-content/10 bg-base-100/70 hidden" ref="colorRef" />
 
 
-    <div class="absolute left-2 top-2 z-10 flex flex-wrap items-center gap-2">
+	    <div ref="controlsBar" class="absolute left-4 top-4 z-20 flex flex-wrap items-center gap-2">
       <div v-if="filterMode !== 'none'" class="flex items-center gap-1">
         <button
           class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[280px] truncate"
@@ -116,7 +116,7 @@
       <div ref="fullScreenChart" class="bg-base-100 h-full w-full" :style="fullChartStyle" />
 
 	      <!-- fullscreen controls: same unified control + presets/filter -->
-	      <div class="fixed left-4 top-4 z-[10020] flex flex-wrap items-center gap-2" @click.stop>
+		      <div ref="fsControlsBar" class="fixed left-4 top-4 z-[10020] flex flex-wrap items-center gap-2" @click.stop>
         <div v-if="filterMode !== 'none'" class="flex items-center gap-1">
           <button
             class="badge badge-outline cursor-pointer hover:opacity-80 max-w-[280px] truncate"
@@ -454,6 +454,10 @@ const isFullScreen = ref(false)
 const chart = ref()
 const fullScreenChart = ref()
 const colorRef = ref()
+	const controlsBar = ref<HTMLElement | null>(null)
+	const fsControlsBar = ref<HTMLElement | null>(null)
+	const { height: controlsBarHeight } = useElementSize(controlsBar)
+	const { height: fsControlsBarHeight } = useElementSize(fsControlsBar)
 
 const fullChartStyle = computed(() => `backdrop-filter: blur(${blurIntensity.value}px);`)
 
@@ -1367,7 +1371,15 @@ const tooltipFormatter = (p: any) => {
   `
 }
 
-const options = computed(() => ({
+const options = computed(() => {
+  // The chart has an overlay toolbar (filters/presets/topN). Reserve vertical space so it doesn't cover
+  // the column headers and the first nodes.
+  const overlayTop = 16 // left-4/top-4
+  const overlayH = Math.round((isFullScreen.value ? fsControlsBarHeight.value : controlsBarHeight.value) || 36)
+  const columnHeaderTop = overlayTop + overlayH + 6
+  const seriesTop = columnHeaderTop + 22
+
+  return {
   animation: true,
   animationDuration: 250,
   animationDurationUpdate: 550,
@@ -1386,7 +1398,7 @@ const options = computed(() => ({
     // небольшие заголовки колонок, чтобы диаграмма читалась "клиент → правило → группа → сервер"
     const w = (isFullScreen.value ? window.innerWidth : Number(width.value)) || 0
     if (!w) return []
-    const top = 6
+    const top = columnHeaderTop
     const leftPad = 18
     const rightPad = 22
     const col = Math.max(1, (w - leftPad - rightPad) / 4)
@@ -1416,7 +1428,7 @@ const options = computed(() => ({
       type: 'sankey',
       left: 18,
       right: 22,
-      top: 28,
+      top: seriesTop,
       bottom: 8,
       data: sankeyData.value.nodes,
       links: sankeyData.value.links,
@@ -1454,7 +1466,8 @@ const options = computed(() => ({
       },
     },
   ],
-}))
+  }
+})
 
 let mainChart: echarts.ECharts | null = null
 let fsChart: echarts.ECharts | null = null
