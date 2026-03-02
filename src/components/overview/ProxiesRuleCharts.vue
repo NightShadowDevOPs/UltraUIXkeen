@@ -586,7 +586,22 @@ type PendingTopologyNavFilter = {
 }
 
 // Bridge: other pages can request a Topology filter via localStorage.
-const pendingNavFilter = useStorage<PendingTopologyNavFilter | null>('runtime/topology-pending-filter-v1', null)
+const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
+const pendingNavFilter = useStorage<PendingTopologyNavFilter | null>(TOPOLOGY_NAV_FILTER_KEY, null)
+
+const readPendingNavFilter = (): PendingTopologyNavFilter | null => {
+  const pf = pendingNavFilter.value
+  if (pf && typeof pf === 'object') return pf as any
+  try {
+    const raw = localStorage.getItem(TOPOLOGY_NAV_FILTER_KEY)
+    if (!raw || raw === 'null') return null
+    const obj = JSON.parse(raw)
+    if (obj && typeof obj === 'object') return obj as any
+  } catch {
+    // ignore
+  }
+  return null
+}
 
 
 type TopologyPreset = {
@@ -1499,11 +1514,12 @@ const exportPng = () => {
 }
 
 const applyPendingNavFilter = () => {
-  const pf = pendingNavFilter.value
+  const pf = readPendingNavFilter()
   if (!pf) return
 
   // clear first to avoid re-applying on navigation back/forward
   pendingNavFilter.value = null
+  try { localStorage.removeItem(TOPOLOGY_NAV_FILTER_KEY) } catch {}
 
   const ts = Number((pf as any).ts) || 0
   if (!ts || Date.now() - ts > 10 * 60 * 1000) return
@@ -1527,6 +1543,14 @@ const applyPendingNavFilter = () => {
 
   showNotification({ content: 'topologyNavFilterApplied', type: 'alert-success', timeout: 1800 })
 }
+
+watch(
+  pendingNavFilter,
+  (v) => {
+    if (v) applyPendingNavFilter()
+  },
+  { deep: true },
+)
 
 onMounted(() => {
   updateColorSet()
