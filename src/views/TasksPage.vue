@@ -318,6 +318,99 @@
       </div>
     </div>
 
+
+    <div class="card gap-2 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="font-semibold">{{ $t('upstreamTracking') }}</div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-sm btn-ghost" @click="checkUpstream" :disabled="upstreamBusy">
+            {{ $t('refresh') }}
+          </button>
+          <button type="button" class="btn btn-sm" @click="markUpstreamReviewed" :disabled="!upstreamLatest.releaseTag && !upstreamLatest.commitSha">
+            {{ $t('markReviewed') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
+        <div>
+          <span class="opacity-60">{{ $t('repo') }}:</span>
+          <a class="link ml-1 font-mono" :href="upstreamRepoUrl" target="_blank" rel="noreferrer">{{ upstreamRepo }}</a>
+        </div>
+        <span v-if="upstreamHasNew" class="badge badge-warning badge-xs">{{ $t('new') }}</span>
+        <div class="ml-auto">
+          <span class="opacity-60">{{ $t('lastChecked') }}:</span>
+          <span class="ml-1 font-mono">{{ fmtTs(upstreamCheckedAt) }}</span>
+        </div>
+      </div>
+
+      <div v-if="upstreamError" class="text-xs text-error">{{ upstreamError }}</div>
+
+      <div v-else class="grid gap-2 md:grid-cols-2">
+        <div class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+          <div class="mb-1 text-sm font-semibold">{{ $t('latestRelease') }}</div>
+          <div class="flex flex-col gap-1 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <span class="opacity-70">{{ $t('tag') }}:</span>
+                <a
+                  v-if="upstreamLatest.releaseUrl"
+                  class="link ml-1 font-mono"
+                  :href="upstreamLatest.releaseUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ upstreamLatest.releaseTag || '—' }}
+                </a>
+                <span v-else class="ml-1 font-mono">{{ upstreamLatest.releaseTag || '—' }}</span>
+              </div>
+              <div class="shrink-0 font-mono opacity-80">{{ fmtIso(upstreamLatest.releasePublishedAt) }}</div>
+            </div>
+
+            <div v-if="upstreamCompareReleaseUrl" class="opacity-70">
+              <a class="link" :href="upstreamCompareReleaseUrl" target="_blank" rel="noreferrer">
+                {{ $t('compareSinceLastReview') }}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+          <div class="mb-1 text-sm font-semibold">{{ $t('latestCommit') }}</div>
+          <div class="flex flex-col gap-1 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <span class="opacity-70">SHA:</span>
+                <a
+                  v-if="upstreamLatest.commitUrl"
+                  class="link ml-1 font-mono"
+                  :href="upstreamLatest.commitUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ shortSha(upstreamLatest.commitSha) || '—' }}
+                </a>
+                <span v-else class="ml-1 font-mono">{{ shortSha(upstreamLatest.commitSha) || '—' }}</span>
+              </div>
+              <div class="shrink-0 font-mono opacity-80">{{ fmtIso(upstreamLatest.commitDate) }}</div>
+            </div>
+            <div v-if="upstreamLatest.commitMessage" class="max-h-[32px] overflow-hidden break-words opacity-80" :title="upstreamLatest.commitMessage">
+              {{ upstreamLatest.commitMessage }}
+            </div>
+            <div v-if="upstreamCompareCommitUrl" class="opacity-70">
+              <a class="link" :href="upstreamCompareCommitUrl" target="_blank" rel="noreferrer">
+                {{ $t('compareCommits') }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-[11px] opacity-60">
+        {{ $t('upstreamTrackingTip') }}
+      </div>
+    </div>
+
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('operationsHistory') }}</div>
@@ -508,10 +601,13 @@ onMounted(() => {
   refreshLogs()
   startTimer()
   refreshFreshness()
+  checkUpstream()
+  startUpstreamTimer()
 })
 
 onBeforeUnmount(() => {
   stopTimer()
+  stopUpstreamTimer()
 })
 
 watch([logsAuto, logSource, logLines, agentEnabled], () => {
@@ -741,6 +837,168 @@ const refreshFreshness = async () => {
   const okRules = !agentEnabled.value || !rulesError.value
   if (okProviders && okGeo && okRules) {
     lastFreshnessOkAt.value = Date.now()
+  }
+}
+
+
+// --- Upstream tracking (GitHub: Zephyruso/zashboard) ---
+const upstreamRepo = 'Zephyruso/zashboard'
+const upstreamRepoUrl = 'https://github.com/Zephyruso/zashboard'
+const upstreamApiBase = 'https://api.github.com/repos/Zephyruso/zashboard'
+
+type UpstreamLatest = {
+  releaseTag: string
+  releasePublishedAt: string
+  releaseUrl: string
+  commitSha: string
+  commitDate: string
+  commitMessage: string
+  commitUrl: string
+}
+
+const upstreamLatest = useStorage<UpstreamLatest>('runtime/tasks-upstream-latest-v1', {
+  releaseTag: '',
+  releasePublishedAt: '',
+  releaseUrl: '',
+  commitSha: '',
+  commitDate: '',
+  commitMessage: '',
+  commitUrl: '',
+})
+
+const upstreamReviewed = useStorage<{ releaseTag: string; commitSha: string; reviewedAt: number }>(
+  'runtime/tasks-upstream-reviewed-v1',
+  { releaseTag: '', commitSha: '', reviewedAt: 0 },
+)
+
+const upstreamCheckedAt = useStorage<number>('runtime/tasks-upstream-checked-at-v1', 0)
+const upstreamLastNotifiedKey = useStorage<string>('runtime/tasks-upstream-last-notified-v1', '')
+const upstreamBusy = ref(false)
+const upstreamError = ref('')
+
+const upstreamHasNew = computed(() => {
+  const newRelease =
+    !!upstreamLatest.value.releaseTag &&
+    !!upstreamReviewed.value.releaseTag &&
+    upstreamLatest.value.releaseTag !== upstreamReviewed.value.releaseTag
+  const newCommit =
+    !!upstreamLatest.value.commitSha &&
+    !!upstreamReviewed.value.commitSha &&
+    upstreamLatest.value.commitSha !== upstreamReviewed.value.commitSha
+  // If user hasn't marked reviewed yet, still show NEW when we have data.
+  const neverReviewed = !upstreamReviewed.value.releaseTag && !upstreamReviewed.value.commitSha
+  return neverReviewed ? !!(upstreamLatest.value.releaseTag || upstreamLatest.value.commitSha) : newRelease || newCommit
+})
+
+const shortSha = (sha?: string) => (sha || '').trim().slice(0, 7)
+
+const fmtIso = (iso?: string) => {
+  const d = dayjs(iso || '')
+  if (!d.isValid()) return '—'
+  return d.format('DD-MM-YYYY HH:mm:ss')
+}
+
+const upstreamCompareReleaseUrl = computed(() => {
+  const a = (upstreamReviewed.value.releaseTag || '').trim()
+  const b = (upstreamLatest.value.releaseTag || '').trim()
+  if (!a || !b || a === b) return ''
+  return `https://github.com/Zephyruso/zashboard/compare/${encodeURIComponent(a)}...${encodeURIComponent(b)}`
+})
+
+const upstreamCompareCommitUrl = computed(() => {
+  const a = (upstreamReviewed.value.commitSha || '').trim()
+  const b = (upstreamLatest.value.commitSha || '').trim()
+  if (!a || !b || a === b) return ''
+  return `https://github.com/Zephyruso/zashboard/compare/${encodeURIComponent(a)}...${encodeURIComponent(b)}`
+})
+
+const checkUpstream = async () => {
+  if (upstreamBusy.value) return
+  upstreamBusy.value = true
+  upstreamError.value = ''
+  try {
+    const ghFetch = async (url: string) => {
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/vnd.github+json',
+        },
+        cache: 'no-store',
+      })
+
+      // Rate limit hint
+      const remaining = res.headers.get('x-ratelimit-remaining')
+      if (res.status === 403 && remaining === '0') {
+        throw new Error(t('githubRateLimited'))
+      }
+
+      if (!res.ok) {
+        throw new Error(`${t('operationFailed')}: ${res.status}`)
+      }
+      return res.json()
+    }
+
+    const [rel, commits] = await Promise.all([
+      ghFetch(`${upstreamApiBase}/releases/latest`),
+      ghFetch(`${upstreamApiBase}/commits?per_page=1`),
+    ])
+
+    const latestReleaseTag = String(rel?.tag_name || '')
+    const latestReleaseAt = String(rel?.published_at || rel?.created_at || '')
+    const latestReleaseUrl = String(rel?.html_url || '')
+
+    const c0 = Array.isArray(commits) ? commits[0] : commits
+    const latestCommitSha = String(c0?.sha || '')
+    const latestCommitDate = String(c0?.commit?.committer?.date || c0?.commit?.author?.date || '')
+    const latestCommitMessage = String(c0?.commit?.message || '').split('\n')[0]
+    const latestCommitUrl = String(c0?.html_url || '')
+
+    upstreamLatest.value = {
+      releaseTag: latestReleaseTag,
+      releasePublishedAt: latestReleaseAt,
+      releaseUrl: latestReleaseUrl,
+      commitSha: latestCommitSha,
+      commitDate: latestCommitDate,
+      commitMessage: latestCommitMessage,
+      commitUrl: latestCommitUrl,
+    }
+
+    upstreamCheckedAt.value = Date.now()
+
+    // Notify only once per new release tag (or commit if no tag)
+    const notifyKey = latestReleaseTag || latestCommitSha
+    if (upstreamHasNew.value && notifyKey && upstreamLastNotifiedKey.value !== notifyKey) {
+      upstreamLastNotifiedKey.value = notifyKey
+      showNotification({ content: 'upstreamUpdateAvailable', type: 'alert-warning', timeout: 2600 })
+    }
+  } catch (e: any) {
+    upstreamError.value = e?.message || 'failed'
+  } finally {
+    upstreamBusy.value = false
+  }
+}
+
+const markUpstreamReviewed = () => {
+  upstreamReviewed.value = {
+    releaseTag: upstreamLatest.value.releaseTag || upstreamReviewed.value.releaseTag || '',
+    commitSha: upstreamLatest.value.commitSha || upstreamReviewed.value.commitSha || '',
+    reviewedAt: Date.now(),
+  }
+  showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+}
+
+let upstreamTimer: any = null
+const startUpstreamTimer = () => {
+  stopUpstreamTimer()
+  // While Tasks page is open: check every 6 hours.
+  upstreamTimer = setInterval(() => {
+    checkUpstream()
+  }, 6 * 60 * 60 * 1000)
+}
+
+const stopUpstreamTimer = () => {
+  if (upstreamTimer) {
+    clearInterval(upstreamTimer)
+    upstreamTimer = null
   }
 }
 
