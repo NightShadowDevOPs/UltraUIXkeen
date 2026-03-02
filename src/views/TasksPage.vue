@@ -600,6 +600,7 @@ import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
+import { proxyProviderPanelUrlMap } from '@/store/settings'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowedCidrs, userLimits } from '@/store/userLimits'
@@ -826,7 +827,7 @@ const normalizeRulePart = (s: string) => (s || '').trim() || '-'
 const topHitRules = computed(() => {
   const entries = Array.from(ruleHitMap.value.entries() || [])
     .map(([key, hits]) => {
-      const parts = String(key).split(' ')
+      const parts = String(key).split('\0')
       const type = normalizeRulePart(parts[0] || '')
       const payloadRaw = String(parts[1] || '').trim()
       const ruleText = payloadRaw ? `${type}: ${normalizeRulePart(payloadRaw)}` : type

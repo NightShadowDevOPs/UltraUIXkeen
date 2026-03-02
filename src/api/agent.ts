@@ -362,6 +362,8 @@ export const agentUsersDbGetAPI = async (): Promise<{
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'users_db_get' },
+      // Router can be slow on flash IO; keep sync stable.
+      timeout: 15000,
     })
     return (data || {}) as any
   } catch (e: any) {
@@ -383,6 +385,8 @@ export const agentUsersDbPutAPI = async (args: { rev: number; content: string })
         headers: {
           'Content-Type': 'application/json',
         },
+        // Allow slower writes on embedded storage.
+        timeout: 20000,
       },
     )
     return (data || {}) as any
