@@ -138,6 +138,85 @@ ssl_not_after() {
   printf '%s' "$end"
 }
 
+# Batch SSL probe for arbitrary URLs (used by UI to show SSL for provider management panel URLs).
+# Request: POST body lines "<name>\t<url>\n".
+ssl_probe_batch_json() {
+  if [ "$REQUEST_METHOD" != "POST" ]; then
+    reply_ok '{"ok":false,"error":"method-not-allowed"}'
+    return
+  fi
+
+  body=""
+  if [ -n "$CONTENT_LENGTH" ] && echo "$CONTENT_LENGTH" | grep -qE '^[0-9]+$'; then
+    body="$(head -c "$CONTENT_LENGTH" 2>/dev/null || dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null || true)"
+  else
+    body="$(cat 2>/dev/null || true)"
+  fi
+
+  now="$(date +%s 2>/dev/null || echo 0)"
+  tmp="/tmp/zash-sslprobe.$$"
+  printf '%s' "$body" > "$tmp" 2>/dev/null || true
+
+  out='{"ok":true,"checkedAtSec":'
+  out="$out$now,\"items\":["
+  first=1
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+
+    # split by tab
+    oldIFS="$IFS"
+    IFS="$(printf '\t')"
+    set -- $line
+    IFS="$oldIFS"
+
+    name="$1"
+    url="$2"
+    name="$(printf '%s' "$name" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    url="$(printf '%s' "$url" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$name" ] || continue
+    [ -n "$url" ] || continue
+
+    scheme="${url%%://*}"
+    rest="${url#*://}"
+    hostport="${rest%%/*}"
+
+    host="$hostport"
+    port="443"
+    if echo "$hostport" | grep -q '^\['; then
+      host="$(echo "$hostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
+      port_part="$(echo "$hostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+      [ -n "$port_part" ] && port="$port_part"
+    else
+      host="$(printf '%s' "$hostport" | cut -d: -f1)"
+      if echo "$hostport" | grep -q ':'; then
+        port_part="$(printf '%s' "$hostport" | awk -F: '{print $NF}')"
+        [ -n "$port_part" ] && port="$port_part"
+      fi
+    fi
+
+    not_after=""
+    if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
+      not_after="$(ssl_not_after "$host" "$port")"
+    fi
+
+    [ $first -eq 0 ] && out="$out,"
+    first=0
+
+    esc_name="$(printf '%s' "$name" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    esc_url="$(printf '%s' "$url" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    esc_host="$(printf '%s' "$host" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    esc_port="$(printf '%s' "$port" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+    esc_na="$(printf '%s' "$not_after" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+
+    out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\"}"
+  done < "$tmp"
+
+  rm -f "$tmp" 2>/dev/null || true
+  out="$out]}"
+  reply_ok "$out"
+}
+
 remote_agent_version() {
   # Best-effort: fetch current agent version from the upstream install script.
   # Cached to avoid slowing down status calls.
@@ -1407,7 +1486,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.15","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.16","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1650,6 +1729,9 @@ case "$cmd" in
     ;;
   mihomo_providers)
     mihomo_providers_json
+    ;;
+  ssl_probe_batch)
+    ssl_probe_batch_json
     ;;
   geo_info)
     geo_info_json

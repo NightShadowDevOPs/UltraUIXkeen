@@ -832,6 +832,7 @@
 <script setup lang="ts">
 import { fetchRuleProvidersAPI, updateRuleProviderSilentAPI, zashboardVersion, version as coreVersion } from '@/api'
 import { agentGeoInfoAPI, agentGeoUpdateAPI, agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentRulesInfoAPI, agentStatusAPI } from '@/api/agent'
+import { agentProviderPanelSslAt, agentProviderPanelSslMap, fetchAgentProviderPanelSsl } from '@/store/providerHealth'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import { useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
@@ -1042,12 +1043,20 @@ const clearProviderSslWarnOverride = (name: string) => {
 }
 
 const sslPanelInfo = (name: string, v: any) => {
-  const d = parseDateMaybe(v)
+  const n = String(name || '').trim()
+  const panelUrl = String((proxyProviderPanelUrlMap.value || {})[n] || '').trim()
+  const usePanel = !!panelUrl && /^(https|wss):\/\//i.test(panelUrl)
+  const panelNa = String((agentProviderPanelSslMap.value || {})[n] || '').trim()
+  const effective = usePanel ? (panelNa || v) : v
+
+  const d = parseDateMaybe(effective)
   if (!d) {
     return {
       text: '—',
       cls: '',
-      title: `${(name || '').trim()} • ${String(v || '').trim()}`.trim(),
+      title: usePanel
+        ? `SSL: not available (panel URL) • Checked: ${fmtTs(agentProviderPanelSslAt.value)}`
+        : `SSL: not available (proxy-provider URL) • Checked: ${fmtTs(providersPanelAt.value)}`,
     }
   }
   const days = d.diff(dayjs(), 'day')
@@ -1055,7 +1064,9 @@ const sslPanelInfo = (name: string, v: any) => {
   const warnDays = getProviderWarnDays(name)
   const cls = days < 0 ? 'text-error' : days <= warnDays ? 'text-warning' : 'text-base-content/60'
   const text = days < 0 ? `${date} (expired)` : `${date} (${days}d)`
-  const title = `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${fmtTs(providersPanelAt.value)}`
+  const title = usePanel
+    ? `Source: TLS cert of panel URL (router-agent) • Checked: ${fmtTs(agentProviderPanelSslAt.value)}`
+    : `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${fmtTs(providersPanelAt.value)}`
   return { text, cls, title }
 }
 
@@ -1086,7 +1097,14 @@ const loadProvidersPanel = async (force = false) => {
       return
     }
     providersPanelList.value = Array.isArray(r?.providers) ? r.providers : []
-    providersPanelAt.value = Date.now()
+    // Also probe SSL for management panel URLs (if configured).
+    try {
+      await fetchAgentProviderPanelSsl(force)
+    } catch {
+      // ignore
+    }
+
+    providersPanelAt.value = Math.max(Date.now(), Number(agentProviderPanelSslAt.value || 0))
   } catch (e: any) {
     providersPanelError.value = e?.message || 'failed'
     providersPanelList.value = []
