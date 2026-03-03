@@ -1,4 +1,4 @@
-import { agentUsersDbGetAPI, agentUsersDbPutAPI } from '@/api/agent'
+import { agentUsersDbGetAPI, agentUsersDbHistoryAPI, agentUsersDbPutAPI, agentUsersDbRestoreAPI } from '@/api/agent'
 import { decodeB64Utf8 } from '@/helper/b64'
 import type { SourceIPLabel } from '@/types'
 import { useStorage } from '@vueuse/core'
@@ -34,6 +34,13 @@ export const usersDbLastError = useStorage<string>('runtime/users-db-last-error-
 export const usersDbConflictAt = useStorage<number>('runtime/users-db-conflict-at-v1', 0)
 export const usersDbConflictCount = useStorage<number>('runtime/users-db-conflict-count-v1', 0)
 
+// Conflict context (for manual resolution UI)
+export const usersDbConflictRemoteRev = useStorage<number>('runtime/users-db-conflict-remote-rev-v1', 0)
+export const usersDbConflictRemoteUpdatedAt = useStorage<string>('runtime/users-db-conflict-remote-updated-at-v1', '')
+export const usersDbConflictRemoteB64 = useStorage<string>('runtime/users-db-conflict-remote-b64-v1', '')
+export const usersDbConflictLocalB64 = useStorage<string>('runtime/users-db-conflict-local-b64-v1', '')
+
+
 // Snapshot of the last successfully synced payload (used for per-item synced markers).
 export const usersDbLastSyncedLabels = useStorage<SourceIPLabel[]>('runtime/users-db-last-synced-labels-v1', [])
 export const usersDbLastSyncedProviderPanelUrls = useStorage<Record<string, string>>(
@@ -57,6 +64,27 @@ type UsersDbPayload = {
   providerPanelUrls: Record<string, string>
 }
 
+export type UsersDbDiff = {
+  safeAutoMerge: boolean
+  labels: {
+    localOnly: SourceIPLabel[]
+    remoteOnly: SourceIPLabel[]
+    changed: Array<{ key: string; local: SourceIPLabel; remote: SourceIPLabel }>
+  }
+  urls: {
+    localOnly: Array<{ provider: string; url: string }>
+    remoteOnly: Array<{ provider: string; url: string }>
+    changed: Array<{ provider: string; local: string; remote: string }>
+  }
+}
+
+export type UsersDbHistoryItem = {
+  rev: number
+  updatedAt?: string
+  current?: boolean
+}
+
+
 // Deterministic small hash (djb2) to generate stable ids for legacy entries missing `id`.
 const djb2 = (s: string) => {
   let h = 5381
@@ -65,6 +93,22 @@ const djb2 = (s: string) => {
   }
   // force uint32
   return (h >>> 0).toString(16)
+}
+
+// UTF-8 safe base64 encoding (browser)
+const encodeB64Utf8 = (s?: string) => {
+  const str = (s || '').toString()
+  try {
+    // eslint-disable-next-line no-undef
+    return btoa(unescape(encodeURIComponent(str)))
+  } catch {
+    try {
+      // eslint-disable-next-line no-undef
+      return btoa(str)
+    } catch {
+      return ''
+    }
+  }
 }
 
 
@@ -151,6 +195,98 @@ const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
   const urls = sanitizeUrlMap(p?.providerPanelUrls || {})
   return { labels, providerPanelUrls: urls }
 }
+
+const labelSig = (x: any) => {
+  const scope = Array.isArray(x?.scope) ? (x.scope as any[]).map(String).sort().join(',') : ''
+  return `${String(x?.label || '').trim()}|${scope}`
+}
+
+export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbDiff => {
+  const r = normalizePayload(remote)
+  const l = normalizePayload(local)
+
+  const rByKey = new Map<string, SourceIPLabel>()
+  for (const it of r.labels || []) rByKey.set(String(it.key || '').trim(), it as any)
+
+  const lByKey = new Map<string, SourceIPLabel>()
+  for (const it of l.labels || []) lByKey.set(String(it.key || '').trim(), it as any)
+
+  const keys = new Set<string>([...rByKey.keys(), ...lByKey.keys()])
+
+  const labelsLocalOnly: SourceIPLabel[] = []
+  const labelsRemoteOnly: SourceIPLabel[] = []
+  const labelsChanged: Array<{ key: string; local: SourceIPLabel; remote: SourceIPLabel }> = []
+
+  for (const k of keys) {
+    const rr = rByKey.get(k)
+    const ll = lByKey.get(k)
+    if (rr && !ll) labelsRemoteOnly.push(rr)
+    else if (!rr && ll) labelsLocalOnly.push(ll)
+    else if (rr && ll) {
+      if (labelSig(rr) !== labelSig(ll)) labelsChanged.push({ key: k, local: ll, remote: rr })
+    }
+  }
+
+  const urlsLocalOnly: Array<{ provider: string; url: string }> = []
+  const urlsRemoteOnly: Array<{ provider: string; url: string }> = []
+  const urlsChanged: Array<{ provider: string; local: string; remote: string }> = []
+
+  const rUrls = r.providerPanelUrls || {}
+  const lUrls = l.providerPanelUrls || {}
+  const uKeys = new Set<string>([...Object.keys(rUrls), ...Object.keys(lUrls)])
+  for (const k of uKeys) {
+    const rr = String((rUrls as any)[k] || '').trim()
+    const ll = String((lUrls as any)[k] || '').trim()
+    if (rr && !ll) urlsRemoteOnly.push({ provider: k, url: rr })
+    else if (!rr && ll) urlsLocalOnly.push({ provider: k, url: ll })
+    else if (rr && ll && rr !== ll) urlsChanged.push({ provider: k, local: ll, remote: rr })
+  }
+
+  // Safe auto-merge only if there are NO "changed" collisions.
+  const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0
+
+  // Stabilize for UI
+  labelsLocalOnly.sort((a: any, b: any) => String(a?.key || '').localeCompare(String(b?.key || '')))
+  labelsRemoteOnly.sort((a: any, b: any) => String(a?.key || '').localeCompare(String(b?.key || '')))
+  labelsChanged.sort((a, b) => a.key.localeCompare(b.key))
+  urlsLocalOnly.sort((a, b) => a.provider.localeCompare(b.provider))
+  urlsRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
+  urlsChanged.sort((a, b) => a.provider.localeCompare(b.provider))
+
+  return {
+    safeAutoMerge,
+    labels: { localOnly: labelsLocalOnly, remoteOnly: labelsRemoteOnly, changed: labelsChanged },
+    urls: { localOnly: urlsLocalOnly, remoteOnly: urlsRemoteOnly, changed: urlsChanged },
+  }
+}
+
+const clearConflictContext = () => {
+  usersDbConflictRemoteRev.value = 0
+  usersDbConflictRemoteUpdatedAt.value = ''
+  usersDbConflictRemoteB64.value = ''
+  usersDbConflictLocalB64.value = ''
+}
+
+const getConflictRemotePayload = (): UsersDbPayload | null => {
+  const b64 = String(usersDbConflictRemoteB64.value || '').trim()
+  if (!b64) return null
+  const raw = decodeB64Utf8(b64) || '{}'
+  return safeParsePayload(raw)
+}
+
+export const usersDbHasConflict = computed(() => {
+  return usersDbPhase.value === 'conflict' || Boolean(String(usersDbConflictRemoteB64.value || '').trim())
+})
+
+export const usersDbConflictDiff = computed<UsersDbDiff | null>(() => {
+  const remotePayload = getConflictRemotePayload()
+  if (!remotePayload) return null
+  const localPayload = getLocalPayload()
+  return computeUsersDbDiff(remotePayload, localPayload)
+})
+
+export const usersDbHistoryItems = ref<UsersDbHistoryItem[]>([])
+
 
 const safeParsePayload = (raw: string): UsersDbPayload => {
   try {
@@ -303,7 +439,8 @@ export const usersDbPullNow = async () => {
 
     const remoteRev = Number(r.rev) || 0
     const remoteUpdatedAt = String(r.updatedAt || '').trim()
-    const remoteRaw = decodeB64Utf8(r.contentB64) || '{}' // may be array or object
+    const remoteB64 = String(r.contentB64 || '').trim()
+    const remoteRaw = decodeB64Utf8(remoteB64) || '{}' // may be array or object
     const remotePayload = safeParsePayload(remoteRaw)
 
     usersDbRemoteRev.value = remoteRev
@@ -313,12 +450,26 @@ export const usersDbPullNow = async () => {
 
     // If we had offline edits, merge them into the remote and push back.
     if (usersDbLocalDirty.value) {
-      const merged = mergePayload(remotePayload, localPayload)
-      suppressPushCount = 4
-      setLocalFromPayload(merged)
-      const put = await usersDbPushNow(remoteRev, merged)
-      usersDbLocalDirty.value = !put.ok
-      if (put.ok) markSynced(merged)
+      const diff = computeUsersDbDiff(remotePayload, localPayload)
+      if (diff.safeAutoMerge) {
+        const merged = mergePayload(remotePayload, localPayload)
+        suppressPushCount = 4
+        setLocalFromPayload(merged)
+        const put = await usersDbPushNow(remoteRev, merged)
+        usersDbLocalDirty.value = !put.ok
+        if (put.ok) markSynced(merged)
+      } else {
+        // Real conflict: keep local edits and require user decision.
+        usersDbPhase.value = 'conflict'
+        usersDbConflictAt.value = Date.now()
+        usersDbConflictCount.value = (Number(usersDbConflictCount.value) || 0) + 1
+        usersDbConflictRemoteRev.value = remoteRev
+        usersDbConflictRemoteUpdatedAt.value = remoteUpdatedAt
+        usersDbConflictRemoteB64.value = remoteB64
+        usersDbConflictLocalB64.value = encodeB64Utf8(JSON.stringify(buildPayloadForWrite(localPayload)))
+        usersDbLastError.value = 'conflict'
+        return { ok: false, error: 'conflict' }
+      }
     } else {
       // First-time bootstrap: remote empty and local has data -> seed remote.
       const remoteEmpty = remotePayload.labels.length === 0 && Object.keys(remotePayload.providerPanelUrls || {}).length === 0
@@ -379,34 +530,52 @@ export const usersDbPushNow = async (baseRev?: number, overridePayload?: UsersDb
       usersDbConflictAt.value = Date.now()
       usersDbConflictCount.value = (Number(usersDbConflictCount.value) || 0) + 1
 
-      // Merge with current remote and retry once.
       const remoteRev = Number(r.rev) || 0
       const remoteUpdatedAt = String(r.updatedAt || '').trim()
-      const remoteRaw = decodeB64Utf8(r.contentB64) || '{}'
+      const remoteB64 = String(r.contentB64 || '').trim()
+      const remoteRaw = decodeB64Utf8(remoteB64) || '{}'
       const remotePayload = safeParsePayload(remoteRaw)
-      const merged = mergePayload(remotePayload, payload)
-
-      suppressPushCount = 4
-      setLocalFromPayload(merged)
 
       usersDbRemoteRev.value = remoteRev
       usersDbRemoteUpdatedAt.value = remoteUpdatedAt
 
-      const r2: any = await agentUsersDbPutAPI({ rev: remoteRev, content: JSON.stringify(buildPayloadForWrite(merged)) })
-      if (r2?.ok) {
-        usersDbRemoteRev.value = Number(r2.rev) || remoteRev + 1
-        usersDbRemoteUpdatedAt.value = String(r2.updatedAt || '').trim()
-        usersDbLastPushAt.value = Date.now()
-        usersDbLocalDirty.value = false
-        usersDbPhase.value = 'idle'
-        markSynced(merged)
-        return { ok: true }
+      // Save conflict context for manual resolution UI.
+      usersDbConflictRemoteRev.value = remoteRev
+      usersDbConflictRemoteUpdatedAt.value = remoteUpdatedAt
+      usersDbConflictRemoteB64.value = remoteB64
+      usersDbConflictLocalB64.value = encodeB64Utf8(body)
+
+      const diff = computeUsersDbDiff(remotePayload, payload)
+
+      // Auto-merge only if there are no "changed" collisions.
+      if (diff.safeAutoMerge) {
+        const merged = mergePayload(remotePayload, payload)
+
+        suppressPushCount = 4
+        setLocalFromPayload(merged)
+
+        const r2: any = await agentUsersDbPutAPI({ rev: remoteRev, content: JSON.stringify(buildPayloadForWrite(merged)) })
+        if (r2?.ok) {
+          usersDbRemoteRev.value = Number(r2.rev) || remoteRev + 1
+          usersDbRemoteUpdatedAt.value = String(r2.updatedAt || '').trim()
+          usersDbLastPushAt.value = Date.now()
+          usersDbLocalDirty.value = false
+          usersDbPhase.value = 'idle'
+          markSynced(merged)
+          clearConflictContext()
+          return { ok: true }
+        }
+
+        usersDbLastError.value = r2?.error || 'conflict'
+        usersDbLocalDirty.value = true
+        usersDbPhase.value = 'error'
+        return { ok: false, error: usersDbLastError.value }
       }
 
-      usersDbLastError.value = r2?.error || 'conflict'
+      // Real conflict: stop and wait for user decision.
+      usersDbLastError.value = 'conflict'
       usersDbLocalDirty.value = true
-      usersDbPhase.value = 'error'
-      return { ok: false, error: usersDbLastError.value }
+      return { ok: false, error: 'conflict' }
     }
 
     usersDbLastError.value = r?.error || 'failed'
@@ -423,7 +592,60 @@ export const usersDbPushNow = async (baseRev?: number, overridePayload?: UsersDb
   }
 }
 
+
+export const usersDbResolvePull = async () => {
+  const remotePayload = getConflictRemotePayload()
+  if (!remotePayload) return { ok: false, error: 'no-conflict' }
+  suppressPushCount = 4
+  setLocalFromPayload(remotePayload)
+  markSynced(remotePayload)
+  usersDbLocalDirty.value = false
+  usersDbPhase.value = 'idle'
+  clearConflictContext()
+  return { ok: true }
+}
+
+export const usersDbResolvePush = async () => {
+  // Overwrite router with our local data (using latest remote rev).
+  const rev = Number(usersDbConflictRemoteRev.value || usersDbRemoteRev.value) || 0
+  const res = await usersDbPushNow(rev, getLocalPayload())
+  if (res.ok) clearConflictContext()
+  return res
+}
+
+export const usersDbResolveMerge = async () => {
+  const remotePayload = getConflictRemotePayload()
+  if (!remotePayload) return { ok: false, error: 'no-conflict' }
+  const merged = mergePayload(remotePayload, getLocalPayload())
+  suppressPushCount = 4
+  setLocalFromPayload(merged)
+  const rev = Number(usersDbConflictRemoteRev.value || usersDbRemoteRev.value) || 0
+  const res = await usersDbPushNow(rev, merged)
+  if (res.ok) clearConflictContext()
+  return res
+}
+
+export const usersDbFetchHistory = async () => {
+  if (!usersDbSyncActive.value) return { ok: false, error: 'agent-disabled' }
+  const r: any = await agentUsersDbHistoryAPI()
+  if (!r?.ok) return { ok: false, error: r?.error || 'offline' }
+  usersDbHistoryItems.value = (Array.isArray(r.items) ? r.items : []) as any
+  return { ok: true }
+}
+
+export const usersDbRestoreRev = async (rev: number) => {
+  if (!usersDbSyncActive.value) return { ok: false, error: 'agent-disabled' }
+  const r: any = await agentUsersDbRestoreAPI(rev)
+  if (!r?.ok) return { ok: false, error: r?.error || 'failed' }
+  clearConflictContext()
+  await usersDbPullNow()
+  await usersDbFetchHistory()
+  return { ok: true }
+}
+
+
 const debouncedPush = debounce(() => {
+  if (usersDbHasConflict.value) return
   usersDbPushNow()
 }, 800)
 
@@ -442,7 +664,9 @@ export const initUsersDbSync = () => {
         usersDbPhase.value = 'offline'
         return
       }
+      if (usersDbHasConflict.value) return
       await usersDbPullNow()
+      usersDbFetchHistory()
     },
     { immediate: true },
   )
@@ -460,6 +684,7 @@ export const initUsersDbSync = () => {
         return
       }
       usersDbLocalDirty.value = true
+      if (usersDbHasConflict.value) return
       debouncedPush()
     },
     { deep: true },
@@ -471,6 +696,7 @@ export const initUsersDbSync = () => {
     if (!agentEnabled.value) return
     if (!usersDbLocalDirty.value) return
     if (usersDbPhase.value === 'pulling' || usersDbPhase.value === 'pushing') return
+    if (usersDbHasConflict.value) return
     usersDbPullNow()
   }, 45_000)
 
@@ -480,6 +706,7 @@ export const initUsersDbSync = () => {
     if (!agentEnabled.value) return
     if (usersDbLocalDirty.value) return
     if (usersDbPhase.value === 'pulling' || usersDbPhase.value === 'pushing') return
+    if (usersDbHasConflict.value) return
 
     const lastPull = Number(usersDbLastPullAt.value) || 0
     if (Date.now() - lastPull < 55_000) return

@@ -395,3 +395,68 @@ export const agentUsersDbPutAPI = async (args: { rev: number; content: string })
     return { ok: false, error: e?.message || 'offline' } as any
   }
 }
+
+
+// --- Shared users DB history / restore ---
+
+export type UsersDbHistoryItem = {
+  rev: number
+  updatedAt?: string
+  current?: boolean
+}
+
+export const agentUsersDbHistoryAPI = async (): Promise<{
+  ok: boolean
+  items?: UsersDbHistoryItem[]
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'users_db_history' },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentUsersDbGetRevAPI = async (rev: number): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  contentB64?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'users_db_get_rev', rev: String(rev ?? 0) },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentUsersDbRestoreAPI = async (rev: number): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  restoredFromRev?: number
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post(
+      `/cgi-bin/api.sh?cmd=users_db_restore&rev=${encodeURIComponent(String(rev ?? 0))}`,
+      '',
+      {
+        headers: { 'Content-Type': 'text/plain' },
+        timeout: 20000,
+      },
+    )
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' } as any
+  }
+}

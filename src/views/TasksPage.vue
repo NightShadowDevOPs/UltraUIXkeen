@@ -529,10 +529,175 @@
         <button type="button" class="btn btn-sm" @click="usersDbPullNow" :disabled="!usersDbSyncEnabled || !agentEnabled || usersDbBusy">
           {{ $t('pull') }}
         </button>
-        <button type="button" class="btn btn-sm" @click="usersDbPushNow" :disabled="!usersDbSyncEnabled || !agentEnabled || usersDbBusy">
+        <button type="button" class="btn btn-sm" @click="usersDbPushNow" :disabled="!usersDbSyncEnabled || !agentEnabled || usersDbBusy || usersDbHasConflict">
           {{ $t('push') }}
         </button>
       </div>
+
+      <div v-if="usersDbHasConflict && usersDbConflictDiff && usersDbConflictSummary" class="rounded-lg border border-error/30 bg-error/5 p-2 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="font-semibold text-error">{{ $t('usersDbConflictTitle') }}</div>
+          <span class="badge badge-error badge-sm">{{ $t('conflict') }}</span>
+        </div>
+
+        <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 opacity-80">
+          <div>
+            <span class="opacity-60">{{ $t('usersDbLabels') }}:</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.labelsLocalOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.labelsRemoteOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">~{{ usersDbConflictSummary.labelsChanged }}</span>
+          </div>
+          <div>
+            <span class="opacity-60">{{ $t('usersDbPanels') }}:</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.urlsLocalOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.urlsRemoteOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">~{{ usersDbConflictSummary.urlsChanged }}</span>
+          </div>
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-xs" @click="usersDbResolveMerge" :disabled="usersDbBusy">
+            {{ $t('usersDbMergeAndPush') }}
+          </button>
+          <button type="button" class="btn btn-xs" @click="usersDbResolvePull" :disabled="usersDbBusy">
+            {{ $t('usersDbAcceptRouter') }}
+          </button>
+          <button type="button" class="btn btn-xs btn-outline" @click="usersDbResolvePush" :disabled="usersDbBusy">
+            {{ $t('usersDbAcceptLocal') }}
+          </button>
+        </div>
+
+        <details class="mt-2">
+          <summary class="cursor-pointer select-none opacity-80">{{ $t('details') }}</summary>
+
+          <div class="mt-2 space-y-3">
+            <div v-if="usersDbConflictDiff.labels.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('usersDbLabels') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in usersDbConflictDiff.labels.changed.slice(0, 50)" :key="it.key" class="font-mono">
+                  <span class="opacity-60">{{ it.key }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ it.remote.label }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ it.local.label }}</span>
+                </div>
+                <div v-if="usersDbConflictDiff.labels.changed.length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.labels.localOnly.length || usersDbConflictDiff.labels.remoteOnly.length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('usersDbLabels') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.labels.localOnly.slice(0, 50)" :key="it.key" class="font-mono">
+                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ it.label }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.labels.localOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.labels.remoteOnly.slice(0, 50)" :key="it.key" class="font-mono">
+                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ it.label }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.labels.remoteOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.urls.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('usersDbPanels') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in usersDbConflictDiff.urls.changed.slice(0, 50)" :key="it.provider" class="font-mono break-all">
+                  <span class="opacity-60">{{ it.provider }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ it.remote }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ it.local }}</span>
+                </div>
+                <div v-if="usersDbConflictDiff.urls.changed.length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.urls.localOnly.length || usersDbConflictDiff.urls.remoteOnly.length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('usersDbPanels') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.urls.localOnly.slice(0, 50)" :key="it.provider" class="font-mono break-all">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ it.url }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.urls.localOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.urls.remoteOnly.slice(0, 50)" :key="it.provider" class="font-mono break-all">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ it.url }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.urls.remoteOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <details v-if="agentEnabled" class="rounded-lg border border-base-content/10 bg-base-200/40 p-2 text-xs">
+        <summary class="cursor-pointer select-none opacity-80 flex items-center justify-between gap-2">
+          <span>{{ $t('usersDbHistoryTitle') }}</span>
+          <span class="badge badge-ghost badge-sm">{{ usersDbHistoryItems.length }}</span>
+        </summary>
+
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <button type="button" class="btn btn-xs btn-ghost" @click="refreshUsersDbHistory" :disabled="usersDbBusy">
+            {{ $t('refresh') }}
+          </button>
+        </div>
+
+        <div v-if="!usersDbHistoryItems.length" class="mt-1 opacity-70">
+          {{ $t('noData') }}
+        </div>
+
+        <div v-else class="mt-2 overflow-x-auto">
+          <table class="table table-xs">
+            <thead>
+              <tr>
+                <th style="width: 80px">rev</th>
+                <th style="width: 210px">{{ $t('updated') }}</th>
+                <th style="width: 90px">{{ $t('status') }}</th>
+                <th style="width: 110px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="it in usersDbHistoryItems" :key="it.rev">
+                <td class="font-mono">{{ it.rev }}</td>
+                <td class="font-mono">{{ it.updatedAt || '—' }}</td>
+                <td>
+                  <span v-if="it.current" class="badge badge-success badge-sm">{{ $t('current') }}</span>
+                  <span v-else class="badge badge-ghost badge-sm">—</span>
+                </td>
+                <td class="text-right">
+                  <button v-if="!it.current" type="button" class="btn btn-xs" @click="usersDbRestoreRev(it.rev)" :disabled="usersDbBusy">
+                    {{ $t('restore') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
 
       <div class="text-[11px] opacity-60">
         {{ $t('usersDbSyncCurrent') }}
@@ -624,16 +789,24 @@ import router from '@/router'
 import { ROUTE_NAME } from '@/constant'
 import {
   usersDbConflictCount,
+  usersDbConflictDiff,
+  usersDbHasConflict,
+  usersDbHistoryItems,
   usersDbLastError,
   usersDbLastPullAt,
   usersDbLastPushAt,
   usersDbLocalDirty,
   usersDbPhase,
-  usersDbRemoteRev,
-  usersDbRemoteUpdatedAt,
-  usersDbSyncEnabled,
   usersDbPullNow,
   usersDbPushNow,
+  usersDbRemoteRev,
+  usersDbRemoteUpdatedAt,
+  usersDbResolveMerge,
+  usersDbResolvePull,
+  usersDbResolvePush,
+  usersDbRestoreRev,
+  usersDbFetchHistory,
+  usersDbSyncEnabled,
 } from '@/store/usersDbSync'
 
 const busy = ref(false)
@@ -841,6 +1014,31 @@ const usersDbBadge = computed(() => {
   if (usersDbPhase.value === 'conflict') return { text: t('conflict'), cls: 'badge-warning' }
   if (usersDbPhase.value === 'offline') return { text: t('offline'), cls: 'badge-warning' }
   return { text: t('pendingChanges'), cls: 'badge-warning' }
+})
+
+
+const usersDbConflictSummary = computed(() => {
+  const d = usersDbConflictDiff.value
+  if (!d) return null
+  return {
+    labelsLocalOnly: d.labels.localOnly.length,
+    labelsRemoteOnly: d.labels.remoteOnly.length,
+    labelsChanged: d.labels.changed.length,
+    urlsLocalOnly: d.urls.localOnly.length,
+    urlsRemoteOnly: d.urls.remoteOnly.length,
+    urlsChanged: d.urls.changed.length,
+    safeAutoMerge: d.safeAutoMerge,
+  }
+})
+
+
+const refreshUsersDbHistory = async () => {
+  if (!agentEnabled.value || !usersDbSyncEnabled.value) return
+  await usersDbFetchHistory()
+}
+
+watch([agentEnabled, usersDbSyncEnabled], () => {
+  refreshUsersDbHistory()
 })
 
 // --- Top rules -> open Topology with filter (stage R) ---

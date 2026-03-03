@@ -79,6 +79,8 @@ STATE_FILE="${STATE_FILE:-/opt/zash-agent/var/shapers.db}"
 BLOCKS_FILE="${BLOCKS_FILE:-/opt/zash-agent/var/blocks.db}"
 USERS_DB_FILE="${USERS_DB_FILE:-/opt/zash-agent/var/users-db.json}"
 USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
+USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
+USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
@@ -648,6 +650,166 @@ users_db_init_if_missing() {
   fi
 }
 
+
+users_db_prune_revs() {
+  max="$USERS_DB_REVS_MAX"
+  echo "$max" | grep -qE '^[0-9]+$' || max=10
+  [ "$max" -le 0 ] && max=10
+  [ -d "$USERS_DB_REVS_DIR" ] || return 0
+
+  revs="$(ls "$USERS_DB_REVS_DIR"/users-db.rev-*.meta.json 2>/dev/null | sed -nE 's/.*rev-([0-9]+)\.meta\.json/\1/p' | sort -n)"
+  cnt="$(printf '%s\n' "$revs" | sed '/^$/d' | wc -l 2>/dev/null || echo 0)"
+  echo "$cnt" | grep -qE '^[0-9]+$' || cnt=0
+  if [ "$cnt" -le "$max" ]; then
+    return 0
+  fi
+  rm_cnt=$((cnt - max))
+  i=0
+  printf '%s\n' "$revs" | sed '/^$/d' | while read r; do
+    i=$((i+1))
+    [ "$i" -le "$rm_cnt" ] || break
+    rm -f "$USERS_DB_REVS_DIR/users-db.rev-$r.json" "$USERS_DB_REVS_DIR/users-db.rev-$r.meta.json" 2>/dev/null || true
+  done
+  return 0
+}
+
+users_db_snapshot_current() {
+  mkdir -p "$USERS_DB_REVS_DIR" >/dev/null 2>&1 || true
+  [ -d "$USERS_DB_REVS_DIR" ] || return 0
+
+  # Snapshot current state (rev + updatedAt) before overwrite.
+  snap_json="$USERS_DB_REVS_DIR/users-db.rev-$udb_rev.json"
+  snap_meta="$USERS_DB_REVS_DIR/users-db.rev-$udb_rev.meta.json"
+  cp "$USERS_DB_FILE" "$snap_json" 2>/dev/null || return 0
+  printf '{"rev":%s,"updatedAt":"%s"}' "$udb_rev" "$(jesc "$udb_updatedAt")" > "$snap_meta" 2>/dev/null || true
+
+  users_db_prune_revs >/dev/null 2>&1 || true
+  return 0
+}
+
+users_db_read_rev_meta() {
+  rev="$1"
+  meta="$USERS_DB_REVS_DIR/users-db.rev-$rev.meta.json"
+  r_updatedAt=''
+  if [ -f "$meta" ]; then
+    r_updatedAt="$(sed -nE 's/.*"updatedAt"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' "$meta" 2>/dev/null | head -n1)"
+  fi
+  echo "$r_updatedAt"
+}
+
+users_db_history_json() {
+  users_db_init_if_missing
+
+  echo "$USERS_DB_REVS_MAX" | grep -qE '^[0-9]+$' || USERS_DB_REVS_MAX=10
+
+  printf 'Content-Type: application/json\n'
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo ""
+  printf '{"ok":true,"items":['
+  printf '{"rev":%s,"updatedAt":"%s","current":true}' "$udb_rev" "$(jesc "$udb_updatedAt")"
+
+  if [ -d "$USERS_DB_REVS_DIR" ]; then
+    # newest first (numeric)
+    revs="$(ls "$USERS_DB_REVS_DIR"/users-db.rev-*.meta.json 2>/dev/null | sed -nE 's/.*rev-([0-9]+)\.meta\.json/\1/p' | sort -nr)"
+    printf '%s\n' "$revs" | sed '/^$/d' | while read r; do
+      [ -n "$r" ] || continue
+      [ "$r" = "$udb_rev" ] && continue
+      up="$(users_db_read_rev_meta "$r")"
+      printf ',{"rev":%s,"updatedAt":"%s","current":false}' "$r" "$(jesc "$up")"
+    done
+  fi
+  printf ']}'
+}
+
+users_db_get_rev_json() {
+  req_rev="$1"
+  echo "$req_rev" | grep -qE '^[0-9]+$' || req_rev=''
+  [ -n "$req_rev" ] || { reply_ok '{"ok":false,"error":"bad-rev"}'; return; }
+
+  users_db_init_if_missing
+  if [ "$req_rev" = "$udb_rev" ]; then
+    users_db_get_json
+    return
+  fi
+
+  f="$USERS_DB_REVS_DIR/users-db.rev-$req_rev.json"
+  if [ ! -f "$f" ]; then
+    reply_ok '{"ok":false,"error":"not-found"}'
+    return
+  fi
+  up="$(users_db_read_rev_meta "$req_rev")"
+  content="$( (head -c 1048576 "$f" 2>/dev/null || cat "$f" 2>/dev/null || printf '[]') | b64enc )"
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","contentB64":"%s"}' "$req_rev" "$(jesc "$up")" "$content")"
+}
+
+users_db_restore_json() {
+  req_rev="$1"
+  echo "$req_rev" | grep -qE '^[0-9]+$' || req_rev=''
+
+  if [ "$REQUEST_METHOD" != "POST" ]; then
+    reply_ok '{"ok":false,"error":"method-not-allowed"}'
+    return
+  fi
+
+  [ -n "$req_rev" ] || { reply_ok '{"ok":false,"error":"bad-rev"}'; return; }
+
+  users_db_init_if_missing
+
+  # Acquire lock (best effort)
+  lockdir="${USERS_DB_FILE}.lock"
+  if [ -d "$lockdir" ]; then
+    lm="$(stat_mtime_sec "$lockdir")"
+    now="$(date +%s 2>/dev/null || echo 0)"
+    echo "$lm" | grep -qE '^[0-9]+$' || lm=0
+    echo "$now" | grep -qE '^[0-9]+$' || now=0
+    if [ "$lm" -gt 0 ] && [ "$now" -gt 0 ] && [ $((now - lm)) -gt 120 ]; then
+      rmdir "$lockdir" 2>/dev/null || true
+    fi
+  fi
+
+  i=0
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    i=$((i+1))
+    [ $i -ge 10 ] && { reply_ok '{"ok":false,"error":"busy"}'; return; }
+    sleep 1 2>/dev/null || true
+  done
+
+  users_db_load_meta
+
+  if [ "$req_rev" = "$udb_rev" ]; then
+    rmdir "$lockdir" 2>/dev/null || true
+    reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","restoredFromRev":%s}' "$udb_rev" "$(jesc "$udb_updatedAt")" "$req_rev")"
+    return
+  fi
+
+  f="$USERS_DB_REVS_DIR/users-db.rev-$req_rev.json"
+  if [ ! -f "$f" ]; then
+    rmdir "$lockdir" 2>/dev/null || true
+    reply_ok '{"ok":false,"error":"not-found"}'
+    return
+  fi
+
+  # Snapshot current before restore
+  users_db_snapshot_current >/dev/null 2>&1 || true
+
+  tmp="${USERS_DB_FILE}.tmp.$$"
+  (head -c 1048576 "$f" 2>/dev/null || cat "$f" 2>/dev/null) > "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; rmdir "$lockdir" 2>/dev/null || true; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$USERS_DB_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; rmdir "$lockdir" 2>/dev/null || true; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+
+  udb_rev=$((udb_rev + 1))
+  udb_updatedAt="$(users_db_now_iso)"
+  users_db_write_meta >/dev/null 2>&1 || true
+
+  rmdir "$lockdir" 2>/dev/null || true
+
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","restoredFromRev":%s}' "$udb_rev" "$(jesc "$udb_updatedAt")" "$req_rev")"
+}
+
+
 users_db_get_json() {
   users_db_init_if_missing
 
@@ -698,6 +860,8 @@ users_db_put_json() {
     reply_ok "$(printf '{"ok":false,"error":"conflict","rev":%s,"updatedAt":"%s","contentB64":"%s"}' "$udb_rev" "$(jesc "$udb_updatedAt")" "$content")"
     return
   fi
+
+  users_db_snapshot_current >/dev/null 2>&1 || true
 
   body=""
   if [ -n "$CONTENT_LENGTH" ] && echo "$CONTENT_LENGTH" | grep -qE '^[0-9]+$'; then
@@ -1165,7 +1329,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.13","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.14","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
