@@ -578,8 +578,15 @@ const sslExpireInfo = computed(() => {
 
   const raw2: any = raw || agentProviderByName.value[props.name]?.sslNotAfter
 
+  const checked = agentProvidersAt.value ? dayjs(agentProvidersAt.value).format('DD-MM-YYYY HH:mm:ss') : ''
+
   const d = parseDateMaybe(raw2)
-  if (!d) return null
+  if (!d) {
+    const tip = checked
+      ? `SSL: not available (non-https or not retrieved) • Checked: ${checked}`
+      : 'SSL: not available (non-https or not retrieved)'
+    return { dateTime: '—', days: Number.NaN, cls: 'text-base-content/60', label: '—', tip }
+  }
 
   const days = d.diff(dayjs(), 'day')
   const dateTime = d.format('DD-MM-YYYY HH:mm:ss')
@@ -588,7 +595,6 @@ const sslExpireInfo = computed(() => {
   const cls = days < 0 ? 'text-error' : days <= warnDays ? 'text-warning' : 'text-success'
   const label = days < 0 ? `${dateTime} (expired)` : `${dateTime} (${days}d)`
 
-  const checked = agentProvidersAt.value ? dayjs(agentProvidersAt.value).format('DD-MM-YYYY HH:mm:ss') : ''
   const tip = checked
     ? `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${checked}`
     : 'Source: TLS cert of proxy-provider URL (router-agent)'
@@ -601,6 +607,10 @@ const sslExpireInfo = computed(() => {
 const sslExpireBadge = computed(() => {
   const info = sslExpireInfo.value
   if (!info) return null
+
+  if (!Number.isFinite(info.days)) {
+    return { badgeCls: 'badge-ghost', text: 'SSL —', tip: info.tip }
+  }
 
   const level = info.days < 0 ? 'error' : info.days <= sslWarnDays.value ? 'warning' : 'success'
   const badgeCls =
