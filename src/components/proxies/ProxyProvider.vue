@@ -66,7 +66,7 @@
             max="100"
           ></progress>
 
-          <div v-if="sslExpireInfo" class="mt-1 text-xs" :class="sslExpireInfo.cls">
+          <div v-if="sslExpireInfo" class="mt-1 text-xs" :class="sslExpireInfo.cls" :title="sslExpireInfo.tip">
             {{ $t('sslExpire') }}: {{ sslExpireInfo.label }}
           </div>
 
@@ -303,7 +303,7 @@
 <script setup lang="ts">
 import { proxyProviderHealthCheckAPI, updateProxyProviderAPI } from '@/api'
 import { getProviderHealth } from '@/helper/providerHealth'
-import { agentProviderByName, fetchAgentProviders } from '@/store/providerHealth'
+import { agentProviderByName, agentProvidersAt, fetchAgentProviders } from '@/store/providerHealth'
 import { useBounceOnVisible } from '@/composables/bouncein'
 import { useRenderProxies } from '@/composables/renderProxies'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
@@ -311,7 +311,7 @@ import { showNotification } from '@/helper/notification'
 import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
-import { proxyProviderPanelUrlMap, twoColumnProxyGroup } from '@/store/settings'
+import { proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
 import dayjs from 'dayjs'
@@ -339,9 +339,16 @@ const { renderProxies, proxiesCount } = useRenderProxies(allProxies)
 // best-effort: ensure cache is populated when provider cards mount
 fetchAgentProviders(false)
 
+const sslWarnDays = computed(() => {
+  const override = Number((proxyProviderSslWarnDaysMap.value || {})[props.name])
+  const base = Number(sslNearExpiryDaysDefault.value)
+  const v = Number.isFinite(override) ? override : Number.isFinite(base) ? base : 2
+  return Math.max(0, Math.min(365, Math.trunc(v)))
+})
+
 const providerHealth = computed(() => {
   const ap = agentProviderByName.value[props.name]
-  return getProviderHealth(proxyProvider.value as any, ap)
+  return getProviderHealth(proxyProvider.value as any, ap, { nearExpiryDays: sslWarnDays.value })
 })
 
 const providerStats = computed(() => {
@@ -569,10 +576,16 @@ const sslExpireInfo = computed(() => {
   const days = d.diff(dayjs(), 'day')
   const dateTime = d.format('DD-MM-YYYY HH:mm:ss')
 
-  const cls = days < 0 ? 'text-error' : days <= 14 ? 'text-warning' : 'text-success'
+  const warnDays = sslWarnDays.value
+  const cls = days < 0 ? 'text-error' : days <= warnDays ? 'text-warning' : 'text-success'
   const label = days < 0 ? `${dateTime} (expired)` : `${dateTime} (${days}d)`
 
-  return { dateTime, days, cls, label }
+  const checked = agentProvidersAt.value ? dayjs(agentProvidersAt.value).format('DD-MM-YYYY HH:mm:ss') : ''
+  const tip = checked
+    ? `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${checked}`
+    : 'Source: TLS cert of proxy-provider URL (router-agent)'
+
+  return { dateTime, days, cls, label, tip }
 })
 
 const subscriptionInfo = computed(() => {

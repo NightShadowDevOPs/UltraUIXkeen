@@ -6,16 +6,21 @@
     <div :class="twMerge('flex h-full flex-col gap-2', isSidebarCollapsed ? 'w-18 px-0' : 'w-60')">
       <ul class="menu w-full flex-1">
         <li @mouseenter="(e) => mouseenterHandler(e, 'globalSearch')">
-          <a
-            :class="[isSidebarCollapsed && 'justify-center', 'py-2']"
-            @click.passive="() => (globalSearchOpen.value = true)"
+          <button
+            type="button"
+            :class="[
+              globalSearchOpen ? 'menu-active' : '',
+              isSidebarCollapsed && 'justify-center',
+              'w-full py-2',
+            ]"
+            @click="openGlobalSearch"
           >
             <MagnifyingGlassIcon class="h-5 w-5" />
             <template v-if="!isSidebarCollapsed">
               {{ $t('globalSearch') }}
               <span class="ml-auto text-[10px] opacity-60">Ctrl+K</span>
             </template>
-          </a>
+          </button>
         </li>
 
         <li
@@ -97,5 +102,9 @@ const mouseenterHandler = (e: MouseEvent, r: string) => {
 }
 
 const route = useRoute()
+
+const openGlobalSearch = () => {
+  globalSearchOpen.value = true
+}
 
 </script>

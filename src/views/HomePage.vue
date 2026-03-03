@@ -6,6 +6,8 @@
         class="flex flex-1 flex-col overflow-hidden"
         ref="swiperRef"
       >
+        <PageTitleBar :route-name="(route.name as string)" />
+
         <div
           v-if="ctrlsMap[route.name as string]"
           class="bg-base-100 ctrls-bar w-full"
@@ -86,6 +88,7 @@
 import { isBackendAvailable } from '@/api'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import GlobalSearchModal from '@/components/common/GlobalSearchModal.vue'
+import PageTitleBar from '@/components/common/PageTitleBar.vue'
 import ConnectionCtrl from '@/components/sidebar/ConnectionCtrl.tsx'
 import LogsCtrl from '@/components/sidebar/LogsCtrl.tsx'
 import ProxiesCtrl from '@/components/sidebar/ProxiesCtrl.tsx'

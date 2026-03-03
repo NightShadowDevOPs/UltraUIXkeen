@@ -266,6 +266,13 @@ export const sourceIPLabelList = useStorage<SourceIPLabel[]>('config/source-ip-l
 // Shared (synced via router-agent users DB): optional management panel URL per proxy-provider
 export const proxyProviderPanelUrlMap = useStorage<Record<string, string>>('config/proxy-provider-panel-url-map', {})
 
+// Shared (synced via router-agent users DB): SSL "near expiry" warning threshold (days)
+// Default: 2 days (shortlived LE certs are common for some setups)
+export const sslNearExpiryDaysDefault = useStorage<number>('config/ssl-near-expiry-days-default', 2)
+
+// Shared (synced via router-agent users DB): per-provider override for SSL warning threshold (days)
+export const proxyProviderSslWarnDaysMap = useStorage<Record<string, number>>('config/proxy-provider-ssl-warn-days-map', {})
+
 // rules
 export const displayNowNodeInRule = useStorage('config/display-now-node-in-rule', true)
 export const displayLatencyInRule = useStorage('config/display-latency-in-rule', true)

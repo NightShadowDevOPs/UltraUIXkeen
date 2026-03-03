@@ -3,7 +3,7 @@ import { getProviderHealth } from '@/helper/providerHealth'
 import { PROXY_TAB_TYPE } from '@/constant'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
 import { providerActivityByName } from '@/store/providerActivity'
-import { hideUnusedProxyProviders } from '@/store/settings'
+import { hideUnusedProxyProviders, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import {
   agentProviderByName,
   agentProvidersAt,
@@ -39,7 +39,10 @@ const counts = computed(() => {
   const c = { total: 0, expired: 0, nearExpiry: 0, offline: 0, degraded: 0, healthy: 0 }
   for (const p of providers.value) {
     c.total++
-    const h = getProviderHealth(p as any, agentProviderByName.value[p.name])
+    const override = Number((proxyProviderSslWarnDaysMap.value || {})[p.name])
+    const base = Number(sslNearExpiryDaysDefault.value)
+    const nearDays = Number.isFinite(override) ? override : Number.isFinite(base) ? base : 2
+    const h = getProviderHealth(p as any, agentProviderByName.value[p.name], { nearExpiryDays: nearDays })
     ;(c as any)[h.status]++
   }
   return c

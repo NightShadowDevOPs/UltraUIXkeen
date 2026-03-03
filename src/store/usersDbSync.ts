@@ -5,7 +5,7 @@ import { useStorage } from '@vueuse/core'
 import { debounce, isEqual } from 'lodash'
 import { computed, ref, watch } from 'vue'
 import { agentEnabled } from './agent'
-import { proxyProviderPanelUrlMap, sourceIPLabelList } from './settings'
+import { proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault } from './settings'
 
 /**
  * Shared users database stored on the router via router-agent.
@@ -48,6 +48,16 @@ export const usersDbLastSyncedProviderPanelUrls = useStorage<Record<string, stri
   {},
 )
 
+export const usersDbLastSyncedSslNearExpiryDaysDefault = useStorage<number>(
+  'runtime/users-db-last-synced-ssl-near-expiry-days-default-v1',
+  2,
+)
+
+export const usersDbLastSyncedProviderSslWarnDaysMap = useStorage<Record<string, number>>(
+  'runtime/users-db-last-synced-provider-ssl-warn-days-map-v1',
+  {},
+)
+
 // When agent is offline/disabled, keep local edits and sync later.
 export const usersDbLocalDirty = useStorage<boolean>('runtime/users-db-local-dirty-v1', false)
 
@@ -62,6 +72,8 @@ export const usersDbSyncActive = computed(() => {
 type UsersDbPayload = {
   labels: SourceIPLabel[]
   providerPanelUrls: Record<string, string>
+  sslNearExpiryDaysDefault: number
+  providerSslWarnDaysMap: Record<string, number>
 }
 
 export type UsersDbDiff = {
@@ -75,6 +87,14 @@ export type UsersDbDiff = {
     localOnly: Array<{ provider: string; url: string }>
     remoteOnly: Array<{ provider: string; url: string }>
     changed: Array<{ provider: string; local: string; remote: string }>
+  }
+  ssl: {
+    defaultDays: { local: number; remote: number; changed: boolean }
+    providerDays: {
+      localOnly: Array<{ provider: string; days: number }>
+      remoteOnly: Array<{ provider: string; days: number }>
+      changed: Array<{ provider: string; local: number; remote: number }>
+    }
   }
 }
 
@@ -190,10 +210,31 @@ const sanitizeUrlMap = (raw: any): Record<string, string> => {
   return out
 }
 
+const sanitizeInt = (v: any, def: number, min: number, max: number): number => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
+  if (!Number.isFinite(n)) return def
+  return Math.max(min, Math.min(max, Math.trunc(n)))
+}
+
+const sanitizeNumMap = (raw: any): Record<string, number> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
+    if (!Number.isFinite(n)) continue
+    out[kk] = Math.max(0, Math.min(365, Math.trunc(n)))
+  }
+  return out
+}
+
 const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
   const labels = sortLabels(sanitizeLabels(p?.labels || []))
   const urls = sanitizeUrlMap(p?.providerPanelUrls || {})
-  return { labels, providerPanelUrls: urls }
+  const sslNear = sanitizeInt((p as any)?.sslNearExpiryDaysDefault, 2, 0, 365)
+  const warnMap = sanitizeNumMap((p as any)?.providerSslWarnDaysMap)
+  return { labels, providerPanelUrls: urls, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap }
 }
 
 const labelSig = (x: any) => {
@@ -242,8 +283,28 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
     else if (rr && ll && rr !== ll) urlsChanged.push({ provider: k, local: ll, remote: rr })
   }
 
+  const sslDefaultChanged = r.sslNearExpiryDaysDefault !== l.sslNearExpiryDaysDefault
+
+  const rWarn = r.providerSslWarnDaysMap || {}
+  const lWarn = l.providerSslWarnDaysMap || {}
+  const wKeys = new Set<string>([...Object.keys(rWarn), ...Object.keys(lWarn)])
+  const warnLocalOnly: Array<{ provider: string; days: number }> = []
+  const warnRemoteOnly: Array<{ provider: string; days: number }> = []
+  const warnChanged: Array<{ provider: string; local: number; remote: number }> = []
+  for (const k of wKeys) {
+    const rr = (rWarn as any)[k]
+    const ll = (lWarn as any)[k]
+    const rrNum = typeof rr === 'number' ? rr : typeof rr === 'string' ? Number(rr) : NaN
+    const llNum = typeof ll === 'number' ? ll : typeof ll === 'string' ? Number(ll) : NaN
+    const rrOk = Number.isFinite(rrNum)
+    const llOk = Number.isFinite(llNum)
+    if (rrOk && !llOk) warnRemoteOnly.push({ provider: k, days: Math.trunc(rrNum) })
+    else if (!rrOk && llOk) warnLocalOnly.push({ provider: k, days: Math.trunc(llNum) })
+    else if (rrOk && llOk && Math.trunc(rrNum) !== Math.trunc(llNum)) warnChanged.push({ provider: k, local: Math.trunc(llNum), remote: Math.trunc(rrNum) })
+  }
+
   // Safe auto-merge only if there are NO "changed" collisions.
-  const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0
+  const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0 && !sslDefaultChanged && warnChanged.length === 0
 
   // Stabilize for UI
   labelsLocalOnly.sort((a: any, b: any) => String(a?.key || '').localeCompare(String(b?.key || '')))
@@ -253,10 +314,18 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
   urlsRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   urlsChanged.sort((a, b) => a.provider.localeCompare(b.provider))
 
+  warnLocalOnly.sort((a, b) => a.provider.localeCompare(b.provider))
+  warnRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
+  warnChanged.sort((a, b) => a.provider.localeCompare(b.provider))
+
   return {
     safeAutoMerge,
     labels: { localOnly: labelsLocalOnly, remoteOnly: labelsRemoteOnly, changed: labelsChanged },
     urls: { localOnly: urlsLocalOnly, remoteOnly: urlsRemoteOnly, changed: urlsChanged },
+    ssl: {
+      defaultDays: { local: l.sslNearExpiryDaysDefault, remote: r.sslNearExpiryDaysDefault, changed: sslDefaultChanged },
+      providerDays: { localOnly: warnLocalOnly, remoteOnly: warnRemoteOnly, changed: warnChanged },
+    },
   }
 }
 
@@ -293,7 +362,13 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
     const v: any = JSON.parse(raw || '')
 
     // Backward compatibility: array means labels only.
-    if (Array.isArray(v)) return { labels: sanitizeLabels(v), providerPanelUrls: {} }
+    if (Array.isArray(v))
+      return {
+        labels: sanitizeLabels(v),
+        providerPanelUrls: {},
+        sslNearExpiryDaysDefault: 2,
+        providerSslWarnDaysMap: {},
+      }
 
     if (v && typeof v === 'object') {
       const labels = Array.isArray(v.labels)
@@ -313,19 +388,37 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
               ? sanitizeUrlMap(v.proxyProviderPanelUrlMap)
               : {}
 
-      return { labels, providerPanelUrls: urls }
+      const sslNear = sanitizeInt(v.sslNearExpiryDaysDefault, 2, 0, 365)
+      const warnMapRaw =
+        v.providerSslWarnDaysMap && typeof v.providerSslWarnDaysMap === 'object'
+          ? v.providerSslWarnDaysMap
+          : v.proxyProviderSslWarnDaysMap && typeof v.proxyProviderSslWarnDaysMap === 'object'
+            ? v.proxyProviderSslWarnDaysMap
+            : v.providerSslWarnDays && typeof v.providerSslWarnDays === 'object'
+              ? v.providerSslWarnDays
+              : {}
+      const warnMap = sanitizeNumMap(warnMapRaw)
+
+      return {
+        labels,
+        providerPanelUrls: urls,
+        sslNearExpiryDaysDefault: sslNear,
+        providerSslWarnDaysMap: warnMap,
+      }
     }
   } catch {
     // ignore
   }
-  return { labels: [], providerPanelUrls: {} }
+  return { labels: [], providerPanelUrls: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {} }
 }
 
 const buildPayloadForWrite = (p: UsersDbPayload) => {
   return {
-    version: 1,
+    version: 2,
     labels: p.labels || [],
     providerPanelUrls: p.providerPanelUrls || {},
+    sslNearExpiryDaysDefault: p.sslNearExpiryDaysDefault,
+    providerSslWarnDaysMap: p.providerSslWarnDaysMap || {},
   }
 }
 
@@ -363,31 +456,60 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     if (!vv) continue
     urls[kk] = vv
   }
-  return normalizePayload({ labels, providerPanelUrls: urls })
+
+  const warnMap = { ...(rN.providerSslWarnDaysMap || {}) }
+  for (const [k, v] of Object.entries(lN.providerSslWarnDaysMap || {})) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
+    if (!Number.isFinite(n)) continue
+    warnMap[kk] = Math.max(0, Math.min(365, Math.trunc(n)))
+  }
+
+  // Local preference for the global threshold.
+  const sslNear = sanitizeInt(lN.sslNearExpiryDaysDefault, rN.sslNearExpiryDaysDefault || 2, 0, 365)
+
+  return normalizePayload({
+    labels,
+    providerPanelUrls: urls,
+    sslNearExpiryDaysDefault: sslNear,
+    providerSslWarnDaysMap: warnMap,
+  })
 }
 
 const payloadEqual = (a: UsersDbPayload, b: UsersDbPayload) => {
   const an = normalizePayload(a)
   const bn = normalizePayload(b)
-  return isEqual(an.labels || [], bn.labels || []) && isEqual(an.providerPanelUrls || {}, bn.providerPanelUrls || {})
+  return (
+    isEqual(an.labels || [], bn.labels || []) &&
+    isEqual(an.providerPanelUrls || {}, bn.providerPanelUrls || {}) &&
+    an.sslNearExpiryDaysDefault === bn.sslNearExpiryDaysDefault &&
+    isEqual(an.providerSslWarnDaysMap || {}, bn.providerSslWarnDaysMap || {})
+  )
 }
 
 const setLocalFromPayload = (p: UsersDbPayload) => {
   const n = normalizePayload(p)
   sourceIPLabelList.value = (n.labels || []) as any
   proxyProviderPanelUrlMap.value = (n.providerPanelUrls || {}) as any
+  sslNearExpiryDaysDefault.value = n.sslNearExpiryDaysDefault
+  proxyProviderSslWarnDaysMap.value = (n.providerSslWarnDaysMap || {}) as any
 }
 
 const getLocalPayload = (): UsersDbPayload => {
   return normalizePayload({
     labels: (sourceIPLabelList.value || []) as any,
     providerPanelUrls: (proxyProviderPanelUrlMap.value || {}) as any,
+    sslNearExpiryDaysDefault: sslNearExpiryDaysDefault.value,
+    providerSslWarnDaysMap: (proxyProviderSslWarnDaysMap.value || {}) as any,
   })
 }
 
 const markSynced = (p: UsersDbPayload) => {
   usersDbLastSyncedLabels.value = (p.labels || []) as any
   usersDbLastSyncedProviderPanelUrls.value = (p.providerPanelUrls || {}) as any
+  usersDbLastSyncedSslNearExpiryDaysDefault.value = p.sslNearExpiryDaysDefault
+  usersDbLastSyncedProviderSslWarnDaysMap.value = (p.providerSslWarnDaysMap || {}) as any
 }
 
 export const usersDbSyncedIdSet = computed(() => {
@@ -472,8 +594,17 @@ export const usersDbPullNow = async () => {
       }
     } else {
       // First-time bootstrap: remote empty and local has data -> seed remote.
-      const remoteEmpty = remotePayload.labels.length === 0 && Object.keys(remotePayload.providerPanelUrls || {}).length === 0
-      const localHasData = localPayload.labels.length > 0 || Object.keys(localPayload.providerPanelUrls || {}).length > 0
+      const remoteEmpty =
+        remotePayload.labels.length === 0 &&
+        Object.keys(remotePayload.providerPanelUrls || {}).length === 0 &&
+        Object.keys(remotePayload.providerSslWarnDaysMap || {}).length === 0 &&
+        Number(remotePayload.sslNearExpiryDaysDefault) === 2
+
+      const localHasData =
+        localPayload.labels.length > 0 ||
+        Object.keys(localPayload.providerPanelUrls || {}).length > 0 ||
+        Object.keys(localPayload.providerSslWarnDaysMap || {}).length > 0 ||
+        Number(localPayload.sslNearExpiryDaysDefault) !== 2
 
       if (remoteRev == 0 && remoteEmpty && localHasData) {
         const put = await usersDbPushNow(remoteRev, localPayload)
@@ -672,7 +803,7 @@ export const initUsersDbSync = () => {
   )
 
   watch(
-    [sourceIPLabelList, proxyProviderPanelUrlMap],
+    [sourceIPLabelList, proxyProviderPanelUrlMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap],
     () => {
       if (suppressPushCount > 0) {
         suppressPushCount -= 1

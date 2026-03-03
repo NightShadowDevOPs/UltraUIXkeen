@@ -33,25 +33,38 @@
             <span class="ml-1 opacity-60">({{ group.items.length }})</span>
           </div>
           <div class="flex flex-col gap-1">
-            <button
+            <div
               v-for="(it, ii) in group.items"
               :key="it.key"
-              type="button"
-              class="btn btn-ghost btn-sm justify-start h-auto rounded-xl px-2 py-2 text-left"
-              :class="isSelected(group.offset + ii) ? 'bg-base-200 ring-1 ring-base-300' : ''"
-              @click="openItem(it)"
+              class="flex gap-1"
+              :class="isSelected(group.offset + ii) ? 'bg-base-200 ring-1 ring-base-300 rounded-xl' : ''"
               @mouseenter="selectedIdx = group.offset + ii"
             >
-              <div class="min-w-0">
-                <div class="flex items-center gap-2 min-w-0">
-                  <component :is="it.icon" class="h-4 w-4 shrink-0 opacity-70" />
-                  <div class="min-w-0">
-                    <div class="truncate font-medium">{{ it.title }}</div>
-                    <div v-if="it.subtitle" class="truncate text-xs opacity-60">{{ it.subtitle }}</div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm justify-start h-auto flex-1 rounded-xl px-2 py-2 text-left"
+                @click="openItem(it)"
+              >
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <component :is="it.icon" class="h-4 w-4 shrink-0 opacity-70" />
+                    <div class="min-w-0">
+                      <div class="truncate font-medium">{{ it.title }}</div>
+                      <div v-if="it.subtitle" class="truncate text-xs opacity-60">{{ it.subtitle }}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm rounded-xl px-2"
+                :title="$t('openInTopology')"
+                @click.stop="openItemInTopology(it)"
+              >
+                <PresentationChartLineIcon class="h-4 w-4 opacity-70" />
+              </button>
+            </div>
           </div>
         </div>
       </template>
@@ -77,6 +90,7 @@ import {
   CircleStackIcon,
   AdjustmentsHorizontalIcon,
   UsersIcon,
+  PresentationChartLineIcon,
 } from '@heroicons/vue/24/outline'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -91,6 +105,8 @@ type SearchItem = {
   focusKind: string
   focusValue: string
 }
+
+const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
 
 const q = ref('')
 const selectedIdx = ref(0)
@@ -268,6 +284,30 @@ const openItem = async (it: SearchItem) => {
   await router.push({ name: it.routeName })
 }
 
+const stageForItem = (it: SearchItem): 'C' | 'R' | 'G' | 'S' | 'P' => {
+  if (it.group === 'providers') return 'P'
+  if (it.group === 'proxyGroups') return 'G'
+  if (it.group === 'rules') return 'R'
+  if (it.group === 'users') return 'C'
+  return 'S'
+}
+
+const openItemInTopology = async (it: SearchItem) => {
+  globalSearchOpen.value = false
+  const stage = stageForItem(it)
+  const payload: any = {
+    ts: Date.now(),
+    mode: 'only',
+    focus: { stage, kind: 'value', value: String(it.focusValue || '').trim() },
+  }
+  try {
+    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
+  } catch {
+    // ignore
+  }
+  await router.push({ name: ROUTE_NAME.overview })
+}
+
 const clampSelection = () => {
   const len = flatResults.value.length
   if (len <= 0) {
@@ -295,7 +335,11 @@ const handleKeydown = (e: KeyboardEvent) => {
     const it = flatResults.value[selectedIdx.value]
     if (it) {
       e.preventDefault()
-      openItem(it)
+      if (e.ctrlKey || e.metaKey) {
+        openItemInTopology(it)
+      } else {
+        openItem(it)
+      }
     }
     return
   }

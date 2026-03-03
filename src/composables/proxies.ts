@@ -5,7 +5,14 @@ import { getProviderHealth } from '@/helper/providerHealth'
 import { configs } from '@/store/config'
 import { providerActivityByName, providerActivitySnapshot } from '@/store/providerActivity'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
-import { customGlobalNode, displayGlobalByMode, hideUnusedProxyProviders, manageHiddenGroup } from '@/store/settings'
+import {
+  customGlobalNode,
+  displayGlobalByMode,
+  hideUnusedProxyProviders,
+  manageHiddenGroup,
+  proxyProviderSslWarnDaysMap,
+  sslNearExpiryDaysDefault,
+} from '@/store/settings'
 import {
   agentProviderByName,
   autoSortProxyProvidersByHealth,
@@ -79,7 +86,10 @@ export const renderGroups = computed(() => {
     if (providerHealthFilter.value) {
       const target = providerHealthFilter.value
       list = list.filter((p: any) => {
-        const h = getProviderHealth(p as any, agentProviderByName.value[p.name])
+        const override = Number((proxyProviderSslWarnDaysMap.value || {})[p.name])
+        const base = Number(sslNearExpiryDaysDefault.value)
+        const nearDays = Number.isFinite(override) ? override : Number.isFinite(base) ? base : 2
+        const h = getProviderHealth(p as any, agentProviderByName.value[p.name], { nearExpiryDays: nearDays })
         return h.status === target
       })
     }
@@ -113,8 +123,13 @@ export const renderGroups = computed(() => {
       // mode === 'health'
       if (autoSortProxyProvidersByHealth.value) {
         list = [...list].sort((a: any, b: any) => {
-          const ha = getProviderHealth(a as any, agentProviderByName.value[a.name])
-          const hb = getProviderHealth(b as any, agentProviderByName.value[b.name])
+          const oa = Number((proxyProviderSslWarnDaysMap.value || {})[a.name])
+          const ob = Number((proxyProviderSslWarnDaysMap.value || {})[b.name])
+          const base = Number(sslNearExpiryDaysDefault.value)
+          const na = Number.isFinite(oa) ? oa : Number.isFinite(base) ? base : 2
+          const nb = Number.isFinite(ob) ? ob : Number.isFinite(base) ? base : 2
+          const ha = getProviderHealth(a as any, agentProviderByName.value[a.name], { nearExpiryDays: na })
+          const hb = getProviderHealth(b as any, agentProviderByName.value[b.name], { nearExpiryDays: nb })
           if (ha.severity !== hb.severity) return ha.severity - hb.severity
           return String(a.name).localeCompare(String(b.name))
         })

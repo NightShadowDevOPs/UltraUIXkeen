@@ -17,6 +17,11 @@ export type ProviderHealth = {
   tip?: string
 }
 
+export type ProviderHealthOpts = {
+  /** SSL "near expiry" threshold in days. Default: 14 (UI may override). */
+  nearExpiryDays?: number
+}
+
 const getAnyFromObj = (obj: any, candidates: string[]): any => {
   if (!obj || typeof obj !== 'object') return undefined
   const keys = Object.keys(obj)
@@ -112,8 +117,12 @@ export const getProviderSslNotAfter = (provider: any, agentProvider?: any): dayj
 
 const isHttpsUrl = (url?: string) => typeof url === 'string' && url.trim().toLowerCase().startsWith('https://')
 
-export const getProviderHealth = (provider: any, agentProvider?: any): ProviderHealth => {
+export const getProviderHealth = (provider: any, agentProvider?: any, opts?: ProviderHealthOpts): ProviderHealth => {
   const now = dayjs()
+
+  const nearDays = typeof opts?.nearExpiryDays === 'number' && Number.isFinite(opts.nearExpiryDays)
+    ? Math.max(0, Math.min(365, Math.trunc(opts.nearExpiryDays)))
+    : 14
 
   const ssl = getProviderSslNotAfter(provider, agentProvider)
   const sslDays = ssl ? ssl.diff(now, 'day') : null
@@ -142,7 +151,7 @@ export const getProviderHealth = (provider: any, agentProvider?: any): ProviderH
     }
   }
 
-  if (sslDays !== null && sslDays <= 14) {
+  if (sslDays !== null && sslDays <= nearDays) {
     return {
       status: 'nearExpiry',
       severity: 2,

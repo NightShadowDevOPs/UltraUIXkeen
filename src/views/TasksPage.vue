@@ -57,6 +57,19 @@
       <div v-show="providersPanelExpanded">
         <div class="text-xs opacity-70">{{ $t('providersPanelTip') }}</div>
 
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span class="opacity-70">{{ $t('sslWarnThreshold') }}:</span>
+          <input
+            type="number"
+            min="0"
+            max="365"
+            class="input input-bordered input-xs w-20"
+            v-model.number="sslNearExpiryDaysDefault"
+          />
+          <span class="opacity-60">{{ $t('daysShort') }}</span>
+        </div>
+        <div class="text-[11px] opacity-60">{{ $t('sslWarnThresholdTip') }}</div>
+
         <div v-if="!agentEnabled" class="text-sm opacity-70">
           {{ $t('agentDisabled') }}
         </div>
@@ -88,8 +101,12 @@
                   </div>
 
                   <div class="shrink-0 flex items-center gap-2">
-                    <div class="text-[11px] font-mono opacity-70" :title="$t('sslExpire')">
-                      {{ fmtSslPanel(p.sslNotAfter) }}
+                    <div
+                      class="text-[11px] font-mono opacity-70"
+                      :class="sslPanelInfo(p.name, p.sslNotAfter).cls"
+                      :title="sslPanelInfo(p.name, p.sslNotAfter).title"
+                    >
+                      {{ sslPanelInfo(p.name, p.sslNotAfter).text }}
                     </div>
                     <ChevronDownIcon
                       class="h-4 w-4 opacity-60 transition-transform"
@@ -117,6 +134,27 @@
                   >
                     {{ $t('open') }}
                   </a>
+                </div>
+
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span class="opacity-70">{{ $t('sslWarnOverride') }}:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="365"
+                    class="input input-bordered input-xs w-20"
+                    :placeholder="String(sslNearExpiryDaysDefault)"
+                    :value="getProviderSslWarnOverride(p.name) === null ? '' : String(getProviderSslWarnOverride(p.name))"
+                    @input="(e) => setProviderSslWarnOverride(p.name, (e && e.target && e.target.value) || '')"
+                  />
+                  <button type="button" class="btn btn-ghost btn-xs" @click="clearProviderSslWarnOverride(p.name)">
+                    {{ $t('clear') }}
+                  </button>
+                  <span class="opacity-60">{{ $t('sslWarnOverrideTip') }}</span>
+                </div>
+
+                <div class="mt-1 text-[11px] opacity-60">
+                  {{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}
                 </div>
               </div>
             </div>
@@ -190,10 +228,12 @@
         <span class="ml-1 font-mono">{{ fmtTs(lastFreshnessOkAt) }}</span>
       </div>
 
-      <details v-if="lastGeoUpdate?.at" class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+      <details v-if="lastGeoUpdate?.ranAt" class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
         <summary class="cursor-pointer text-xs font-semibold opacity-80">
           {{ $t('lastGeoUpdateResult') }}
-          <span class="ml-2 font-mono opacity-70">{{ fmtTs(lastGeoUpdate.at) }}</span>
+          <span class="ml-2 font-mono opacity-70" :title="$t('dataTimestamp')">
+            {{ lastGeoUpdate.dataAtSec ? fmtMtime(lastGeoUpdate.dataAtSec) : fmtTs(lastGeoUpdate.ranAt) }}
+          </span>
           <span v-if="lastGeoUpdate.ok" class="ml-2 badge badge-success badge-xs">OK</span>
           <span v-else class="ml-2 badge badge-error badge-xs">ERR</span>
         </summary>
@@ -229,6 +269,9 @@
             </div>
           </div>
 
+          <div class="mt-1 text-[11px] opacity-60">
+            {{ $t('runTimestamp') }}: <span class="font-mono">{{ fmtTs(lastGeoUpdate.ranAt) }}</span>
+          </div>
           <div v-if="lastGeoUpdate.note" class="mt-1 text-[11px] opacity-60">
             {{ lastGeoUpdate.note }}
           </div>
@@ -238,15 +281,20 @@
         </div>
       </details>
 
-      <details v-if="lastRuleProvidersUpdate?.at" class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+      <details v-if="lastRuleProvidersUpdate?.ranAt" class="rounded-lg border border-base-content/10 bg-base-200/40 p-2">
         <summary class="cursor-pointer text-xs font-semibold opacity-80">
           {{ $t('lastRuleProvidersUpdateResult') }}
-          <span class="ml-2 font-mono opacity-70">{{ fmtTs(lastRuleProvidersUpdate.at) }}</span>
+          <span class="ml-2 font-mono opacity-70" :title="$t('dataTimestamp')">
+            {{ lastRuleProvidersUpdate.dataAt ? fmtUpdatedAt(lastRuleProvidersUpdate.dataAt) : fmtTs(lastRuleProvidersUpdate.ranAt) }}
+          </span>
           <span v-if="lastRuleProvidersUpdate.ok" class="ml-2 badge badge-success badge-xs">OK</span>
           <span v-else class="ml-2 badge badge-error badge-xs">ERR</span>
         </summary>
 
         <div class="mt-2 flex flex-col gap-2 text-xs">
+          <div class="text-[11px] opacity-60">
+            {{ $t('runTimestamp') }}: <span class="font-mono">{{ fmtTs(lastRuleProvidersUpdate.ranAt) }}</span>
+          </div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 opacity-70">
             <div>
               <span class="opacity-60">{{ $t('total') }}:</span>
@@ -804,7 +852,7 @@ import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
-import { proxyProviderPanelUrlMap } from '@/store/settings'
+import { proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
@@ -883,6 +931,7 @@ const providersPanelError = ref('')
 const providersPanelList = ref<Array<{ name: string; url?: string; host?: string; port?: string; sslNotAfter?: string }>>([])
 const providersPanelOpenName = ref<string>('')
 const providersPanelExpanded = ref<boolean>(false)
+const providersPanelAt = ref<number>(0)
 
 const PROVIDERS_PANEL_EXPANDED_LS_KEY = 'zash.tasks.providersPanels.expanded'
 try {
@@ -965,6 +1014,68 @@ const fmtSslPanel = (v: any) => {
   return d ? d.format('DD-MM-YYYY HH:mm:ss') : '—'
 }
 
+const fmtTs = (ms: any) => {
+  const n = typeof ms === 'number' ? ms : typeof ms === 'string' ? Number(ms) : 0
+  if (!n) return '—'
+  return dayjs(n).format('DD-MM-YYYY HH:mm:ss')
+}
+
+const getProviderWarnDays = (name: string): number => {
+  const k = String(name || '').trim()
+  const override = Number((proxyProviderSslWarnDaysMap.value || {})[k])
+  const base = Number(sslNearExpiryDaysDefault.value)
+  const v = Number.isFinite(override) ? override : Number.isFinite(base) ? base : 2
+  return Math.max(0, Math.min(365, Math.trunc(v)))
+}
+
+const getProviderSslWarnOverride = (name: string): number | null => {
+  const k = String(name || '').trim()
+  const v = Number((proxyProviderSslWarnDaysMap.value || {})[k])
+  return Number.isFinite(v) ? Math.max(0, Math.min(365, Math.trunc(v))) : null
+}
+
+const setProviderSslWarnOverride = (name: string, raw: any) => {
+  const k = String(name || '').trim()
+  if (!k) return
+  const s = String(raw ?? '').trim()
+  const cur = { ...(proxyProviderSslWarnDaysMap.value || {}) }
+  if (!s) {
+    delete cur[k]
+    proxyProviderSslWarnDaysMap.value = cur
+    return
+  }
+  const n = Math.trunc(Number(s))
+  if (!Number.isFinite(n)) return
+  cur[k] = Math.max(0, Math.min(365, n))
+  proxyProviderSslWarnDaysMap.value = cur
+}
+
+const clearProviderSslWarnOverride = (name: string) => {
+  const k = String(name || '').trim()
+  if (!k) return
+  const cur = { ...(proxyProviderSslWarnDaysMap.value || {}) }
+  delete cur[k]
+  proxyProviderSslWarnDaysMap.value = cur
+}
+
+const sslPanelInfo = (name: string, v: any) => {
+  const d = parseDateMaybe(v)
+  if (!d) {
+    return {
+      text: '—',
+      cls: '',
+      title: `${(name || '').trim()} • ${String(v || '').trim()}`.trim(),
+    }
+  }
+  const days = d.diff(dayjs(), 'day')
+  const date = d.format('DD-MM-YYYY HH:mm:ss')
+  const warnDays = getProviderWarnDays(name)
+  const cls = days < 0 ? 'text-error' : days <= warnDays ? 'text-warning' : 'text-base-content/60'
+  const text = days < 0 ? `${date} (expired)` : `${date} (${days}d)`
+  const title = `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${fmtTs(providersPanelAt.value)}`
+  return { text, cls, title }
+}
+
 const setProviderPanelUrl = (name: string, url: string) => {
   const k = String(name || '').trim()
   if (!k) return
@@ -992,6 +1103,7 @@ const loadProvidersPanel = async (force = false) => {
       return
     }
     providersPanelList.value = Array.isArray(r?.providers) ? r.providers : []
+    providersPanelAt.value = Date.now()
   } catch (e: any) {
     providersPanelError.value = e?.message || 'failed'
     providersPanelList.value = []
@@ -1187,7 +1299,10 @@ const openTopologyWithRule = async (ruleText: string) => {
 const lastFreshnessOkAt = useStorage<number>('runtime/tasks-last-freshness-ok-at-v1', 0)
 
 type GeoUpdateResult = {
-  at: number
+  // When the update operation was triggered from UI
+  ranAt: number
+  // Best-effort timestamp of the actual data on disk (file mtime, seconds)
+  dataAtSec?: number
   ok: boolean
   items: Array<{
     kind: string
@@ -1204,14 +1319,18 @@ type GeoUpdateResult = {
 }
 
 const lastGeoUpdate = useStorage<GeoUpdateResult>('runtime/tasks-last-geo-update-v1', {
-  at: 0,
+  ranAt: 0,
+  dataAtSec: 0,
   ok: true,
   items: [],
   note: '',
 })
 
 type RuleProvidersUpdateResult = {
-  at: number
+  // When the update operation was triggered from UI
+  ranAt: number
+  // Best-effort timestamp of the actual data (newest provider updatedAt)
+  dataAt?: string
   ok: boolean
   total: number
   okCount: number
@@ -1228,7 +1347,8 @@ type RuleProvidersUpdateResult = {
 }
 
 const lastRuleProvidersUpdate = useStorage<RuleProvidersUpdateResult>('runtime/tasks-last-rule-providers-update-v1', {
-  at: 0,
+  ranAt: 0,
+  dataAt: '',
   ok: true,
   total: 0,
   okCount: 0,
@@ -1764,8 +1884,17 @@ const updateGeoNow = async () => {
     const okAll = !!r?.ok && failItems.length === 0
     const changedKinds = items.filter((x: any) => x.changed).map((x: any) => x.kind).join(', ')
 
+    const ranAt = Date.now()
+    const dataAtSec = Math.max(
+      0,
+      ...items
+        .map((x: any) => (typeof x?.mtimeSec === 'number' ? x.mtimeSec : Number(x?.mtimeSec || 0) || 0))
+        .filter((n: number) => Number.isFinite(n) && n > 0),
+    )
+
     lastGeoUpdate.value = {
-      at: Date.now(),
+      ranAt,
+      dataAtSec: dataAtSec || 0,
       ok: okAll,
       items,
       note: String(r?.note || ''),
@@ -1791,6 +1920,7 @@ const updateGeoNow = async () => {
 const updateRuleProvidersNow = async () => {
   if (providersUpdateBusy.value) return
   providersUpdateBusy.value = true
+  const ranAt = Date.now()
   const id = startJob(t('updateRuleProvidersNow'))
   try {
     await refreshRuleProviders()
@@ -1854,7 +1984,8 @@ const updateRuleProvidersNow = async () => {
 
     const okAll = fail === 0
     lastRuleProvidersUpdate.value = {
-      at: Date.now(),
+      ranAt,
+      dataAt: newestProviderAt.value || '',
       ok: okAll,
       total: names.length,
       okCount: ok,
