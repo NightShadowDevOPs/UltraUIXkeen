@@ -199,6 +199,24 @@
                         />
                       </template>
                       <template #default>
+                        <div class="no-drag flex items-center gap-1">
+                          <button
+                            type="button"
+                            class="no-drag btn btn-circle btn-ghost btn-sm relative"
+                            @click.stop.prevent="openEgressMenu($event, sourceIP as any)"
+                            @pointerdown.stop.prevent
+                            @mousedown.stop.prevent
+                            @touchstart.stop.prevent
+                            :title="egressTitle(sourceIP as any)"
+                          >
+                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
+                            <span
+                              v-if="(sourceIP as any).egressProviders?.length"
+                              class="badge badge-xs absolute -top-1 -right-1"
+                            >
+                              {{ (sourceIP as any).egressProviders.length }}
+                            </span>
+                          </button>
                         <button
                           type="button"
                           class="no-drag btn btn-circle btn-ghost btn-sm"
@@ -210,6 +228,7 @@
                         >
                           <TrashIcon class="h-4 w-4" />
                         </button>
+                        </div>
                       </template>
                     </SourceIPInput>
                   </div>
@@ -244,6 +263,73 @@
             </div>
           </template>
         </CollapseCard>
+
+        <CollapseCard name="usersEgressRouting">
+          <template #title="{ open }">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <ArrowRightOnRectangleIcon class="h-4 w-4" />
+                <span class="text-base font-semibold">
+                  {{ t('userEgressRouting') }}
+                  <span v-if="egressUsers.length" class="opacity-70">({{ egressUsers.length }})</span>
+                </span>
+              </div>
+              <ChevronDownIcon
+                class="h-4 w-4 opacity-60 transition-transform"
+                :class="open ? 'rotate-180' : ''"
+              />
+            </div>
+          </template>
+
+          <template #preview>
+            <div class="mt-1 text-sm opacity-70">
+              {{ t('userEgressRoutingTip') }}
+            </div>
+          </template>
+
+          <template #content>
+            <div class="flex flex-col gap-3 pt-1">
+              <div class="text-sm opacity-70">{{ t('userEgressRoutingTip') }}</div>
+
+              <div v-if="!egressUsers.length" class="text-sm opacity-60">
+                {{ t('userEgressRoutingNone') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3">
+                <div class="alert alert-warning p-2 text-sm" v-if="egressWarnings.length">
+                  <div class="flex flex-col gap-1">
+                    <div class="font-semibold">{{ t('note') }}</div>
+                    <div v-for="w in egressWarnings" :key="w" class="opacity-90">• {{ w }}</div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-semibold">{{ t('userEgressRoutingGroups') }}</div>
+                  <button class="btn btn-xs" @click="copyText(egressGroupsYaml)">{{ t('copy') }}</button>
+                </div>
+                <textarea
+                  class="textarea textarea-sm font-mono w-full min-h-[10rem] whitespace-pre"
+                  readonly
+                  :value="egressGroupsYaml"
+                ></textarea>
+
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-semibold">{{ t('userEgressRoutingRules') }}</div>
+                  <button class="btn btn-xs" @click="copyText(egressRulesYaml)">{{ t('copy') }}</button>
+                </div>
+                <textarea
+                  class="textarea textarea-sm font-mono w-full min-h-[8rem] whitespace-pre"
+                  readonly
+                  :value="egressRulesYaml"
+                ></textarea>
+
+                <div class="text-sm opacity-70">
+                  {{ t('userEgressRoutingApplyTip') }}
+                </div>
+              </div>
+            </div>
+          </template>
+        </CollapseCard>
       </div>
     </div>
 
@@ -259,13 +345,15 @@ import CollapseCard from '@/components/common/CollapseCard.vue'
 import { agentLanHostsAPI } from '@/api/agent'
 import { showNotification } from '@/helper/notification'
 import { i18n } from '@/i18n'
+import { useTooltip } from '@/helper/tooltip'
 import { disableSwipe } from '@/composables/swipe'
 import { ROUTE_NAME } from '@/constant'
 import { cleanupExpiredPendingPageFocus, clearPendingPageFocus, flashNavHighlight, getPendingPageFocusForRoute } from '@/helper/navFocus'
 import { collapseGroupMap, sourceIPLabelList } from '@/store/settings'
 import { usersDbSyncActive, usersDbSyncedIdSet } from '@/store/usersDbSync'
+import { proxyProviederList } from '@/store/proxies'
 import type { SourceIPLabel } from '@/types'
-import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpDownIcon, CloudIcon, LockClosedIcon, PlusIcon, TagIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { ArrowDownTrayIcon, ArrowRightOnRectangleIcon, ChevronDownIcon, ChevronUpDownIcon, CloudIcon, LockClosedIcon, PlusIcon, TagIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import { v4 as uuid } from 'uuid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
@@ -310,6 +398,212 @@ const isBlockedUser = (sourceIP: Partial<SourceIPLabel>) => {
   const user = (sourceIP.label || sourceIP.key || '').toString().trim()
   if (!user) return false
   return getUserLimitState(user).blocked
+}
+
+// --- Per-user egress providers (routing by SRC-IP-CIDR) ---
+const { showTip } = useTooltip()
+
+const providerNames = computed(() => {
+  const names = (proxyProviederList.value || [])
+    .map((p: any) => String(p?.name || '').trim())
+    .filter(Boolean)
+  // stable order
+  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b))
+})
+
+const normalizeProviders = (arr: any): string[] => {
+  if (!Array.isArray(arr)) return []
+  const out = arr
+    .map((v: any) => String(v || '').trim())
+    .filter(Boolean)
+  return Array.from(new Set(out)).sort((a, b) => a.localeCompare(b))
+}
+
+const egressTitle = (it: any) => {
+  const sel = normalizeProviders(it?.egressProviders)
+  if (!sel.length) return t('userEgressSelectProviders')
+  return `${t('userEgressProviders')}: ${sel.join(', ')}`
+}
+
+const openEgressMenu = (e: Event, it: any) => {
+  const root = document.createElement('div')
+  root.classList.add('flex', 'flex-col', 'gap-2', 'py-1')
+
+  const header = document.createElement('div')
+  header.classList.add('text-xs', 'opacity-70', 'px-1')
+  header.textContent = t('userEgressSelectProviders')
+  root.append(header)
+
+  const names = providerNames.value
+  if (!names.length) {
+    const empty = document.createElement('div')
+    empty.classList.add('text-sm', 'opacity-60', 'px-1')
+    empty.textContent = t('userEgressNoProviders')
+    root.append(empty)
+  } else {
+    const actions = document.createElement('div')
+    actions.classList.add('flex', 'items-center', 'gap-2', 'px-1')
+
+    const btnAll = document.createElement('button')
+    btnAll.type = 'button'
+    btnAll.className = 'btn btn-xs'
+    btnAll.textContent = t('selectAll')
+    btnAll.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      it.egressProviders = [...names]
+    })
+
+    const btnClear = document.createElement('button')
+    btnClear.type = 'button'
+    btnClear.className = 'btn btn-xs btn-ghost'
+    btnClear.textContent = t('clear')
+    btnClear.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      delete it.egressProviders
+    })
+
+    actions.append(btnAll, btnClear)
+    root.append(actions)
+
+    const list = document.createElement('div')
+    list.classList.add('flex', 'flex-col', 'gap-2', 'py-1', 'px-1', 'max-h-72', 'overflow-auto')
+
+    for (const name of names) {
+      const label = document.createElement('label')
+      label.classList.add('flex', 'items-center', 'gap-2', 'cursor-pointer')
+      const checkbox = document.createElement('input')
+      checkbox.type = 'checkbox'
+      checkbox.classList.add('checkbox', 'checkbox-sm')
+      checkbox.checked = normalizeProviders(it.egressProviders).includes(name)
+      checkbox.addEventListener('change', (ev) => {
+        const checked = (ev.target as HTMLInputElement).checked
+        const cur = normalizeProviders(it.egressProviders)
+        const next = checked ? [...cur, name] : cur.filter((x) => x !== name)
+        const fin = normalizeProviders(next)
+        if (fin.length) it.egressProviders = fin
+        else delete it.egressProviders
+      })
+      const span = document.createElement('span')
+      span.textContent = name
+      label.append(checkbox, span)
+      list.append(label)
+    }
+    root.append(list)
+  }
+
+  showTip(e, root, {
+    theme: 'base',
+    placement: 'bottom-start',
+    trigger: 'click',
+    appendTo: document.body,
+    interactive: true,
+    arrow: false,
+  })
+}
+
+const egressUsers = computed(() => {
+  return (sourceIPLabelList.value || []).filter((x: any) => Array.isArray(x?.egressProviders) && x.egressProviders.length)
+})
+
+const isIPv4 = (s: string) => {
+  const m = (s || '').trim().match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/)
+  if (!m) return false
+  const parts = s.split('.').map((n) => Number(n))
+  return parts.length === 4 && parts.every((n) => Number.isFinite(n) && n >= 0 && n <= 255)
+}
+
+const isIPv4Cidr = (s: string) => {
+  const t = (s || '').trim()
+  const m = t.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}\/(\d{1,2})$/)
+  if (!m) return false
+  const prefix = Number(m[2])
+  if (!Number.isFinite(prefix) || prefix < 0 || prefix > 32) return false
+  const ip = t.split('/')[0]
+  return isIPv4(ip)
+}
+
+const toSrcCidr = (key: string): { ok: true; cidr: string } | { ok: false; reason: string } => {
+  const k = String(key || '').trim()
+  if (!k) return { ok: false, reason: 'empty' }
+  if (k.startsWith('/')) return { ok: false, reason: 'regex' }
+  if (isIPv4Cidr(k)) return { ok: true, cidr: k }
+  if (isIPv4(k)) return { ok: true, cidr: `${k}/32` }
+  if (k.includes(':')) {
+    if (k.includes('/')) return { ok: true, cidr: k }
+    return { ok: true, cidr: `${k}/128` }
+  }
+  return { ok: false, reason: 'unsupported' }
+}
+
+const mkGroupName = (key: string) => {
+  const base = String(key || '').trim().replace(/[^0-9A-Za-z]+/g, '_')
+  const name = `USR_${base}`.replace(/_+/g, '_')
+  // Keep it reasonably short for UIs.
+  return name.length > 64 ? name.slice(0, 64) : name
+}
+
+const egressWarnings = computed(() => {
+  const warnings: string[] = []
+  for (const it of egressUsers.value as any[]) {
+    const key = String(it?.key || '').trim()
+    const cidr = toSrcCidr(key)
+    if (!cidr.ok) {
+      warnings.push(`${key}: ${cidr.reason === 'regex' ? t('userEgressWarnRegex') : t('userEgressWarnUnsupported')}`)
+    }
+    const sel = normalizeProviders(it?.egressProviders)
+    const missing = sel.filter((p) => !providerNames.value.includes(p))
+    if (missing.length) warnings.push(`${key}: ${t('userEgressWarnMissingProviders')} ${missing.join(', ')}`)
+  }
+  return warnings
+})
+
+const egressGroupsYaml = computed(() => {
+  if (!egressUsers.value.length) return '# (empty)\n'
+  const blocks: string[] = []
+  for (const it of egressUsers.value as any[]) {
+    const key = String(it?.key || '').trim()
+    const group = mkGroupName(key)
+    const sel = normalizeProviders(it?.egressProviders)
+    if (!sel.length) continue
+    blocks.push(
+      `  - name: "${group}"\n` +
+        `    type: select\n` +
+        `    proxies:\n` +
+        `      - DIRECT\n` +
+        `    use:\n` +
+        sel.map((p) => `      - ${JSON.stringify(p)}`).join('\n') +
+        `\n`,
+    )
+  }
+  return (
+    '# Paste these items under your existing "proxy-groups:" list\n' +
+    (blocks.length ? blocks.join('\n') : '# (empty)\n')
+  )
+})
+
+const egressRulesYaml = computed(() => {
+  if (!egressUsers.value.length) return '# (empty)\n'
+  const lines: string[] = []
+  for (const it of egressUsers.value as any[]) {
+    const key = String(it?.key || '').trim()
+    const cidr = toSrcCidr(key)
+    if (!cidr.ok) continue
+    const group = mkGroupName(key)
+    lines.push(`  - SRC-IP-CIDR,${cidr.cidr},${group}`)
+  }
+  return (
+    '# Paste these lines near the TOP of your existing "rules:" list (before other rules)\n' +
+    (lines.length ? lines.join('\n') + '\n' : '# (empty)\n')
+  )
+})
+
+const copyText = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(String(text || ''))
+    showNotification(t('copySuccess'))
+  } catch (e: any) {
+    showNotification(e?.message || 'copy failed')
+  }
 }
 
 
