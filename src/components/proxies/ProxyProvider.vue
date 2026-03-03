@@ -108,69 +108,84 @@
           </div>
         </div>
         <div class="flex flex-col items-end gap-1 max-sm:items-start">
-          <div v-if="open" class="flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
-            <span
-              class="font-mono truncate max-w-[18rem]"
-              :class="activeProxy ? '' : 'opacity-70'"
-              :title="displayProxyName || ''"
+          <details v-if="open" class="dropdown dropdown-end">
+            <summary
+              class="list-none cursor-pointer select-none flex items-center gap-1.5 text-xs"
+              @click.stop
             >
-              {{ displayProxyName || '—' }}
-            </span>
-
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs btn-circle"
-              @click.stop="copyActiveName"
-              :disabled="!displayProxyName"
-              :title="$t('copyProxyName')"
-            >
-              <ClipboardDocumentIcon class="h-4 w-4" />
-            </button>
-
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs btn-circle"
-              @click.stop="testActiveNode"
-              :disabled="isActiveTesting || !displayProxyName"
-              :title="$t('testProxyLatency')"
-            >
+              <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
               <span
-                v-if="isActiveTesting"
-                class="loading loading-spinner loading-xs"
-              ></span>
-              <BoltIcon v-else class="h-4 w-4" />
-            </button>
+                class="font-mono truncate max-w-[18rem]"
+                :class="activeProxy ? '' : 'opacity-70'"
+                :title="displayProxyName || ''"
+              >
+                {{ displayProxyName || '—' }}
+              </span>
+              <ChevronDownIcon class="h-4 w-4 opacity-60" />
+            </summary>
 
-            <button
-              v-if="activeProxyUri"
-              type="button"
-              class="btn btn-ghost btn-xs btn-circle"
-              @click.stop="copyActiveUri"
-              :title="$t('copyProxyUri')"
-            >
-              <LinkIcon class="h-4 w-4" />
-            </button>
+            <div class="dropdown-content z-[999] mt-2 w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300">
+              <div class="text-xs mb-2">
+                <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
+                <span class="font-mono break-all">{{ displayProxyName || '—' }}</span>
+              </div>
 
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs btn-circle"
-              @click.stop="openTopologyWithProvider"
-              :title="$t('showInTopology')"
-            >
-              <PresentationChartLineIcon class="h-4 w-4" />
-            </button>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="copyActiveName"
+                  :disabled="!displayProxyName"
+                  :title="$t('copyProxyName')"
+                >
+                  <ClipboardDocumentIcon class="h-4 w-4" />
+                </button>
 
-            <button
-              v-if="panelUrl"
-              type="button"
-              class="btn btn-ghost btn-xs btn-circle"
-              @click.stop="openPanelUrl"
-              :title="$t('openPanel')"
-            >
-              <ArrowTopRightOnSquareIcon class="h-4 w-4" />
-            </button>
-          </div>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="testActiveNode"
+                  :disabled="isActiveTesting || !displayProxyName"
+                  :title="$t('testProxyLatency')"
+                >
+                  <span
+                    v-if="isActiveTesting"
+                    class="loading loading-spinner loading-xs"
+                  ></span>
+                  <BoltIcon v-else class="h-4 w-4" />
+                </button>
+
+                <button
+                  v-if="activeProxyUri"
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="copyActiveUri"
+                  :title="$t('copyProxyUri')"
+                >
+                  <LinkIcon class="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="openTopologyWithProvider"
+                  :title="$t('showInTopology')"
+                >
+                  <PresentationChartLineIcon class="h-4 w-4" />
+                </button>
+
+                <button
+                  v-if="panelUrl"
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="openPanelUrl"
+                  :title="$t('openPanel')"
+                >
+                  <ArrowTopRightOnSquareIcon class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </details>
           <div>{{ $t('updated') }} {{ fromNow(proxyProvider.updatedAt) }}</div>
         </div>
       </div>
@@ -185,72 +200,87 @@
           @nodefilter="openTopologyWithProxy"
         />
 
-        <div class="flex flex-wrap items-center gap-1.5 text-xs">
-          <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
-          <span
-            class="font-mono truncate max-w-[18rem]"
-            :class="activeProxy ? '' : 'opacity-70'"
-            :title="displayProxyName || ''"
+        <details class="dropdown dropdown-end">
+          <summary
+            class="list-none cursor-pointer select-none flex items-center gap-1.5 text-xs"
+            @click.stop
           >
-            {{ displayProxyName || '—' }}
-          </span>
-
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs btn-circle"
-            @click.stop="copyActiveName"
-            :disabled="!displayProxyName"
-            :title="$t('copyProxyName')"
-          >
-            <ClipboardDocumentIcon class="h-4 w-4" />
-          </button>
-
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs btn-circle"
-            @click.stop="testActiveNode"
-            :disabled="isActiveTesting || !displayProxyName"
-            :title="$t('testProxyLatency')"
-          >
+            <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
             <span
-              v-if="isActiveTesting"
-              class="loading loading-spinner loading-xs"
-            ></span>
-            <BoltIcon
-              v-else
-              class="h-4 w-4"
-            />
-          </button>
+              class="font-mono truncate max-w-[18rem]"
+              :class="activeProxy ? '' : 'opacity-70'"
+              :title="displayProxyName || ''"
+            >
+              {{ displayProxyName || '—' }}
+            </span>
+            <ChevronDownIcon class="h-4 w-4 opacity-60" />
+          </summary>
 
-          <button
-            v-if="activeProxyUri"
-            type="button"
-            class="btn btn-ghost btn-xs btn-circle"
-            @click.stop="copyActiveUri"
-            :title="$t('copyProxyUri')"
-          >
-            <LinkIcon class="h-4 w-4" />
-          </button>
+          <div class="dropdown-content z-[999] mt-2 w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300">
+            <div class="text-xs mb-2">
+              <span class="opacity-70">{{ activeProxy ? $t('activeProxy') : $t('bestLatencyProxy') }}:</span>
+              <span class="font-mono break-all">{{ displayProxyName || '—' }}</span>
+            </div>
 
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs btn-circle"
-            @click.stop="openTopologyWithProvider"
-            :title="$t('showInTopology')"
-          >
-            <PresentationChartLineIcon class="h-4 w-4" />
-          </button>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="copyActiveName"
+                :disabled="!displayProxyName"
+                :title="$t('copyProxyName')"
+              >
+                <ClipboardDocumentIcon class="h-4 w-4" />
+              </button>
 
-          <button
-            v-if="panelUrl"
-            type="button"
-            class="btn btn-ghost btn-xs btn-circle"
-            @click.stop="openPanelUrl"
-            :title="$t('openPanel')"
-          >
-            <ArrowTopRightOnSquareIcon class="h-4 w-4" />
-          </button>
-        </div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="testActiveNode"
+                :disabled="isActiveTesting || !displayProxyName"
+                :title="$t('testProxyLatency')"
+              >
+                <span
+                  v-if="isActiveTesting"
+                  class="loading loading-spinner loading-xs"
+                ></span>
+                <BoltIcon
+                  v-else
+                  class="h-4 w-4"
+                />
+              </button>
+
+              <button
+                v-if="activeProxyUri"
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="copyActiveUri"
+                :title="$t('copyProxyUri')"
+              >
+                <LinkIcon class="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="openTopologyWithProvider"
+                :title="$t('showInTopology')"
+              >
+                <PresentationChartLineIcon class="h-4 w-4" />
+              </button>
+
+              <button
+                v-if="panelUrl"
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="openPanelUrl"
+                :title="$t('openPanel')"
+              >
+                <ArrowTopRightOnSquareIcon class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </template>
     <template v-slot:content="{ showFullContent }">
@@ -276,11 +306,12 @@ import { useBounceOnVisible } from '@/composables/bouncein'
 import { useRenderProxies } from '@/composables/renderProxies'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
-import { fetchProxyProviderByNameOnly, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
+import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderPanelUrlMap, twoColumnProxyGroup } from '@/store/settings'
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
+import { ChevronDownIcon } from '@heroicons/vue/20/solid'
 import dayjs from 'dayjs'
 import { twMerge } from 'tailwind-merge'
 import { computed, ref, watch } from 'vue'

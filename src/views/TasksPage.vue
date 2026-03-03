@@ -56,20 +56,28 @@
         <div v-if="providersPanelError" class="text-xs text-error">{{ providersPanelError }}</div>
         <div v-else-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
         <div v-else class="flex flex-col gap-2">
-          <div
+          <details
             v-for="p in providersPanelRenderList"
             :key="p.name"
             class="rounded-lg border border-base-content/10 bg-base-200/40 p-2"
           >
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <div class="truncate font-mono text-xs" :title="p.name">{{ p.name }}</div>
-                <div v-if="p.url" class="mt-0.5 truncate text-[11px] opacity-60" :title="p.url">{{ p.url }}</div>
+            <summary class="cursor-pointer select-none list-none [&::marker]:hidden [&::-webkit-details-marker]:hidden">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="truncate font-mono text-xs" :title="p.name">{{ p.name }}</div>
+                  <div
+                    v-if="proxyProviderPanelUrlMap[p.name] || p.url"
+                    class="mt-0.5 truncate text-[11px] opacity-60"
+                    :title="proxyProviderPanelUrlMap[p.name] || p.url"
+                  >
+                    {{ proxyProviderPanelUrlMap[p.name] || p.url }}
+                  </div>
+                </div>
+                <div class="shrink-0 text-[11px] font-mono opacity-70" :title="$t('sslExpire')">
+                  {{ fmtSslPanel(p.sslNotAfter) }}
+                </div>
               </div>
-              <div class="shrink-0 text-[11px] font-mono opacity-70" :title="$t('sslExpire')">
-                {{ fmtSslPanel(p.sslNotAfter) }}
-              </div>
-            </div>
+            </summary>
 
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <input
@@ -89,7 +97,7 @@
                 {{ $t('open') }}
               </a>
             </div>
-          </div>
+          </details>
         </div>
       </div>
     </div>
