@@ -76,12 +76,16 @@
         </button>
       </div>
     </DialogWrapper>
+
+    <!-- Global search / command palette (Ctrl+K / Cmd+K) -->
+    <GlobalSearchModal />
   </div>
 </template>
 
 <script setup lang="ts">
 import { isBackendAvailable } from '@/api'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import GlobalSearchModal from '@/components/common/GlobalSearchModal.vue'
 import ConnectionCtrl from '@/components/sidebar/ConnectionCtrl.tsx'
 import LogsCtrl from '@/components/sidebar/LogsCtrl.tsx'
 import ProxiesCtrl from '@/components/sidebar/ProxiesCtrl.tsx'
@@ -104,8 +108,9 @@ import { fetchRules, rulesTabShow } from '@/store/rules'
 import { activeBackend, activeUuid, backendList } from '@/store/setup'
 import type { Backend } from '@/types'
 import { useDocumentVisibility, useElementSize } from '@vueuse/core'
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
+import { globalSearchOpen } from '@/store/globalSearch'
 
 const ctrlsMap: Record<string, Component> = {
   [ROUTE_NAME.connections]: ConnectionCtrl,
@@ -121,6 +126,26 @@ const styleForSafeArea = {
 
 const router = useRouter()
 const { swiperRef } = useSwipeRouter()
+
+// Global search keyboard shortcut (Ctrl+K / Cmd+K)
+const globalSearchKeydown = (e: KeyboardEvent) => {
+  if (e.key.toLowerCase() !== 'k') return
+  if (!(e.ctrlKey || e.metaKey)) return
+  // Avoid hijacking inside text inputs.
+  const t = e.target as any
+  const tag = String(t?.tagName || '').toLowerCase()
+  if (tag === 'input' || tag === 'textarea' || t?.isContentEditable) return
+  e.preventDefault()
+  globalSearchOpen.value = true
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', globalSearchKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', globalSearchKeydown)
+})
 
 const ctrlsBarRef = ref<HTMLDivElement>()
 const { width: ctrlsBarWidth } = useElementSize(ctrlsBarRef)

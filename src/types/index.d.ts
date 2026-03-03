@@ -159,6 +159,4 @@ export type SourceIPLabel = {
   label: string
   id: string
   scope?: string[]
-  /** Optional list of allowed proxy providers for per-user egress routing (SRC-IP-CIDR rules). */
-  egressProviders?: string[]
 }

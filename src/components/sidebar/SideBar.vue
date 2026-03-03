@@ -5,6 +5,19 @@
   >
     <div :class="twMerge('flex h-full flex-col gap-2', isSidebarCollapsed ? 'w-18 px-0' : 'w-60')">
       <ul class="menu w-full flex-1">
+        <li @mouseenter="(e) => mouseenterHandler(e, 'globalSearch')">
+          <a
+            :class="[isSidebarCollapsed && 'justify-center', 'py-2']"
+            @click.passive="() => (globalSearchOpen.value = true)"
+          >
+            <MagnifyingGlassIcon class="h-5 w-5" />
+            <template v-if="!isSidebarCollapsed">
+              {{ $t('globalSearch') }}
+              <span class="ml-auto text-[10px] opacity-60">Ctrl+K</span>
+            </template>
+          </a>
+        </li>
+
         <li
           v-for="r in renderRoutes"
           :key="r"
@@ -63,7 +76,9 @@ import { renderRoutes } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
 import router from '@/router'
 import { isSidebarCollapsed, showStatisticsWhenSidebarCollapsed } from '@/store/settings'
+import { globalSearchOpen } from '@/store/globalSearch'
 import { ArrowRightCircleIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -75,10 +90,12 @@ const { t } = useI18n()
 
 const mouseenterHandler = (e: MouseEvent, r: string) => {
   if (!isSidebarCollapsed.value) return
-  showTip(e, t(r), {
+  const label = r === 'globalSearch' ? t('globalSearch') : t(r)
+  showTip(e, label, {
     placement: 'right',
   })
 }
 
 const route = useRoute()
+
 </script>

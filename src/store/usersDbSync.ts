@@ -134,15 +134,6 @@ const normalizeLabel = (x: any): SourceIPLabel | null => {
   const label = String((x as any).label || '').trim()
   if (!isLikelySourceKey(key)) return null
   const scope = Array.isArray((x as any).scope) ? ((x as any).scope as any[]).map(String) : undefined
-  const egressProviders = Array.isArray((x as any).egressProviders)
-    ? Array.from(
-        new Set(
-          ((x as any).egressProviders as any[])
-            .map((v: any) => String(v || '').trim())
-            .filter(Boolean),
-        ),
-      ).sort()
-    : undefined
   if (!key || !label) return null
 
   let id = String((x as any).id || '').trim()
@@ -153,7 +144,6 @@ const normalizeLabel = (x: any): SourceIPLabel | null => {
 
   const o: SourceIPLabel = { key, label, id }
   if (scope && scope.length) o.scope = scope
-  if (egressProviders && egressProviders.length) (o as any).egressProviders = egressProviders
   return o
 }
 
@@ -208,10 +198,7 @@ const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
 
 const labelSig = (x: any) => {
   const scope = Array.isArray(x?.scope) ? (x.scope as any[]).map(String).sort().join(',') : ''
-  const egress = Array.isArray(x?.egressProviders)
-    ? (x.egressProviders as any[]).map(String).map((s) => s.trim()).filter(Boolean).sort().join(',')
-    : ''
-  return `${String(x?.label || '').trim()}|${scope}|${egress}`
+  return `${String(x?.label || '').trim()}|${scope}`
 }
 
 export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbDiff => {
@@ -408,10 +395,7 @@ export const usersDbSyncedIdSet = computed(() => {
   const snapById = new Map<string, string>()
   const sig = (x: any) => {
     const scope = Array.isArray(x?.scope) ? (x.scope as any[]).map(String).sort().join(',') : ''
-    const egress = Array.isArray(x?.egressProviders)
-      ? (x.egressProviders as any[]).map(String).map((s) => s.trim()).filter(Boolean).sort().join(',')
-      : ''
-    return `${String(x?.id || '')}|${String(x?.key || '')}|${String(x?.label || '')}|${scope}|${egress}`
+    return `${String(x?.id || '')}|${String(x?.key || '')}|${String(x?.label || '')}|${scope}`
   }
 
   for (const it of (usersDbLastSyncedLabels.value || []) as any[]) {
