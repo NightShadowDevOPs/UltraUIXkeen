@@ -991,6 +991,84 @@ neighbors() {
   printf ']}'
 }
 
+lan_hosts_json() {
+  # Return LAN hosts from DHCP leases and ARP table (best effort).
+  # items: {ip, mac, hostname, source}
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  leases_tmp="/tmp/zash_leases.$$"
+  arp_tmp="/tmp/zash_arp.$$"
+
+  : > "$leases_tmp" 2>/dev/null || true
+  : > "$arp_tmp" 2>/dev/null || true
+
+  # Common dnsmasq lease locations (Keenetic/OpenWrt/Entware)
+  for f in /tmp/dhcp.leases /var/lib/misc/dnsmasq.leases /opt/var/lib/misc/dnsmasq.leases /opt/var/state/dhcp/dhcp.leases; do
+    if [ -f "$f" ]; then
+      # expiry mac ip hostname clientid
+      awk 'NF>=4 { ip=$3; mac=tolower($2); host=$4; exp=$1; if(host=="*" || host=="-") host=""; if(ip!="" && mac!="") print ip"|"mac"|"host"|"exp }' "$f" 2>/dev/null >> "$leases_tmp" || true
+    fi
+  done
+
+  if [ -r /proc/net/arp ]; then
+    awk 'NR>1 { ip=$1; mac=tolower($4); if(ip!="" && mac ~ /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/ && mac!="00:00:00:00:00:00") print ip"|"mac }' /proc/net/arp 2>/dev/null >> "$arp_tmp" || true
+  fi
+
+  # Merge: prefer DHCP hostname/mac; use ARP for missing entries.
+  # Output lines: ip	mac	hostname	source
+  merged_tmp="/tmp/zash_hosts.$$"
+  awk -F'|' '
+    FNR==NR {
+      ip=$1; mac=$2; host=$3;
+      if(ip!="") {
+        dhcp_mac[ip]=mac;
+        dhcp_host[ip]=host;
+        ips[ip]=1;
+      }
+      next
+    }
+    {
+      ip=$1; mac=$2;
+      if(ip!="") {
+        arp_mac[ip]=mac;
+        ips[ip]=1;
+      }
+    }
+    END {
+      for(ip in ips) {
+        mac=dhcp_mac[ip]; host=dhcp_host[ip]; src="dhcp";
+        if(mac=="") { mac=arp_mac[ip]; src="arp"; }
+        if(mac=="") mac="";
+        if(host=="") src=src;
+        print ip"	"mac"	"host"	"src;
+      }
+    }
+  ' "$leases_tmp" "$arp_tmp" 2>/dev/null | sort > "$merged_tmp" 2>/dev/null || true
+
+  printf '{"ok":true,"items":['
+  first=1
+  while IFS='	' read -r ipn macn hostn srcn; do
+    [ -n "$ipn" ] || continue
+    # Escape strings
+    ipj="$(jesc "$ipn")"
+    macj="$(jesc "$macn")"
+    hostj="$(jesc "$hostn")"
+    srcj="$(jesc "$srcn")"
+    [ "$first" -eq 0 ] && printf ','
+    first=0
+    printf '{"ip":"%s","mac":"%s","hostname":"%s","source":"%s"}' "$ipj" "$macj" "$hostj" "$srcj"
+  done < "$merged_tmp"
+  printf ']}'
+
+  rm -f "$leases_tmp" "$arp_tmp" "$merged_tmp" 2>/dev/null || true
+}
+
 ip2mac() {
   # Resolve a single IP to a MAC address (best effort).
   ip_="$1"
@@ -1329,7 +1407,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.14","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.15","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1501,6 +1579,7 @@ agent_log
 case "$cmd" in
   status|"") status ;;
   neighbors) neighbors ;;
+  lan_hosts) lan_hosts_json ;;
   ip2mac)
     [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
     ip2mac "$ip"

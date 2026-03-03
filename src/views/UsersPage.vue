@@ -1,10 +1,21 @@
 <template>
   <div class="grid grid-cols-1 gap-2 overflow-x-hidden p-2">
     <div class="card">
-      <div class="card-title px-4 pt-4">{{ $t('users') }}</div>
+      <div class="card-title px-4 pt-4">{{ t('users') }}</div>
       <div class="card-body gap-3">
-        <div class="text-sm opacity-70">
-          {{ $t('usersTip') }}
+        <div class="flex items-start justify-between gap-2">
+          <div class="text-sm opacity-70">
+            {{ t('usersTip') }}
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm"
+            @click="openImportDialog"
+            :disabled="importLoading"
+          >
+            <ArrowDownTrayIcon class="h-4 w-4" />
+            {{ t('importLanHosts') }}
+          </button>
         </div>
 
         <div class="flex flex-col gap-2">
@@ -31,12 +42,12 @@
                   <LockClosedIcon
                     v-if="isBlockedUser(sourceIP)"
                     class="no-drag h-4 w-4 text-error"
-                    :title="$t('userBlockedTip')"
+                    :title="t('userBlockedTip')"
                   />
                   <CloudIcon
                     v-if="usersDbSyncActive && usersDbSyncedIdSet.has(sourceIP.id)"
                     class="no-drag h-4 w-4 text-success"
-                    :title="$t('usersDbSyncedUserTip')"
+                    :title="t('usersDbSyncedUserTip')"
                   />
                 </template>
                 <template #default>
@@ -47,7 +58,7 @@
                     @pointerdown.stop.prevent
                     @mousedown.stop.prevent
                     @touchstart.stop.prevent
-                    :title="$t('delete')"
+                    :title="t('delete')"
                   >
                     <TrashIcon class="h-4 w-4" />
                   </button>
@@ -57,7 +68,7 @@
           </Draggable>
 
           <div v-else class="text-sm opacity-60">
-            {{ $t('usersEmpty') }}
+            {{ t('usersEmpty') }}
           </div>
 
           <SourceIPInput
@@ -75,12 +86,118 @@
                 @pointerdown.stop.prevent
                 @mousedown.stop.prevent
                 @touchstart.stop.prevent
-                :title="$t('add')"
+                :title="t('add')"
               >
                 <PlusIcon class="h-4 w-4" />
               </button>
             </template>
           </SourceIPInput>
+
+
+      <DialogWrapper v-model="importDialogOpen">
+        <div class="flex flex-col gap-3">
+          <div>
+            <div class="text-lg font-semibold">{{ t('importLanHostsTitle') }}</div>
+            <div class="text-sm opacity-70">{{ t('importLanHostsTip') }}</div>
+          </div>
+
+          <div v-if="importLoading" class="flex items-center gap-2 text-sm opacity-70">
+            <span class="loading loading-spinner loading-sm"></span>
+            <span>{{ t('update') }}...</span>
+          </div>
+
+          <div v-else>
+            <div v-if="importError" class="alert alert-error p-2 text-sm">
+              <span>{{ importError }}</span>
+            </div>
+
+            <div v-else>
+              <label class="label cursor-pointer justify-start gap-3">
+                <input v-model="overwriteExisting" type="checkbox" class="checkbox checkbox-sm" />
+                <span class="label-text">{{ t('importLanHostsOverwrite') }}</span>
+              </label>
+
+              <div v-if="!importItems.length" class="text-sm opacity-70">
+                {{ t('importLanHostsNone') }}
+              </div>
+
+              <div v-else class="overflow-x-auto">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th class="w-10"></th>
+                      <th>{{ t('importLanHostsHost') }}</th>
+                      <th>{{ t('importLanHostsIp') }}</th>
+                      <th class="max-md:hidden">{{ t('importLanHostsMac') }}</th>
+                      <th class="max-md:hidden">{{ t('importLanHostsSource') }}</th>
+                      <th class="w-24"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="it in importItems" :key="it.ip" class="hover">
+                      <td>
+                        <input
+                          type="checkbox"
+                          class="checkbox checkbox-sm"
+                          v-model="it.selected"
+                          :disabled="it.status === 'same' || it.status === 'nohost'"
+                        />
+                      </td>
+                      <td class="font-medium">
+                        <div class="flex flex-col">
+                          <span>{{ it.hostname || '—' }}</span>
+                          <span v-if="it.currentLabel" class="text-xs opacity-60">{{ it.currentLabel }}</span>
+                        </div>
+                      </td>
+                      <td class="font-mono text-xs">{{ it.ip }}</td>
+                      <td class="font-mono text-xs max-md:hidden">{{ it.mac || '—' }}</td>
+                      <td class="text-xs max-md:hidden">{{ it.source || '—' }}</td>
+                      <td>
+                        <span
+                          class="badge badge-sm"
+                          :class="
+                            it.status === 'add'
+                              ? 'badge-success'
+                              : it.status === 'fill'
+                                ? 'badge-info'
+                                : it.status === 'overwrite'
+                                  ? 'badge-warning'
+                                  : it.status === 'skip'
+                                    ? 'badge-ghost'
+                                    : 'badge-neutral'
+                          "
+                        >
+                          {{ statusText(it.status) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between gap-2">
+                <div class="text-sm opacity-70">
+                  {{ selectedCount }} / {{ importItems.length }}
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" class="btn btn-sm btn-ghost" @click="importDialogOpen = false">
+                    {{ t('close') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-primary"
+                    :disabled="selectedCount === 0"
+                    @click="applyImport"
+                  >
+                    {{ t('importLanHostsApply') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogWrapper>
+
         </div>
       </div>
     </div>
@@ -93,15 +210,21 @@
 <script setup lang="ts">
 import UserTrafficStats from '@/components/users/UserTrafficStats.vue'
 import SourceIPInput from '@/components/settings/SourceIPInput.vue'
+import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import { agentLanHostsAPI } from '@/api/agent'
+import { showNotification } from '@/helper/notification'
+import { i18n } from '@/i18n'
 import { disableSwipe } from '@/composables/swipe'
 import { sourceIPLabelList } from '@/store/settings'
 import { usersDbSyncActive, usersDbSyncedIdSet } from '@/store/usersDbSync'
 import type { SourceIPLabel } from '@/types'
-import { ChevronUpDownIcon, CloudIcon, LockClosedIcon, PlusIcon, TagIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { ArrowDownTrayIcon, ChevronUpDownIcon, CloudIcon, LockClosedIcon, PlusIcon, TagIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import { v4 as uuid } from 'uuid'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
 import { getUserLimitState } from '@/composables/userLimits'
+
+const t = i18n.global.t
 
 const newLabelForIP = ref<Omit<SourceIPLabel, 'id'>>({
   key: '',
@@ -140,5 +263,190 @@ const isBlockedUser = (sourceIP: Partial<SourceIPLabel>) => {
   const user = (sourceIP.label || sourceIP.key || '').toString().trim()
   if (!user) return false
   return getUserLimitState(user).blocked
+}
+
+
+type ImportItem = {
+  ip: string
+  hostname: string
+  mac?: string
+  source?: string
+  status: 'add' | 'fill' | 'overwrite' | 'skip' | 'same' | 'nohost'
+  selected: boolean
+  currentLabel?: string
+}
+
+const importDialogOpen = ref(false)
+const importLoading = ref(false)
+const importError = ref('')
+const overwriteExisting = ref(false)
+const importItems = ref<ImportItem[]>([])
+
+const normalizeName = (s: string) => (s || '').toString().trim().replace(/\s+/g, ' ').toLowerCase()
+
+const buildImportItems = (raw: any[]) => {
+  const byIp = new Map<string, any>()
+  for (const it of raw || []) {
+    const ip = String((it as any)?.ip || '').trim()
+    if (!ip) continue
+    const hostname = String((it as any)?.hostname || '').trim()
+    const mac = String((it as any)?.mac || '').trim()
+    const source = String((it as any)?.source || '').trim()
+
+    // Prefer items with a hostname.
+    if (!byIp.has(ip)) {
+      byIp.set(ip, { ip, hostname, mac, source })
+    } else {
+      const cur = byIp.get(ip)
+      if (!cur.hostname && hostname) byIp.set(ip, { ip, hostname, mac: mac || cur.mac, source: source || cur.source })
+    }
+  }
+
+  const out: ImportItem[] = []
+  for (const v of Array.from(byIp.values())) {
+    const ip = v.ip
+    const hostname = v.hostname
+    const existing = sourceIPLabelList.value.find((x) => String(x.key || '').trim() === ip) || null
+    const currentLabel = existing ? String(existing.label || '').trim() : ''
+
+    let status: ImportItem['status'] = 'add'
+    let selected = false
+
+    if (!hostname) {
+      status = 'nohost'
+      selected = false
+    } else if (!existing) {
+      status = 'add'
+      selected = true
+    } else {
+      const curN = normalizeName(currentLabel)
+      const hostN = normalizeName(hostname)
+      const keyN = normalizeName(existing.key || '')
+
+      if (curN && curN === hostN) {
+        status = 'same'
+        selected = false
+      } else if (!curN || curN === keyN) {
+        status = 'fill'
+        selected = true
+      } else {
+        status = overwriteExisting.value ? 'overwrite' : 'skip'
+        selected = overwriteExisting.value
+      }
+    }
+
+    out.push({
+      ip,
+      hostname,
+      mac: v.mac,
+      source: v.source,
+      status,
+      selected,
+      currentLabel: currentLabel ? `${t('user')}: ${currentLabel}` : '',
+    } as any)
+  }
+
+  out.sort((a, b) => {
+    const ah = normalizeName(a.hostname)
+    const bh = normalizeName(b.hostname)
+    if (ah && bh && ah !== bh) return ah.localeCompare(bh)
+    return a.ip.localeCompare(b.ip)
+  })
+
+  importItems.value = out
+}
+
+watch(overwriteExisting, () => {
+  // Recompute statuses for items with existing custom labels.
+  importItems.value = importItems.value.map((it) => {
+    if (it.status === 'skip' || it.status === 'overwrite') {
+      const existing = sourceIPLabelList.value.find((x) => String(x.key || '').trim() === it.ip) || null
+      const currentLabel = existing ? String(existing.label || '').trim() : ''
+      const curN = normalizeName(currentLabel)
+      const hostN = normalizeName(it.hostname)
+      const keyN = existing ? normalizeName(existing.key || '') : ''
+
+      if (!existing) return { ...it, status: 'add', selected: true }
+      if (curN && curN === hostN) return { ...it, status: 'same', selected: false }
+      if (!curN || curN === keyN) return { ...it, status: 'fill', selected: true }
+      return overwriteExisting.value
+        ? { ...it, status: 'overwrite', selected: true }
+        : { ...it, status: 'skip', selected: false }
+    }
+    return it
+  })
+})
+
+const selectedCount = computed(() => importItems.value.filter((x) => x.selected).length)
+
+const statusText = (s: ImportItem['status']) => {
+  switch (s) {
+    case 'add':
+      return t('importLanHostsStatusAdd')
+    case 'fill':
+      return t('importLanHostsStatusFill')
+    case 'overwrite':
+      return t('importLanHostsStatusOverwrite')
+    case 'skip':
+      return t('importLanHostsStatusSkip')
+    case 'same':
+      return t('importLanHostsStatusSame')
+    default:
+      return '—'
+  }
+}
+
+const openImportDialog = async () => {
+  importDialogOpen.value = true
+  importLoading.value = true
+  importError.value = ''
+  importItems.value = []
+
+  const res = await agentLanHostsAPI()
+  importLoading.value = false
+
+  if (!res?.ok) {
+    importError.value = res?.error || 'offline'
+    return
+  }
+
+  buildImportItems((res as any).items || [])
+}
+
+const applyImport = () => {
+  let added = 0
+  let updated = 0
+
+  for (const it of importItems.value) {
+    if (!it.selected) continue
+    if (!it.hostname) continue
+
+    const existing = sourceIPLabelList.value.find((x) => String(x.key || '').trim() === it.ip) || null
+    if (!existing) {
+      sourceIPLabelList.value.push({ id: uuid(), key: it.ip, label: it.hostname })
+      added++
+      continue
+    }
+
+    const cur = String(existing.label || '').trim()
+    const curN = normalizeName(cur)
+    const keyN = normalizeName(existing.key || '')
+    const hostN = normalizeName(it.hostname)
+
+    if (curN && curN === hostN) continue
+
+    if (overwriteExisting.value || !curN || curN === keyN) {
+      existing.label = it.hostname
+      updated++
+    }
+  }
+
+  showNotification({
+    content: 'importLanHostsDone',
+    params: { added: String(added), updated: String(updated) },
+    type: 'alert-success',
+  })
+
+  importDialogOpen.value = false
 }
 </script>

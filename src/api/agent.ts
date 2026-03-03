@@ -127,6 +127,21 @@ export const agentNeighborsAPI = async (): Promise<{ ok: boolean; items?: AgentN
   }
 }
 
+
+export type AgentLanHost = { ip: string; mac?: string; hostname?: string; source?: string }
+
+export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'lan_hosts' },
+      timeout: 10000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
 export const agentIpToMacAPI = async (ip: string): Promise<{ ok: boolean; mac?: string; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
