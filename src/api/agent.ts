@@ -1,6 +1,14 @@
 import axios from 'axios'
 import { agentToken, agentUrl } from '@/store/agent'
 
+// Normalized agent base URL for plain fetch() calls.
+// (Vite does not typecheck by default; keeping this local avoids runtime ReferenceError.)
+const getAgentBaseUrl = () => {
+  const u = String(agentUrl.value || '').trim()
+  if (!u) return ''
+  return u.replace(/\/+$/g, '')
+}
+
 /**
  * Some router setups return CGI-style headers inside the response body,
  * e.g. "Content-Type: application/json\n...\n\n{...}".
