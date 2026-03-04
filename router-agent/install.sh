@@ -140,13 +140,26 @@ ssl_not_after() {
 
 users_db_panel_urls_lines() {
   # Extract providerPanelUrls map from users-db JSON as lines: name<TAB>url
-  [ -f "$USERS_DB_FILE" ] || return 0
-  data="$(head -c 1048576 "$USERS_DB_FILE" 2>/dev/null | tr -d '\n\r')"
-  part="$(printf '%s' "$data" | sed -nE 's/.*\"providerPanelUrls\"[[:space:]]*:[[:space:]]*\\{([^}]*)\\}.*/\\1/p' | head -n1)"
+  # We support a few legacy filenames to be robust across upgrades.
+  file=""
+  for f in "$USERS_DB_FILE" "/opt/zash-agent/var/users_db.json" "/opt/zash-agent/var/usersdb.json"; do
+    if [ -f "$f" ]; then
+      file="$f"
+      break
+    fi
+  done
+  [ -n "$file" ] || return 0
+
+  data="$(head -c 2097152 "$file" 2>/dev/null | tr -d '\n\r')"
+
+  # providerPanelUrls is expected to be a JSON object: { "Provider": "https://...", ... }
+  part="$(printf '%s' "$data" | sed -nE 's/.*"providerPanelUrls"[[:space:]]*:[[:space:]]*\{([^}]*)\}.*/\1/p' | head -n1)"
   [ -n "$part" ] || return 0
-  printf '%s' "$part" | tr ',' '\n' | sed -nE 's/^[[:space:]]*\"([^\"]+)\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\\1\\t\\2/p'
+
+  printf '%s' "$part" | tr ',' '\n' | sed -nE 's/^[[:space:]]*"([^"]+)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1\t\2/p'
   return 0
 }
+
 
 panel_url_for_provider() {
   # args: providerName, panelMapLines
@@ -218,29 +231,20 @@ mihomo_providers_json() {
   in=0
   pname=""
   url=""
+  emitted=0
+
   out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"providers\":["
   first=1
 
-  while IFS= read -r line; do
-    if [ $in -eq 0 ]; then
-      case "$line" in
-        proxy-providers:*) in=1; continue ;;
-      esac
-      continue
-    fi
+  emit_current_provider() {
+    [ -n "$pname" ] || return 0
 
-    echo "$line" | grep -qE '^[^[:space:]]' && break
+    scheme=""
+    host=""
+    port=""
+    not_after=""
 
-    if echo "$line" | grep -qE '^[[:space:]]{2}[^[:space:]].*:[[:space:]]*$'; then
-      pname="$(echo "$line" | sed -E 's/^[[:space:]]{2}([^:]+):.*/\1/')"
-      url=""
-      continue
-    fi
-
-    if echo "$line" | grep -qE '^[[:space:]]{4}url:[[:space:]]*'; then
-      url="$(echo "$line" | sed -E 's/^[[:space:]]{4}url:[[:space:]]*//')"
-      url="$(echo "$url" | sed -E 's/^["\x27]?//; s/["\x27]?$//')"
-
+    if [ -n "$url" ]; then
       scheme="${url%%://*}"
       rest="${url#*://}"
       hostport="${rest%%/*}"
@@ -259,56 +263,94 @@ mihomo_providers_json() {
         fi
       fi
 
-      not_after=""
       if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
         not_after="$(ssl_not_after "$host" "$port")"
       fi
+    fi
 
-      [ $first -eq 0 ] && out="$out,"
-      first=0
-      esc_name="$(printf '%s' "$pname" | sed 's/"/\\\"/g')"
-      esc_url="$(printf '%s' "$url" | sed 's/"/\\\"/g')"
-      esc_host="$(printf '%s' "$host" | sed 's/"/\\\"/g')"
-      esc_port="$(printf '%s' "$port" | sed 's/"/\\\"/g')"
-      esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\"/g')"
+    panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
+    panel_na=""
+    if [ -n "$panel_url" ]; then
+      pscheme="${panel_url%%://*}"
+      prest="${panel_url#*://}"
+      phostport="${prest%%/*}"
 
-
-      panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
-      panel_na=""
-      if [ -n "$panel_url" ]; then
-        pscheme="${panel_url%%://*}"
-        prest="${panel_url#*://}"
-        phostport="${prest%%/*}"
-
-        p_host="$phostport"
-        p_port="443"
-        if echo "$phostport" | grep -q '^\['; then
-          p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
-          pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+      p_host="$phostport"
+      p_port="443"
+      if echo "$phostport" | grep -q '^\['; then
+        p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
+        pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+        [ -n "$pport_part" ] && p_port="$pport_part"
+      else
+        p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
+        if echo "$phostport" | grep -q ':'; then
+          pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
           [ -n "$pport_part" ] && p_port="$pport_part"
-        else
-          p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
-          if echo "$phostport" | grep -q ':'; then
-            pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
-            [ -n "$pport_part" ] && p_port="$pport_part"
-          fi
-        fi
-
-        if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
-          panel_na="$(ssl_not_after "$p_host" "$p_port")"
         fi
       fi
 
-      esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\"/g')"
-      esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\"/g')"
+      if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
+        panel_na="$(ssl_not_after "$p_host" "$p_port")"
+      fi
+    fi
 
-      out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"panelUrl\":\"$esc_purl\",\"panelSslNotAfter\":\"$esc_pna\"}"
+    [ $first -eq 0 ] && out="$out,"
+    first=0
+
+    esc_name="$(printf '%s' "$pname" | sed 's/"/\\\\\\"/g')"
+    esc_url="$(printf '%s' "$url" | sed 's/"/\\\\\\"/g')"
+    esc_host="$(printf '%s' "$host" | sed 's/"/\\\\\\"/g')"
+    esc_port="$(printf '%s' "$port" | sed 's/"/\\\\\\"/g')"
+    esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\\\\"/g')"
+    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\\\\"/g')"
+    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\\\\"/g')"
+
+    out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"panelUrl\":\"$esc_purl\",\"panelSslNotAfter\":\"$esc_pna\"}"
+    emitted=1
+  }
+
+  while IFS= read -r line; do
+    if [ $in -eq 0 ]; then
+      case "$line" in
+        proxy-providers:*) in=1; continue ;;
+      esac
+      continue
+    fi
+
+    # next top-level key -> stop
+    echo "$line" | grep -qE '^[^[:space:]]' && break
+
+    # provider name line: "  Name:"
+    if echo "$line" | grep -qE '^[[:space:]]{2}[^[:space:]].*:[[:space:]]*$'; then
+      # flush previous provider even if it had no url
+      if [ -n "$pname" ] && [ $emitted -eq 0 ]; then
+        emit_current_provider
+      fi
+      pname="$(echo "$line" | sed -E 's/^[[:space:]]{2}([^:]+):.*/\1/')"
+      url=""
+      emitted=0
+      continue
+    fi
+
+    # url line (optional)
+    if echo "$line" | grep -qE '^[[:space:]]{4}url:[[:space:]]*'; then
+      url="$(echo "$line" | sed -E 's/^[[:space:]]{4}url:[[:space:]]*//')"
+      url="$(echo "$url" | sed -E 's/^["\x27]?//; s/["\x27]?$//')"
+      emitted=0
+      emit_current_provider
+      continue
     fi
   done < "$MIHOMO_CONFIG"
+
+  # flush last provider if not emitted yet (e.g. no url)
+  if [ $in -eq 1 ] && [ -n "$pname" ] && [ $emitted -eq 0 ]; then
+    emit_current_provider
+  fi
 
   out="$out]}"
   reply_ok "$out"
 }
+
 
 jesc() {
   # Minimal JSON string escape (quotes + backslashes)
@@ -1459,7 +1501,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.16","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.17","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
