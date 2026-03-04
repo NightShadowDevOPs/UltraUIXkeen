@@ -311,7 +311,13 @@
 <script setup lang="ts">
 import { proxyProviderHealthCheckAPI, updateProxyProviderAPI } from '@/api'
 import { getProviderHealth } from '@/helper/providerHealth'
-import { agentProviderByName, agentProvidersAt, fetchAgentProviders } from '@/store/providerHealth'
+import {
+  agentProviderByName,
+  agentProvidersAt,
+  fetchAgentProviders,
+  panelSslCheckedAt,
+  panelSslNotAfterByName,
+} from '@/store/providerHealth'
 import { useBounceOnVisible } from '@/composables/bouncein'
 import { useRenderProxies } from '@/composables/renderProxies'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
@@ -578,10 +584,21 @@ const sslExpireInfo = computed(() => {
 
   const agentP: any = agentProviderByName.value[props.name]
 
-  const raw2: any = raw || agentP?.panelSslNotAfter || agentP?.sslNotAfter
-  const src: string = raw ? 'sub' : agentP?.panelSslNotAfter ? 'panel' : agentP?.sslNotAfter ? 'provider' : 'none'
+  const probeNa = (panelSslNotAfterByName.value || {})[props.name] || ''
 
-  const checked = agentProvidersAt.value ? dayjs(agentProvidersAt.value).format('DD-MM-YYYY HH:mm:ss') : ''
+  const raw2: any = raw || probeNa || agentP?.panelSslNotAfter || agentP?.sslNotAfter
+  const src: string = raw
+    ? 'sub'
+    : probeNa
+      ? 'panel-probe'
+      : agentP?.panelSslNotAfter
+        ? 'panel'
+        : agentP?.sslNotAfter
+          ? 'provider'
+          : 'none'
+
+  const checkedMs = src === 'panel-probe' ? panelSslCheckedAt.value : agentProvidersAt.value
+  const checked = checkedMs ? dayjs(checkedMs).format('DD-MM-YYYY HH:mm:ss') : ''
 
   const d = parseDateMaybe(raw2)
   if (!d) {
@@ -599,11 +616,13 @@ const sslExpireInfo = computed(() => {
   const label = days < 0 ? `${dateTime} (expired)` : `${dateTime} (${days}d)`
 
   const tip = checked
-    ? src === 'panel'
+    ? src === 'panel-probe'
       ? `Source: TLS cert of panel URL (router-agent) • Checked: ${checked}`
-      : src === 'provider'
-        ? `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${checked}`
-        : `Source: — • Checked: ${checked}`
+      : src === 'panel'
+        ? `Source: TLS cert of panel URL (router-agent) • Checked: ${checked}`
+        : src === 'provider'
+          ? `Source: TLS cert of proxy-provider URL (router-agent) • Checked: ${checked}`
+          : `Source: — • Checked: ${checked}`
     : src === 'panel'
       ? 'Source: TLS cert of panel URL (router-agent)'
       : src === 'provider'

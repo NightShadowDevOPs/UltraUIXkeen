@@ -46,8 +46,8 @@
           <button
             type="button"
             class="btn btn-sm btn-ghost"
-            @click="loadProvidersPanel(true)"
-            :disabled="providersPanelBusy || !agentEnabled"
+            @click="refreshProvidersPanel(true)"
+            :disabled="providersPanelBusy || panelSslProbeLoading || !agentEnabled"
           >
             {{ $t('refresh') }}
           </button>
@@ -76,6 +76,7 @@
         <div v-else-if="providersPanelBusy" class="text-sm opacity-70">…</div>
 		  <div v-else>
 			<div v-if="providersPanelError" class="text-xs text-error">{{ providersPanelError }}</div>
+			<div v-else-if="panelSslProbeError" class="text-xs text-error">{{ panelSslProbeError }}</div>
 			<div v-else-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
 			<div v-else>
 				<div class="mt-1 text-[11px] opacity-60">
@@ -136,10 +137,10 @@
 						<td>
 						  <span
 							class="text-[11px] font-mono"
-							:class="sslPanelInfo(p.name, p.panelSslNotAfter || p.sslNotAfter, Boolean(p.panelSslNotAfter)).cls"
-							:title="sslPanelInfo(p.name, p.panelSslNotAfter || p.sslNotAfter, Boolean(p.panelSslNotAfter)).title"
+                            :class="sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).cls"
+                            :title="sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).title"
 						  >
-							{{ sslPanelInfo(p.name, p.panelSslNotAfter || p.sslNotAfter, Boolean(p.panelSslNotAfter)).text }}
+                            {{ sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).text }}
 						  </span>
 						</td>
 					  </tr>
@@ -841,6 +842,7 @@ import { decodeB64Utf8 } from '@/helper/b64'
 import { activeBackend } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
 import { proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
+import { panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl } from '@/store/providerHealth'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
@@ -1055,8 +1057,14 @@ const sslPanelInfo = (name: string, v: any, fromPanel: boolean) => {
   const warnDays = getProviderWarnDays(name)
   const cls = days < 0 ? 'text-error' : days <= warnDays ? 'text-warning' : 'text-base-content/60'
   const text = days < 0 ? `${date} (expired)` : `${date} (${days}d)`
-  const title = `Source: TLS cert of ${fromPanel ? "panel URL" : "proxy-provider URL"} (router-agent) • Checked: ${fmtTs(providersPanelAt.value)}`
+  const checkedMs = fromPanel ? panelSslCheckedAt.value : providersPanelAt.value
+  const title = `Source: TLS cert of ${fromPanel ? "panel URL" : "proxy-provider URL"} (router-agent) • Checked: ${fmtTs(checkedMs)}`
   return { text, cls, title }
+}
+
+const getPanelNotAfter = (name: string): string => {
+  const k = String(name || '').trim()
+  return (panelSslNotAfterByName.value || {})[k] || ''
 }
 
 const setProviderPanelUrl = (name: string, url: string) => {
@@ -1093,6 +1101,10 @@ const loadProvidersPanel = async (force = false) => {
   } finally {
     providersPanelBusy.value = false
   }
+}
+
+const refreshProvidersPanel = async (force = false) => {
+  await Promise.all([loadProvidersPanel(force), probePanelSsl(force)])
 }
 
 // --- Live logs (router-agent) ---
@@ -1187,7 +1199,7 @@ onMounted(() => {
   refreshLogs()
   startTimer()
   refreshFreshness()
-  loadProvidersPanel(false)
+  refreshProvidersPanel(false)
   checkUpstream()
   startUpstreamTimer()
 })
@@ -1808,15 +1820,9 @@ const refreshSsl = async () => {
   try {
     const id = startJob('Refresh providers SSL')
     try {
-      const r: any = await agentMihomoProvidersAPI(true)
-      await loadProvidersPanel(true)
-      if (!r?.ok) {
-        finishJob(id, { ok: false, error: r?.error || 'failed' })
-        showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
-        return
-      }
-      const n = Array.isArray(r?.providers) ? r.providers.length : 0
-      finishJob(id, { ok: true, meta: { providers: n } })
+      await refreshProvidersPanel(true)
+      const n = Object.keys(panelSslNotAfterByName.value || {}).length
+      finishJob(id, { ok: true, meta: { probed: n } })
       showNotification({ content: 'sslRefreshed', type: 'alert-success', timeout: 1600 })
     } catch (e: any) {
       finishJob(id, { ok: false, error: e?.message || 'failed' })

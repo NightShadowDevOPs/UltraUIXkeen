@@ -366,6 +366,24 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
   }
 }
 
+// Batch probe TLS certificate expiry (notAfter) for a list of HTTPS/WSS URLs.
+// Input format (text/plain): each line "<name>\t<url>".
+// Returns: { ok, checkedAtSec, items: [{ name, url, sslNotAfter, error }] }
+export const agentSslProbeBatchAPI = async (lines: string): Promise<any> => {
+  const base = getAgentBaseUrl()
+  if (!base) return { ok: false, error: 'agent-disabled' }
+
+  const url = `${base}/cgi-bin/api.sh?cmd=ssl_probe_batch`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain',
+    },
+    body: lines || '',
+  })
+  return await res.json()
+}
+
 // --- Shared users DB (Source IP mapping) ---
 
 export const agentUsersDbGetAPI = async (): Promise<{

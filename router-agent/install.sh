@@ -351,6 +351,80 @@ mihomo_providers_json() {
   reply_ok "$out"
 }
 
+ssl_probe_batch_json() {
+  checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
+
+  # Read POST body (text/plain). Each line: "<name>\t<url>".
+  tab="$(printf '\t' 2>/dev/null || echo ' ' )"
+
+  out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"items\":["
+  first=1
+
+  while IFS= read -r line; do
+    # trim
+    line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$line" ] || continue
+
+    name=""
+    url=""
+    if echo "$line" | grep -q "$tab"; then
+      name="${line%%$tab*}"
+      url="${line#*$tab}"
+    else
+      # fallback: split by first space
+      name="${line%% *}"
+      url="${line#* }"
+      [ "$name" = "$url" ] && url="$name"
+    fi
+
+    name="$(printf '%s' "$name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    url="$(printf '%s' "$url" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$name" ] || continue
+    [ -n "$url" ] || continue
+
+    scheme="${url%%://*}"
+    rest="${url#*://}"
+    hostport="${rest%%/*}"
+
+    host=""
+    port="443"
+
+    if echo "$hostport" | grep -q '^\['; then
+      host="$(echo "$hostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
+      port_part="$(echo "$hostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+      [ -n "$port_part" ] && port="$port_part"
+    else
+      host="$(printf '%s' "$hostport" | cut -d: -f1)"
+      if echo "$hostport" | grep -q ':'; then
+        port_part="$(printf '%s' "$hostport" | awk -F: '{print $NF}')"
+        [ -n "$port_part" ] && port="$port_part"
+      fi
+    fi
+
+    na=""
+    err=""
+    if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
+      na="$(ssl_not_after "$host" "$port")"
+      [ -n "$na" ] || err="probe-failed"
+    else
+      err="non-https"
+    fi
+
+    [ $first -eq 0 ] && out="$out,"
+    first=0
+
+    esc_name="$(jesc "$name")"
+    esc_url="$(jesc "$url")"
+    esc_na="$(jesc "$na")"
+    esc_err="$(jesc "$err")"
+
+    out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"sslNotAfter\":\"$esc_na\",\"error\":\"$esc_err\"}"
+  done
+
+  out="$out]}"
+  reply_ok "$out"
+}
+
 
 jesc() {
   # Minimal JSON string escape (quotes + backslashes)
@@ -1501,7 +1575,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.17","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.18","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1744,6 +1818,9 @@ case "$cmd" in
     ;;
   mihomo_providers)
     mihomo_providers_json
+    ;;
+  ssl_probe_batch)
+    ssl_probe_batch_json
     ;;
   geo_info)
     geo_info_json
