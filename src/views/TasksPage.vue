@@ -104,20 +104,16 @@
                     @click.stop
                     :title="$t('providerIcon')"
                   >
-                    <span
-                      class="inline-flex h-6 min-w-9 items-center justify-center whitespace-nowrap rounded-md border border-base-300/70 bg-base-200/40 px-2 text-[12px] font-semibold leading-none tracking-wide"
-                    >
-                      {{ providerIconLabel(p.name) }}
-                    </span>
+                    <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
                   </summary>
                   <div class="dropdown-content z-[999] mt-2 w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300">
                     <div class="text-[11px] opacity-70">{{ $t('providerIconTip') }}</div>
                     <div class="mt-2 flex flex-wrap gap-1">
                       <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="(e) => pickProviderIcon(e, p.name, '')">
-                        <span class="inline-flex h-6 min-w-9 items-center justify-center whitespace-nowrap rounded-md border border-base-300/50 bg-base-200/30 px-2 text-[12px] font-semibold leading-none tracking-wide opacity-70">—</span>
+                        <ProviderIconBadge icon="" />
                       </button>
                       <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="(e) => pickProviderIcon(e, p.name, 'globe')">
-                        <span class="inline-flex h-6 min-w-9 items-center justify-center whitespace-nowrap rounded-md border border-base-300/70 bg-base-200/40 px-2 text-[12px] font-semibold leading-none tracking-wide">🌐</span>
+                        <ProviderIconBadge icon="globe" />
                       </button>
                       <button
                         v-for="cc in providerIconCountries"
@@ -127,9 +123,7 @@
                         @click.stop="(e) => pickProviderIcon(e, p.name, cc)"
                         :title="cc"
                       >
-                        <span class="inline-flex h-6 min-w-9 items-center justify-center whitespace-nowrap rounded-md border border-base-300/70 bg-base-200/40 px-2 text-[12px] font-semibold leading-none tracking-wide">
-                          {{ countryCodeToFlagEmoji(cc) || cc }}
-                        </span>
+                        <ProviderIconBadge :icon="cc" />
                       </button>
                     </div>
                   </div>
@@ -1208,6 +1202,7 @@ import {
   agentUsersDbGetRevAPI,
 } from '@/api/agent'
 import BackendVersion from '@/components/common/BackendVersion.vue'
+import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
 import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
 import { useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'

@@ -1,4 +1,5 @@
 import '@/helper/dayjs'
+import 'flag-icons/css/flag-icons.min.css'
 import 'tippy.js/animations/scale.css'
 import 'tippy.js/dist/tippy.css'
 import { createApp } from 'vue'

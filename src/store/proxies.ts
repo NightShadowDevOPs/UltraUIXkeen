@@ -97,7 +97,7 @@ export const fetchProxies = async () => {
   const sortIndex = proxyData.proxies[GLOBAL].all ?? []
   const allProviderProxies: Record<string, Proxy> = {}
   const providers = Object.values(providerData.providers).filter(
-    (provider) => provider.name !== 'default' && provider.vehicleType !== 'Compatible',
+    (provider: any) => String(provider?.name || '') !== 'default',
   )
 
   for (const provider of providers) {
@@ -202,7 +202,7 @@ export const fetchProxyProvidersOnly = async () => {
   }
 
   const providers = Object.values(providerData.providers).filter(
-    (provider: any) => provider.name !== 'default' && provider.vehicleType !== 'Compatible',
+    (provider: any) => String(provider?.name || '') !== 'default',
   ) as any[]
 
   // Mihomo/uhttpd can occasionally return an empty providers payload during short reload windows.

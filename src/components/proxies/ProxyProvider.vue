@@ -4,9 +4,11 @@
     <template v-slot:title="{ open }">
       <div class="flex items-center justify-between gap-2 rounded-xl px-2 py-1" :class="open ? 'bg-base-200 ring-1 ring-base-300' : ''">
         <div class="text-xl font-medium">
-          <span v-if="providerIconKind === 'flag'" class="mr-1 align-middle">{{ providerIconFlag }}</span>
-          <GlobeAltIcon v-else-if="providerIconKind === 'globe'" class="h-5 w-5 inline-block mr-1 align-middle opacity-80" />
+          <ProviderIconBadge v-if="providerIconRaw" :icon="providerIconRaw" size="sm" class="mr-1 align-middle" />
           {{ proxyProvider.name }}
+          <span v-if="providerTypesLabel" class="badge badge-sm ml-2 align-middle opacity-70" :title="providerTypesLabel">
+            {{ providerTypesLabel }}
+          </span>
           <span
             v-if="providerHealth"
             class="badge badge-sm ml-2 align-middle"
@@ -26,6 +28,22 @@
           <span class="text-base-content/60 text-sm font-normal"> ({{ proxiesCount }}) </span>
         </div>
         <div class="flex gap-2">
+          <button
+            type="button"
+            :class="twMerge('btn btn-circle btn-sm z-30')"
+            :disabled="providerStats.connections <= 0 || isKilling"
+            @click.stop.prevent="killSessionsClickHandler"
+            :title="$t('killProviderSessions')"
+          >
+            <span
+              v-if="isKilling"
+              class="loading loading-spinner loading-xs"
+            ></span>
+            <XMarkIcon
+              v-else
+              class="h-4 w-4"
+            />
+          </button>
           <button
             type="button"
             :class="twMerge('btn btn-circle btn-sm z-30')"
@@ -311,7 +329,7 @@
 </template>
 
 <script setup lang="ts">
-import { proxyProviderHealthCheckAPI, updateProxyProviderAPI } from '@/api'
+import { disconnectByIdSilentAPI, proxyProviderHealthCheckAPI, updateProxyProviderAPI } from '@/api'
 import { getProviderHealth } from '@/helper/providerHealth'
 import {
   agentProviderByName,
@@ -324,12 +342,13 @@ import { useBounceOnVisible } from '@/composables/bouncein'
 import { useRenderProxies } from '@/composables/renderProxies'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
-import { countryCodeToFlagEmoji, normalizeProviderIcon } from '@/helper/providerIcon'
+import { normalizeProviderIcon } from '@/helper/providerIcon'
 import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
-import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, GlobeAltIcon, LinkIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
+import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
+import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon, PresentationChartLineIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
 import dayjs from 'dayjs'
 import { twMerge } from 'tailwind-merge'
@@ -346,22 +365,23 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 
 const proxyProvider = computed(
   () => proxyProviederList.value.find((group) => group.name === props.name)!,
 )
 
 const providerIconRaw = computed(() => normalizeProviderIcon((proxyProviderIconMap.value || {})[props.name]))
-const providerIconKind = computed(() => {
-  const v = providerIconRaw.value
-  if (!v) return 'none' as const
-  if (v === 'globe') return 'globe' as const
-  return countryCodeToFlagEmoji(v) ? ('flag' as const) : ('none' as const)
-})
-const providerIconFlag = computed(() => {
-  const v = providerIconRaw.value
-  if (!v || v === 'globe') return ''
-  return countryCodeToFlagEmoji(v) || ''
+
+const providerTypesLabel = computed(() => {
+  const set = new Set<string>()
+  for (const p of (proxyProvider.value as any)?.proxies || []) {
+    const t = String((p as any)?.type || '').trim().toLowerCase()
+    if (t) set.add(t)
+  }
+  const arr = Array.from(set)
+  arr.sort()
+  return arr.length ? arr.join('/') : ''
 })
 const allProxies = computed(() => proxyProvider.value.proxies.map((node) => node.name) ?? [])
 const { renderProxies, proxiesCount } = useRenderProxies(allProxies)
@@ -836,6 +856,52 @@ const showRawSub = ref(false)
 
 const isUpdating = ref(false)
 const isHealthChecking = ref(false)
+const isKilling = ref(false)
+
+const killSessionsClickHandler = async () => {
+  if (isKilling.value) return
+
+  const count = Number(providerStats.value?.connections || 0)
+  if (count <= 0) return
+
+  const okConfirm = window.confirm(
+    t('killProviderSessionsConfirm', {
+      name: proxyProvider.value?.name || props.name,
+      count,
+    }) as any,
+  )
+  if (!okConfirm) return
+
+  isKilling.value = true
+  try {
+    const set = new Set(allProxies.value || [])
+    const targets = (activeConnections.value || []).filter((c: any) => {
+      const chains = (c as any)?.chains
+      if (!Array.isArray(chains) || chains.length === 0) return false
+      return chains.some((x: any) => set.has(String(x)))
+    })
+
+    const ids = targets.map((c: any) => String(c?.id || '')).filter(Boolean)
+
+    let ok = 0
+    let fail = 0
+    for (const id of ids) {
+      try {
+        await disconnectByIdSilentAPI(id)
+        ok++
+      } catch {
+        fail++
+      }
+    }
+
+    showNotification(
+      t('killProviderSessionsDone', { ok, fail, count: ids.length }) as any,
+      fail > 0 ? 'warning' : 'success',
+    )
+  } finally {
+    isKilling.value = false
+  }
+}
 
 const healthCheckClickHandler = async () => {
   if (isHealthChecking.value) return
