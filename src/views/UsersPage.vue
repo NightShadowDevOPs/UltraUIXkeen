@@ -199,17 +199,27 @@
                         />
                       </template>
                       <template #default>
-                        <button
-                          type="button"
-                          class="no-drag btn btn-circle btn-ghost btn-sm"
-                          @click.stop.prevent="handlerLabelRemove(sourceIP.id)"
-                          @pointerdown.stop.prevent
-                          @mousedown.stop.prevent
-                          @touchstart.stop.prevent
-                          :title="t('delete')"
-                        >
-                          <TrashIcon class="h-4 w-4" />
-                        </button>
+                        <div class="no-drag flex items-center gap-1">
+                          <TopologyActionButtons
+                            v-if="String(sourceIP.key || '').trim()"
+                            stage="C"
+                            :value="String(sourceIP.key || '').trim()"
+                            wrapper-class="join"
+                            btn-class="btn btn-ghost btn-xs join-item"
+                            icon-class="h-4 w-4"
+                          />
+                          <button
+                            type="button"
+                            class="no-drag btn btn-circle btn-ghost btn-sm"
+                            @click.stop.prevent="handlerLabelRemove(sourceIP.id)"
+                            @pointerdown.stop.prevent
+                            @mousedown.stop.prevent
+                            @touchstart.stop.prevent
+                            :title="t('delete')"
+                          >
+                            <TrashIcon class="h-4 w-4" />
+                          </button>
+                        </div>
                       </template>
                     </SourceIPInput>
                   </div>
@@ -256,6 +266,7 @@
 import UserTrafficStats from '@/components/users/UserTrafficStats.vue'
 import SourceIPInput from '@/components/settings/SourceIPInput.vue'
 import CollapseCard from '@/components/common/CollapseCard.vue'
+import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
 import { agentLanHostsAPI } from '@/api/agent'
 import { showNotification } from '@/helper/notification'
 import { i18n } from '@/i18n'

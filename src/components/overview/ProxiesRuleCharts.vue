@@ -955,6 +955,12 @@ const openFocusedMain = async () => {
     await router.push({ name: ROUTE_NAME.proxies })
     return
   }
+  if (f.stage === 'P') {
+    setPendingPageFocus(ROUTE_NAME.proxies, 'provider', v)
+    closeDetails()
+    await router.push({ name: ROUTE_NAME.proxies })
+    return
+  }
   if (f.stage === 'S') {
     setPendingPageFocus(ROUTE_NAME.proxies, 'proxy', v)
     closeDetails()
@@ -1664,21 +1670,46 @@ const applyPendingNavFilter = () => {
   const ts = Number((pf as any).ts) || 0
   if (!ts || Date.now() - ts > 10 * 60 * 1000) return
 
+  const rawMode = String((pf as any).mode || 'only') as any
+  const mode: FilterMode = rawMode === 'exclude' ? 'exclude' : rawMode === 'none' ? 'none' : 'only'
+  const rawFocus = (pf as any).focus as Focus
+
+  if (!rawFocus || typeof rawFocus !== 'object' || rawFocus.kind !== 'value') return
+  const baseValue = String((rawFocus as any).value || '').trim()
+  if (!baseValue) return
+
+  // Always apply selection/highlight (even when filter is locked).
+  // For provider stage we highlight a concrete proxy node when possible.
+  const fb = String((pf as any).fallbackProxyName || '').trim()
+  if (rawFocus.stage === 'P') {
+    let hl = fb
+    if (!hl && proxyProviederList.value?.length) {
+      const prov = proxyProviederList.value.find((x: any) => String(x?.name || '').trim() === baseValue)
+      const first = (prov as any)?.proxies?.[0]?.name
+      if (first) hl = String(first).trim()
+    }
+    if (hl) setFocus({ stage: 'S', kind: 'value', value: hl })
+    else setFocus({ ...rawFocus, value: baseValue } as any)
+  } else {
+    setFocus({ ...rawFocus, value: baseValue } as any)
+  }
+
+  // "Open" mode: don't touch filters, only focus/highlight.
+  if (mode === 'none') return
+
   if (filterLocked.value) {
     showNotification({ content: 'topologyNavFilterLocked', type: 'alert-info', timeout: 2400 })
     return
   }
 
-  const mode = (pf as any).mode as FilterMode
-  const focus = (pf as any).focus as Focus
-
   // Provider filter needs provider map; if it's not ready yet, fall back to a concrete proxy name.
-  if (focus?.stage === 'P' && (!providerMap.value?.size || !proxyProviederList.value?.length) && (pf as any).fallbackProxyName) {
+  if (rawFocus.stage === 'P' && (!providerMap.value?.size || !proxyProviederList.value?.length) && fb) {
     filterMode.value = 'only'
-    filterFocus.value = { stage: 'S', kind: 'value', value: String((pf as any).fallbackProxyName || '').trim() } as any
+    filterFocus.value = { stage: 'S', kind: 'value', value: fb } as any
+    setFocus({ stage: 'S', kind: 'value', value: fb })
   } else {
-    filterMode.value = mode || 'only'
-    filterFocus.value = focus ? ({ ...focus } as any) : null
+    filterMode.value = mode
+    filterFocus.value = { ...rawFocus, value: baseValue } as any
   }
 
   showNotification({ content: 'topologyNavFilterApplied', type: 'alert-success', timeout: 1800 })
