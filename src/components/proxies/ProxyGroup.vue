@@ -38,14 +38,23 @@
           @click.stop="handlerLatencyTest"
         />
 
-        <!-- Topology actions for the whole group (stage: G) -->
-        <TopologyActionButtons
-          class="z-10"
-          stage="G"
-          :value="name"
-          btn-class="btn btn-ghost btn-xs join-item"
-          icon-class="h-3 w-3"
-        />
+        <!-- Topology filters for the whole group (stage: G) -->
+        <div class="z-10 flex items-center gap-1">
+          <button
+            class="btn btn-ghost btn-circle btn-xs"
+            title="Топология: только этот прокси"
+            @click.stop="openTopologyWithGroup('only')"
+          >
+            <FunnelIcon class="h-3 w-3" />
+          </button>
+          <button
+            class="btn btn-ghost btn-circle btn-xs"
+            title="Топология: исключить этот прокси"
+            @click.stop="openTopologyWithGroup('exclude')"
+          >
+            <NoSymbolIcon class="h-3 w-3" />
+          </button>
+        </div>
       </div>
       <div
         class="text-base-content/80 mt-1.5 flex items-center gap-2"
@@ -103,11 +112,10 @@ import {
   proxyGroupIconMargin,
   proxyGroupIconSize,
 } from '@/store/settings'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
+import { EyeIcon, EyeSlashIcon, FunnelIcon, NoSymbolIcon } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
 import { computed, ref } from 'vue'
 import CollapseCard from '../common/CollapseCard.vue'
-import TopologyActionButtons from '../common/TopologyActionButtons.vue'
 import LatencyTag from './LatencyTag.vue'
 import ProxiesByProvider from './ProxiesByProvider.vue'
 import ProxiesContent from './ProxiesContent.vue'
@@ -123,6 +131,21 @@ const router = useRouter()
 
 const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
 
+const openTopologyWithGroup = async (mode: 'only' | 'exclude') => {
+  const payload = {
+    ts: Date.now(),
+    mode,
+    focus: { stage: 'G', kind: 'value', value: props.name },
+  }
+
+  try {
+    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
+  } catch {
+    // ignore
+  }
+
+  await router.push({ name: ROUTE_NAME.overview })
+}
 
 const openTopologyWithProxy = async (p: { name: string; mode: 'only' | 'exclude' }) => {
   const payload = {

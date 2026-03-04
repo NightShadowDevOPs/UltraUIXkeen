@@ -96,7 +96,12 @@
 					</thead>
 					<tbody>
 					  <tr v-for="p in providersPanelRenderList" :key="p.name">
-						<td class="font-mono text-xs" :title="p.name">{{ p.name }}</td>
+						<td class="font-mono text-xs">
+              <div class="flex items-center gap-2">
+                <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
+                <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
+              </div>
+            </td>
 						<td>
 						  <div class="flex items-center gap-2">
 							<input
@@ -389,11 +394,14 @@
                         type="button"
                         class="link min-w-0 truncate text-left font-mono"
                         :title="$t('openInTopology')"
-                        @click="openTopologyWithRule(r.ruleText)"
+                        @click="openTopologyWithRule(r.ruleText, 'none')"
                       >
                         {{ r.ruleText }}
                       </button>
-                      <span class="shrink-0 font-mono opacity-70">{{ r.hits }}</span>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <span class="font-mono opacity-70">{{ r.hits }}</span>
+                        <TopologyActionButtons :stage="'R'" :value="r.ruleText" :grouped="true" />
+                      </div>
                     </div>
                   </div>
                 </details>
@@ -745,7 +753,7 @@
                 <th style="width: 80px">rev</th>
                 <th style="width: 210px">{{ $t('updated') }}</th>
                 <th style="width: 90px">{{ $t('status') }}</th>
-                <th style="width: 110px"></th>
+                <th style="width: 180px"></th>
               </tr>
             </thead>
             <tbody>
@@ -757,13 +765,64 @@
                   <span v-else class="badge badge-ghost badge-sm">—</span>
                 </td>
                 <td class="text-right">
-                  <button v-if="!it.current" type="button" class="btn btn-xs" @click="usersDbRestoreRev(it.rev)" :disabled="usersDbBusy">
-                    {{ $t('restore') }}
-                  </button>
+                  <div class="flex justify-end gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost"
+                      @click="usersDbOpenRevPreview(it.rev)"
+                      :disabled="usersDbBusy || usersDbViewBusy"
+                    >
+                      {{ $t('usersDbView') }}
+                    </button>
+                    <button v-if="!it.current" type="button" class="btn btn-xs" @click="usersDbRestoreRev(it.rev)" :disabled="usersDbBusy">
+                      {{ $t('restore') }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div v-if="usersDbViewRev" class="mt-3 rounded-lg border border-base-content/10 bg-base-200/40 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="text-sm font-semibold">
+                {{ $t('usersDbRevisionPreview') }}: <span class="font-mono">rev {{ usersDbViewRev }}</span>
+              </div>
+              <div class="mt-0.5 text-[11px] opacity-70">
+                <span class="opacity-60">{{ $t('updated') }}:</span>
+                <span class="font-mono ml-1">{{ usersDbViewUpdatedAt || '—' }}</span>
+                <span v-if="usersDbViewSummary" class="ml-2 opacity-60">
+                  • {{ $t('usersDbLabels') }}: <span class="font-mono">{{ usersDbViewSummary.labels }}</span>
+                  • {{ $t('usersDbPanels') }}: <span class="font-mono">{{ usersDbViewSummary.panels }}</span>
+                  • SSL: <span class="font-mono">{{ usersDbViewSummary.sslDefault }}</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-xs btn-ghost" @click="copyUsersDbViewJson" :disabled="usersDbViewBusy || !usersDbViewJsonText">
+                {{ $t('copy') }} JSON
+              </button>
+              <button type="button" class="btn btn-xs btn-ghost" @click="copyUsersDbViewLabels" :disabled="usersDbViewBusy || !usersDbViewPayload">
+                {{ $t('copy') }} {{ $t('usersDbLabels') }}
+              </button>
+              <button type="button" class="btn btn-xs btn-ghost" @click="copyUsersDbViewPanels" :disabled="usersDbViewBusy || !usersDbViewPayload">
+                {{ $t('copy') }} {{ $t('usersDbPanels') }}
+              </button>
+              <button type="button" class="btn btn-xs" @click="usersDbCloseRevPreview">
+                {{ $t('close') }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="usersDbViewError" class="mt-2 text-xs text-error">{{ usersDbViewError }}</div>
+          <div v-else-if="usersDbViewBusy" class="mt-2 text-xs opacity-70">…</div>
+
+          <div v-if="usersDbViewJsonText" class="mt-2 rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+            <pre class="max-h-[40vh] overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-4">{{ usersDbViewJsonText }}</pre>
+          </div>
         </div>
       </details>
 
@@ -832,10 +891,21 @@
 
 <script setup lang="ts">
 import { fetchRuleProvidersAPI, updateRuleProviderSilentAPI, zashboardVersion, version as coreVersion } from '@/api'
-import { agentGeoInfoAPI, agentGeoUpdateAPI, agentLogsAPI, agentLogsFollowAPI, agentMihomoProvidersAPI, agentRulesInfoAPI, agentStatusAPI } from '@/api/agent'
+import {
+  agentGeoInfoAPI,
+  agentGeoUpdateAPI,
+  agentLogsAPI,
+  agentLogsFollowAPI,
+  agentMihomoProvidersAPI,
+  agentRulesInfoAPI,
+  agentStatusAPI,
+  agentUsersDbGetRevAPI,
+} from '@/api/agent'
 import BackendVersion from '@/components/common/BackendVersion.vue'
+import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
 import { useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
+import { navigateToTopology } from '@/helper/topologyNav'
 import { parseDateMaybe } from '@/helper/providerHealth'
 import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
@@ -1259,8 +1329,176 @@ watch([agentEnabled, usersDbSyncEnabled], () => {
   refreshUsersDbHistory()
 })
 
+// --- Users DB history: read-only revision preview (no restore) ---
+const usersDbViewBusy = ref(false)
+const usersDbViewError = ref('')
+const usersDbViewRev = ref<number>(0)
+const usersDbViewUpdatedAt = ref('')
+const usersDbViewPayload = ref<any | null>(null)
+const usersDbViewRawText = ref('')
+
+const extractUsersDbPayloadView = (v: any) => {
+  const labels =
+    Array.isArray(v?.labels) ? v.labels : Array.isArray(v?.sourceIPLabels) ? v.sourceIPLabels : Array.isArray(v?.sourceIPLabelList) ? v.sourceIPLabelList : []
+
+  const providerPanelUrls =
+    v?.providerPanelUrls && typeof v.providerPanelUrls === 'object'
+      ? v.providerPanelUrls
+      : v?.proxyProviderPanelUrls && typeof v.proxyProviderPanelUrls === 'object'
+        ? v.proxyProviderPanelUrls
+        : v?.proxyProviderPanelUrlMap && typeof v.proxyProviderPanelUrlMap === 'object'
+          ? v.proxyProviderPanelUrlMap
+          : {}
+
+  const sslNearExpiryDaysDefault =
+    typeof v?.sslNearExpiryDaysDefault === 'number'
+      ? v.sslNearExpiryDaysDefault
+      : typeof v?.sslNearExpiryDaysDefault === 'string'
+        ? Number(v.sslNearExpiryDaysDefault)
+        : 2
+
+  const providerSslWarnDaysMap =
+    v?.providerSslWarnDaysMap && typeof v.providerSslWarnDaysMap === 'object'
+      ? v.providerSslWarnDaysMap
+      : v?.proxyProviderSslWarnDaysMap && typeof v.proxyProviderSslWarnDaysMap === 'object'
+        ? v.proxyProviderSslWarnDaysMap
+        : v?.providerSslWarnDays && typeof v.providerSslWarnDays === 'object'
+          ? v.providerSslWarnDays
+          : {}
+
+  const cleanUrlMap: Record<string, string> = {}
+  try {
+    for (const [k, vv] of Object.entries(providerPanelUrls || {})) {
+      const kk = String(k || '').trim()
+      const vvv = String(vv || '').trim()
+      if (!kk || !vvv) continue
+      cleanUrlMap[kk] = vvv
+    }
+  } catch {
+    // ignore
+  }
+
+  const cleanWarnMap: Record<string, number> = {}
+  try {
+    for (const [k, vv] of Object.entries(providerSslWarnDaysMap || {})) {
+      const kk = String(k || '').trim()
+      const n = typeof vv === 'number' ? vv : typeof vv === 'string' ? Number(vv) : NaN
+      if (!kk || !Number.isFinite(n)) continue
+      cleanWarnMap[kk] = Math.max(0, Math.min(365, Math.trunc(n)))
+    }
+  } catch {
+    // ignore
+  }
+
+  const sslDef = Number.isFinite(sslNearExpiryDaysDefault) ? Math.max(0, Math.min(365, Math.trunc(sslNearExpiryDaysDefault))) : 2
+
+  return {
+    labels: Array.isArray(labels) ? labels : [],
+    providerPanelUrls: cleanUrlMap,
+    sslNearExpiryDaysDefault: sslDef,
+    providerSslWarnDaysMap: cleanWarnMap,
+  }
+}
+
+const usersDbViewNormalized = computed(() => {
+  if (!usersDbViewPayload.value || typeof usersDbViewPayload.value !== 'object') return null
+  return extractUsersDbPayloadView(usersDbViewPayload.value)
+})
+
+const usersDbViewSummary = computed(() => {
+  const p = usersDbViewNormalized.value
+  if (!p) return null
+  return {
+    labels: Array.isArray(p.labels) ? p.labels.length : 0,
+    panels: p.providerPanelUrls ? Object.keys(p.providerPanelUrls).length : 0,
+    sslDefault: p.sslNearExpiryDaysDefault,
+    warnMap: p.providerSslWarnDaysMap ? Object.keys(p.providerSslWarnDaysMap).length : 0,
+  }
+})
+
+const usersDbViewJsonText = computed(() => {
+  if (!usersDbViewRev.value) return ''
+  if (usersDbViewPayload.value) {
+    try {
+      return JSON.stringify(usersDbViewPayload.value, null, 2)
+    } catch {
+      return usersDbViewRawText.value || ''
+    }
+  }
+  return usersDbViewRawText.value || ''
+})
+
+const usersDbCloseRevPreview = () => {
+  usersDbViewRev.value = 0
+  usersDbViewUpdatedAt.value = ''
+  usersDbViewError.value = ''
+  usersDbViewPayload.value = null
+  usersDbViewRawText.value = ''
+  usersDbViewBusy.value = false
+}
+
+watch([agentEnabled], () => {
+  if (!agentEnabled.value) usersDbCloseRevPreview()
+})
+
+const usersDbOpenRevPreview = async (rev: number) => {
+  const r = Number(rev) || 0
+  if (!r || !agentEnabled.value) return
+
+  usersDbViewRev.value = r
+  usersDbViewUpdatedAt.value = ''
+  usersDbViewError.value = ''
+  usersDbViewPayload.value = null
+  usersDbViewRawText.value = ''
+
+  usersDbViewBusy.value = true
+  try {
+    const res = await agentUsersDbGetRevAPI(r)
+    if (!res || !res.ok) {
+      usersDbViewError.value = String(res?.error || 'operationFailed')
+      return
+    }
+    usersDbViewUpdatedAt.value = String(res.updatedAt || '')
+    const raw = decodeB64Utf8(res.contentB64 || '')
+    usersDbViewRawText.value = raw
+    try {
+      usersDbViewPayload.value = raw ? JSON.parse(raw) : null
+    } catch {
+      usersDbViewPayload.value = null
+    }
+  } finally {
+    usersDbViewBusy.value = false
+  }
+}
+
+const copyTextToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  }
+}
+
+const copyUsersDbViewJson = async () => {
+  const text = String(usersDbViewJsonText.value || '')
+  if (!text) return
+  await copyTextToClipboard(text)
+}
+
+const copyUsersDbViewLabels = async () => {
+  const p = usersDbViewNormalized.value
+  if (!p) return
+  await copyTextToClipboard(JSON.stringify(p.labels || [], null, 2))
+}
+
+const copyUsersDbViewPanels = async () => {
+  const p = usersDbViewNormalized.value
+  if (!p) return
+  await copyTextToClipboard(JSON.stringify(p.providerPanelUrls || {}, null, 2))
+}
+
 // --- Top rules -> open Topology with filter (stage R) ---
-const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
 const normalizeRulePart = (s: string) => (s || '').trim() || '-'
 
 const topHitRules = computed(() => {
@@ -1277,18 +1515,10 @@ const topHitRules = computed(() => {
   return entries.slice(0, 20)
 })
 
-const openTopologyWithRule = async (ruleText: string) => {
-  const payload = {
-    ts: Date.now(),
-    mode: 'only',
-    focus: { stage: 'R', kind: 'value', value: String(ruleText || '').trim() },
-  }
-  try {
-    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
-  } catch {
-    // ignore
-  }
-  await router.push({ name: ROUTE_NAME.overview })
+const openTopologyWithRule = async (ruleText: string, mode: 'none' | 'only' | 'exclude' = 'only') => {
+  const value = String(ruleText || '').trim()
+  if (!value) return
+  await navigateToTopology(router as any, { stage: 'R', value }, mode)
 }
 
 const lastFreshnessOkAt = useStorage<number>('runtime/tasks-last-freshness-ok-at-v1', 0)

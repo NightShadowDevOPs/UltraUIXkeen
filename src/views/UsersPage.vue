@@ -199,27 +199,24 @@
                         />
                       </template>
                       <template #default>
-                        <div class="no-drag flex items-center gap-1">
-                          <TopologyActionButtons
-                            v-if="String(sourceIP.key || '').trim()"
-                            stage="C"
-                            :value="String(sourceIP.key || '').trim()"
-                            wrapper-class="join"
-                            btn-class="btn btn-ghost btn-xs join-item"
-                            icon-class="h-4 w-4"
-                          />
-                          <button
-                            type="button"
-                            class="no-drag btn btn-circle btn-ghost btn-sm"
-                            @click.stop.prevent="handlerLabelRemove(sourceIP.id)"
-                            @pointerdown.stop.prevent
-                            @mousedown.stop.prevent
-                            @touchstart.stop.prevent
-                            :title="t('delete')"
-                          >
-                            <TrashIcon class="h-4 w-4" />
-                          </button>
-                        </div>
+                        <TopologyActionButtons
+                          :stage="'C'"
+                          :value="String(sourceIP.key || '').trim()"
+                          :grouped="false"
+                          containerClass="no-drag"
+                          buttonClass="no-drag"
+                        />
+                        <button
+                          type="button"
+                          class="no-drag btn btn-circle btn-ghost btn-sm"
+                          @click.stop.prevent="handlerLabelRemove(sourceIP.id)"
+                          @pointerdown.stop.prevent
+                          @mousedown.stop.prevent
+                          @touchstart.stop.prevent
+                          :title="t('delete')"
+                        >
+                          <TrashIcon class="h-4 w-4" />
+                        </button>
                       </template>
                     </SourceIPInput>
                   </div>

@@ -164,14 +164,24 @@
                   <BoltIcon v-else class="h-4 w-4" />
                 </button>
 
-                <TopologyActionButtons
-                  stage="P"
-                  :value="proxyProvider.name"
-                  :fallback-proxy-name="displayProxyName"
-                  wrapper-class="flex flex-wrap items-center gap-1.5"
-                  btn-class="btn btn-ghost btn-xs btn-circle"
-                  icon-class="h-4 w-4"
-                />
+                <button
+                  v-if="activeProxyUri"
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="copyActiveUri"
+                  :title="$t('copyProxyUri')"
+                >
+                  <LinkIcon class="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs btn-circle"
+                  @click.stop="openTopologyWithProvider"
+                  :title="$t('showInTopology')"
+                >
+                  <PresentationChartLineIcon class="h-4 w-4" />
+                </button>
 
                 <button
                   v-if="panelUrl"
@@ -259,14 +269,14 @@
                 <LinkIcon class="h-4 w-4" />
               </button>
 
-              <TopologyActionButtons
-                  stage="P"
-                  :value="proxyProvider.name"
-                  :fallback-proxy-name="displayProxyName"
-                  wrapper-class="flex flex-wrap items-center gap-1.5"
-                  btn-class="btn btn-ghost btn-xs btn-circle"
-                  icon-class="h-4 w-4"
-                />
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-circle"
+                @click.stop="openTopologyWithProvider"
+                :title="$t('showInTopology')"
+              >
+                <PresentationChartLineIcon class="h-4 w-4" />
+              </button>
 
               <button
                 v-if="panelUrl"
@@ -316,7 +326,7 @@ import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatenc
 import { activeConnections } from '@/store/connections'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
-import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon } from '@heroicons/vue/24/outline'
+import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
 import dayjs from 'dayjs'
 import { twMerge } from 'tailwind-merge'
@@ -327,7 +337,6 @@ import CollapseCard from '../common/CollapseCard.vue'
 import ProxyNodeCard from './ProxyNodeCard.vue'
 import ProxyNodeGrid from './ProxyNodeGrid.vue'
 import ProxyPreview from './ProxyPreview.vue'
-import TopologyActionButtons from '../common/TopologyActionButtons.vue'
 
 const props = defineProps<{
   name: string
@@ -472,6 +481,23 @@ const openTopologyWithProxy = async (p: { name: string; mode: 'only' | 'exclude'
   await router.push({ name: ROUTE_NAME.overview })
 }
 
+const openTopologyWithProvider = async () => {
+  const payload = {
+    ts: Date.now(),
+    mode: 'only',
+    focus: { stage: 'P', kind: 'value', value: proxyProvider.value?.name || props.name },
+    // Fallback to a concrete proxy name if provider map is not yet ready on the Topology page.
+    fallbackProxyName: displayProxyName.value || '',
+  }
+
+  try {
+    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
+  } catch {
+    // ignore
+  }
+
+  await router.push({ name: ROUTE_NAME.overview })
+}
 
 const getAnyFromObj = (obj: any, candidates: string[]): any => {
   if (!obj || typeof obj !== 'object') return undefined

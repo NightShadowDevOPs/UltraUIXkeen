@@ -160,6 +160,8 @@ const ru: LANG_MESSAGE = {
   usersDbLocalOnly: 'Только локально',
   usersDbRouterOnly: 'Только на роутере',
   usersDbHistoryTitle: 'История users DB',
+  usersDbView: 'Просмотр',
+  usersDbRevisionPreview: 'Просмотр ревизии',
   current: 'Текущая',
   details: 'Детали',
   noData: 'Нет данных',

@@ -158,6 +158,8 @@ const en = {
   usersDbLocalOnly: 'Local only',
   usersDbRouterOnly: 'Router only',
   usersDbHistoryTitle: 'Users DB history',
+  usersDbView: 'View',
+  usersDbRevisionPreview: 'Revision preview',
   current: 'Current',
   details: 'Details',
   noData: 'No data',

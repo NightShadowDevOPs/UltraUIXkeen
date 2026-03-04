@@ -56,14 +56,12 @@
                 </div>
               </button>
 
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm rounded-xl px-2"
-                :title="$t('openInTopology')"
-                @click.stop="openItemInTopology(it)"
-              >
-                <PresentationChartLineIcon class="h-4 w-4 opacity-70" />
-              </button>
+              <TopologyActionButtons
+                :stage="stageForItem(it)"
+                :value="String(it.focusValue || '').trim()"
+                :grouped="true"
+                @beforeNavigate="closeSearch"
+              />
             </div>
           </div>
         </div>
@@ -74,8 +72,10 @@
 
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
 import { ROUTE_NAME } from '@/constant'
 import { isProxyGroup } from '@/helper'
+import { navigateToTopology } from '@/helper/topologyNav'
 import { setPendingPageFocus } from '@/helper/navFocus'
 import router from '@/router'
 import { proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
@@ -89,8 +89,7 @@ import {
   Squares2X2Icon,
   CircleStackIcon,
   AdjustmentsHorizontalIcon,
-  UsersIcon,
-  PresentationChartLineIcon,
+  UsersIcon
 } from '@heroicons/vue/24/outline'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -106,7 +105,6 @@ type SearchItem = {
   focusValue: string
 }
 
-const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
 
 const q = ref('')
 const selectedIdx = ref(0)
@@ -275,6 +273,10 @@ const flatResults = computed(() => {
   return out
 })
 
+const closeSearch = () => {
+  globalSearchOpen.value = false
+}
+
 const isSelected = (idx: number) => idx === selectedIdx.value
 
 const openItem = async (it: SearchItem) => {
@@ -293,19 +295,9 @@ const stageForItem = (it: SearchItem): 'C' | 'R' | 'G' | 'S' | 'P' => {
 }
 
 const openItemInTopology = async (it: SearchItem) => {
-  globalSearchOpen.value = false
+  closeSearch()
   const stage = stageForItem(it)
-  const payload: any = {
-    ts: Date.now(),
-    mode: 'only',
-    focus: { stage, kind: 'value', value: String(it.focusValue || '').trim() },
-  }
-  try {
-    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
-  } catch {
-    // ignore
-  }
-  await router.push({ name: ROUTE_NAME.overview })
+  await navigateToTopology(router as any, { stage, value: String(it.focusValue || '').trim() }, 'only')
 }
 
 const clampSelection = () => {

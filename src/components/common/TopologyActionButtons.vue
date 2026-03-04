@@ -1,37 +1,29 @@
 <template>
-  <div :class="wrapperClass">
+  <div
+    v-if="enabled"
+    :class="twMerge(grouped ? 'join' : 'flex items-center gap-1', props.containerClass)"
+  >
     <button
       type="button"
       :class="btnClass"
-      :title="$t('openInTopology')"
-      @click.stop="go('none')"
-      @pointerdown.stop.prevent
-      @mousedown.stop.prevent
-      @touchstart.stop.prevent
+      :title="t('openInTopology')"
+      @click.stop="() => go('none')"
     >
       <PresentationChartLineIcon :class="iconClass" />
     </button>
-
     <button
       type="button"
       :class="btnClass"
-      :title="$t('topologyOnlyThis')"
-      @click.stop="go('only')"
-      @pointerdown.stop.prevent
-      @mousedown.stop.prevent
-      @touchstart.stop.prevent
+      :title="t('topologyOnlyThis')"
+      @click.stop="() => go('only')"
     >
       <FunnelIcon :class="iconClass" />
     </button>
-
     <button
       type="button"
       :class="btnClass"
-      :title="$t('topologyExcludeThis')"
-      @click.stop="go('exclude')"
-      @pointerdown.stop.prevent
-      @mousedown.stop.prevent
-      @touchstart.stop.prevent
+      :title="t('topologyExcludeThis')"
+      @click.stop="() => go('exclude')"
     >
       <NoSymbolIcon :class="iconClass" />
     </button>
@@ -39,61 +31,54 @@
 </template>
 
 <script setup lang="ts">
-import { ROUTE_NAME } from '@/constant'
-import router from '@/router'
-import { computed } from 'vue'
+import { navigateToTopology, type TopologyNavMode, type TopologyNavStage } from '@/helper/topologyNav'
 import { FunnelIcon, NoSymbolIcon, PresentationChartLineIcon } from '@heroicons/vue/24/outline'
+import { twMerge } from 'tailwind-merge'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
-type FocusStage = 'C' | 'R' | 'G' | 'S' | 'P'
-type FilterMode = 'none' | 'only' | 'exclude'
-
-type PendingTopologyNavFilter = {
-  ts: number
-  mode: FilterMode
-  focus: { stage: FocusStage; kind: 'value'; value: string }
-  // Used by Topology page as a safe highlight/selection target when stage=P.
+const props = defineProps<{
+  stage: TopologyNavStage
+  value: string
   fallbackProxyName?: string
-}
+  grouped?: boolean
+  buttonClass?: string
+  iconClass?: string
+  containerClass?: string
+  disabled?: boolean
+}>()
 
-const props = withDefaults(
-  defineProps<{
-    stage: FocusStage
-    value: string
-    fallbackProxyName?: string
-    wrapperClass?: string
-    btnClass?: string
-    iconClass?: string
-  }>(),
-  {
-    wrapperClass: 'join',
-    btnClass: 'btn btn-ghost btn-xs join-item',
-    iconClass: 'h-4 w-4 opacity-70',
-  },
+const emit = defineEmits<{
+  (e: 'beforeNavigate', mode: TopologyNavMode): void
+}>()
+
+const router = useRouter()
+const { t } = useI18n()
+
+const grouped = computed(() => props.grouped !== false)
+
+const enabled = computed(() => {
+  if (props.disabled) return false
+  return String(props.value || '').trim().length > 0
+})
+
+const btnClass = computed(() =>
+  twMerge(
+    grouped.value ? 'btn btn-ghost btn-xs join-item' : 'btn btn-ghost btn-xs btn-circle',
+    props.buttonClass,
+  ),
 )
 
-const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
+const iconClass = computed(() => twMerge('h-4 w-4', props.iconClass))
 
-const normValue = computed(() => String(props.value || '').trim())
-
-const go = async (mode: FilterMode) => {
-  const v = normValue.value
-  if (!v) return
-
-  const payload: PendingTopologyNavFilter = {
-    ts: Date.now(),
+const go = async (mode: TopologyNavMode) => {
+  emit('beforeNavigate', mode)
+  await navigateToTopology(
+    router,
+    { stage: props.stage, value: String(props.value || '').trim() },
     mode,
-    focus: { stage: props.stage, kind: 'value', value: v },
-  }
-
-  const fb = String(props.fallbackProxyName || '').trim()
-  if (fb) payload.fallbackProxyName = fb
-
-  try {
-    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
-  } catch {
-    // ignore
-  }
-
-  await router.push({ name: ROUTE_NAME.overview })
+    { fallbackProxyName: props.fallbackProxyName },
+  )
 }
 </script>

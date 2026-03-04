@@ -160,6 +160,8 @@ const zh: LANG_MESSAGE = {
   usersDbLocalOnly: '仅本地',
   usersDbRouterOnly: '仅路由器',
   usersDbHistoryTitle: '用户库历史',
+  usersDbView: '查看',
+  usersDbRevisionPreview: '修订预览',
   current: '当前',
   details: '详情',
   noData: '暂无数据',

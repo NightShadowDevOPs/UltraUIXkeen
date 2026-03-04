@@ -45,8 +45,26 @@
         >
           <ArrowPathIcon class="h-4 w-4" />
         </button>
-        <!-- Topology: Open / Only / Exclude this rule (stage: R) -->
-        <TopologyActionButtons stage="R" :value="ruleTextForTopology" />
+
+        <!-- Topology: Only / Exclude this rule (stage: R) -->
+        <div class="join">
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs join-item"
+            :title="$t('topologyOnlyThis')"
+            @click.stop="openTopologyWithRule('only')"
+          >
+            <FunnelIcon class="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs join-item"
+            :title="$t('topologyExcludeThis')"
+            @click.stop="openTopologyWithRule('exclude')"
+          >
+            <NoSymbolIcon class="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
     <div class="flex items-center gap-1">
@@ -75,9 +93,10 @@
 <script setup lang="ts">
 import { updateRuleProviderAPI } from '@/api'
 import { useBounceOnVisible } from '@/composables/bouncein'
-import { NOT_CONNECTED } from '@/constant'
+import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { getColorForLatency } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
+import router from '@/router'
 import { getLatencyByName, getNowProxyNodeName, proxyMap } from '@/store/proxies'
 import { fetchRules, getRuleHitCount, ruleProviderList } from '@/store/rules'
 import { displayLatencyInRule, displayNowNodeInRule } from '@/store/settings'
@@ -85,13 +104,14 @@ import type { Rule } from '@/types'
 import {
   ArrowPathIcon,
   ArrowRightCircleIcon,
+  FunnelIcon,
+  NoSymbolIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ProxyName from '../proxies/ProxyName.vue'
-import TopologyActionButtons from '../common/TopologyActionButtons.vue'
 
 const props = defineProps<{
   rule: Rule
@@ -141,12 +161,31 @@ const showMMDBSizeTip = (e: Event) => {
   showTip(e, t('mmdbSizeTip'))
 }
 
+const TOPOLOGY_NAV_FILTER_KEY = 'runtime/topology-pending-filter-v1'
 const ruleTextForTopology = computed(() => {
   const type = String(props.rule.type || '').trim()
   const payload = String(props.rule.payload || '').trim()
   return payload ? `${type}: ${payload}` : type
 })
 
+const openTopologyWithRule = async (mode: 'only' | 'exclude' = 'only') => {
+  const value = String(ruleTextForTopology.value || '').trim()
+  if (!value) return
+
+  const payload = {
+    ts: Date.now(),
+    mode,
+    focus: { stage: 'R', kind: 'value', value },
+  }
+
+  try {
+    localStorage.setItem(TOPOLOGY_NAV_FILTER_KEY, JSON.stringify(payload))
+  } catch {
+    // ignore
+  }
+
+  await router.push({ name: ROUTE_NAME.overview })
+}
 
 useBounceOnVisible()
 </script>
