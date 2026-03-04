@@ -1,7 +1,20 @@
 import { updateRuleProviderAPI } from '@/api'
 import { RULE_TAB_TYPE } from '@/constant'
 import { showNotification } from '@/helper/notification'
-import { fetchRules, ruleMissCount, ruleProviderList, rules, rulesFilter, rulesTabShow } from '@/store/rules'
+import {
+  fetchRules,
+  ruleMissCount,
+  ruleProviderList,
+  rules,
+  rulesFilter,
+  rulesProxyFilter,
+  rulesSortBy,
+  rulesTabShow,
+  rulesTypeFilter,
+  rulesViewMode,
+  uniqueRuleProxies,
+  uniqueRuleTypes,
+} from '@/store/rules'
 import { displayLatencyInRule, displayNowNodeInRule } from '@/store/settings'
 import { ArrowPathIcon, WrenchScrewdriverIcon } from '@heroicons/vue/24/outline'
 import { computed, defineComponent, ref } from 'vue'
@@ -87,6 +100,85 @@ export default defineComponent({
           })}
         </div>
       )
+
+      const viewTabs = rulesTabShow.value === RULE_TAB_TYPE.RULES && (
+        <div
+          role="tablist"
+          class="tabs-box tabs tabs-xs"
+          title={t('proxiesRelationship')}
+        >
+          <a
+            role="tab"
+            class={['tab', rulesViewMode.value === 'card' && 'tab-active']}
+            onClick={() => (rulesViewMode.value = 'card')}
+          >
+            {t('card')}
+          </a>
+          <a
+            role="tab"
+            class={['tab', rulesViewMode.value === 'table' && 'tab-active']}
+            onClick={() => (rulesViewMode.value = 'table')}
+          >
+            {t('table')}
+          </a>
+        </div>
+      )
+
+      const sortSelect = rulesTabShow.value === RULE_TAB_TYPE.RULES && (
+        <div class={['flex items-center gap-1 text-sm', props.isLargeCtrlsBar ? '' : 'flex-1']}>
+          {props.isLargeCtrlsBar && <span class="shrink-0">{t('sortBy')}</span>}
+          <select
+            class={[
+              'select select-sm',
+              props.isLargeCtrlsBar ? 'min-w-44' : 'w-full min-w-0 flex-1',
+            ]}
+            v-model={rulesSortBy.value}
+          >
+            <option value="config">{t('defaultsort')}</option>
+            <option value="hits_desc">{t('hits')} ↓</option>
+            <option value="hits_asc">{t('hits')} ↑</option>
+            <option value="type_asc">{t('type')} A→Z</option>
+            <option value="proxy_asc">{t('proxy')} A→Z</option>
+            <option value="updated_desc">{t('updated')} ↓</option>
+          </select>
+        </div>
+      )
+
+      const typeFilterSelect = rulesTabShow.value === RULE_TAB_TYPE.RULES && (
+        <select
+          class={['select select-sm', props.isLargeCtrlsBar ? 'min-w-36' : 'min-w-24']}
+          v-model={rulesTypeFilter.value}
+          title={t('type')}
+        >
+          <option value="">{t('all')} · {t('type')}</option>
+          {uniqueRuleTypes.value.map((x) => (
+            <option
+              key={x}
+              value={x}
+            >
+              {x}
+            </option>
+          ))}
+        </select>
+      )
+
+      const proxyFilterSelect = rulesTabShow.value === RULE_TAB_TYPE.RULES && (
+        <select
+          class={['select select-sm', props.isLargeCtrlsBar ? 'min-w-44' : 'min-w-28']}
+          v-model={rulesProxyFilter.value}
+          title={t('proxy')}
+        >
+          <option value="">{t('all')} · {t('proxy')}</option>
+          {uniqueRuleProxies.value.map((x) => (
+            <option
+              key={x}
+              value={x}
+            >
+              {x}
+            </option>
+          ))}
+        </select>
+      )
       const upgradeAllIcon = rulesTabShow.value === RULE_TAB_TYPE.PROVIDER && (
         <button
           class="btn btn-circle btn-sm"
@@ -149,16 +241,20 @@ export default defineComponent({
       if (!props.isLargeCtrlsBar) {
         return (
           <div class="flex flex-col gap-2 p-2">
-            {hasProviders.value && (
-              <div class="flex gap-2">
-                {tabs}
-                {upgradeAllIcon}
-              </div>
-            )}
+            <div class="flex flex-wrap gap-2">
+              {hasProviders.value && tabs}
+              {viewTabs}
+              {upgradeAllIcon}
+            </div>
             <div class="flex w-full gap-2">
               {searchInput}
               {missBadge}
               {settingsModal}
+            </div>
+            <div class="flex w-full gap-2">
+              {sortSelect}
+              {typeFilterSelect}
+              {proxyFilterSelect}
             </div>
           </div>
         )
@@ -166,7 +262,11 @@ export default defineComponent({
       return (
         <div class="flex flex-wrap gap-2 p-2">
           {hasProviders.value && tabs}
+          {viewTabs}
           {searchInput}
+          {sortSelect}
+          {typeFilterSelect}
+          {proxyFilterSelect}
           <div class="flex-1"></div>
           {missBadge}
           {upgradeAllIcon}

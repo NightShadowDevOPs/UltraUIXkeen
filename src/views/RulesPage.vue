@@ -1,7 +1,10 @@
 <template>
   <div
-    class="flex flex-col gap-1 overflow-x-hidden"
-    :class="renderRules.length < 200 && 'p-2'"
+    class="flex flex-col gap-1"
+    :class="[
+      rulesViewMode === 'table' ? 'overflow-x-visible' : 'overflow-x-hidden',
+      rulesViewMode !== 'table' && renderRules.length < 200 ? 'p-2' : '',
+    ]"
   >
     <template v-if="rulesTabShow === RULE_TAB_TYPE.PROVIDER">
       <RuleProvider
@@ -9,6 +12,12 @@
         :key="ruleProvider.name"
         :ruleProvider="ruleProvider"
         :index="index + 1"
+      />
+    </template>
+    <template v-else-if="rulesViewMode === 'table'">
+      <RulesTable
+        ref="vsRef"
+        :rules="renderRules"
       />
     </template>
     <template v-else-if="renderRules.length < 200">
@@ -41,11 +50,12 @@
 <script setup lang="ts">
 import VirtualScroller from '@/components/common/VirtualScroller.vue'
 import RuleCard from '@/components/rules/RuleCard.vue'
+import RulesTable from '@/components/rules/RulesTable.vue'
 import RuleProvider from '@/components/rules/RuleProvider.vue'
 import { RULE_TAB_TYPE } from '@/constant'
 import { ROUTE_NAME } from '@/constant'
 import { cleanupExpiredPendingPageFocus, clearPendingPageFocus, flashNavHighlight, getPendingPageFocusForRoute } from '@/helper/navFocus'
-import { fetchRules, renderRules, renderRulesProvider, rules, rulesTabShow } from '@/store/rules'
+import { fetchRules, renderRules, renderRulesProvider, rules, rulesTabShow, rulesViewMode } from '@/store/rules'
 import type { Rule } from '@/types'
 import { nextTick, onMounted, ref, watch } from 'vue'
 
