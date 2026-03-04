@@ -98,36 +98,14 @@
 					  <tr v-for="p in providersPanelRenderList" :key="p.name">
 						<td class="font-mono text-xs">
               <div class="flex items-center gap-2">
-                <details class="dropdown dropdown-end shrink-0" @click.stop>
-                  <summary
-                    class="btn btn-ghost btn-xs h-7 w-10 shrink-0 px-0"
-                    @click.stop
-                    :title="$t('providerIcon')"
-                  >
-                    <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
-                  </summary>
-                  <div class="dropdown-content z-[999] mt-2 w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300">
-                    <div class="text-[11px] opacity-70">{{ $t('providerIconTip') }}</div>
-                    <div class="mt-2 flex flex-wrap gap-1">
-                      <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="(e) => pickProviderIcon(e, p.name, '')">
-                        <ProviderIconBadge icon="" />
-                      </button>
-                      <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="(e) => pickProviderIcon(e, p.name, 'globe')">
-                        <ProviderIconBadge icon="globe" />
-                      </button>
-                      <button
-                        v-for="cc in providerIconCountries"
-                        :key="cc"
-                        type="button"
-                        class="btn btn-ghost btn-xs px-2"
-                        @click.stop="(e) => pickProviderIcon(e, p.name, cc)"
-                        :title="cc"
-                      >
-                        <ProviderIconBadge :icon="cc" />
-                      </button>
-                    </div>
-                  </div>
-                </details>
+								<button
+                      type="button"
+                      class="btn btn-ghost btn-xs h-7 w-10 shrink-0 px-0"
+                      @click.stop="(e) => openProviderIconPicker(e, p.name)"
+                      :title="$t('providerIcon')"
+                    >
+                      <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
+                    </button>
 
                 <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
                 <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
@@ -183,6 +161,37 @@
 					</tbody>
 				  </table>
 				</div>
+
+          <!-- Provider icon picker (teleported to body to avoid clipping in overflow containers) -->
+          <Teleport to="body">
+            <div v-if="providerIconPickerOpen" class="fixed inset-0 z-[9999]" @mousedown.self="closeProviderIconPicker">
+              <div
+                class="absolute w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300"
+                :style="providerIconPickerStyle"
+                @mousedown.stop
+              >
+                <div class="text-[11px] opacity-70">{{ $t('providerIconTip') }}</div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                  <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="() => pickProviderIconFromPicker('')">
+                    <ProviderIconBadge icon="" />
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-xs px-2" @click.stop="() => pickProviderIconFromPicker('globe')">
+                    <ProviderIconBadge icon="globe" />
+                  </button>
+                  <button
+                    v-for="cc in providerIconCountries"
+                    :key="cc"
+                    type="button"
+                    class="btn btn-ghost btn-xs px-2"
+                    @click.stop="() => pickProviderIconFromPicker(cc)"
+                    :title="cc"
+                  >
+                    <ProviderIconBadge :icon="cc" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
 			</div>
 		  </div>
       </div>
@@ -1224,7 +1233,7 @@ import { ruleHitMap } from '@/store/rules'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
 import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
 import dayjs from 'dayjs'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { RuleProvider } from '@/types'
 import { useI18n } from 'vue-i18n'
 import router from '@/router'
@@ -1494,20 +1503,87 @@ const setProviderIcon = (name: string, icon: string) => {
   proxyProviderIconMap.value = cur
 }
 
-const closeDetails = (e: any) => {
-  try {
-    const el = (e?.target as any) as HTMLElement
-    const d = el?.closest ? (el.closest('details') as HTMLDetailsElement | null) : null
-    if (d) d.removeAttribute('open')
-  } catch {
-    // ignore
-  }
+// Icon picker popover (teleported to body)
+const providerIconPickerOpen = ref(false)
+const providerIconPickerProvider = ref('')
+const providerIconPickerAnchor = ref<HTMLElement | null>(null)
+const providerIconPickerPos = reactive({ top: 0, left: 0 })
+
+const providerIconPickerStyle = computed(() => ({
+  top: `${providerIconPickerPos.top}px`,
+  left: `${providerIconPickerPos.left}px`,
+}))
+
+const repositionProviderIconPicker = () => {
+  const el = providerIconPickerAnchor.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const W = 288 // w-72
+  const PAD = 8
+  let left = Math.round(r.left)
+  // Prefer aligning right edge with trigger if possible.
+  left = Math.round(r.right - W)
+  const maxLeft = Math.max(PAD, window.innerWidth - W - PAD)
+  left = Math.max(PAD, Math.min(maxLeft, left))
+
+  // Place below, but keep inside viewport.
+  let top = Math.round(r.bottom + 8)
+  const approxH = 220
+  const maxTop = Math.max(PAD, window.innerHeight - approxH - PAD)
+  top = Math.max(PAD, Math.min(maxTop, top))
+
+  providerIconPickerPos.left = left
+  providerIconPickerPos.top = top
 }
 
-const pickProviderIcon = (e: any, name: string, icon: string) => {
-  setProviderIcon(name, icon)
-  closeDetails(e)
+const openProviderIconPicker = (e: any, name: string) => {
+  providerIconPickerProvider.value = String(name || '').trim()
+  providerIconPickerAnchor.value = (e?.currentTarget as any) as HTMLElement
+  providerIconPickerOpen.value = true
+  nextTick(() => repositionProviderIconPicker())
 }
+
+const closeProviderIconPicker = () => {
+  providerIconPickerOpen.value = false
+  providerIconPickerProvider.value = ''
+  providerIconPickerAnchor.value = null
+}
+
+const pickProviderIconFromPicker = (icon: string) => {
+  const name = providerIconPickerProvider.value
+  if (!name) return
+  setProviderIcon(name, icon)
+  closeProviderIconPicker()
+}
+
+const onDocKeydownProviderIconPicker = (ev: KeyboardEvent) => {
+  if (!providerIconPickerOpen.value) return
+  if (ev.key === 'Escape') closeProviderIconPicker()
+}
+
+const onDocMousedownProviderIconPicker = (ev: MouseEvent) => {
+  if (!providerIconPickerOpen.value) return
+  const t = ev.target as HTMLElement | null
+  if (!t) return
+  const anchor = providerIconPickerAnchor.value
+  if (anchor && (t === anchor || anchor.contains(t))) return
+  // Click inside picker is stopped at the picker root; this is a last-resort close.
+  closeProviderIconPicker()
+}
+
+onMounted(() => {
+  window.addEventListener('resize', repositionProviderIconPicker)
+  window.addEventListener('scroll', closeProviderIconPicker, true)
+  document.addEventListener('keydown', onDocKeydownProviderIconPicker)
+  document.addEventListener('mousedown', onDocMousedownProviderIconPicker)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', repositionProviderIconPicker)
+  window.removeEventListener('scroll', closeProviderIconPicker, true)
+  document.removeEventListener('keydown', onDocKeydownProviderIconPicker)
+  document.removeEventListener('mousedown', onDocMousedownProviderIconPicker)
+})
 
 const fmtProviderIcon = (v: any): string => {
   const n = normalizeProviderIcon(v)

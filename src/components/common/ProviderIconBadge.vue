@@ -8,13 +8,8 @@
   >
     <span v-if="kind === 'none'" class="opacity-70">—</span>
     <GlobeAltIcon v-else-if="kind === 'globe'" class="h-4 w-4" />
-    <span
-      v-else-if="flagCode"
-      :class="['fi', `fi-${flagCode.toLowerCase()}`]"
-      :style="flagStyle"
-      aria-hidden="true"
-    />
-    <span v-else class="font-mono">{{ raw }}</span>
+    <img v-else-if="flagUrl" :src="flagUrl" :style="flagStyle" :alt="flagCode" />
+    <span v-else class="font-mono">{{ flagCode || raw }}</span>
   </span>
 </template>
 
@@ -22,6 +17,10 @@
 import { normalizeProviderIcon } from '@/helper/providerIcon'
 import { GlobeAltIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
+
+// Bundle flag SVGs into dist so icons work on systems without emoji flags.
+// Avoid relying on OS fonts and avoid CSS url path issues in external-ui zip deployment.
+const FLAG_URLS = import.meta.glob('flag-icons/flags/4x3/*.svg', { eager: true, as: 'url' }) as Record<string, string>
 
 const props = withDefaults(
   defineProps<{ icon: string; size?: 'sm' | 'md' }>(),
@@ -40,6 +39,12 @@ const flagCode = computed(() => {
   if (kind.value !== 'flag') return ''
   const cc = String(raw.value || '').trim().toUpperCase()
   return /^[A-Z]{2}$/.test(cc) ? cc : ''
+})
+
+const flagUrl = computed(() => {
+  if (!flagCode.value) return ''
+  const key = `flag-icons/flags/4x3/${flagCode.value.toLowerCase()}.svg`
+  return (FLAG_URLS as any)[key] || ''
 })
 
 const titleText = computed(() => {
