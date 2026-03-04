@@ -11,17 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # IMPORTANT: actions/setup-node caching for pnpm requires pnpm to be available in PATH.
+      # If we enable cache: pnpm before pnpm exists, the job fails with:
+      # "Unable to locate executable file: pnpm".
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.1
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: pnpm
-
-      - name: Enable corepack (pnpm)
-        run: |
-          corepack enable
-          corepack prepare pnpm@9.12.1 --activate
-
       - name: Install deps
         id: install
         continue-on-error: true
