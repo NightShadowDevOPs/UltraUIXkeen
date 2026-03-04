@@ -112,7 +112,6 @@ tasks: '任务',
   providersPanelTip: '管理面板 URL 保存在路由器上，并在设备间自动同步。',
   providersPanelColumnsExplain:
     '列说明：“面板链接”是点击“打开”时访问的 URL；“SSL 警告天数”用于控制何时显示“SSL 即将到期”（留空=全局阈值）。',
-  provider: '提供者',
   panelUrl: '面板链接',
   providerIcon: '图标',
   providerIconTip: '为提供者选择国家旗帜，或选择 🌐（当它汇聚多个订阅时）。',

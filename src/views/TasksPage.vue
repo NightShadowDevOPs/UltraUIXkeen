@@ -166,7 +166,7 @@
           <Teleport to="body">
             <div v-if="providerIconPickerOpen" class="fixed inset-0 z-[9999]" @mousedown.self="closeProviderIconPicker">
               <div
-                class="absolute w-72 rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300"
+                class="absolute w-[min(18rem,calc(100vw-16px))] rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300"
                 :style="providerIconPickerStyle"
                 @mousedown.stop
               >
@@ -1518,7 +1518,8 @@ const repositionProviderIconPicker = () => {
   const el = providerIconPickerAnchor.value
   if (!el) return
   const r = el.getBoundingClientRect()
-  const W = 288 // w-72
+	  // Keep the popover fully visible even on narrow viewports.
+	  const W = Math.min(288, Math.max(220, window.innerWidth - 16))
   const PAD = 8
   let left = Math.round(r.left)
   // Prefer aligning right edge with trigger if possible.

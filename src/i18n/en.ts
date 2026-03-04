@@ -110,7 +110,6 @@ tasks: 'Tasks',
   providersPanelTip: 'Panel URL is stored on the router and auto-synced across devices.',
   providersPanelColumnsExplain:
     'Columns: “Panel link” is the URL opened by the Open button. “SSL warn days” controls when “SSL soon” is shown (empty = global threshold).',
-  provider: 'Provider',
   panelUrl: 'Panel link',
   providerIcon: 'Icon',
   providerIconTip: 'Pick a country flag for the provider, or 🌐 if it aggregates multiple subscriptions.',
