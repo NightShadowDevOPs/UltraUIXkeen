@@ -29,7 +29,13 @@ jobs:
           corepack prepare pnpm@9.12.1 --activate
 
       - name: Install deps
-        run: pnpm i
+        id: install
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          # Always create log files so summary steps don't fail.
+          : > install.log
+          pnpm i 2>&1 | tee -a install.log
 
       # Capture build output into build.log so you can download it even if the build fails.
       - name: Build
@@ -37,7 +43,15 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          pnpm build 2>&1 | tee build.log
+          : > build.log
+          pnpm build 2>&1 | tee -a build.log
+
+      - name: Upload install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-log
+          path: install.log
 
       - name: Upload build log
         if: always()
@@ -46,16 +60,27 @@ jobs:
           name: build-log
           path: build.log
 
-      - name: Add build log to summary (tail)
+      - name: Add logs to summary (tail)
         if: always()
         run: |
-          echo "### Build log (last 200 lines)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          tail -n 200 build.log >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Outcomes"
+            echo "- Install deps: ${{ steps.install.outcome }}"
+            echo "- Build: ${{ steps.build.outcome }}"
+            echo ""
+            echo "### Install log (last 200 lines)"
+            echo "\`\`\`"
+            if [ -s install.log ]; then tail -n 200 install.log; else echo "(install.log is empty or missing)"; fi
+            echo "\`\`\`"
+            echo ""
+            echo "### Build log (last 200 lines)"
+            echo "\`\`\`"
+            if [ -s build.log ]; then tail -n 200 build.log; else echo "(build.log is empty or missing)"; fi
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Fail job if build failed
-        if: steps.build.outcome != 'success'
+      - name: Fail job if install/build failed
+        if: steps.install.outcome != 'success' || steps.build.outcome != 'success'
         run: exit 1
 
       - name: Zip dist
