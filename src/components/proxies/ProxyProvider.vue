@@ -99,9 +99,9 @@
             </button>
           </div>
           <progress
-            v-if="subscriptionInfo.percent !== null"
+            v-if="subscriptionInfo?.percent != null"
             class="progress progress-info w-full max-w-72"
-            :value="subscriptionInfo.percent"
+            :value="subscriptionInfo?.percent ?? 0"
             max="100"
           ></progress>
 
@@ -131,7 +131,7 @@
           </div>
 
           <pre
-            v-if="subscriptionInfo.totalLabel === '—' && showRawSub"
+            v-if="subscriptionInfo?.totalLabel === '—' && showRawSub"
             class="mt-2 text-xs opacity-70 whitespace-pre-wrap break-all"
           >{{ subscriptionInfo.raw }}</pre>
 
