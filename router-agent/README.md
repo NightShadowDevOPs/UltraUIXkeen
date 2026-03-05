@@ -1,11 +1,11 @@
-# zash-agent (router helper)
+# router-agent (helper for UI Mihomo/Ultra)
 
 This is an **optional** helper agent that runs on the router and enables "adult" features that are not available via Mihomo API:
 
 - Per-client **bandwidth shaping** (Mbps) via `tc` (recommended)
 - Fallback policing via `iptables` (optional)
 
-The dashboard (Zashboard UI) can call this agent to apply/remove per-IP shaping rules.
+Дашборд **UI Mihomo/Ultra** может вызывать этот агент для применения/удаления shaping‑правил по IP.
 
 ## Install (Entware)
 
@@ -18,11 +18,11 @@ opkg install tc ip-full
 sh /opt/zash-agent/install.sh
 ```
 
-The installer will start a tiny HTTP server on **port 9099** bound to the LAN IP (br0).
+Инсталлятор поднимает простой HTTP сервер на **9099** (LAN / br0).
 
 ## UI config
 
-Router → **Router agent**:
+В UI: Router → **Router agent**:
 
 - Enable agent
 - Agent URL: `http://<router_lan_ip>:9099`
@@ -39,7 +39,7 @@ Router → **Router agent**:
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_log`
 
-If you set a token in `/opt/zash-agent/agent.env` (TOKEN=...), UI should send `Authorization: Bearer <token>`.
+Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
 ### status payload
 

@@ -40,7 +40,7 @@ const { t } = useI18n()
 
 const title = computed(() => {
   const n = String(props.routeName || '').trim()
-  return n ? t(n) : 'zashboard'
+  return n ? t(n) : 'UI Mihomo/Ultra'
 })
 
 const icon = computed(() => {

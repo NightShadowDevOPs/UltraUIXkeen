@@ -1,105 +1,116 @@
-# zashboard
+# UI Mihomo/Ultra
+
+Форк **Zashboard UI** под роутеры **Netcraze Ultra** (Entware + ядро **Mihomo**).
+
+Цель репозитория — дать удобный веб‑интерфейс для Mihomo на Ultra и добавить «взрослые» функции через **router-agent** (то, чего нет в стандартном Clash/Mihomo API).
+
+> ⚠️ В этом форке целевое окружение — **только Mihomo** (Ultra). Sing-box и прочие ядра здесь не поддерживаются.
 
 <p align="center">
-  <img src="./readme/pc.png" height="300">
-  <img src="./readme/mobile.png" height="300">
+  <img src="./readme/pc.png" height="280">
+  <img src="./readme/mobile.png" height="280">
 </p>
 
-## **Requirement**
+---
 
-Browser support
+## Быстрый старт на роутере (Netcraze Ultra + Mihomo)
 
-- Chrome 111 (released March 2023)
-- Firefox 128 (released July 2024)
-- Safari 16.4 (released March 2023)
-- Not supported on iOS 16.4 jailbroken version.
+### 1) Подключить UI через Mihomo (rolling dist.zip)
 
-## **Online**
+Открой `/opt/etc/mihomo/config.yaml` и проверь/добавь настройки (пример):
 
-You can access the online zashboard at the following link:
+```yaml
+external-controller: 0.0.0.0:9090
+secret: ""          # если используешь — укажи здесь и в UI
 
-- [Online zashboard](http://board.zash.run.place)
+# Mihomo будет хранить UI в локальной папке (обычно ./ui)
+external-ui: ui
 
-## **Download**
-
-For **Mihomo** users:
-The **Upgrade Dashboard** function utilizes the API from Mihomo core. Ensure you set the [configuration URL](https://wiki.metacubex.one/config/general/#_9) to the zashboard's URL.
-
-You can download the zashboard files here:
-
-release:
-
-- [dist.zip (7.8MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip) – Includes better font-loading experience.
-- [dist-cdn-fonts.zip (1.4MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-cdn-fonts.zip) – Optimized for devices with limited storage, fonts loaded from CDN.
-<!-- - [dist-firasans-only.zip (1.7MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-firasans-only.zip) – Only with FiraSans Font
-- [dist-misans-only.zip (3.5MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-misans-only.zip) – Only with MiSans Font
-- [dist-pingfang-only.zip (3.3MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-pingfang-only.zip) – Only with PingFang Font
-- [dist-sarasa-only.zip (3.7MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-sarasa-only.zip) – Only with Sarasa Font
-- [dist-no-fonts.zip (1.4MB)](https://github.com/Zephyruso/zashboard/releases/latest/download/dist-no-fonts.zip) – No fonts included, uses system fonts only. -->
-
-**Font Package Selection Guide:**
-
-- **dist-cdn-fonts.zip**: Load fonts from the unpkg.com CDN. If you have trouble connecting to unpkg.com, you may experience slow page loading.
-- **dist-no-fonts.zip**: Uses system fonts only.
-
-dev:
-
-- [gh-pages.zip (7.8MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip)
-- [gh-pages-cdn-fonts.zip (1.4MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-cdn-fonts.zip)
-- [gh-pages-firasans-only.zip (1.7MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-firasans-only.zip)
-- [gh-pages-misans-only.zip (3.5MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-misans-only.zip)
-- [gh-pages-pingfang-only.zip (3.3MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-pingfang-only.zip)
-- [gh-pages-sarasa-only.zip (3.7MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-sarasa-only.zip)
-- [gh-pages-no-fonts.zip (1.4MB)](https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages-no-fonts.zip)
-
-## **Docker Setup**
-
-To run zashboard via Docker, use the following command:
-
-```
-docker run -d -p 80:80 ghcr.io/zephyruso/zashboard:latest
+# UI будет скачиваться из GitHub Release
+external-ui-url: https://github.com/messireL/ZashUIFork/releases/download/rolling/dist.zip
 ```
 
-## Tips
+Перезапусти Mihomo.
 
-1. The connection page has two layout styles: customizable cards and customizable tables. It is recommended to use tables on PC and cards on mobile devices.
-2. The connection table can be dragged with the left mouse button, and right-clicking can copy cell content.
-3. Right-clicking on a node / node group card will perform a speedtest for the node / node group.
-4. The proxy group sorting is based on the node order in the GLOBAL group. In Mihomo, it follows the configuration file order, while in sing-box, route.final is placed first, with the rest following the configuration file order. If you need custom ordering, you can specify the order by overriding the GLOBAL group.
-5. The dashboard supports PWA (Progressive Web App), which can provide a native app-like experience on mobile devices through "Add to Home Screen".
+Открытие UI обычно выглядит так:
 
-## 提示
+`http://<router-ip>:9090/ui`
 
-1. 连接页面有两种布局样式：可自定义卡片和可自定义表格。建议在 PC 上使用表格，在移动设备上使用卡片。
-2. 连接表格可被鼠标左键拖动，右键可复制单元格内容。
-3. 右键点击节点/节点组卡片可对节点/节点组进行测速。
-4. 面板的节点组排序是根据GLOBAL组中的节点顺序排序的，在Mihomo中会是按配置文件的顺序，在sing-box中会把route.final放到第一位，其余按照配置文件顺序，如果你需要自定义顺序，可通过覆盖GLOBAL组指定顺序
-5. 面板支持PWA（Progressive Web App），可以在移动设备上通过"添加到主屏幕"获得类原生app的体验
+Если кеш мешает обновлению — можно временно добавить анти‑кэш:
 
-## URL params format
+`.../dist.zip?v=1730000000`
 
-#### basic example
+### 2) (Опционально) Установить router-agent (Entware)
 
-http://host:port/#/setup?hostname=ipordomain&port=9090&secret=123456
+Router-agent нужен для функций, которых нет в Mihomo API (например, shaping per‑client, бэкапы и т.п.).
 
-1. **`http` / `https`**
-   - Determines the protocol (`http` or `https`).
-   - Default: current page protocol
+На роутере (Busybox wget не умеет https → используем `/opt/bin/wget`):
 
-2. **`hostname`**
-   - The Clash API's IP or domain.
+```sh
+/opt/bin/wget -O- "https://raw.githubusercontent.com/messireL/ZashUIFork/main/router-agent/install.sh" | sh
+/opt/etc/init.d/S99zash-agent restart
+```
 
-3. **`port`**
-   - The Clash API port.
+Проверка статуса агента:
 
-4. **`secondaryPath`**
-   - Optional path appended to the base URL.
-   - Default: An empty string.
+```sh
+/opt/bin/wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"
+```
 
-5. **`secret`**
-   - Password for authentication.
+В UI: **Router → Router agent** → включить и указать URL:
 
-6. **`disableUpgradeCore`**
-   - Set '1' or 'true' to hide upgrade core button
+`http://<router-ip>:9099`
 
-### I code just for fun, not for money. If you really want to donate, please consider donating to [UNICEF](https://www.unicef.org/) to help hungry children.
+Подробности: `router-agent/README.md`.
+
+---
+
+## Что добавлено в форке (по сравнению с upstream)
+
+Фокус — удобство на **Ultra/Mihomo**:
+
+- **Прокси → Провайдеры**: карточки провайдеров responsive (нормально масштабируются под ширину экрана).
+- **Прокси → Провайдеры**: настройка «показать/скрыть протоколы» (DIRECT/REJECT/VLESS/…)
+  - сохранение (persist)
+  - пресеты: «Показать всё», «Скрыть DIRECT+REJECT».
+- Исправления UX (прозрачность/читаемость выпадающих меню).
+- **Router-agent** (Entware): API для расширенных функций и **бэкапы** (в т.ч. в облако через rclone).
+
+---
+
+## Резервное копирование (UI + конфиги Mihomo + состояние агента)
+
+Router-agent устанавливает `/opt/zash-agent/backup.sh`.
+
+Он собирает архив:
+- `/opt/etc/mihomo/config.yaml` и GEO/правила (если есть),
+- состояние агента (`/opt/zash-agent/var/*`, включая `users-db.json`),
+- **опционально**: скачивает текущий `dist.zip` UI внутрь бэкапа.
+
+Загрузка в облако делается через **rclone** (Google Drive / Yandex Disk WebDAV).
+
+Подробные шаги и пример cron — в `router-agent/README.md`.
+
+---
+
+## Обновления (как мы работаем)
+
+1) ChatGPT готовит архив дистрибутива (файлы сразу в корне архива).
+2) Денис распаковывает поверх локального репо → commit & push.
+3) Роутер подтягивает UI из GitHub Release `rolling/dist.zip`.
+
+---
+
+## Разработка (локально)
+
+```sh
+pnpm i
+pnpm dev
+pnpm build
+```
+
+---
+
+## Upstream
+
+Основа: **Zephyruso/zashboard**. Этот репозиторий — форк с адаптацией под **Netcraze Ultra + Mihomo**.

@@ -18,9 +18,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'zashboard',
-        short_name: 'zashboard',
-        description: 'a dashboard using clash api',
+        name: 'UI Mihomo/Ultra',
+        short_name: 'Mihomo/Ultra UI',
+        description: 'Dashboard for Netcraze Ultra (Mihomo)',
         theme_color: '#000000',
         icons: [
           {

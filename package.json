@@ -1,7 +1,7 @@
 {
-  "name": "zashboard",
-  "version": "1.1.42",
-  "description": "A Dashboard Using Clash API",
+  "name": "mihomo-ultra-ui",
+  "version": "1.1.43",
+  "description": "UI Mihomo/Ultra — dashboard for Netcraze Ultra (Mihomo)",
   "license": "MIT",
   "type": "module",
   "scripts": {

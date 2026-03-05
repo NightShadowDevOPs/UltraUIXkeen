@@ -11,10 +11,10 @@
           <span class="bg-secondary h-2 w-2 rounded-full"></span>
         </span>
         <a
-          href="https://github.com/Zephyruso/zashboard"
+          href="https://github.com/messireL/ZashUIFork"
           target="_blank"
         >
-          <span> zashboard </span>
+          <span> UI Mihomo/Ultra </span>
           <span class="text-sm font-normal">
             {{ zashboardVersion }}
           </span>
