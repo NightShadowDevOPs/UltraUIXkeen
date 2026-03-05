@@ -16,7 +16,6 @@
       </button>
     </div>
 
-<<<<<<< HEAD
     <template v-if="providerCardsAutoGrid">
       <div
         class="grid gap-1"
@@ -31,9 +30,6 @@
       </div>
     </template>
     <template v-else-if="displayTwoColumns">
-=======
-    <template v-if="displayTwoColumns">
->>>>>>> 66fcc1804db49997302bb6acab04402e08b95c77
       <div class="grid grid-cols-2 gap-1">
         <div
           v-for="idx in [0, 1]"
