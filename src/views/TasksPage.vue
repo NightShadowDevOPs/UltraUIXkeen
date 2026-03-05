@@ -166,6 +166,7 @@
           <Teleport to="body">
             <div v-if="providerIconPickerOpen" class="fixed inset-0 z-[9999]" @mousedown.self="closeProviderIconPicker">
               <div
+                ref="providerIconPickerRoot"
                 class="absolute w-[min(18rem,calc(100vw-16px))] rounded-box bg-base-200 p-2 shadow ring-1 ring-base-300"
                 :style="providerIconPickerStyle"
                 @mousedown.stop
@@ -1509,6 +1510,7 @@ const setProviderIcon = (name: string, icon: string) => {
 const providerIconPickerOpen = ref(false)
 const providerIconPickerProvider = ref('')
 const providerIconPickerAnchor = ref<HTMLElement | null>(null)
+const providerIconPickerRoot = ref<HTMLElement | null>(null)
 const providerIconPickerPos = reactive({ top: 0, left: 0 })
 
 const providerIconPickerStyle = computed(() => ({
@@ -1550,6 +1552,7 @@ const closeProviderIconPicker = () => {
   providerIconPickerOpen.value = false
   providerIconPickerProvider.value = ''
   providerIconPickerAnchor.value = null
+  providerIconPickerRoot.value = null
   providerIconSearch.value = ''
 }
 
@@ -1575,16 +1578,38 @@ const onDocMousedownProviderIconPicker = (ev: MouseEvent) => {
   closeProviderIconPicker()
 }
 
+let providerIconPickerRaf = 0
+const onScrollProviderIconPicker = (ev: Event) => {
+  if (!providerIconPickerOpen.value) return
+
+  // Don't close/reposition while the user scrolls inside the picker itself.
+  const root = providerIconPickerRoot.value
+  const t = ev.target as any
+  if (root && t && typeof (t as any).nodeType === 'number') {
+    try {
+      if (root.contains(t as Node)) return
+    } catch {
+      // ignore
+    }
+  }
+
+  if (providerIconPickerRaf) return
+  providerIconPickerRaf = window.requestAnimationFrame(() => {
+    providerIconPickerRaf = 0
+    repositionProviderIconPicker()
+  })
+}
+
 onMounted(() => {
   window.addEventListener('resize', repositionProviderIconPicker)
-  window.addEventListener('scroll', closeProviderIconPicker, true)
+  window.addEventListener('scroll', onScrollProviderIconPicker, true)
   document.addEventListener('keydown', onDocKeydownProviderIconPicker)
   document.addEventListener('mousedown', onDocMousedownProviderIconPicker)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', repositionProviderIconPicker)
-  window.removeEventListener('scroll', closeProviderIconPicker, true)
+  window.removeEventListener('scroll', onScrollProviderIconPicker, true)
   document.removeEventListener('keydown', onDocKeydownProviderIconPicker)
   document.removeEventListener('mousedown', onDocMousedownProviderIconPicker)
 })
