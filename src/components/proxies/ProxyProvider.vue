@@ -388,7 +388,8 @@ const providerIconRaw = computed(() => normalizeProviderIcon((proxyProviderIconM
 const providerTypeCounts = computed(() => {
   const m = new Map<string, number>()
   for (const p of (proxyProvider.value as any)?.proxies || []) {
-    const k = normalizeProxyProtoKey((p as any)?.type)
+		const t0 = typeof (p as any) === 'string' ? (proxyMap.value as any)?.[(p as any)]?.type : (p as any)?.type
+		const k = normalizeProxyProtoKey(t0)
     if (!k) continue
     m.set(k, (m.get(k) || 0) + 1)
   }
@@ -408,7 +409,11 @@ const providerTypesTooltip = computed(() => {
     .map((x) => x.label + (x.count > 1 ? ('\u00D7' + String(x.count)) : ''))
     .join(' / ')
 })
-const allProxies = computed(() => proxyProvider.value.proxies.map((node) => node.name) ?? [])
+const allProxies = computed(() =>
+  (proxyProvider.value.proxies ?? [])
+    .map((node: any) => (typeof node === 'string' ? node : node?.name))
+    .filter(Boolean),
+)
 const { renderProxies, proxiesCount } = useRenderProxies(allProxies)
 
 // best-effort: ensure cache is populated when provider cards mount

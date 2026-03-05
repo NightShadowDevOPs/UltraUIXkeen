@@ -75,7 +75,10 @@ export const renderGroups = computed(() => {
 
     const isUsed = (provider: any) => {
       if (usedProxyNames.has(provider.name)) return true
-      return (provider.proxies || []).some((p: any) => usedProxyNames.has(p.name))
+	  return (provider.proxies || []).some((p: any) => {
+	    const name = typeof p === 'string' ? p : p?.name
+	    return name ? usedProxyNames.has(name) : false
+	  })
     }
 
     // When proxyMap is temporarily empty, usedProxyNames becomes empty and the "hide unused" filter
@@ -111,7 +114,10 @@ export const renderGroups = computed(() => {
         const providerProto = normalizeProxyProtoKey((p as any)?.type)
         if (providerProto === proto) return true
 
-        return ((p as any)?.proxies || []).some((n: any) => normalizeProxyProtoKey((n as any)?.type) === proto)
+        return ((p as any)?.proxies || []).some((n: any) => {
+          const t0 = typeof n === 'string' ? (proxyMap.value[n]?.type as any) : (n as any)?.type
+          return normalizeProxyProtoKey(t0) === proto
+        })
       })
     }
 

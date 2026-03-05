@@ -30,7 +30,10 @@ const usedProxyNames = computed(() => {
 
 const isUsed = (provider: any) => {
   if (usedProxyNames.value.has(provider.name)) return true
-  return (provider.proxies || []).some((p: any) => usedProxyNames.value.has(p.name))
+  return (provider.proxies || []).some((p: any) => {
+    const name = typeof p === 'string' ? p : p?.name
+    return name ? usedProxyNames.value.has(name) : false
+  })
 }
 
 const allProviders = computed(() => proxyProviederList.value || [])
@@ -81,7 +84,8 @@ const protoTabs = computed(() => {
   for (const p of providers.value || []) {
     const seen = new Set<string>()
     for (const n of ((p as any)?.proxies || []) as any[]) {
-      const k = normalizeProxyProtoKey((n as any)?.type)
+      const t0 = typeof n === 'string' ? (proxyMap.value[n]?.type as any) : (n as any)?.type
+      const k = normalizeProxyProtoKey(t0)
       if (k) seen.add(k)
     }
     for (const k of seen) {

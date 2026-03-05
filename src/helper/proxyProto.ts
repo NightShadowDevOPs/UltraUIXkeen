@@ -27,3 +27,6 @@ export const getProxyProtoLabel = (type?: string | null): string => {
 
   return t.toUpperCase()
 }
+
+// Backward-compatible alias used by some components
+export const protoLabel = getProxyProtoLabel
