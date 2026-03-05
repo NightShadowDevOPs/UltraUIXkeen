@@ -214,8 +214,7 @@ export const hiddenProxyProviderProtoKeys = useStorage<string[]>(
 if (typeof (hiddenProxyProviderProtoKeys as any).value === 'string') {
   const raw = String((hiddenProxyProviderProtoKeys as any).value || '')
   ;(hiddenProxyProviderProtoKeys as any).value = raw
-    .split(/[
-,;]+/g)
+    .split(new RegExp('[\\s,;]+', 'g'))
     .map((x) => x.trim())
     .filter(Boolean)
 }
