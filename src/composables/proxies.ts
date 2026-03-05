@@ -105,7 +105,14 @@ export const renderGroups = computed(() => {
     // Optional protocol filter sub-tab (wg/vless/ss/...)
     const proto = String(proxyProvidersProtoFilter.value || 'all').trim()
     if (proto && proto !== 'all') {
-      list = list.filter((p: any) => ((p as any)?.proxies || []).some((n: any) => normalizeProxyProtoKey((n as any)?.type) === proto))
+      list = list.filter((p: any) => {
+        // Some backends (or proxy types like WireGuard) may omit proxy items or their `type`.
+        // Prefer provider-level `type` when available, then fall back to scanning proxy items.
+        const providerProto = normalizeProxyProtoKey((p as any)?.type)
+        if (providerProto === proto) return true
+
+        return ((p as any)?.proxies || []).some((n: any) => normalizeProxyProtoKey((n as any)?.type) === proto)
+      })
     }
 
     const mode = proxyProvidersSortMode.value || 'health'
