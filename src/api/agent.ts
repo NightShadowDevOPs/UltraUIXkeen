@@ -501,3 +501,51 @@ export const agentUsersDbRestoreAPI = async (rev: number): Promise<{
     return { ok: false, error: e?.message || 'offline' } as any
   }
 }
+
+
+export type AgentBackupStatus = {
+  ok: boolean
+  running?: boolean
+  startedAt?: string
+  finishedAt?: string
+  success?: boolean
+  file?: string
+  uploaded?: boolean
+  error?: string
+}
+
+export const agentBackupStatusAPI = async (): Promise<AgentBackupStatus> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_status' },
+      timeout: 8000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentBackupStartAPI = async (): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_start' },
+      timeout: 8000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentBackupLogAPI = async (lines: number = 200): Promise<{ ok: boolean; path?: string; contentB64?: string; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_log', lines: String(lines ?? 200) },
+      timeout: 8000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}

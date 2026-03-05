@@ -126,6 +126,27 @@ const manageableProtoTabs = computed(() => {
   return (protoTabs.value || []).filter((t: any) => String(t?.key) !== 'all')
 })
 
+
+const setHiddenProtoKeys = (keys: string[]) => {
+  const set = new Set<string>()
+  for (const x of keys || []) {
+    const k = normalizeProxyProtoKey(String(x || ''))
+    if (k && k !== 'all') set.add(k)
+  }
+  hiddenProxyProviderProtoKeys.value = Array.from(set).sort((a, b) => a.localeCompare(b))
+}
+
+const presetShowAllProtos = () => {
+  hiddenProxyProviderProtoKeys.value = []
+}
+
+const presetHideDirectReject = () => {
+  // overwrite to exactly DIRECT+REJECT (if they exist)
+  const available = new Set((manageableProtoTabs.value || []).map((t: any) => String(t?.key)))
+  const keys = ['direct', 'reject'].filter((k) => available.has(k))
+  setHiddenProtoKeys(keys)
+}
+
 const toggleProtoHidden = (k0: string) => {
   const k = normalizeProxyProtoKey(String(k0 || ''))
   if (!k || k === 'all') return
@@ -214,9 +235,13 @@ const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
             >
               ⚙
             </summary>
-            <div class="dropdown-content z-[999] mt-2 w-64 rounded-box bg-base-100/95 p-2 shadow-2xl ring-1 ring-base-300 backdrop-blur-md">
+            <div class="dropdown-content z-[999] mt-2 w-64 rounded-box bg-base-100 p-2 shadow-2xl ring-1 ring-base-300 backdrop-blur-md">
               <div class="text-xs font-medium mb-1">{{ $t('providerProtoManage') }}</div>
               <div class="text-[11px] opacity-70 mb-2">{{ $t('providerProtoTip') }}</div>
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <button type="button" class="btn btn-xs" @click.stop.prevent="presetShowAllProtos">{{ $t('providerProtoShowAll') }}</button>
+                <button type="button" class="btn btn-xs" @click.stop.prevent="presetHideDirectReject">{{ $t('providerProtoHideDirectReject') }}</button>
+              </div>
               <div class="max-h-64 overflow-auto">
                 <div
                   v-for="t2 in manageableProtoTabs"
@@ -290,57 +315,6 @@ const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
         </button>
       </div>
 
-      <div class="font-medium">
-        {{ $t('providerHealth') }}
-      </div>
-
-      <div class="flex flex-wrap items-center gap-1">
-        <button
-          class="badge badge-neutral cursor-pointer"
-          :class="providerHealthFilter === '' ? 'badge-outline' : ''"
-          @click="setFilter('')"
-          :title="$t('providerHealthAll')"
-        >
-          {{ $t('providerHealthAll') }}: {{ counts.total }}
-        </button>
-        <button
-          class="badge badge-error cursor-pointer"
-          :class="providerHealthFilter === 'expired' ? '' : 'badge-outline'"
-          @click="setFilter('expired')"
-        >
-          {{ $t('providerHealthExpired') }}: {{ counts.expired }}
-        </button>
-        <button
-          class="badge badge-warning cursor-pointer"
-          :class="providerHealthFilter === 'nearExpiry' ? '' : 'badge-outline'"
-          @click="setFilter('nearExpiry')"
-        >
-          {{ $t('providerHealthNearExpiry') }}: {{ counts.nearExpiry }}
-        </button>
-        <button
-          class="badge badge-error cursor-pointer"
-          :class="providerHealthFilter === 'offline' ? '' : 'badge-outline'"
-          @click="setFilter('offline')"
-        >
-          {{ $t('providerHealthOffline') }}: {{ counts.offline }}
-        </button>
-        <button
-          class="badge badge-warning cursor-pointer"
-          :class="providerHealthFilter === 'degraded' ? '' : 'badge-outline'"
-          @click="setFilter('degraded')"
-        >
-          {{ $t('providerHealthDegraded') }}: {{ counts.degraded }}
-        </button>
-        <button
-          class="badge badge-success cursor-pointer"
-          :class="providerHealthFilter === 'healthy' ? '' : 'badge-outline'"
-          @click="setFilter('healthy')"
-        >
-          {{ $t('providerHealthHealthy') }}: {{ counts.healthy }}
-        </button>
-      </div>
-
-      
       <div class="ml-auto flex items-center gap-2">
 
         <button

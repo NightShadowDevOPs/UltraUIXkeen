@@ -35,6 +35,9 @@ Router → **Router agent**:
 - `GET /cgi-bin/api.sh?cmd=shape&ip=192.168.1.2&up=10&down=30`
 - `GET /cgi-bin/api.sh?cmd=unshape&ip=192.168.1.2`
 - `GET /cgi-bin/api.sh?cmd=neighbors`
+- `GET /cgi-bin/api.sh?cmd=backup_start`
+- `GET /cgi-bin/api.sh?cmd=backup_status`
+- `GET /cgi-bin/api.sh?cmd=backup_log`
 
 If you set a token in `/opt/zash-agent/agent.env` (TOKEN=...), UI should send `Authorization: Bearer <token>`.
 
@@ -67,6 +70,7 @@ rclone config
 Edit `/opt/zash-agent/agent.env` and set:
 
 ```sh
+UI_ZIP_URL="https://github.com/messireL/ZashUIFork/releases/download/rolling/dist.zip"  # optional, to include UI dist.zip
 RCLONE_REMOTE="gdrive"     # or yandex
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"
