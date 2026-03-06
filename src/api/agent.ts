@@ -627,6 +627,7 @@ export type AgentRestoreStatus = {
   file?: string
   scope?: string
   includeEnv?: boolean
+  source?: string
   error?: string
 }
 
@@ -642,10 +643,21 @@ export const agentRestoreStatusAPI = async (): Promise<AgentRestoreStatus> => {
   }
 }
 
-export const agentRestoreStartAPI = async (file: string, scope: string, includeEnv: boolean): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
+export const agentRestoreStartAPI = async (
+  file: string,
+  scope: string,
+  includeEnv: boolean,
+  source: 'local' | 'cloud' = 'local',
+): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'restore_start', file: file || 'latest', scope: scope || 'all', env: includeEnv ? '1' : '0' },
+      params: {
+        cmd: 'restore_start',
+        file: file || 'latest',
+        scope: scope || 'all',
+        env: includeEnv ? '1' : '0',
+        source: source || 'local',
+      },
       timeout: 12000,
     })
     return (data || { ok: true }) as any

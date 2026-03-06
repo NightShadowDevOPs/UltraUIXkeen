@@ -345,3 +345,20 @@ du -sh /opt/zash-agent/var/backups
 - локальная история архивов на роутере;
 - облачная история архивов из `RCLONE_REMOTE:RCLONE_PATH` (через `rclone`);
 - метки, есть ли тот же архив локально.
+
+
+## Восстановление из облака
+
+После настройки `rclone` и переменных `RCLONE_REMOTE` / `RCLONE_PATH` можно восстановить архив прямо из облака:
+
+```sh
+/opt/zash-agent/restore-cloud.sh latest all 0
+```
+
+Или конкретный архив:
+
+```sh
+/opt/zash-agent/restore-cloud.sh zash-backup-router-20260306-120000.tar.gz all 0
+```
+
+`RCLONE_PATH` можно задавать как `backup/Zash` или `/backup/Zash` — агент теперь нормализует путь автоматически.

@@ -445,6 +445,12 @@ jesc() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+normalize_rclone_path() {
+  p="$1"
+  p="$(printf '%s' "$p" | sed 's#^/*##; s#//*#/#g; s#/$##')"
+  printf '%s' "$p"
+}
+
 stat_mtime_sec() {
   p="$1"
 
@@ -1594,7 +1600,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.24","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.25","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1763,7 +1769,7 @@ tail_follow_b64() {
 
 backup_cloud_status_json() {
   remote="$RCLONE_REMOTE"
-  path="$RCLONE_PATH"
+  path="$(normalize_rclone_path "$RCLONE_PATH")"
   cfg="$RCLONE_CONFIG"
   if [ -z "$cfg" ] && command -v rclone >/dev/null 2>&1; then
     cfg="$(rclone config file 2>/dev/null | awk 'NR==2{print $0}' | tail -n1)"
@@ -1780,8 +1786,7 @@ backup_cloud_status_json() {
     else
       rems="$(rclone listremotes 2>/dev/null || true)"
     fi
-    if [ -n "$remote" ] && printf '%s
-' "$rems" | grep -Fxq "$remote:"; then
+    if [ -n "$remote" ] && printf '%s\n' "$rems" | grep -Fxq "$remote:"; then
       remote_exists=true
     fi
   fi
@@ -1796,8 +1801,9 @@ backup_cloud_status_json() {
 
 backup_cloud_list_json() {
   remote="$RCLONE_REMOTE"
-  path="$RCLONE_PATH"
-  dst="$remote:$path"
+  path="$(normalize_rclone_path "$RCLONE_PATH")"
+  dst="$remote:"
+  [ -n "$path" ] && dst="$remote:$path"
 
   if ! command -v rclone >/dev/null 2>&1; then
     reply_ok '{"ok":true,"remote":"","path":"","dir":"","items":[]}'
@@ -1893,15 +1899,22 @@ restore_start_json() {
   mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
   sf="/opt/zash-agent/var/restore.last.json"
   started="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
-  esc_started="$(printf '%s' "$started" | sed 's/"/\\\\"/g')"
-  printf '{"ok":true,"running":true,"startedAt":"%s"}' "$esc_started" > "$sf" 2>/dev/null || true
+  esc_started="$(printf '%s' "$started" | sed 's/"/\\"/g')"
 
   f="${file_q:-}"
   scope="${scope_q:-all}"
   env="${env_q:-0}"
+  source="${source_q:-local}"
+  runner="/opt/zash-agent/restore.sh"
+  case "$source" in
+    cloud) runner="/opt/zash-agent/restore-cloud.sh" ;;
+    *) source="local" ;;
+  esac
+
+  printf '{"ok":true,"running":true,"startedAt":"%s","source":"%s"}' "$esc_started" "$source" > "$sf" 2>/dev/null || true
 
   # Run in background so CGI returns immediately.
-  ( /opt/zash-agent/restore.sh "$f" "$scope" "$env" > /opt/zash-agent/var/restore.last.log 2>&1 & ) >/dev/null 2>&1 || true
+  ( "$runner" "$f" "$scope" "$env" > /opt/zash-agent/var/restore.last.log 2>&1 & ) >/dev/null 2>&1 || true
   reply_ok '{"ok":true,"running":true}'
 }
 
@@ -2162,6 +2175,14 @@ RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 RCLONE_PATH="${RCLONE_PATH:-NetcrazeBackups/zash-agent}"
 RCLONE_KEEP_DAYS="${RCLONE_KEEP_DAYS:-30}"
 
+normalize_rclone_path() {
+  p="$1"
+  p="$(printf '%s' "$p" | sed 's#^/*##; s#//*#/#g; s#/$##')"
+  printf '%s' "$p"
+}
+
+RCLONE_PATH="$(normalize_rclone_path "$RCLONE_PATH")"
+
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-${RCLONE_KEEP_DAYS:-30}}"
 
 # Optional: include current UI build (dist.zip) into the backup.
@@ -2272,7 +2293,8 @@ if echo "$BACKUP_KEEP_DAYS" | grep -qE '^[0-9]+$' && [ "$BACKUP_KEEP_DAYS" -gt 0
 fi
 
 if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
-  dst="$RCLONE_REMOTE:$RCLONE_PATH"
+  dst="$RCLONE_REMOTE:"
+  [ -n "$RCLONE_PATH" ] && dst="$RCLONE_REMOTE:$RCLONE_PATH"
   rcfg=""
   if [ -n "$RCLONE_CONFIG" ]; then
     rcfg="--config $RCLONE_CONFIG"
@@ -2299,10 +2321,118 @@ EOF
 chmod +x "$AGENT_DIR/backup.sh"
 
 
+cat > "$AGENT_DIR/restore-cloud.sh" <<'EOF'
+#!/bin/sh
+# Download a backup from cloud (rclone) and restore from it.
+# Usage: restore-cloud.sh [file|latest] [scope=all|mihomo|agent] [include_env=0|1]
+set -e
+
+ENV_FILE="/opt/zash-agent/agent.env"
+[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+
+BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-/opt/zash-agent/var/backups}"
+RESTORE_STATUS_FILE="${RESTORE_STATUS_FILE:-/opt/zash-agent/var/restore.last.json}"
+RCLONE_CONFIG="${RCLONE_CONFIG:-}"
+RCLONE_REMOTE="${RCLONE_REMOTE:-}"
+RCLONE_PATH="${RCLONE_PATH:-NetcrazeBackups/zash-agent}"
+
+file_arg="${1:-latest}"
+scope="${2:-all}"
+include_env="${3:-0}"
+
+normalize_rclone_path() {
+  p="$1"
+  p="$(printf '%s' "$p" | sed 's#^/*##; s#//*#/#g; s#/$##')"
+  printf '%s' "$p"
+}
+
+RCLONE_PATH="$(normalize_rclone_path "$RCLONE_PATH")"
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\r//g'
+}
+
+write_status() {
+  printf '%s' "$1" > "$RESTORE_STATUS_FILE" 2>/dev/null || true
+}
+
+log() {
+  echo "$@"
+}
+
+started_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+used_file=""
+success=0
+err=""
+
+finish() {
+  code=$?
+  trap - EXIT
+  finished_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+  if [ $code -ne 0 ] || [ $success -ne 1 ]; then
+    e="${err:-exit $code}"
+    write_status "$(printf '{\"ok\":true,\"running\":false,\"startedAt\":\"%s\",\"finishedAt\":\"%s\",\"success\":false,\"file\":\"%s\",\"source\":\"cloud\",\"error\":\"%s\"}' \
+      "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$e")")"
+    exit $code
+  fi
+}
+trap finish EXIT
+
+if [ -z "$RCLONE_REMOTE" ] || ! command -v rclone >/dev/null 2>&1; then
+  err="cloud-not-ready"
+  log "[restore-cloud] ERROR: rclone/remote is not configured"
+  exit 1
+fi
+
+rcfg=""
+if [ -n "$RCLONE_CONFIG" ]; then
+  rcfg="--config $RCLONE_CONFIG"
+fi
+
+remote_dir="$RCLONE_REMOTE:"
+[ -n "$RCLONE_PATH" ] && remote_dir="$RCLONE_REMOTE:$RCLONE_PATH"
+
+if [ -z "$file_arg" ] || [ "$file_arg" = "latest" ]; then
+  # shellcheck disable=SC2086
+  remote_name="$(rclone $rcfg lsl "$remote_dir" --include 'zash-backup-*.tar.gz' 2>/dev/null | sort -k2,3 | tail -n1 | awk '{print $4}')"
+else
+  remote_name="$(basename "$file_arg")"
+fi
+
+if [ -z "$remote_name" ]; then
+  err="cloud-backup-not-found"
+  log "[restore-cloud] ERROR: backup file not found in cloud (arg='$file_arg')"
+  exit 1
+fi
+
+used_file="$remote_name"
+remote_file="$RCLONE_REMOTE:$remote_name"
+[ -n "$RCLONE_PATH" ] && remote_file="$RCLONE_REMOTE:$RCLONE_PATH/$remote_name"
+mkdir -p "$BACKUP_TMP_DIR" >/dev/null 2>&1 || true
+local_file="$BACKUP_TMP_DIR/$remote_name"
+tmp_file="$local_file.part.$$"
+rm -f "$tmp_file" >/dev/null 2>&1 || true
+
+log "[restore-cloud] remote: $remote_file"
+log "[restore-cloud] local:  $local_file"
+# shellcheck disable=SC2086
+rclone $rcfg copyto "$remote_file" "$tmp_file" --transfers 1 --checkers 1 --retries 2
+mv -f "$tmp_file" "$local_file"
+log "[restore-cloud] downloaded: $local_file"
+
+success=1
+trap - EXIT
+/opt/zash-agent/restore.sh "$remote_name" "$scope" "$include_env" "cloud"
+exit $?
+
+EOF
+
+chmod +x "$AGENT_DIR/restore-cloud.sh"
+
 cat > "$AGENT_DIR/restore.sh" <<'EOF'
 #!/bin/sh
 # Restore from a zash-backup-*.tar.gz archive created by /opt/zash-agent/backup.sh
-# Usage: restore.sh [file|latest] [scope=all|mihomo|agent] [include_env=0|1]
+# Usage: restore.sh [file|latest] [scope=all|mihomo|agent] [include_env=0|1] [source=local|cloud]
 set -e
 
 ENV_FILE="/opt/zash-agent/agent.env"
@@ -2317,6 +2447,7 @@ MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 file_arg="${1:-}"
 scope="${2:-all}"
 include_env="${3:-0}"
+source="${4:-local}"
 
 ts="$(date '+%Y%m%d-%H%M%S' 2>/dev/null || echo now)"
 host="$(uname -n 2>/dev/null || echo router)"
@@ -2337,7 +2468,7 @@ log() {
 }
 
 # Mark as running
-write_status "$(printf '{"ok":true,"running":true,"startedAt":"%s"}' "$(json_escape "$started_at")")"
+write_status "$(printf '{\"ok\":true,\"running\":true,\"startedAt\":\"%s\",\"source\":\"%s\"}' "$(json_escape "$started_at")" "$(json_escape "$source")")"
 
 success=0
 used_file=""
@@ -2349,12 +2480,12 @@ finish() {
   finished_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
   if [ $code -ne 0 ] || [ $success -ne 1 ]; then
     e="${err:-exit $code}"
-    write_status "$(printf '{"ok":true,"running":false,"startedAt":"%s","finishedAt":"%s","success":false,"file":"%s","error":"%s"}' \
-      "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$e")")"
+    write_status "$(printf '{\"ok\":true,\"running\":false,\"startedAt\":\"%s\",\"finishedAt\":\"%s\",\"success\":false,\"file\":\"%s\",\"source\":\"%s\",\"error\":\"%s\"}' \
+      "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$source")" "$(json_escape "$e")")"
     exit $code
   fi
-  write_status "$(printf '{"ok":true,"running":false,"startedAt":"%s","finishedAt":"%s","success":true,"file":"%s","scope":"%s","includeEnv":%s}' \
-    "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$scope")" "$include_env")"
+  write_status "$(printf '{\"ok\":true,\"running\":false,\"startedAt\":\"%s\",\"finishedAt\":\"%s\",\"success\":true,\"file\":\"%s\",\"scope\":\"%s\",\"source\":\"%s\",\"includeEnv\":%s}' \
+    "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$scope")" "$(json_escape "$source")" "$include_env")"
 }
 trap finish EXIT
 
@@ -2379,7 +2510,7 @@ fi
 
 used_file="$archive"
 log "[restore] using backup: $archive"
-log "[restore] scope=$scope include_env=$include_env"
+log "[restore] scope=$scope include_env=$include_env source=$source"
 
 tmp="/opt/zash-agent/var/restore.tmp.$$"
 rm -rf "$tmp" >/dev/null 2>&1 || true

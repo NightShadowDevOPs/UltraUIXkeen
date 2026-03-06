@@ -177,6 +177,17 @@
                       <span class="font-mono">{{ formatCloudTime(item.ModTime) }}</span>
                     </div>
                   </div>
+
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      @click="selectCloudBackupForRestore(item.Name || item.Path || '')"
+                      :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady"
+                    >
+                      {{ $t('agentBackupUseForRestore') }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -234,16 +245,25 @@
       <span v-else-if="restore.success" class="badge badge-success badge-sm">{{ $t('agentRestoreOk') }}</span>
       <span v-else-if="restore.finishedAt || restore.startedAt" class="badge badge-warning badge-sm">{{ $t('agentRestoreFail') }}</span>
       <span v-if="restore.finishedAt || restore.startedAt" class="font-mono">{{ restore.finishedAt || restore.startedAt }}</span>
+      <span v-if="restore.source" class="badge badge-ghost badge-sm">{{ restore.source === 'cloud' ? $t('agentRestoreSourceCloud') : $t('agentRestoreSourceLocal') }}</span>
       <span v-if="restore.file" class="opacity-60 font-mono">{{ restore.file }}</span>
       <button type="button" class="btn btn-ghost btn-xs" @click="refreshRestore" :disabled="restoreLoading">↻</button>
     </div>
 
-    <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <label class="flex flex-col gap-1">
+        <span class="text-xs opacity-80">{{ $t('agentRestoreSource') }}</span>
+        <select class="select select-sm" v-model="restoreSource" :disabled="!agentEnabled || !status.ok || restoreLoading || restore.running">
+          <option value="local">{{ $t('agentRestoreSourceLocal') }}</option>
+          <option value="cloud" :disabled="!cloudStatus.cloudReady">{{ $t('agentRestoreSourceCloud') }}</option>
+        </select>
+      </label>
+
       <label class="flex flex-col gap-1">
         <span class="text-xs opacity-80">{{ $t('agentRestoreFrom') }}</span>
         <select class="select select-sm" v-model="restoreSelected" :disabled="!agentEnabled || !status.ok || restoreLoading || restore.running">
           <option value="latest">{{ $t('agentBackupLatest') }}</option>
-          <option v-for="b in backupList" :key="b.name" :value="b.name">{{ b.name }}</option>
+          <option v-for="b in restoreItems" :key="b" :value="b">{{ b }}</option>
         </select>
       </label>
 
@@ -375,6 +395,7 @@ const restoreLoading = ref(false)
 const restoreSelected = ref<string>('latest')
 const restoreScope = ref<string>('all')
 const restoreIncludeEnv = ref<boolean>(false)
+const restoreSource = ref<'local' | 'cloud'>('local')
 
 const { t } = useI18n()
 
@@ -428,6 +449,14 @@ const hasLocalBackup = (name: string) => {
   return backupList.value.some((item: any) => String(item?.name || '') === n)
 }
 
+const cloudBackupNames = computed(() =>
+  cloudList.value
+    .map((item: any) => String(item?.Name || item?.Path || '').split('/').pop() || '')
+    .filter(Boolean),
+)
+
+const restoreItems = computed(() => (restoreSource.value === 'cloud' ? cloudBackupNames.value : backupList.value.map((item: any) => String(item?.name || '')).filter(Boolean)))
+
 const formatBackupSize = (size?: number) => {
   const n = Number(size)
   if (!Number.isFinite(n) || n <= 0) return '0 B'
@@ -447,7 +476,14 @@ const formatCloudTime = (value?: string) => {
 }
 
 const selectBackupForRestore = (name: string) => {
+  restoreSource.value = 'local'
   restoreSelected.value = name
+  showNotification({ content: 'agentBackupUseForRestoreDone', type: 'alert-success', timeout: 1400 })
+}
+
+const selectCloudBackupForRestore = (name: string) => {
+  restoreSource.value = 'cloud'
+  restoreSelected.value = String(name || '').split('/').pop() || 'latest'
   showNotification({ content: 'agentBackupUseForRestoreDone', type: 'alert-success', timeout: 1400 })
 }
 
@@ -459,6 +495,7 @@ const refreshCloud = async () => {
   cloudLoading.value = true
   cloudStatus.value = await agentBackupCloudStatusAPI()
   if (!cloudStatus.value?.cloudReady) cloudList.value = []
+  syncRestoreSource()
   cloudLoading.value = false
 }
 
@@ -475,6 +512,7 @@ const refreshCloudHistory = async () => {
   } else {
     cloudList.value = []
   }
+  syncRestoreSource()
   cloudListLoading.value = false
 }
 
@@ -483,6 +521,15 @@ const onCloudHistoryToggle = async (e: any) => {
     await refreshCloud()
     await refreshBackupList()
     await refreshCloudHistory()
+  }
+}
+
+const syncRestoreSource = () => {
+  if (restoreSource.value === 'cloud' && !cloudStatus.value?.cloudReady) {
+    restoreSource.value = 'local'
+  }
+  if (restoreSelected.value !== 'latest' && !restoreItems.value.includes(restoreSelected.value)) {
+    restoreSelected.value = 'latest'
   }
 }
 
@@ -563,6 +610,7 @@ const refreshBackupList = async () => {
     backupDir.value = String((res as any)?.dir || '')
     backupList.value = []
   }
+  syncRestoreSource()
   backupListLoading.value = false
 }
 
@@ -609,6 +657,8 @@ const onRestoreLogToggle = async (e: any) => {
 const onRestoreToggle = async (e: any) => {
   if (e?.target?.open) {
     await refreshBackupList()
+    await refreshCloud()
+    await refreshCloudHistory()
     await refreshRestore()
   }
 }
@@ -618,12 +668,13 @@ const runRestore = async () => {
   const file = restoreSelected.value || 'latest'
   const scope = restoreScope.value || 'all'
   const includeEnv = !!restoreIncludeEnv.value
+  const source = restoreSource.value === 'cloud' ? 'cloud' : 'local'
 
   const ok = window.confirm(String(t('agentRestoreConfirm')))
   if (!ok) return
 
   restoreLoading.value = true
-  const res = await agentRestoreStartAPI(file, scope, includeEnv)
+  const res = await agentRestoreStartAPI(file, scope, includeEnv, source)
   if (!res?.ok) {
     showNotification({ content: 'agentRestoreFail', type: 'alert-error', timeout: 2200 })
   }
