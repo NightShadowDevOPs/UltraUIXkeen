@@ -38,9 +38,9 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_cloud_status`
+- `GET /cgi-bin/api.sh?cmd=backup_cloud_list`
 - `GET /cgi-bin/api.sh?cmd=backup_log`
 - `GET /cgi-bin/api.sh?cmd=backup_list`
-- `GET /cgi-bin/api.sh?cmd=backup_delete&file=<archive-name>`
 - `GET /cgi-bin/api.sh?cmd=backup_cron_get`
 - `GET /cgi-bin/api.sh?cmd=backup_cron_set&enabled=1&schedule=0%204%20*%20*%20*`
 - `GET /cgi-bin/api.sh?cmd=restore_start&file=latest&scope=all&env=0`
@@ -127,4 +127,4 @@ Restore works with local archives from `/opt/zash-agent/var/backups` (created by
 **Note:** after restoring Mihomo config, you may need to restart Mihomo; after restoring agent settings/state — restart `zash-agent`.
 
 
-В UI: Router → **Router agent** → **Backup history** можно удалять старые локальные архивы по одному.
+В UI карточка **Router agent** показывает и локальные, и облачные архивы. Облачный список строится через `rclone lsjson` для `RCLONE_REMOTE:RCLONE_PATH`.

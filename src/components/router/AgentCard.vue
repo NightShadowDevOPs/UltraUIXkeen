@@ -136,24 +136,51 @@
                       type="button"
                       class="btn btn-ghost btn-xs"
                       @click="selectBackupForRestore(item.name)"
-                      :disabled="!agentEnabled || !status.ok || backup.running || restore.running || deleteLoadingName === item.name"
+                      :disabled="!agentEnabled || !status.ok"
                     >
                       {{ $t('agentBackupUseForRestore') }}
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-xs text-error"
-                      @click="deleteBackup(item.name)"
-                      :disabled="!agentEnabled || !status.ok || backup.running || restore.running || deleteLoadingName === item.name"
-                    >
-                      <span v-if="deleteLoadingName === item.name" class="loading loading-spinner loading-xs"></span>
-                      <span v-else>{{ $t('delete') }}</span>
                     </button>
                   </div>
                 </div>
               </div>
 
               <div v-else class="mt-2 opacity-70">{{ $t('agentBackupNoItems') }}</div>
+            </div>
+
+          </details>
+
+          <details class="mt-2" @toggle="onCloudHistoryToggle">
+            <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupCloudHistory') }}</summary>
+            <div class="mt-2 rounded-lg bg-base-200/60 p-2 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="opacity-60">{{ $t('agentBackupCloudCount') }}:</span>
+                <span class="font-mono">{{ cloudList.length }}</span>
+                <span class="opacity-60">{{ $t('agentBackupCloudRemote') }}:</span>
+                <span class="font-mono break-all">{{ cloudRemoteLabel }}</span>
+                <button type="button" class="btn btn-ghost btn-xs" @click="refreshCloudHistory" :disabled="cloudListLoading">↻</button>
+              </div>
+
+              <div v-if="cloudList.length" class="mt-2 max-h-56 overflow-auto rounded-lg border border-base-300/50 bg-base-100/70">
+                <div
+                  v-for="item in cloudList"
+                  :key="item.Path || item.Name"
+                  class="flex flex-col gap-1 border-b border-base-300/50 px-3 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="truncate font-mono text-[11px] sm:text-xs">{{ item.Name || item.Path || '—' }}</span>
+                      <span v-if="isCurrentBackup(item.Name || item.Path || '')" class="badge badge-info badge-sm">{{ $t('agentBackupCurrent') }}</span>
+                      <span v-if="hasLocalBackup(item.Name || item.Path || '')" class="badge badge-success badge-sm">{{ $t('agentBackupCloudAlsoLocal') }}</span>
+                    </div>
+                    <div class="mt-1 flex flex-wrap items-center gap-3 opacity-70">
+                      <span>{{ formatBackupSize(item.Size) }}</span>
+                      <span class="font-mono">{{ formatCloudTime(item.ModTime) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="mt-2 opacity-70">{{ cloudStatus.cloudReady ? $t('agentBackupCloudNoItems') : $t('agentBackupCloudNotReady') }}</div>
             </div>
           </details>
 
@@ -274,10 +301,10 @@
 
 <script setup lang="ts">
 import {
+  agentBackupCloudListAPI,
   agentBackupCloudStatusAPI,
   agentBackupCronGetAPI,
   agentBackupCronSetAPI,
-  agentBackupDeleteAPI,
   agentBackupListAPI,
   agentBackupLogAPI,
   agentBackupStartAPI,
@@ -339,7 +366,8 @@ const cloudLoading = ref(false)
 const backupList = ref<any[]>([])
 const backupDir = ref('')
 const backupListLoading = ref(false)
-const deleteLoadingName = ref('')
+const cloudList = ref<any[]>([])
+const cloudListLoading = ref(false)
 
 const restore = ref<any>({ ok: true, running: false })
 const restoreLog = ref('')
@@ -393,8 +421,12 @@ const currentBackupName = computed(() => {
   return parts[parts.length - 1] || ''
 })
 
-const isCurrentBackup = (name: string) => String(name || '') === currentBackupName.value
+const isCurrentBackup = (name: string) => String(name || '').split('/').pop() === currentBackupName.value
 const isUploadedBackup = (name: string) => isCurrentBackup(name) && !!backup.value?.uploaded
+const hasLocalBackup = (name: string) => {
+  const n = String(name || '').split('/').pop() || ''
+  return backupList.value.some((item: any) => String(item?.name || '') === n)
+}
 
 const formatBackupSize = (size?: number) => {
   const n = Number(size)
@@ -408,29 +440,15 @@ const formatBackupTime = (mtime?: number) => {
   return dayjs(n * 1000).format('YYYY-MM-DD HH:mm:ss')
 }
 
+const formatCloudTime = (value?: string) => {
+  if (!value) return '—'
+  const d = dayjs(value)
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm:ss') : String(value)
+}
+
 const selectBackupForRestore = (name: string) => {
   restoreSelected.value = name
   showNotification({ content: 'agentBackupUseForRestoreDone', type: 'alert-success', timeout: 1400 })
-}
-
-const deleteBackup = async (name: string) => {
-  const file = String(name || '').trim()
-  if (!file || !agentEnabled.value || !status.value?.ok) return
-
-  const ok = window.confirm(String(t('agentBackupDeleteConfirm', { name: file })))
-  if (!ok) return
-
-  deleteLoadingName.value = file
-  const res = await agentBackupDeleteAPI(file)
-  if (res?.ok && res?.deleted) {
-    if (restoreSelected.value === file) restoreSelected.value = 'latest'
-    showNotification({ content: 'agentBackupDeleteDone', type: 'alert-success', timeout: 1600 })
-    await refreshBackupList()
-    await refreshBackup()
-  } else {
-    showNotification({ content: 'agentBackupDeleteFail', type: 'alert-error', timeout: 2400 })
-  }
-  deleteLoadingName.value = ''
 }
 
 const refreshCloud = async () => {
@@ -440,7 +458,32 @@ const refreshCloud = async () => {
   }
   cloudLoading.value = true
   cloudStatus.value = await agentBackupCloudStatusAPI()
+  if (!cloudStatus.value?.cloudReady) cloudList.value = []
   cloudLoading.value = false
+}
+
+
+const refreshCloudHistory = async () => {
+  if (!agentEnabled.value || !status.value?.ok || !cloudStatus.value?.cloudReady) {
+    cloudList.value = []
+    return
+  }
+  cloudListLoading.value = true
+  const res = await agentBackupCloudListAPI()
+  if (res?.ok && Array.isArray((res as any).items)) {
+    cloudList.value = (res as any).items || []
+  } else {
+    cloudList.value = []
+  }
+  cloudListLoading.value = false
+}
+
+const onCloudHistoryToggle = async (e: any) => {
+  if (e?.target?.open) {
+    await refreshCloud()
+    await refreshBackupList()
+    await refreshCloudHistory()
+  }
 }
 
 const refreshCron = async () => {

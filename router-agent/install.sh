@@ -1594,7 +1594,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.23","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.24","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1793,6 +1793,34 @@ backup_cloud_status_json() {
   reply_ok "$(printf '{"ok":true,"rcloneInstalled":%s,"configPath":"%s","remote":"%s","remoteExists":%s,"path":"%s","cloudReady":%s,"keepDays":"%s","localKeepDays":"%s","uiZipEnabled":%s}'     "$rclone_installed" "$(jesc "$cfg")" "$(jesc "$remote")" "$remote_exists" "$(jesc "$path")" "$cloud_ready" "$(jesc "$RCLONE_KEEP_DAYS")" "$(jesc "$BACKUP_KEEP_DAYS")" "$( [ -n "$UI_ZIP_URL" ] && echo true || echo false )")"
 }
 
+
+backup_cloud_list_json() {
+  remote="$RCLONE_REMOTE"
+  path="$RCLONE_PATH"
+  dst="$remote:$path"
+
+  if ! command -v rclone >/dev/null 2>&1; then
+    reply_ok '{"ok":true,"remote":"","path":"","dir":"","items":[]}'
+    return
+  fi
+
+  if [ -z "$remote" ]; then
+    reply_ok "$(printf '{"ok":true,"remote":"%s","path":"%s","dir":"%s","items":[]}' "$(jesc "$remote")" "$(jesc "$path")" "$(jesc "$dst")")"
+    return
+  fi
+
+  rcfg=""
+  if [ -n "$RCLONE_CONFIG" ]; then
+    rcfg="--config $RCLONE_CONFIG"
+  fi
+
+  # shellcheck disable=SC2086
+  json="$(rclone $rcfg lsjson "$dst" --files-only --max-depth 1 2>/dev/null || printf '[]')"
+  [ -n "$json" ] || json='[]'
+
+  reply_ok "$(printf '{"ok":true,"remote":"%s","path":"%s","dir":"%s","items":%s}' "$(jesc "$remote")" "$(jesc "$path")" "$(jesc "$dst")" "$json")"
+}
+
 backup_status_json() {
   sf="/opt/zash-agent/var/backup.last.json"
   if [ -f "$sf" ]; then
@@ -1848,35 +1876,6 @@ backup_list_json() {
 
   esc_dir="$(printf '%s' "$dir" | sed 's/"/\\\\"/g')"
   reply_ok "$(printf '{"ok":true,"dir":"%s","items":[%s]}' "$esc_dir" "$items")"
-}
-
-backup_delete_json() {
-  dir="$BACKUP_TMP_DIR"
-  [ -n "$dir" ] || dir="/opt/zash-agent/var/backups"
-  mkdir -p "$dir" >/dev/null 2>&1 || true
-
-  f="${file_q:-}"
-  name="$(basename "$f" 2>/dev/null || echo "")"
-
-  case "$name" in
-    zash-backup-*.tar.gz|ui-dist-*.zip) ;;
-    *)
-      reply_ok '{"ok":false,"error":"invalid-file"}'
-      return
-      ;;
-  esac
-
-  target="$dir/$name"
-  if [ ! -f "$target" ]; then
-    reply_ok "$(printf '{"ok":false,"error":"not-found","name":"%s"}' "$(jesc "$name")")"
-    return
-  fi
-
-  if rm -f -- "$target" 2>/dev/null; then
-    reply_ok "$(printf '{"ok":true,"deleted":true,"name":"%s"}' "$(jesc "$name")")"
-  else
-    reply_ok "$(printf '{"ok":false,"error":"delete-failed","name":"%s"}' "$(jesc "$name")")"
-  fi
 }
 
 restore_status_json() {
@@ -2115,14 +2114,14 @@ case "$cmd" in
   backup_cloud_status)
     backup_cloud_status_json
     ;;
+  backup_cloud_list)
+    backup_cloud_list_json
+    ;;
   backup_log)
     backup_log_json
     ;;
   backup_list)
     backup_list_json
-    ;;
-  backup_delete)
-    backup_delete_json
     ;;
   restore_start)
     restore_start_json

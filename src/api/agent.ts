@@ -579,11 +579,26 @@ export const agentBackupLogAPI = async (lines: number = 200): Promise<{ ok: bool
 
 export type AgentBackupListItem = { name: string; size?: number; mtime?: number }
 
-export const agentBackupListAPI = async (): Promise<{ ok: boolean; dir?: string; items?: AgentBackupListItem[]; error?: string }> => {
+
+export type AgentBackupCloudListItem = {
+  Name?: string
+  Path?: string
+  Size?: number
+  ModTime?: string
+}
+
+export const agentBackupCloudListAPI = async (): Promise<{
+  ok: boolean
+  remote?: string
+  path?: string
+  dir?: string
+  items?: AgentBackupCloudListItem[]
+  error?: string
+}> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'backup_list' },
-      timeout: 8000,
+      params: { cmd: 'backup_cloud_list' },
+      timeout: 12000,
     })
     return (data || { ok: true, items: [] }) as any
   } catch (e: any) {
@@ -591,13 +606,13 @@ export const agentBackupListAPI = async (): Promise<{ ok: boolean; dir?: string;
   }
 }
 
-export const agentBackupDeleteAPI = async (file: string): Promise<{ ok: boolean; deleted?: boolean; name?: string; error?: string }> => {
+export const agentBackupListAPI = async (): Promise<{ ok: boolean; dir?: string; items?: AgentBackupListItem[]; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'backup_delete', file },
-      timeout: 10000,
+      params: { cmd: 'backup_list' },
+      timeout: 8000,
     })
-    return (data || { ok: true, deleted: true }) as any
+    return (data || { ok: true, items: [] }) as any
   } catch (e: any) {
     return { ok: false, error: e?.message || 'offline' }
   }
