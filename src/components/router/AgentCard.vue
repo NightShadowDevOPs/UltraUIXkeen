@@ -102,6 +102,52 @@
             </div>
           </div>
 
+          <details class="mt-2" @toggle="onBackupHistoryToggle">
+            <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupHistory') }}</summary>
+            <div class="mt-2 rounded-lg bg-base-200/60 p-2 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="opacity-60">{{ $t('agentBackupCount') }}:</span>
+                <span class="font-mono">{{ backupList.length }}</span>
+                <span class="opacity-60">{{ $t('agentBackupFolder') }}:</span>
+                <span class="font-mono break-all">{{ backupDir || '—' }}</span>
+                <button type="button" class="btn btn-ghost btn-xs" @click="refreshBackupList" :disabled="backupListLoading">↻</button>
+              </div>
+
+              <div v-if="backupList.length" class="mt-2 max-h-56 overflow-auto rounded-lg border border-base-300/50 bg-base-100/70">
+                <div
+                  v-for="item in backupList"
+                  :key="item.name"
+                  class="flex flex-col gap-1 border-b border-base-300/50 px-3 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="truncate font-mono text-[11px] sm:text-xs">{{ item.name }}</span>
+                      <span v-if="isCurrentBackup(item.name)" class="badge badge-info badge-sm">{{ $t('agentBackupCurrent') }}</span>
+                      <span v-if="isUploadedBackup(item.name)" class="badge badge-success badge-sm">{{ $t('agentBackupUploaded') }}</span>
+                    </div>
+                    <div class="mt-1 flex flex-wrap items-center gap-3 opacity-70">
+                      <span>{{ formatBackupSize(item.size) }}</span>
+                      <span class="font-mono">{{ formatBackupTime(item.mtime) }}</span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      @click="selectBackupForRestore(item.name)"
+                      :disabled="!agentEnabled || !status.ok"
+                    >
+                      {{ $t('agentBackupUseForRestore') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="mt-2 opacity-70">{{ $t('agentBackupNoItems') }}</div>
+            </div>
+          </details>
+
           <details class="mt-2" @toggle="onCronToggle">
             <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupSchedule') }}</summary>
             <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -239,7 +285,9 @@ import {
   agentToken,
   agentUrl,
 } from '@/store/agent'
+import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
+import dayjs from 'dayjs'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -279,6 +327,8 @@ const cloudStatus = ref<any>({ ok: true, rcloneInstalled: false, remote: '', pat
 const cloudLoading = ref(false)
 
 const backupList = ref<any[]>([])
+const backupDir = ref('')
+const backupListLoading = ref(false)
 
 const restore = ref<any>({ ok: true, running: false })
 const restoreLog = ref('')
@@ -324,6 +374,33 @@ const cloudKeepLabel = computed(() => {
   const cloud = String(cloudStatus.value?.keepDays || '').trim() || '—'
   return `${local} / ${cloud} d`
 })
+
+const currentBackupName = computed(() => {
+  const f = String(backup.value?.file || '').trim()
+  if (!f) return ''
+  const parts = f.split('/')
+  return parts[parts.length - 1] || ''
+})
+
+const isCurrentBackup = (name: string) => String(name || '') === currentBackupName.value
+const isUploadedBackup = (name: string) => isCurrentBackup(name) && !!backup.value?.uploaded
+
+const formatBackupSize = (size?: number) => {
+  const n = Number(size)
+  if (!Number.isFinite(n) || n <= 0) return '0 B'
+  return prettyBytesHelper(n, { binary: true })
+}
+
+const formatBackupTime = (mtime?: number) => {
+  const n = Number(mtime)
+  if (!Number.isFinite(n) || n <= 0) return '—'
+  return dayjs(n * 1000).format('YYYY-MM-DD HH:mm:ss')
+}
+
+const selectBackupForRestore = (name: string) => {
+  restoreSelected.value = name
+  showNotification({ content: 'agentBackupUseForRestoreDone', type: 'alert-success', timeout: 1400 })
+}
 
 const refreshCloud = async () => {
   if (!agentEnabled.value || !status.value?.ok) {
@@ -399,14 +476,25 @@ const onCronToggle = async (e: any) => {
 
 const refreshBackupList = async () => {
   if (!agentEnabled.value || !status.value?.ok) {
+    backupDir.value = ''
     backupList.value = []
     return
   }
+  backupListLoading.value = true
   const res = await agentBackupListAPI()
   if (res?.ok && Array.isArray((res as any).items)) {
+    backupDir.value = String((res as any).dir || '')
     backupList.value = (res as any).items || []
   } else {
+    backupDir.value = String((res as any)?.dir || '')
     backupList.value = []
+  }
+  backupListLoading.value = false
+}
+
+const onBackupHistoryToggle = async (e: any) => {
+  if (e?.target?.open) {
+    await refreshBackupList()
   }
 }
 
@@ -488,6 +576,7 @@ const runBackup = async () => {
   backupLoading.value = true
   await agentBackupStartAPI()
   await refreshBackup()
+  await refreshBackupList()
   backupLoading.value = false
 }
 
@@ -519,6 +608,7 @@ const refresh = async () => {
   status.value = await agentStatusAPI()
   await refreshBackup()
   await refreshCloud()
+  await refreshBackupList()
   await refreshRestore()
 }
 
