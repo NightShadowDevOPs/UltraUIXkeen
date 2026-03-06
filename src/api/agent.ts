@@ -549,3 +549,36 @@ export const agentBackupLogAPI = async (lines: number = 200): Promise<{ ok: bool
     return { ok: false, error: e?.message || 'offline' }
   }
 }
+
+export type AgentBackupCronStatus = {
+  ok: boolean
+  enabled?: boolean
+  schedule?: string
+  line?: string
+  path?: string
+  error?: string
+}
+
+export const agentBackupCronGetAPI = async (): Promise<AgentBackupCronStatus> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_cron_get' },
+      timeout: 8000,
+    })
+    return (data || { ok: true, enabled: false }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentBackupCronSetAPI = async (enabled: boolean, schedule: string): Promise<{ ok: boolean; enabled?: boolean; schedule?: string; path?: string; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_cron_set', enabled: enabled ? '1' : '0', schedule },
+      timeout: 10000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}

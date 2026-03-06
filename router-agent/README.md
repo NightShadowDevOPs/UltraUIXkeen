@@ -38,6 +38,8 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_log`
+- `GET /cgi-bin/api.sh?cmd=backup_cron_get`
+- `GET /cgi-bin/api.sh?cmd=backup_cron_set&enabled=1&schedule=0%204%20*%20*%20*`
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
@@ -84,14 +86,16 @@ RCLONE_KEEP_DAYS="30"
 
 ### 4) Schedule (cron)
 
-Example: daily at 03:30
+В UI (Router → Router agent → **Backup schedule**) можно задать время (по умолчанию **04:00**) и нажать **Apply** — UI установит cron-строку на роутере (помечается комментарием `# zash-backup`).
+
+Если хочешь вручную:
 
 ```sh
 crontab -e
 ```
 
-Add:
+Example: daily at 04:00
 
 ```cron
-30 3 * * * /opt/zash-agent/backup.sh >/opt/zash-agent/var/backup.last.log 2>&1
+0 4 * * * /opt/zash-agent/backup.sh >/opt/zash-agent/var/backup.cron.log 2>&1 # zash-backup
 ```

@@ -76,6 +76,45 @@
             <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupViewLog') }}</summary>
             <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-base-200/60 p-2 text-[11px]">{{ backupLog || '…' }}</pre>
           </details>
+
+          <details class="mt-2" @toggle="onCronToggle">
+            <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupSchedule') }}</summary>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-xs opacity-80">{{ $t('agentBackupAuto') }}</span>
+                <input type="checkbox" class="toggle toggle-sm" v-model="backupAutoEnabled" :disabled="!agentEnabled || !status.ok" />
+              </label>
+              <label class="flex items-center justify-between gap-2">
+                <span class="text-xs opacity-80">{{ $t('agentBackupTime') }}</span>
+                <input type="time" class="input input-sm w-28" v-model="backupAutoTime" :disabled="!agentEnabled || !status.ok" />
+              </label>
+            </div>
+
+            <div class="mt-2 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="opacity-60">{{ $t('agentBackupCron') }}:</span>
+                <span class="font-mono">{{ cronSchedule }}</span>
+                <button type="button" class="btn btn-ghost btn-xs" @click="copyCron" :disabled="!cronLine">{{ $t('copy') }}</button>
+              </div>
+              <div class="mt-1 font-mono rounded-lg bg-base-200/60 p-2 text-[11px] break-all">{{ cronLine }}</div>
+
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" class="btn btn-xs" @click="applyCron" :disabled="!agentEnabled || !status.ok || cronApplying">
+                  <span v-if="cronApplying" class="loading loading-spinner loading-xs"></span>
+                  <span v-else>{{ $t('apply') }}</span>
+                </button>
+                <button type="button" class="btn btn-xs btn-outline" @click="removeCron" :disabled="!agentEnabled || !status.ok || cronApplying">{{ $t('delete') }}</button>
+                <button type="button" class="btn btn-ghost btn-xs" @click="refreshCron" :disabled="cronApplying">↻</button>
+
+                <span class="opacity-60">{{ $t('agentBackupCronOnRouter') }}:</span>
+                <span v-if="cronStatus.ok && cronStatus.enabled" class="badge badge-success badge-sm">on</span>
+                <span v-else-if="cronStatus.ok && cronStatus.enabled === false" class="badge badge-ghost badge-sm">off</span>
+                <span v-else class="badge badge-warning badge-sm">?</span>
+                <span v-if="cronStatus.ok && cronStatus.schedule" class="font-mono opacity-70">{{ cronStatus.schedule }}</span>
+              </div>
+            </div>
+          </details>
+
         </div>
       </div>
       <div v-else-if="agentEnabled && !status.ok">
@@ -90,8 +129,23 @@
 </template>
 
 <script setup lang="ts">
-import { agentBackupLogAPI, agentBackupStartAPI, agentBackupStatusAPI, agentStatusAPI } from '@/api/agent'
-import { agentEnabled, agentEnforceBandwidth, agentToken, agentUrl } from '@/store/agent'
+import {
+  agentBackupCronGetAPI,
+  agentBackupCronSetAPI,
+  agentBackupLogAPI,
+  agentBackupStartAPI,
+  agentBackupStatusAPI,
+  agentStatusAPI,
+} from '@/api/agent'
+import {
+  agentBackupAutoEnabled,
+  agentBackupAutoTime,
+  agentEnabled,
+  agentEnforceBandwidth,
+  agentToken,
+  agentUrl,
+} from '@/store/agent'
+import { showNotification } from '@/helper/notification'
 import { computed, onMounted, ref } from 'vue'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
@@ -124,6 +178,50 @@ const isAhead = computed(() => {
   return versionCmp(status.value.version, status.value.serverVersion) > 0
 })
 
+
+const refreshCron = async () => {
+  if (!agentEnabled.value) {
+    cronStatus.value = { ok: false, enabled: false }
+    return
+  }
+  if (!status.value?.ok) {
+    cronStatus.value = { ok: false, enabled: false }
+    return
+  }
+  cronStatus.value = await agentBackupCronGetAPI()
+}
+
+const applyCron = async () => {
+  if (!agentEnabled.value || !status.value?.ok) return
+  cronApplying.value = true
+  await agentBackupCronSetAPI(!!backupAutoEnabled.value, cronSchedule.value)
+  await refreshCron()
+  cronApplying.value = false
+}
+
+const removeCron = async () => {
+  if (!agentEnabled.value || !status.value?.ok) return
+  cronApplying.value = true
+  backupAutoEnabled.value = false
+  await agentBackupCronSetAPI(false, cronSchedule.value)
+  await refreshCron()
+  cronApplying.value = false
+}
+
+const copyCron = async () => {
+  try {
+    await navigator.clipboard.writeText(cronLine.value)
+    showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
+  } catch {
+    // ignore
+  }
+}
+
+const onCronToggle = async (e: any) => {
+  if (e?.target?.open) {
+    await refreshCron()
+  }
+}
 
 const refreshBackup = async () => {
   if (!agentEnabled.value) {

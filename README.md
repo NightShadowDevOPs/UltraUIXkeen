@@ -89,6 +89,8 @@ Router-agent устанавливает `/opt/zash-agent/backup.sh`.
 
 Загрузка в облако делается через **rclone** (Google Drive / Yandex Disk WebDAV).
 
+В UI: **Router → Router agent → Backup schedule** можно задать время (по умолчанию **04:00**) и применить cron на роутере.
+
 Подробные шаги и пример cron — в `router-agent/README.md`.
 
 ---

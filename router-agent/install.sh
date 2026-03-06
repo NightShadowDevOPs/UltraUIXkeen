@@ -1074,7 +1074,7 @@ if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
 fi
 
 # Parse query string (key=value&...)
-cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""
+cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""; enabled_q=""; schedule_q=""
 IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
@@ -1093,6 +1093,8 @@ for kv in $QUERY_STRING; do
     offset) offset="$val" ;;
     rev) rev_q="$val" ;;
     token) token_q="$val" ;;
+    enabled) enabled_q="$val" ;;
+    schedule) schedule_q="$val" ;;
   esac
 done
 unset IFS
@@ -1581,7 +1583,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.18","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.19","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1783,6 +1785,96 @@ backup_log_json() {
   reply_ok "$(printf '{\"ok\":true,\"path\":\"%s\",\"contentB64\":\"%s\"}' "$esc_path" "$b64")"
 }
 
+cron_tab_path() {
+  if [ -d /opt/etc/crontabs ]; then
+    echo "/opt/etc/crontabs/root"
+    return 0
+  fi
+  if [ -d /etc/crontabs ]; then
+    echo "/etc/crontabs/root"
+    return 0
+  fi
+  if [ -d /var/spool/cron/crontabs ]; then
+    echo "/var/spool/cron/crontabs/root"
+    return 0
+  fi
+  echo ""
+  return 0
+}
+
+backup_cron_get_json() {
+  tab="$(cron_tab_path)"
+  if [ -z "$tab" ]; then
+    reply_ok '{"ok":false,"error":"cron-not-found"}'
+    return
+  fi
+
+  if [ ! -f "$tab" ]; then
+    reply_ok "$(printf '{\"ok\":true,\"enabled\":false,\"path\":\"%s\"}' "$(jesc "$tab")")"
+    return
+  fi
+
+  line="$(grep -E 'zash-backup' "$tab" 2>/dev/null | tail -n 1 2>/dev/null)"
+  if [ -n "$line" ]; then
+    sched="$(printf '%s' "$line" | awk '{print $1" "$2" "$3" "$4" "$5}' 2>/dev/null)"
+    reply_ok "$(printf '{\"ok\":true,\"enabled\":true,\"schedule\":\"%s\",\"line\":\"%s\",\"path\":\"%s\"}' "$(jesc "$sched")" "$(jesc "$line")" "$(jesc "$tab")")"
+  else
+    reply_ok "$(printf '{\"ok\":true,\"enabled\":false,\"path\":\"%s\"}' "$(jesc "$tab")")"
+  fi
+}
+
+backup_cron_set_json() {
+  tab="$(cron_tab_path)"
+  if [ -z "$tab" ]; then
+    reply_ok '{"ok":false,"error":"cron-not-found"}'
+    return
+  fi
+
+  mkdir -p "$(dirname "$tab")" >/dev/null 2>&1 || true
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+
+  enabled="$enabled_q"
+  case "$enabled" in
+    1|true|yes|on) enabled=1 ;;
+    *) enabled=0 ;;
+  esac
+
+  sched="$schedule_q"
+  sched="$(printf '%s' "$sched" | tr -d '\r\n')"
+  [ -n "$sched" ] || sched="0 4 * * *"
+
+  # Basic validation: 5 fields with safe chars.
+  echo "$sched" | grep -qE '^[0-9A-Za-z*/,-]+[[:space:]]+[0-9A-Za-z*/,-]+[[:space:]]+[0-9A-Za-z*/,-]+[[:space:]]+[0-9A-Za-z*/,-]+[[:space:]]+[0-9A-Za-z*/,-]+$' || {
+    reply_ok '{"ok":false,"error":"bad-schedule"}'
+    return
+  }
+
+  line="$sched /opt/zash-agent/backup.sh >/opt/zash-agent/var/backup.cron.log 2>&1 # zash-backup"
+
+  tmp="${tab}.tmp.$$"
+  if [ -f "$tab" ]; then
+    grep -v 'zash-backup' "$tab" > "$tmp" 2>/dev/null || true
+  else
+    : > "$tmp" 2>/dev/null || true
+  fi
+
+  if [ "$enabled" -eq 1 ]; then
+    printf '%s\n' "$line" >> "$tmp" 2>/dev/null || true
+  fi
+
+  mv -f "$tmp" "$tab" 2>/dev/null || {
+    rm -f "$tmp" 2>/dev/null || true
+    reply_ok '{"ok":false,"error":"write-failed"}'
+    return
+  }
+
+  if [ "$enabled" -eq 1 ]; then
+    reply_ok "$(printf '{\"ok\":true,\"enabled\":true,\"schedule\":\"%s\",\"path\":\"%s\"}' "$(jesc "$sched")" "$(jesc "$tab")")"
+  else
+    reply_ok "$(printf '{\"ok\":true,\"enabled\":false,\"schedule\":\"%s\",\"path\":\"%s\"}' "$(jesc "$sched")" "$(jesc "$tab")")"
+  fi
+}
+
 # Save a lightweight trace of requests (best effort).
 agent_log
 
@@ -1887,6 +1979,12 @@ case "$cmd" in
     ;;
   backup_log)
     backup_log_json
+    ;;
+  backup_cron_get)
+    backup_cron_get_json
+    ;;
+  backup_cron_set)
+    backup_cron_set_json
     ;;
   *) reply_ok '{"ok":false,"error":"unknown-cmd"}' ;;
 esac

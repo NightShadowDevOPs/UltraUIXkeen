@@ -58,3 +58,12 @@ export const managedAgentIpBlocks = useStorage<Record<string, true>>(
   'config/agent-managed-ip-blocks-v1',
   {},
 )
+
+/**
+ * Scheduled backups (cron). Stored locally; can be applied to the router via the agent.
+ * Default: daily at 04:00.
+ */
+export const agentBackupAutoEnabled = useStorage<boolean>('config/agent-backup-auto-enabled-v1', true)
+
+/** Time in HH:MM (24h). */
+export const agentBackupAutoTime = useStorage<string>('config/agent-backup-auto-time-v1', '04:00')
