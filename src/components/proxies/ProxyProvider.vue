@@ -465,22 +465,37 @@ const providerStats = computed(() => {
 })
 
 // Highlight the "currently used" proxy inside this provider.
-// Best-effort: infer from active connections (leaf hop with max traffic).
+// Best-effort: infer from active connections using specialProxy first,
+// then fall back to any hop in the chain (from leaf to root).
 const activeProxy = computed(() => {
   const set = new Set(allProxies.value || [])
   let bestName = ''
   let bestTotal = 0
 
   for (const c of activeConnections.value || []) {
-    const chains = (c as any)?.chains
-    if (!Array.isArray(chains) || !chains.length) continue
-    const leaf = chains[chains.length - 1]
-    if (!leaf || !set.has(leaf)) continue
+    const candidates: string[] = []
+    const specialProxy = String((c as any)?.metadata?.specialProxy || '').trim()
+    if (specialProxy) candidates.push(specialProxy)
+
+    const chains = Array.isArray((c as any)?.chains) ? (c as any).chains : []
+    for (let i = chains.length - 1; i >= 0; i--) {
+      const name = String(chains[i] || '').trim()
+      if (name) candidates.push(name)
+    }
+
+    let matched = ''
+    for (const name of candidates) {
+      if (set.has(name)) {
+        matched = name
+        break
+      }
+    }
+    if (!matched) continue
 
     const total = (Number((c as any)?.download) || 0) + (Number((c as any)?.upload) || 0)
     if (total > bestTotal) {
       bestTotal = total
-      bestName = leaf
+      bestName = matched
     }
   }
 

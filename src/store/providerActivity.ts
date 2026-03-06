@@ -67,15 +67,38 @@ const emptyActivity = (): ProviderActivity => ({
   updatedAt: undefined,
 })
 
-const resolveProviderFromChains = (
-  chains: unknown,
+const providerProxyNames = (provider: any): string[] => {
+  const raw = provider?.proxies
+  const items = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === 'object'
+      ? Object.values(raw)
+      : []
+
+  return (items as any[])
+    .map((node: any) => (typeof node === 'string' ? node : node?.name))
+    .map((name: any) => String(name || '').trim())
+    .filter(Boolean)
+}
+
+const resolveProviderFromConnection = (
+  conn: any,
   proxyToProvider: Record<string, string>,
 ): { providerName: string; proxyName: string } => {
-  if (!Array.isArray(chains) || chains.length === 0) return { providerName: '', proxyName: '' }
+  const candidates: string[] = []
+  const specialProxy = String(conn?.metadata?.specialProxy || '').trim()
+  if (specialProxy) candidates.push(specialProxy)
 
+  const chains = Array.isArray(conn?.chains) ? conn.chains : []
   for (let i = chains.length - 1; i >= 0; i--) {
-    const proxyName = String(chains[i] || '').trim()
-    if (!proxyName) continue
+    const name = String(chains[i] || '').trim()
+    if (name) candidates.push(name)
+  }
+
+  const seen = new Set<string>()
+  for (const proxyName of candidates) {
+    if (!proxyName || seen.has(proxyName)) continue
+    seen.add(proxyName)
     const providerName = proxyToProvider[proxyName]
     if (providerName) return { providerName, proxyName }
   }
@@ -94,10 +117,7 @@ watch(
       const providerName = String((p as any)?.name || '').trim()
       if (!providerName) continue
       current[providerName] = emptyActivity()
-      for (const node of ((p as any)?.proxies || []) as any[]) {
-        const proxyName = typeof node === 'string'
-          ? String(node || '').trim()
-          : String((node as any)?.name || '').trim()
+      for (const proxyName of providerProxyNames(p as any)) {
         if (proxyName) proxyToProvider[proxyName] = providerName
       }
     }
@@ -110,7 +130,7 @@ watch(
       if (!id) continue
       seen.add(id)
 
-      const { providerName, proxyName } = resolveProviderFromChains((c as any)?.chains, proxyToProvider)
+      const { providerName, proxyName } = resolveProviderFromConnection(c as any, proxyToProvider)
       if (!providerName) continue
 
       const rec = current[providerName] || (current[providerName] = emptyActivity())
