@@ -550,6 +550,69 @@ export const agentBackupLogAPI = async (lines: number = 200): Promise<{ ok: bool
   }
 }
 
+
+export type AgentBackupListItem = { name: string; size?: number; mtime?: number }
+
+export const agentBackupListAPI = async (): Promise<{ ok: boolean; dir?: string; items?: AgentBackupListItem[]; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_list' },
+      timeout: 8000,
+    })
+    return (data || { ok: true, items: [] }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export type AgentRestoreStatus = {
+  ok: boolean
+  running?: boolean
+  startedAt?: string
+  finishedAt?: string
+  success?: boolean
+  file?: string
+  scope?: string
+  includeEnv?: boolean
+  error?: string
+}
+
+export const agentRestoreStatusAPI = async (): Promise<AgentRestoreStatus> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'restore_status' },
+      timeout: 8000,
+    })
+    return (data || { ok: true, running: false }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentRestoreStartAPI = async (file: string, scope: string, includeEnv: boolean): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'restore_start', file: file || 'latest', scope: scope || 'all', env: includeEnv ? '1' : '0' },
+      timeout: 12000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentRestoreLogAPI = async (lines: number = 200): Promise<{ ok: boolean; path?: string; contentB64?: string; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'restore_log', lines: String(lines ?? 200) },
+      timeout: 8000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
 export type AgentBackupCronStatus = {
   ok: boolean
   enabled?: boolean

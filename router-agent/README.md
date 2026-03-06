@@ -38,8 +38,12 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_log`
+- `GET /cgi-bin/api.sh?cmd=backup_list`
 - `GET /cgi-bin/api.sh?cmd=backup_cron_get`
 - `GET /cgi-bin/api.sh?cmd=backup_cron_set&enabled=1&schedule=0%204%20*%20*%20*`
+- `GET /cgi-bin/api.sh?cmd=restore_start&file=latest&scope=all&env=0`
+- `GET /cgi-bin/api.sh?cmd=restore_status`
+- `GET /cgi-bin/api.sh?cmd=restore_log`
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
@@ -99,3 +103,14 @@ Example: daily at 04:00
 ```cron
 0 4 * * * /opt/zash-agent/backup.sh >/opt/zash-agent/var/backup.cron.log 2>&1 # zash-backup
 ```
+
+
+## Restore
+
+Restore works with local archives from `/opt/zash-agent/var/backups` (created by `backup.sh`).
+
+- `file=latest` (default) or a specific filename from `backup_list`
+- `scope=all|mihomo|agent`
+- `env=1` to also restore `/opt/zash-agent/agent.env` (disabled by default)
+
+**Note:** after restoring Mihomo config, you may need to restart Mihomo; after restoring agent settings/state — restart `zash-agent`.

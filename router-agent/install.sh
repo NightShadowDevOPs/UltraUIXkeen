@@ -95,6 +95,7 @@ GEOSITE_URL="${GEOSITE_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases
 ASN_URL="${ASN_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb}"
 WAN_RATE="${WAN_RATE:-1000}"
 LAN_RATE="${LAN_RATE:-1000}"
+BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-/opt/zash-agent/var/backups}"
 
 json() {
   printf '{'
@@ -1095,6 +1096,9 @@ for kv in $QUERY_STRING; do
     token) token_q="$val" ;;
     enabled) enabled_q="$val" ;;
     schedule) schedule_q="$val" ;;
+    file) file_q="$val" ;;
+    scope) scope_q="$val" ;;
+    env) env_q="$val" ;;
   esac
 done
 unset IFS
@@ -1583,7 +1587,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.19","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.20","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1785,6 +1789,69 @@ backup_log_json() {
   reply_ok "$(printf '{\"ok\":true,\"path\":\"%s\",\"contentB64\":\"%s\"}' "$esc_path" "$b64")"
 }
 
+backup_list_json() {
+  dir="$BACKUP_TMP_DIR"
+  [ -n "$dir" ] || dir="/opt/zash-agent/var/backups"
+  mkdir -p "$dir" >/dev/null 2>&1 || true
+
+  items=""
+  first=1
+  # List up to 50 most recent backups (best-effort).
+  for f in $(ls -1t "$dir"/zash-backup-*.tar.gz 2>/dev/null | head -n 50); do
+    [ -f "$f" ] || continue
+    name="$(basename "$f" 2>/dev/null || echo "$f")"
+    size="$(wc -c < "$f" 2>/dev/null || echo 0)"
+    mtime="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)"
+    esc_name="$(printf '%s' "$name" | sed 's/"/\\\\"/g')"
+    [ -n "$items" ] && items="$items,"
+    items="$items$(printf '{"name":"%s","size":%s,"mtime":%s}' "$esc_name" "$size" "$mtime")"
+  done
+
+  esc_dir="$(printf '%s' "$dir" | sed 's/"/\\\\"/g')"
+  reply_ok "$(printf '{"ok":true,"dir":"%s","items":[%s]}' "$esc_dir" "$items")"
+}
+
+restore_status_json() {
+  sf="/opt/zash-agent/var/restore.last.json"
+  if [ -f "$sf" ]; then
+    payload="$(cat "$sf" 2>/dev/null | tail -c 8192 2>/dev/null)"
+    [ -n "$payload" ] || payload='{"ok":true,"running":false}'
+    reply_ok "$payload"
+  else
+    reply_ok '{"ok":true,"running":false}'
+  fi
+}
+
+restore_start_json() {
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+  sf="/opt/zash-agent/var/restore.last.json"
+  started="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+  esc_started="$(printf '%s' "$started" | sed 's/"/\\\\"/g')"
+  printf '{"ok":true,"running":true,"startedAt":"%s"}' "$esc_started" > "$sf" 2>/dev/null || true
+
+  f="${file_q:-}"
+  scope="${scope_q:-all}"
+  env="${env_q:-0}"
+
+  # Run in background so CGI returns immediately.
+  ( /opt/zash-agent/restore.sh "$f" "$scope" "$env" > /opt/zash-agent/var/restore.last.log 2>&1 & ) >/dev/null 2>&1 || true
+  reply_ok '{"ok":true,"running":true}'
+}
+
+restore_log_json() {
+  lf="/opt/zash-agent/var/restore.last.log"
+  n="$lines"
+  echo "$n" | grep -qE '^[0-9]+$' || n=200
+  [ "$n" -gt 2000 ] && n=2000
+  txt=""
+  [ -f "$lf" ] && txt="$(tail -n "$n" "$lf" 2>/dev/null)"
+  txt="$(printf '%s' "$txt" | tail -c 204800 2>/dev/null || printf '%s' "$txt")"
+  b64="$(printf '%s' "$txt" | b64enc)"
+  esc_path="$(printf '%s' "$lf" | sed 's/"/\\\\"/g')"
+  reply_ok "$(printf '{"ok":true,"path":"%s","contentB64":"%s"}' "$esc_path" "$b64")"
+}
+
+
 cron_tab_path() {
   if [ -d /opt/etc/crontabs ]; then
     echo "/opt/etc/crontabs/root"
@@ -1980,6 +2047,18 @@ case "$cmd" in
   backup_log)
     backup_log_json
     ;;
+  backup_list)
+    backup_list_json
+    ;;
+  restore_start)
+    restore_start_json
+    ;;
+  restore_status)
+    restore_status_json
+    ;;
+  restore_log)
+    restore_log_json
+    ;;
   backup_cron_get)
     backup_cron_get_json
     ;;
@@ -2130,6 +2209,216 @@ success=1
 EOF
 
 chmod +x "$AGENT_DIR/backup.sh"
+
+
+cat > "$AGENT_DIR/restore.sh" <<'EOF'
+#!/bin/sh
+# Restore from a zash-backup-*.tar.gz archive created by /opt/zash-agent/backup.sh
+# Usage: restore.sh [file|latest] [scope=all|mihomo|agent] [include_env=0|1]
+set -e
+
+ENV_FILE="/opt/zash-agent/agent.env"
+[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+
+BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-/opt/zash-agent/var/backups}"
+RESTORE_STATUS_FILE="${RESTORE_STATUS_FILE:-/opt/zash-agent/var/restore.last.json}"
+RESTORE_LOG_FILE="${RESTORE_LOG_FILE:-/opt/zash-agent/var/restore.last.log}"
+
+MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
+
+file_arg="${1:-}"
+scope="${2:-all}"
+include_env="${3:-0}"
+
+ts="$(date '+%Y%m%d-%H%M%S' 2>/dev/null || echo now)"
+host="$(uname -n 2>/dev/null || echo router)"
+started_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+
+mkdir -p "$BACKUP_TMP_DIR" /opt/zash-agent/var >/dev/null 2>&1 || true
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\r//g'
+}
+
+write_status() {
+  printf '%s' "$1" > "$RESTORE_STATUS_FILE" 2>/dev/null || true
+}
+
+log() {
+  echo "$@" | tee -a "$RESTORE_LOG_FILE" >/dev/null 2>&1 || true
+}
+
+# Mark as running
+write_status "$(printf '{"ok":true,"running":true,"startedAt":"%s"}' "$(json_escape "$started_at")")"
+
+success=0
+used_file=""
+err=""
+
+finish() {
+  code=$?
+  trap - EXIT
+  finished_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+  if [ $code -ne 0 ] || [ $success -ne 1 ]; then
+    e="${err:-exit $code}"
+    write_status "$(printf '{"ok":true,"running":false,"startedAt":"%s","finishedAt":"%s","success":false,"file":"%s","error":"%s"}' \
+      "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$e")")"
+    exit $code
+  fi
+  write_status "$(printf '{"ok":true,"running":false,"startedAt":"%s","finishedAt":"%s","success":true,"file":"%s","scope":"%s","includeEnv":%s}' \
+    "$(json_escape "$started_at")" "$(json_escape "$finished_at")" "$(json_escape "$used_file")" "$(json_escape "$scope")" "$include_env")"
+}
+trap finish EXIT
+
+pick_latest() {
+  ls -1t "$BACKUP_TMP_DIR"/zash-backup-*.tar.gz 2>/dev/null | head -n 1
+}
+
+# Decide archive file
+if [ -z "$file_arg" ] || [ "$file_arg" = "latest" ]; then
+  archive="$(pick_latest || true)"
+else
+  # sanitize: only basename inside BACKUP_TMP_DIR
+  bn="$(basename "$file_arg")"
+  archive="$BACKUP_TMP_DIR/$bn"
+fi
+
+if [ -z "$archive" ] || [ ! -f "$archive" ]; then
+  err="backup-not-found"
+  log "[restore] ERROR: backup file not found (arg='$file_arg')"
+  exit 1
+fi
+
+used_file="$archive"
+log "[restore] using backup: $archive"
+log "[restore] scope=$scope include_env=$include_env"
+
+tmp="/opt/zash-agent/var/restore.tmp.$$"
+rm -rf "$tmp" >/dev/null 2>&1 || true
+mkdir -p "$tmp" >/dev/null 2>&1 || true
+
+# Extract (best effort)
+if tar -xzf "$archive" -C "$tmp" >/dev/null 2>&1; then
+  :
+else
+  gzip -dc "$archive" 2>/dev/null | tar -xf - -C "$tmp" 2>/dev/null
+fi
+
+# Determine extracted root
+root="$tmp"
+[ -d "$root/opt" ] || [ -d "$root/opt" ] || true
+
+src_of() {
+  dest="$1"           # absolute like /opt/...
+  rel="${dest#/}"     # opt/...
+  echo "$root/$rel"
+}
+
+ensure_parent() {
+  d="$(dirname "$1")"
+  mkdir -p "$d" >/dev/null 2>&1 || true
+}
+
+restore_file() {
+  src="$1"
+  dst="$2"
+  if [ -f "$src" ]; then
+    ensure_parent "$dst"
+    cp -af "$src" "$dst" >/dev/null 2>&1 || cp -f "$src" "$dst"
+    log "[restore] file: $dst"
+  else
+    log "[restore] skip (missing in backup): $dst"
+  fi
+}
+
+restore_dir_replace() {
+  src="$1"
+  dst="$2"
+  if [ -d "$src" ]; then
+    rm -rf "$dst" >/dev/null 2>&1 || true
+    ensure_parent "$dst"
+    cp -a "$src" "$dst" >/dev/null 2>&1 || cp -r "$src" "$dst"
+    log "[restore] dir:  $dst"
+  else
+    log "[restore] skip (missing in backup): $dst"
+  fi
+}
+
+# Safety snapshot before overwriting (best effort)
+pre="/opt/zash-agent/var/restore.pre-${host}-${ts}.tar.gz"
+list="$tmp/.pre.list.$$"
+rm -f "$list" >/dev/null 2>&1 || true
+
+add_pre() { [ -e "$1" ] && echo "$1" >> "$list"; }
+
+# Build list according to scope
+want_mihomo=0
+want_agent=0
+
+case "$scope" in
+  mihomo) want_mihomo=1 ;;
+  agent) want_agent=1 ;;
+  all|*) want_mihomo=1; want_agent=1 ;;
+esac
+
+if [ $want_mihomo -eq 1 ]; then
+  add_pre "$MIHOMO_CONFIG"
+  add_pre "/opt/etc/mihomo/GeoIP.dat"
+  add_pre "/opt/etc/mihomo/GeoSite.dat"
+  add_pre "/opt/etc/mihomo/ASN.mmdb"
+  add_pre "/opt/etc/mihomo/rules"
+fi
+
+if [ $want_agent -eq 1 ]; then
+  add_pre "/opt/zash-agent/var/users-db.json"
+  add_pre "/opt/zash-agent/var/users-db.meta.json"
+  add_pre "/opt/zash-agent/var/users-db.revs"
+  add_pre "/opt/zash-agent/var/shapers.db"
+  add_pre "/opt/zash-agent/var/blocks.db"
+  if [ "$include_env" = "1" ]; then
+    add_pre "/opt/zash-agent/agent.env"
+  fi
+fi
+
+if [ -s "$list" ]; then
+  if tar -czf "$pre" -T "$list" >/dev/null 2>&1; then
+    log "[restore] pre-snapshot: $pre"
+  else
+    tar -cf - -T "$list" 2>/dev/null | gzip -c > "$pre" || true
+    [ -s "$pre" ] && log "[restore] pre-snapshot: $pre"
+  fi
+fi
+rm -f "$list" >/dev/null 2>&1 || true
+
+# Apply restore
+if [ $want_mihomo -eq 1 ]; then
+  restore_file "$(src_of "$MIHOMO_CONFIG")" "$MIHOMO_CONFIG"
+  restore_file "$(src_of "/opt/etc/mihomo/GeoIP.dat")" "/opt/etc/mihomo/GeoIP.dat"
+  restore_file "$(src_of "/opt/etc/mihomo/GeoSite.dat")" "/opt/etc/mihomo/GeoSite.dat"
+  restore_file "$(src_of "/opt/etc/mihomo/ASN.mmdb")" "/opt/etc/mihomo/ASN.mmdb"
+  restore_dir_replace "$(src_of "/opt/etc/mihomo/rules")" "/opt/etc/mihomo/rules"
+  log "[restore] NOTE: restart Mihomo manually if needed."
+fi
+
+if [ $want_agent -eq 1 ]; then
+  restore_file "$(src_of "/opt/zash-agent/var/users-db.json")" "/opt/zash-agent/var/users-db.json"
+  restore_file "$(src_of "/opt/zash-agent/var/users-db.meta.json")" "/opt/zash-agent/var/users-db.meta.json"
+  restore_dir_replace "$(src_of "/opt/zash-agent/var/users-db.revs")" "/opt/zash-agent/var/users-db.revs"
+  restore_file "$(src_of "/opt/zash-agent/var/shapers.db")" "/opt/zash-agent/var/shapers.db"
+  restore_file "$(src_of "/opt/zash-agent/var/blocks.db")" "/opt/zash-agent/var/blocks.db"
+  if [ "$include_env" = "1" ]; then
+    restore_file "$(src_of "/opt/zash-agent/agent.env")" "/opt/zash-agent/agent.env"
+  fi
+  log "[restore] NOTE: restart zash-agent manually if needed."
+fi
+
+rm -rf "$tmp" >/dev/null 2>&1 || true
+success=1
+log "[restore] done"
+
+EOF
+
+chmod +x "$AGENT_DIR/restore.sh"
 
 cat > "$AGENT_DIR/start.sh" <<'EOF'
 #!/bin/sh

@@ -42,7 +42,7 @@ external-ui-url: https://github.com/messireL/ZashUIFork/releases/download/rollin
 
 ### 2) (Опционально) Установить router-agent (Entware)
 
-Router-agent нужен для функций, которых нет в Mihomo API (например, shaping per‑client, бэкапы и т.п.).
+Router-agent нужен для функций, которых нет в Mihomo API (например, shaping per‑client, бэкапы/восстановление и т.п.).
 
 На роутере (Busybox wget не умеет https → используем `/opt/bin/wget`):
 
