@@ -77,6 +77,31 @@
             <pre class="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-base-200/60 p-2 text-[11px]">{{ backupLog || '…' }}</pre>
           </details>
 
+          <div class="mt-2 rounded-lg bg-base-200/70 p-2 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="opacity-60">{{ $t('agentBackupCloud') }}:</span>
+              <span v-if="cloudStatus.cloudReady" class="badge badge-success badge-sm">{{ $t('agentBackupCloudReady') }}</span>
+              <span v-else-if="cloudStatus.rcloneInstalled && cloudStatus.remote && !cloudStatus.remoteExists" class="badge badge-warning badge-sm">{{ $t('agentBackupCloudMissingRemote') }}</span>
+              <span v-else-if="!cloudStatus.rcloneInstalled" class="badge badge-warning badge-sm">{{ $t('agentBackupCloudMissingRclone') }}</span>
+              <span v-else class="badge badge-ghost badge-sm">{{ $t('agentBackupCloudNotReady') }}</span>
+              <button type="button" class="btn btn-ghost btn-xs" @click="refreshCloud" :disabled="cloudLoading">↻</button>
+            </div>
+            <div class="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+              <div>
+                <span class="opacity-60">{{ $t('agentBackupCloudRemote') }}:</span>
+                <span class="font-mono">{{ cloudRemoteLabel }}</span>
+              </div>
+              <div>
+                <span class="opacity-60">{{ $t('agentBackupCloudKeep') }}:</span>
+                <span class="font-mono">{{ cloudKeepLabel }}</span>
+              </div>
+              <div class="sm:col-span-2" v-if="cloudStatus.configPath">
+                <span class="opacity-60">{{ $t('agentBackupCloudConfig') }}:</span>
+                <span class="font-mono break-all">{{ cloudStatus.configPath }}</span>
+              </div>
+            </div>
+          </div>
+
           <details class="mt-2" @toggle="onCronToggle">
             <summary class="cursor-pointer text-xs opacity-80">{{ $t('agentBackupSchedule') }}</summary>
             <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -194,6 +219,7 @@
 
 <script setup lang="ts">
 import {
+  agentBackupCloudStatusAPI,
   agentBackupCronGetAPI,
   agentBackupCronSetAPI,
   agentBackupListAPI,
@@ -249,6 +275,8 @@ const cronLine = computed(() => {
 const backup = ref<any>({ ok: true, running: false })
 const backupLog = ref('')
 const backupLoading = ref(false)
+const cloudStatus = ref<any>({ ok: true, rcloneInstalled: false, remote: '', path: '' })
+const cloudLoading = ref(false)
 
 const backupList = ref<any[]>([])
 
@@ -284,6 +312,28 @@ const isAhead = computed(() => {
   return versionCmp(status.value.version, status.value.serverVersion) > 0
 })
 
+const cloudRemoteLabel = computed(() => {
+  const remote = String(cloudStatus.value?.remote || '').trim()
+  const path = String(cloudStatus.value?.path || '').trim()
+  if (!remote) return '—'
+  return path ? `${remote}:${path}` : `${remote}:`
+})
+
+const cloudKeepLabel = computed(() => {
+  const local = String(cloudStatus.value?.localKeepDays || '').trim() || '—'
+  const cloud = String(cloudStatus.value?.keepDays || '').trim() || '—'
+  return `${local} / ${cloud} d`
+})
+
+const refreshCloud = async () => {
+  if (!agentEnabled.value || !status.value?.ok) {
+    cloudStatus.value = { ok: true, rcloneInstalled: false, remote: '', path: '' }
+    return
+  }
+  cloudLoading.value = true
+  cloudStatus.value = await agentBackupCloudStatusAPI()
+  cloudLoading.value = false
+}
 
 const refreshCron = async () => {
   if (!agentEnabled.value) {
@@ -468,6 +518,7 @@ const refresh = async () => {
   }
   status.value = await agentStatusAPI()
   await refreshBackup()
+  await refreshCloud()
   await refreshRestore()
 }
 

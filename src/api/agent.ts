@@ -526,6 +526,32 @@ export const agentBackupStatusAPI = async (): Promise<AgentBackupStatus> => {
   }
 }
 
+export type AgentBackupCloudStatus = {
+  ok: boolean
+  rcloneInstalled?: boolean
+  configPath?: string
+  remote?: string
+  remoteExists?: boolean
+  path?: string
+  cloudReady?: boolean
+  keepDays?: string
+  localKeepDays?: string
+  uiZipEnabled?: boolean
+  error?: string
+}
+
+export const agentBackupCloudStatusAPI = async (): Promise<AgentBackupCloudStatus> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_cloud_status' },
+      timeout: 8000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
 export const agentBackupStartAPI = async (): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {

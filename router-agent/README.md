@@ -37,6 +37,7 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=neighbors`
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
+- `GET /cgi-bin/api.sh?cmd=backup_cloud_status`
 - `GET /cgi-bin/api.sh?cmd=backup_log`
 - `GET /cgi-bin/api.sh?cmd=backup_list`
 - `GET /cgi-bin/api.sh?cmd=backup_cron_get`
@@ -85,6 +86,7 @@ UI_ZIP_URL="https://github.com/messireL/ZashUIFork/releases/download/rolling/dis
 BACKUP_KEEP_DAYS="30"
 
 # cloud upload via rclone
+RCLONE_CONFIG="/opt/etc/rclone.config"   # optional explicit config path
 RCLONE_REMOTE="gdrive"     # or yandex
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"      # remote retention (best-effort)

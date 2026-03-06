@@ -59,6 +59,7 @@ TOKEN=""
 
 # Optional: backups to cloud via rclone (see /opt/zash-agent/backup.sh)
 BACKUP_TMP_DIR="$AGENT_DIR/var/backups"
+RCLONE_CONFIG=""   # optional explicit rclone config path
 RCLONE_REMOTE=""   # e.g. gdrive / yandex
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"
@@ -96,6 +97,12 @@ ASN_URL="${ASN_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/downloa
 WAN_RATE="${WAN_RATE:-1000}"
 LAN_RATE="${LAN_RATE:-1000}"
 BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-/opt/zash-agent/var/backups}"
+RCLONE_CONFIG="${RCLONE_CONFIG:-}"
+RCLONE_REMOTE="${RCLONE_REMOTE:-}"
+RCLONE_PATH="${RCLONE_PATH:-NetcrazeBackups/zash-agent}"
+RCLONE_KEEP_DAYS="${RCLONE_KEEP_DAYS:-30}"
+BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-${RCLONE_KEEP_DAYS:-30}}"
+UI_ZIP_URL="${UI_ZIP_URL:-}"
 
 json() {
   printf '{'
@@ -1587,7 +1594,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.21","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.22","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1753,6 +1760,38 @@ tail_follow_b64() {
 
 }
 
+
+backup_cloud_status_json() {
+  remote="$RCLONE_REMOTE"
+  path="$RCLONE_PATH"
+  cfg="$RCLONE_CONFIG"
+  if [ -z "$cfg" ] && command -v rclone >/dev/null 2>&1; then
+    cfg="$(rclone config file 2>/dev/null | awk 'NR==2{print $0}' | tail -n1)"
+  fi
+
+  rclone_installed=false
+  remote_exists=false
+  cloud_ready=false
+  if command -v rclone >/dev/null 2>&1; then
+    rclone_installed=true
+    rems=""
+    if [ -n "$RCLONE_CONFIG" ]; then
+      rems="$(rclone listremotes --config "$RCLONE_CONFIG" 2>/dev/null || true)"
+    else
+      rems="$(rclone listremotes 2>/dev/null || true)"
+    fi
+    if [ -n "$remote" ] && printf '%s
+' "$rems" | grep -Fxq "$remote:"; then
+      remote_exists=true
+    fi
+  fi
+
+  if [ "$rclone_installed" = true ] && [ -n "$remote" ] && [ "$remote_exists" = true ]; then
+    cloud_ready=true
+  fi
+
+  reply_ok "$(printf '{"ok":true,"rcloneInstalled":%s,"configPath":"%s","remote":"%s","remoteExists":%s,"path":"%s","cloudReady":%s,"keepDays":"%s","localKeepDays":"%s","uiZipEnabled":%s}'     "$rclone_installed" "$(jesc "$cfg")" "$(jesc "$remote")" "$remote_exists" "$(jesc "$path")" "$cloud_ready" "$(jesc "$RCLONE_KEEP_DAYS")" "$(jesc "$BACKUP_KEEP_DAYS")" "$( [ -n "$UI_ZIP_URL" ] && echo true || echo false )")"
+}
 
 backup_status_json() {
   sf="/opt/zash-agent/var/backup.last.json"
@@ -2044,6 +2083,9 @@ case "$cmd" in
   backup_status)
     backup_status_json
     ;;
+  backup_cloud_status)
+    backup_cloud_status_json
+    ;;
   backup_log)
     backup_log_json
     ;;
@@ -2084,6 +2126,7 @@ BACKUP_TMP_DIR="${BACKUP_TMP_DIR:-/opt/zash-agent/var/backups}"
 BACKUP_STATUS_FILE="${BACKUP_STATUS_FILE:-/opt/zash-agent/var/backup.last.json}"
 BACKUP_LOG_FILE="${BACKUP_LOG_FILE:-/opt/zash-agent/var/backup.last.log}"
 
+RCLONE_CONFIG="${RCLONE_CONFIG:-}"
 RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 RCLONE_PATH="${RCLONE_PATH:-NetcrazeBackups/zash-agent}"
 RCLONE_KEEP_DAYS="${RCLONE_KEEP_DAYS:-30}"
@@ -2199,13 +2242,20 @@ fi
 
 if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
   dst="$RCLONE_REMOTE:$RCLONE_PATH"
-  rclone mkdir "$dst" >/dev/null 2>&1 || true
-  rclone copy "$out" "$dst" --transfers 1 --checkers 1 --retries 2
+  rcfg=""
+  if [ -n "$RCLONE_CONFIG" ]; then
+    rcfg="--config $RCLONE_CONFIG"
+  fi
+  # shellcheck disable=SC2086
+  rclone $rcfg mkdir "$dst" >/dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  rclone $rcfg copy "$out" "$dst" --transfers 1 --checkers 1 --retries 2
   uploaded=true
   echo "[backup] uploaded to: $dst" | tee -a "$BACKUP_LOG_FILE" >/dev/null 2>&1 || true
   # retention (best-effort)
   if echo "$RCLONE_KEEP_DAYS" | grep -qE '^[0-9]+$' && [ "$RCLONE_KEEP_DAYS" -gt 0 ]; then
-    rclone delete "$dst" --min-age "${RCLONE_KEEP_DAYS}d" --include "zash-backup-*.tar.gz" >/dev/null 2>&1 || true
+    # shellcheck disable=SC2086
+    rclone $rcfg delete "$dst" --min-age "${RCLONE_KEEP_DAYS}d" --include "zash-backup-*.tar.gz" >/dev/null 2>&1 || true
   fi
 else
   echo "[backup] rclone is not configured; set RCLONE_REMOTE in $ENV_FILE to enable cloud upload" | tee -a "$BACKUP_LOG_FILE" >/dev/null 2>&1 || true
