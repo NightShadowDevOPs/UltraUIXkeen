@@ -219,6 +219,33 @@ import { useI18n } from 'vue-i18n'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
 
+// Aliases for template readability (these are persisted refs via useStorage).
+const backupAutoEnabled = agentBackupAutoEnabled
+const backupAutoTime = agentBackupAutoTime
+
+// Cron state from router.
+const cronStatus = ref<any>({ ok: false, enabled: false })
+const cronApplying = ref(false)
+
+// Convert HH:MM -> "M H * * *". Fallback to 04:00.
+const cronSchedule = computed(() => {
+  const raw = String(backupAutoTime.value || '04:00').trim()
+  const m = raw.match(/^(\d{1,2}):(\d{2})$/)
+  const hh = m ? Number(m[1]) : 4
+  const mm = m ? Number(m[2]) : 0
+
+  const H = Number.isFinite(hh) ? Math.min(23, Math.max(0, Math.floor(hh))) : 4
+  const M = Number.isFinite(mm) ? Math.min(59, Math.max(0, Math.floor(mm))) : 0
+  return `${M} ${H} * * *`
+})
+
+// Human-copyable cron line.
+const cronLine = computed(() => {
+  const s = cronSchedule.value
+  if (!s) return ''
+  return `${s} /opt/zash-agent/backup.sh >/opt/zash-agent/var/backup.cron.log 2>&1 # zash-backup`
+})
+
 const backup = ref<any>({ ok: true, running: false })
 const backupLog = ref('')
 const backupLoading = ref(false)
@@ -267,7 +294,25 @@ const refreshCron = async () => {
     cronStatus.value = { ok: false, enabled: false }
     return
   }
-  cronStatus.value = await agentBackupCronGetAPI()
+  const res: any = await agentBackupCronGetAPI()
+  cronStatus.value = res
+
+  // Best-effort sync from router schedule -> UI fields.
+  if (res?.ok) {
+    if (typeof res.enabled === 'boolean') backupAutoEnabled.value = res.enabled
+    if (typeof res.schedule === 'string' && res.schedule.trim()) {
+      const parts = res.schedule.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        const mm = Number(parts[0])
+        const hh = Number(parts[1])
+        if (Number.isFinite(mm) && Number.isFinite(hh)) {
+          const H = Math.min(23, Math.max(0, Math.floor(hh)))
+          const M = Math.min(59, Math.max(0, Math.floor(mm)))
+          backupAutoTime.value = `${String(H).padStart(2, '0')}:${String(M).padStart(2, '0')}`
+        }
+      }
+    }
+  }
 }
 
 const applyCron = async () => {
