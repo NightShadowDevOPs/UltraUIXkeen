@@ -3,7 +3,7 @@ import { getProviderHealth } from '@/helper/providerHealth'
 import { normalizeProxyProtoKey, protoLabel } from '@/helper/proxyProto'
 import { PROXY_TAB_TYPE } from '@/constant'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
-import { providerActivityByName } from '@/store/providerActivity'
+import { providerActivityByName, providerLiveStatusByName } from '@/store/providerActivity'
 import { hideUnusedProxyProviders, hiddenProxyProviderProtoKeys, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import {
   agentProviderByName,
@@ -52,7 +52,14 @@ const providers = computed(() => {
   if (showOnlyActiveProxyProviders.value) {
     list = list.filter((p) => {
       const act = (providerActivityByName.value || {})[p.name]
-      return Boolean((act as any)?.active) || Number((act as any)?.connections ?? 0) > 0 || Number((act as any)?.currentBytes ?? 0) > 0 || Number((act as any)?.speed ?? 0) > 0
+      const live = (providerLiveStatusByName.value || {})[p.name]
+      return Boolean((live as any)?.active)
+        || Number((live as any)?.connections ?? 0) > 0
+        || Boolean((act as any)?.active)
+        || Number((act as any)?.connections ?? 0) > 0
+        || Number((act as any)?.currentBytes ?? 0) > 0
+        || Number((act as any)?.speed ?? 0) > 0
+        || Number((act as any)?.bytes ?? 0) > 0
     })
   }
 
@@ -180,7 +187,8 @@ const activeProvidersCount = computed(() => {
   let n = 0
   for (const p of providers.value || []) {
     const act = (providerActivityByName.value[p.name] as any) || {}
-    if (Boolean(act.active) || Number(act.connections || 0) > 0 || Number(act.currentBytes || 0) > 0 || Number(act.speed || 0) > 0) n += 1
+    const live = (providerLiveStatusByName.value[p.name] as any) || {}
+    if (Boolean(live.active) || Number(live.connections || 0) > 0 || Boolean(act.active) || Number(act.connections || 0) > 0 || Number(act.currentBytes || 0) > 0 || Number(act.speed || 0) > 0 || Number(act.bytes || 0) > 0) n += 1
   }
   return n
 })

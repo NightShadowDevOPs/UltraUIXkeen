@@ -27,6 +27,11 @@ type ProviderTrafficTotals = {
   updatedAt?: number
 }
 
+export type ProviderLiveStatus = {
+  connections: number
+  active: boolean
+}
+
 const STORAGE_KEY = 'stats/provider-traffic-session-v1'
 const trafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const connTotals = new Map<string, { provider: string; dl: number; ul: number }>()
@@ -261,3 +266,37 @@ export const clearProviderTrafficSession = () => {
     // ignore
   }
 }
+
+
+/**
+ * Live provider activity resolved independently per provider card/filter.
+ * This avoids false negatives when different providers contain nodes with identical names
+ * or when a global proxy->provider map becomes ambiguous.
+ */
+export const providerLiveStatusByName = computed<Record<string, ProviderLiveStatus>>(() => {
+  const out: Record<string, ProviderLiveStatus> = {}
+  const list = activeConnections.value || []
+
+  for (const provider of proxyProviederList.value || []) {
+    const providerName = String((provider as any)?.name || '').trim()
+    if (!providerName) continue
+
+    const names = new Set(providerProxyNames(provider as any))
+    if (!names.size) {
+      out[providerName] = { connections: 0, active: false }
+      continue
+    }
+
+    let connections = 0
+    for (const c of list) {
+      if (connectionMatchesProviderProxyNames(c as any, names)) connections += 1
+    }
+
+    out[providerName] = {
+      connections,
+      active: connections > 0,
+    }
+  }
+
+  return out
+})

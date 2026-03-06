@@ -378,7 +378,7 @@ import { normalizeProviderIcon } from '@/helper/providerIcon'
 import { normalizeProxyProtoKey, protoLabel } from '@/helper/proxyProto'
 import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
-import { connectionMatchesProviderProxyNames, providerActivityByName } from '@/store/providerActivity'
+import { connectionMatchesProviderProxyNames, providerActivityByName, providerLiveStatusByName } from '@/store/providerActivity'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
 import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
@@ -470,12 +470,20 @@ const activeConnectionTargets = computed(() => {
 
 const providerStats = computed(() => {
   const rec = (providerActivityByName.value || {})[props.name]
-  const connections = Number((rec as any)?.connections || 0)
+  const live = (providerLiveStatusByName.value || {})[props.name]
+  const mappedConnections = Number((rec as any)?.connections || 0)
+  const liveConnections = Number((live as any)?.connections || 0)
+  const connections = Math.max(mappedConnections, liveConnections)
   const bytes = Number((rec as any)?.bytes || 0)
   const speed = Number((rec as any)?.speed || 0)
   const currentBytes = Number((rec as any)?.currentBytes || 0)
   const killableConnections = activeConnectionTargets.value.length
-  const active = Boolean((rec as any)?.active) || connections > 0 || currentBytes > 0 || speed > 0
+  const active = Boolean((live as any)?.active)
+    || Boolean((rec as any)?.active)
+    || killableConnections > 0
+    || connections > 0
+    || currentBytes > 0
+    || speed > 0
   return {
     active,
     connections,
