@@ -36,15 +36,22 @@
           >
             {{ sslExpireBadge.text }}
           </span>
+          <span
+            class="badge badge-sm ml-2 align-middle"
+            :class="providerStats.active ? 'badge-success' : 'badge-ghost opacity-70'"
+            :title="providerStats.active ? $t('providerActiveNowTip') : $t('providerInactiveNowTip')"
+          >
+            {{ providerStats.active ? $t('providerActiveNow') : $t('providerInactiveNow') }}
+          </span>
           <span class="text-base-content/60 text-sm font-normal"> ({{ proxiesCount }}) </span>
         </div>
         <div class="flex gap-2">
           <button
             type="button"
             :class="twMerge('btn btn-circle btn-sm z-30')"
-            :disabled="providerStats.connections <= 0 || isKilling"
+            :disabled="providerStats.killableConnections <= 0 || isKilling"
             @click.stop.prevent="killSessionsClickHandler"
-            :title="$t('killProviderSessions')"
+            :title="providerStats.killableConnections > 0 ? $t('killProviderSessions') : $t('killProviderSessionsNone')"
           >
             <span
               v-if="isKilling"
@@ -136,10 +143,13 @@
           >{{ subscriptionInfo.raw }}</pre>
 
           <div
-            v-if="providerStats.connections > 0 || providerStats.bytes > 0 || providerStats.currentBytes > 0"
+            v-if="providerStats.active || providerStats.bytes > 0 || providerStats.currentBytes > 0"
             class="mt-1 text-xs opacity-70"
           >
             {{ $t('connections') }}: {{ providerStats.connections }}
+            <template v-if="providerStats.killableConnections > 0 && providerStats.killableConnections !== providerStats.connections">
+              · {{ $t('killableConnections') }}: {{ providerStats.killableConnections }}
+            </template>
             · {{ $t('proxies') }}: {{ proxiesCount }}
             · {{ $t('traffic') }}: {{ prettyBytesHelper(providerStats.bytes, { binary: true }) }}
             <template v-if="providerStats.currentBytes > 0">
@@ -368,7 +378,7 @@ import { normalizeProviderIcon } from '@/helper/providerIcon'
 import { normalizeProxyProtoKey, protoLabel } from '@/helper/proxyProto'
 import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatencyTest, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
-import { providerActivityByName } from '@/store/providerActivity'
+import { connectionMatchesProviderProxyNames, providerActivityByName } from '@/store/providerActivity'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
 import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
@@ -452,13 +462,27 @@ const providerHealth = computed(() => {
   return getProviderHealth(proxyProvider.value as any, ap, { nearExpiryDays: sslWarnDays.value })
 })
 
+const activeConnectionTargets = computed(() => {
+  const set = new Set(allProxies.value || [])
+  if (!set.size) return [] as any[]
+  return (activeConnections.value || []).filter((c: any) => !!connectionMatchesProviderProxyNames(c, set))
+})
+
 const providerStats = computed(() => {
   const rec = (providerActivityByName.value || {})[props.name]
+  const connections = Number((rec as any)?.connections || 0)
+  const bytes = Number((rec as any)?.bytes || 0)
+  const speed = Number((rec as any)?.speed || 0)
+  const currentBytes = Number((rec as any)?.currentBytes || 0)
+  const killableConnections = activeConnectionTargets.value.length
+  const active = Boolean((rec as any)?.active) || connections > 0 || currentBytes > 0 || speed > 0
   return {
-    connections: Number((rec as any)?.connections || 0),
-    bytes: Number((rec as any)?.bytes || 0),
-    speed: Number((rec as any)?.speed || 0),
-    currentBytes: Number((rec as any)?.currentBytes || 0),
+    active,
+    connections,
+    killableConnections,
+    bytes,
+    speed,
+    currentBytes,
     download: Number((rec as any)?.download || 0),
     upload: Number((rec as any)?.upload || 0),
   }
@@ -473,23 +497,7 @@ const activeProxy = computed(() => {
   let bestTotal = 0
 
   for (const c of activeConnections.value || []) {
-    const candidates: string[] = []
-    const specialProxy = String((c as any)?.metadata?.specialProxy || '').trim()
-    if (specialProxy) candidates.push(specialProxy)
-
-    const chains = Array.isArray((c as any)?.chains) ? (c as any).chains : []
-    for (let i = chains.length - 1; i >= 0; i--) {
-      const name = String(chains[i] || '').trim()
-      if (name) candidates.push(name)
-    }
-
-    let matched = ''
-    for (const name of candidates) {
-      if (set.has(name)) {
-        matched = name
-        break
-      }
-    }
+    const matched = connectionMatchesProviderProxyNames(c, set)
     if (!matched) continue
 
     const total = (Number((c as any)?.download) || 0) + (Number((c as any)?.upload) || 0)
@@ -922,7 +930,7 @@ const isKilling = ref(false)
 const killSessionsClickHandler = async () => {
   if (isKilling.value) return
 
-  const count = Number(providerStats.value?.connections || 0)
+  const count = Number(providerStats.value?.killableConnections || 0)
   if (count <= 0) return
 
   const okConfirm = window.confirm(
@@ -935,14 +943,9 @@ const killSessionsClickHandler = async () => {
 
   isKilling.value = true
   try {
-    const set = new Set(allProxies.value || [])
-    const targets = (activeConnections.value || []).filter((c: any) => {
-      const chains = (c as any)?.chains
-      if (!Array.isArray(chains) || chains.length === 0) return false
-      return chains.some((x: any) => set.has(String(x)))
-    })
-
-    const ids = targets.map((c: any) => String(c?.id || '')).filter(Boolean)
+    const ids = activeConnectionTargets.value
+      .map((c: any) => String(c?.id || ''))
+      .filter(Boolean)
 
     let ok = 0
     let fail = 0

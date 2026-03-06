@@ -102,7 +102,7 @@ export const renderGroups = computed(() => {
 
     // Optionally show only providers with active connections (best-effort).
     if (showOnlyActiveProxyProviders.value) {
-      list = list.filter((p: any) => (providerActivityByName.value[p.name]?.connections || 0) > 0)
+      list = list.filter((p: any) => Boolean((providerActivityByName.value[p.name] as any)?.active) || Number((providerActivityByName.value[p.name] as any)?.connections || 0) > 0 || Number((providerActivityByName.value[p.name] as any)?.currentBytes || 0) > 0 || Number((providerActivityByName.value[p.name] as any)?.speed || 0) > 0)
     }
 
     // Optional protocol filter sub-tab (wg/vless/ss/...)

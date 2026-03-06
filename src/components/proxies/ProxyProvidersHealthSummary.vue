@@ -52,8 +52,7 @@ const providers = computed(() => {
   if (showOnlyActiveProxyProviders.value) {
     list = list.filter((p) => {
       const act = (providerActivityByName.value || {})[p.name]
-      const conns = Number((act as any)?.connections ?? 0)
-      return conns > 0
+      return Boolean((act as any)?.active) || Number((act as any)?.connections ?? 0) > 0 || Number((act as any)?.currentBytes ?? 0) > 0 || Number((act as any)?.speed ?? 0) > 0
     })
   }
 
@@ -180,7 +179,8 @@ watch(
 const activeProvidersCount = computed(() => {
   let n = 0
   for (const p of providers.value || []) {
-    if ((providerActivityByName.value[p.name]?.connections || 0) > 0) n += 1
+    const act = (providerActivityByName.value[p.name] as any) || {}
+    if (Boolean(act.active) || Number(act.connections || 0) > 0 || Number(act.currentBytes || 0) > 0 || Number(act.speed || 0) > 0) n += 1
   }
   return n
 })

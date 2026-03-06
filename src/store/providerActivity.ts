@@ -4,7 +4,10 @@ import { activeConnections } from '@/store/connections'
 import { debounce, throttle } from 'lodash'
 
 export type ProviderActivity = {
+  /** Number of active connections currently attributed to this provider. */
   connections: number
+  /** Whether the provider is currently active in routing/traffic. */
+  active: boolean
   /** Accumulated traffic observed for this provider during the current UI session. */
   bytes: number
   speed: number
@@ -62,12 +65,13 @@ const emptyActivity = (): ProviderActivity => ({
   activeProxy: '',
   activeProxyBytes: 0,
   currentBytes: 0,
+  active: false,
   download: 0,
   upload: 0,
   updatedAt: undefined,
 })
 
-const providerProxyNames = (provider: any): string[] => {
+export const providerProxyNames = (provider: any): string[] => {
   const raw = provider?.proxies
   const items = Array.isArray(raw)
     ? raw
@@ -81,11 +85,9 @@ const providerProxyNames = (provider: any): string[] => {
     .filter(Boolean)
 }
 
-const resolveProviderFromConnection = (
-  conn: any,
-  proxyToProvider: Record<string, string>,
-): { providerName: string; proxyName: string } => {
+export const connectionProxyCandidates = (conn: any): string[] => {
   const candidates: string[] = []
+
   const specialProxy = String(conn?.metadata?.specialProxy || '').trim()
   if (specialProxy) candidates.push(specialProxy)
 
@@ -95,10 +97,30 @@ const resolveProviderFromConnection = (
     if (name) candidates.push(name)
   }
 
+  const out: string[] = []
   const seen = new Set<string>()
   for (const proxyName of candidates) {
     if (!proxyName || seen.has(proxyName)) continue
     seen.add(proxyName)
+    out.push(proxyName)
+  }
+
+  return out
+}
+
+export const connectionMatchesProviderProxyNames = (conn: any, proxyNames: Iterable<string>): string => {
+  const set = proxyNames instanceof Set ? proxyNames : new Set(Array.from(proxyNames || []))
+  for (const proxyName of connectionProxyCandidates(conn)) {
+    if (set.has(proxyName)) return proxyName
+  }
+  return ''
+}
+
+const resolveProviderFromConnection = (
+  conn: any,
+  proxyToProvider: Record<string, string>,
+): { providerName: string; proxyName: string } => {
+  for (const proxyName of connectionProxyCandidates(conn)) {
     const providerName = proxyToProvider[proxyName]
     if (providerName) return { providerName, proxyName }
   }
@@ -143,6 +165,7 @@ watch(
       rec.connections += 1
       rec.currentBytes += curBytes
       rec.speed += curSpeed
+      rec.active = true
 
       if (proxyName) {
         const key = `${providerName}|${proxyName}`
