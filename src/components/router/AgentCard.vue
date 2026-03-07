@@ -192,6 +192,17 @@
                     </button>
 
                     <button
+                      v-if="item.hasCloud && !item.hasLocal"
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      @click="downloadCloudBackupToLocal(item.name)"
+                      :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || downloadingCloudBackup === item.name"
+                    >
+                      <span v-if="downloadingCloudBackup === item.name" class="loading loading-spinner loading-xs"></span>
+                      <span v-else>{{ $t('agentBackupDownloadToLocal') }}</span>
+                    </button>
+
+                    <button
                       v-if="item.hasCloud"
                       type="button"
                       class="btn btn-ghost btn-xs text-error"
@@ -302,6 +313,16 @@
                       :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady"
                     >
                       {{ $t('agentBackupUseForRestore') }}
+                    </button>
+                    <button
+                      v-if="!hasLocalBackup(item.Name || item.Path || '')"
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      @click="downloadCloudBackupToLocal(item.Name || item.Path || '')"
+                      :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || downloadingCloudBackup === ((item.Name || item.Path || '').split('/').pop() || '')"
+                    >
+                      <span v-if="downloadingCloudBackup === ((item.Name || item.Path || '').split('/').pop() || '')" class="loading loading-spinner loading-xs"></span>
+                      <span v-else>{{ $t('agentBackupDownloadToLocal') }}</span>
                     </button>
                     <button
                       type="button"
@@ -475,6 +496,7 @@
 <script setup lang="ts">
 import {
   agentBackupCloudDeleteAPI,
+  agentBackupCloudDownloadAPI,
   agentBackupCloudListAPI,
   agentBackupCloudStatusAPI,
   agentBackupCronGetAPI,
@@ -565,6 +587,7 @@ const cloudList = ref<any[]>([])
 const cloudListLoading = ref(false)
 const deletingLocalBackup = ref('')
 const deletingCloudBackup = ref('')
+const downloadingCloudBackup = ref('')
 const backupArchiveView = ref<'all' | 'local' | 'cloud' | 'both'>('all')
 
 const restore = ref<any>({ ok: true, running: false })
@@ -852,6 +875,28 @@ const deleteCloudBackup = async (name: string) => {
     showNotification({ content: 'agentBackupCloudDeleteFail', type: 'alert-error', timeout: 2200 })
   }
   deletingCloudBackup.value = ''
+}
+
+const downloadCloudBackupToLocal = async (name: string) => {
+  const file = String(name || '').split('/').pop() || ''
+  if (!file || !agentEnabled.value || !status.value?.ok || !cloudStatus.value?.cloudReady) return
+  if (backup.value?.running || restore.value?.running) return
+
+  downloadingCloudBackup.value = file
+  const res = await agentBackupCloudDownloadAPI(file)
+  if (res?.ok) {
+    showNotification({ content: res?.existed ? 'agentBackupDownloadToLocalExists' : 'agentBackupDownloadToLocalDone', type: 'alert-success', timeout: 2000 })
+    await refreshBackupList()
+    await refreshCloudHistory()
+  } else {
+    showNotification({
+      content: 'agentBackupDownloadToLocalFail',
+      params: { error: String(res?.error || 'failed') },
+      type: 'alert-error',
+      timeout: 2600,
+    })
+  }
+  downloadingCloudBackup.value = ''
 }
 
 const syncRestoreSource = () => {

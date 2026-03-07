@@ -650,6 +650,27 @@ export const agentBackupCloudDeleteAPI = async (file: string): Promise<{ ok: boo
   }
 }
 
+export const agentBackupCloudDownloadAPI = async (file: string): Promise<{
+  ok: boolean
+  downloaded?: boolean
+  existed?: boolean
+  name?: string
+  path?: string
+  size?: number
+  mtime?: number
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'backup_cloud_download', file },
+      timeout: 60000,
+    })
+    return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
 export type AgentRestoreStatus = {
   ok: boolean
   running?: boolean

@@ -1601,7 +1601,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.33","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.34","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1953,6 +1953,60 @@ backup_cloud_delete_json() {
   reply_ok "$(printf '{"ok":true,"deleted":true,"name":"%s"}' "$(jesc "$name")")"
 }
 
+backup_cloud_download_json() {
+  remote="$RCLONE_REMOTE"
+  path="$(normalize_rclone_path "$RCLONE_PATH")"
+  req="${file_q:-}"
+  name="$(basename "$req" 2>/dev/null || printf '%s' "$req")"
+  case "$name" in
+    zash-backup-*.tar.gz|ui-dist-*.zip) ;;
+    *)
+      reply_err 'invalid backup file'
+      return
+      ;;
+  esac
+
+  if ! command -v rclone >/dev/null 2>&1; then
+    reply_err 'rclone is not installed'
+    return
+  fi
+  if [ -z "$remote" ]; then
+    reply_err 'cloud backup is not configured'
+    return
+  fi
+
+  dir="$BACKUP_TMP_DIR"
+  [ -n "$dir" ] || dir="/opt/zash-agent/var/backups"
+  mkdir -p "$dir" >/dev/null 2>&1 || true
+
+  local_file="$dir/$name"
+  if [ -f "$local_file" ]; then
+    size="$(wc -c < "$local_file" 2>/dev/null || echo 0)"
+    mtime="$(stat -c %Y "$local_file" 2>/dev/null || stat -f %m "$local_file" 2>/dev/null || echo 0)"
+    reply_ok "$(printf '{"ok":true,"downloaded":true,"existed":true,"name":"%s","path":"%s","size":%s,"mtime":%s}' "$(jesc "$name")" "$(jesc "$local_file")" "$size" "$mtime")"
+    return
+  fi
+
+  src="$remote:$name"
+  [ -n "$path" ] && src="$remote:$path/$name"
+
+  rcfg=""
+  if [ -n "$RCLONE_CONFIG" ]; then
+    rcfg="--config $RCLONE_CONFIG"
+  fi
+
+  # shellcheck disable=SC2086
+  if ! rclone $rcfg copyto "$src" "$local_file" >/dev/null 2>&1; then
+    rm -f "$local_file" >/dev/null 2>&1 || true
+    reply_err 'cloud download failed'
+    return
+  fi
+
+  size="$(wc -c < "$local_file" 2>/dev/null || echo 0)"
+  mtime="$(stat -c %Y "$local_file" 2>/dev/null || stat -f %m "$local_file" 2>/dev/null || echo 0)"
+  reply_ok "$(printf '{"ok":true,"downloaded":true,"existed":false,"name":"%s","path":"%s","size":%s,"mtime":%s}' "$(jesc "$name")" "$(jesc "$local_file")" "$size" "$mtime")"
+}
+
 restore_status_json() {
   sf="/opt/zash-agent/var/restore.last.json"
   if [ -f "$sf" ]; then
@@ -2244,6 +2298,9 @@ case "$cmd" in
     ;;
   backup_cloud_delete)
     backup_cloud_delete_json
+    ;;
+  backup_cloud_download)
+    backup_cloud_download_json
     ;;
   restore_start)
     restore_start_json
