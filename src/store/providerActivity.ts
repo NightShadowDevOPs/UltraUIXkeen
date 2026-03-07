@@ -41,14 +41,37 @@ type DailyTrafficStore = {
   totals: Record<string, ProviderTrafficTotals>
 }
 
+type PersistedConnTotal = {
+  provider: string
+  dl: number
+  ul: number
+  start?: string
+  seenAt?: number
+}
+
+type PersistedConnTotalStore = {
+  entries: Record<string, PersistedConnTotal>
+}
+
 const STORAGE_KEY = 'stats/provider-traffic-session-v2'
 const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v1'
+const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v1'
+const MAX_PERSISTED_CONN_TOTALS = 5000
 const trafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const dailyTrafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
-const connTotals = new Map<string, { provider: string; dl: number; ul: number }>()
+const connTotals = new Map<string, PersistedConnTotal>()
 const providerActivityCurrent = ref<Record<string, ProviderActivity>>({})
 
-const todayKey = () => new Date().toISOString().slice(0, 10)
+const pad2 = (v: number) => String(v).padStart(2, '0')
+const localDayKeyFromDate = (value: Date) => `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`
+const todayKey = () => localDayKeyFromDate(new Date())
+
+const isLocalToday = (value: unknown) => {
+  if (!value) return false
+  const date = new Date(String(value))
+  if (Number.isNaN(date.getTime())) return false
+  return localDayKeyFromDate(date) === todayKey()
+}
 
 const safeParse = <T>(raw: string | null, fallback: T): T => {
   if (!raw) return fallback
@@ -76,6 +99,25 @@ const loadDailyTrafficTotals = () => {
   dailyTrafficTotals.value = parsed.totals || {}
 }
 
+const loadConnTotals = () => {
+  connTotals.clear()
+  if (typeof localStorage === 'undefined') return
+  const parsed = safeParse<PersistedConnTotalStore>(localStorage.getItem(CONN_TOTALS_STORAGE_KEY), { entries: {} })
+  for (const [id, entry] of Object.entries(parsed.entries || {})) {
+    const provider = String(entry?.provider || '').trim()
+    if (!id || !provider) continue
+    const dl = Number(entry?.dl ?? 0)
+    const ul = Number(entry?.ul ?? 0)
+    connTotals.set(id, {
+      provider,
+      dl: Number.isFinite(dl) && dl >= 0 ? dl : 0,
+      ul: Number.isFinite(ul) && ul >= 0 ? ul : 0,
+      start: entry?.start ? String(entry.start) : undefined,
+      seenAt: Number(entry?.seenAt ?? 0) || undefined,
+    })
+  }
+}
+
 const saveTrafficTotals = debounce(() => {
   if (typeof localStorage === 'undefined') return
   try {
@@ -95,8 +137,22 @@ const saveDailyTrafficTotals = debounce(() => {
   }
 }, 1500)
 
+const saveConnTotals = debounce(() => {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const sorted = Array.from(connTotals.entries())
+      .sort((a, b) => (Number(b[1]?.seenAt ?? 0) || 0) - (Number(a[1]?.seenAt ?? 0) || 0))
+      .slice(0, MAX_PERSISTED_CONN_TOTALS)
+    const entries = Object.fromEntries(sorted)
+    localStorage.setItem(CONN_TOTALS_STORAGE_KEY, JSON.stringify({ entries }))
+  } catch {
+    // ignore
+  }
+}, 1500)
+
 loadTrafficTotals()
 loadDailyTrafficTotals()
+loadConnTotals()
 
 const emptyActivity = (): ProviderActivity => ({
   connections: 0,
@@ -199,6 +255,7 @@ watch(
       const curUl = Number((c as any)?.upload ?? 0) || 0
       const curSpeed = (Number((c as any)?.downloadSpeed ?? 0) || 0) + (Number((c as any)?.uploadSpeed ?? 0) || 0)
       const curBytes = curDl + curUl
+      const start = String((c as any)?.start || '')
 
       rec.connections += 1
       rec.currentBytes += curBytes
@@ -210,12 +267,19 @@ watch(
         perProxyBytes[key] = (perProxyBytes[key] || 0) + curBytes
       }
 
-      const prev = connTotals.get(id)
-      let dDl = curDl
-      let dUl = curUl
+      let prev = connTotals.get(id)
+      if (prev && ((prev.start && start && prev.start !== start) || prev.provider !== providerName)) {
+        prev = undefined
+      }
+
+      let dDl = 0
+      let dUl = 0
       if (prev) {
         dDl = curDl - (prev.dl || 0)
         dUl = curUl - (prev.ul || 0)
+      } else if (isLocalToday(start)) {
+        dDl = curDl
+        dUl = curUl
       }
       if (!Number.isFinite(dDl) || dDl < 0) dDl = 0
       if (!Number.isFinite(dUl) || dUl < 0) dUl = 0
@@ -234,7 +298,7 @@ watch(
         dailyTrafficTotals.value[providerName] = daily
       }
 
-      connTotals.set(id, { provider: providerName, dl: curDl, ul: curUl })
+      connTotals.set(id, { provider: providerName, dl: curDl, ul: curUl, start: start || undefined, seenAt: now })
     }
 
     for (const id of Array.from(connTotals.keys())) {
@@ -273,6 +337,7 @@ watch(
     providerActivityCurrent.value = current
     saveTrafficTotals()
     saveDailyTrafficTotals()
+    saveConnTotals()
   },
   { immediate: true, deep: false },
 )
@@ -314,7 +379,6 @@ export const providerLiveStatusByName = computed<Record<string, ProviderLiveStat
 
 export const clearProviderTrafficSession = () => {
   trafficTotals.value = {}
-  connTotals.clear()
   providerActivityCurrent.value = {}
   if (typeof localStorage !== 'undefined') {
     try {
