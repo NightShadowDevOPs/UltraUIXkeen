@@ -488,6 +488,7 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
@@ -499,6 +500,8 @@ const backupAutoTime = agentBackupAutoTime
 // Cron state from router.
 const cronStatus = ref<any>({ ok: false, enabled: false })
 const cronApplying = ref(false)
+const cronBootstrapApplied = useStorage<Record<string, number>>('config/agent-backup-cron-bootstrap-v1', {})
+const agentCronKey = computed(() => String(agentUrl.value || '').trim().replace(/\/+$/g, ''))
 
 // Convert HH:MM -> "M H * * *". Fallback to 04:00.
 const cronSchedule = computed(() => {
@@ -843,8 +846,11 @@ const refreshCron = async () => {
   cronStatus.value = res
 
   // Best-effort sync from router schedule -> UI fields.
+  // IMPORTANT: do not blindly overwrite local auto-backup preference with false
+  // when the router simply has no cron yet; otherwise the default 04:00 bootstrap
+  // will never be applied on first run.
   if (res?.ok) {
-    if (typeof res.enabled === 'boolean') backupAutoEnabled.value = res.enabled
+    if (res.enabled === true) backupAutoEnabled.value = true
     if (typeof res.schedule === 'string' && res.schedule.trim()) {
       const parts = res.schedule.trim().split(/\s+/)
       if (parts.length >= 2) {
@@ -888,6 +894,39 @@ const copyCron = async () => {
 
 const onCronToggle = async (e: any) => {
   if (e?.target?.open) {
+    await refreshCron()
+  }
+}
+
+const shouldBootstrapCron = () => {
+  if (backupAutoEnabled.value) return true
+  if (typeof localStorage === 'undefined') return false
+
+  const stored = localStorage.getItem('config/agent-backup-auto-enabled-v1')
+  const defaultTime = String(backupAutoTime.value || '04:00').trim() === '04:00'
+  const noHistory = (backupList.value?.length || 0) === 0
+    && !String(backup.value?.startedAt || backup.value?.finishedAt || '').trim()
+
+  return stored === 'false' && defaultTime && noHistory
+}
+
+const ensureCronBootstrap = async () => {
+  const key = agentCronKey.value
+  if (!key || !agentEnabled.value || !status.value?.ok) return
+  if (!shouldBootstrapCron()) return
+  if (!cronStatus.value?.ok) return
+  if (cronStatus.value?.enabled) return
+  if ((cronBootstrapApplied.value || {})[key]) return
+
+  cronApplying.value = true
+  const res = await agentBackupCronSetAPI(true, cronSchedule.value)
+  cronApplying.value = false
+
+  if (res?.ok && res?.enabled) {
+    cronBootstrapApplied.value = {
+      ...(cronBootstrapApplied.value || {}),
+      [key]: Date.now(),
+    }
     await refreshCron()
   }
 }
@@ -1032,9 +1071,11 @@ const refresh = async () => {
     return
   }
   status.value = await agentStatusAPI()
+  await refreshCron()
   await refreshBackup()
-  await refreshCloud()
   await refreshBackupList()
+  await ensureCronBootstrap()
+  await refreshCloud()
   await refreshRestore()
 }
 

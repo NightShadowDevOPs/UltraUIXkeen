@@ -1600,7 +1600,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.27","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.28","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -2017,6 +2017,34 @@ cron_tab_path() {
   return 0
 }
 
+cron_reload_best_effort() {
+  if command -v crontab >/dev/null 2>&1; then
+    crontab "$tab" >/dev/null 2>&1 || true
+  fi
+
+  for init in /opt/etc/init.d/S10cron /opt/etc/init.d/S10crond /etc/init.d/cron /etc/init.d/crond; do
+    [ -x "$init" ] || continue
+    "$init" restart >/dev/null 2>&1 || "$init" start >/dev/null 2>&1 || true
+    return 0
+  done
+
+  if command -v service >/dev/null 2>&1; then
+    service cron restart >/dev/null 2>&1 || service crond restart >/dev/null 2>&1 || true
+  fi
+
+  if command -v pidof >/dev/null 2>&1; then
+    pid="$(pidof crond 2>/dev/null | awk '{print $1}')"
+    if [ -n "$pid" ]; then
+      kill -HUP "$pid" >/dev/null 2>&1 || true
+      return 0
+    fi
+  fi
+
+  if command -v crond >/dev/null 2>&1; then
+    crond >/dev/null 2>&1 || true
+  fi
+}
+
 backup_cron_get_json() {
   tab="$(cron_tab_path)"
   if [ -z "$tab" ]; then
@@ -2082,6 +2110,8 @@ backup_cron_set_json() {
     reply_ok '{"ok":false,"error":"write-failed"}'
     return
   }
+
+  cron_reload_best_effort >/dev/null 2>&1 || true
 
   if [ "$enabled" -eq 1 ]; then
     reply_ok "$(printf '{\"ok\":true,\"enabled\":true,\"schedule\":\"%s\",\"path\":\"%s\"}' "$(jesc "$sched")" "$(jesc "$tab")")"

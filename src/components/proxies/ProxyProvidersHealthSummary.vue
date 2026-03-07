@@ -47,6 +47,19 @@ const providersAfterHideUnused = computed(() => {
   return list
 })
 
+const providerMatchesProto = (provider: any, protoKeyRaw?: string) => {
+  const protoKey = normalizeProxyProtoKey(String(protoKeyRaw || 'all')) || 'all'
+  if (protoKey === 'all') return true
+
+  const providerProto = normalizeProxyProtoKey((provider as any)?.type)
+  if (providerProto === protoKey) return true
+
+  return (((provider as any)?.proxies || []) as any[]).some((n: any) => {
+    const t0 = typeof n === 'string' ? (proxyMap.value[n]?.type as any) : (n as any)?.type
+    return normalizeProxyProtoKey(t0) === protoKey
+  })
+}
+
 const providers = computed(() => {
   let list = providersAfterHideUnused.value || []
 
@@ -80,6 +93,11 @@ const providers = computed(() => {
   return list
 })
 
+const providersScoped = computed(() => {
+  const proto = String(proxyProvidersProtoFilter.value || 'all').trim()
+  return (providers.value || []).filter((p) => providerMatchesProto(p, proto))
+})
+
 const hiddenUnusedCount = computed(() => {
   if (!hideUnusedProxyProviders.value) return 0
   return Math.max(0, (allProviders.value.length || 0) - (providersAfterHideUnused.value.length || 0))
@@ -87,7 +105,7 @@ const hiddenUnusedCount = computed(() => {
 
 const counts = computed(() => {
   const c = { total: 0, expired: 0, nearExpiry: 0, offline: 0, degraded: 0, healthy: 0 }
-  for (const p of providers.value) {
+  for (const p of providersScoped.value) {
     c.total++
     const override = Number((proxyProviderSslWarnDaysMap.value || {})[p.name])
     const base = Number(sslNearExpiryDaysDefault.value)
@@ -199,7 +217,7 @@ watch(
 )
 const activeProvidersCount = computed(() => {
   let n = 0
-  for (const p of providers.value || []) {
+  for (const p of providersScoped.value || []) {
     const act = (providerActivityByName.value[p.name] as any) || {}
     const live = (providerLiveStatusByName.value[p.name] as any) || {}
     if (Boolean(live.active) || Number(live.connections || 0) > 0 || Boolean(act.active) || Number(act.connections || 0) > 0 || Number(act.currentBytes || 0) > 0 || Number(act.speed || 0) > 0 || Number(act.bytes || 0) > 0) n += 1
@@ -209,7 +227,7 @@ const activeProvidersCount = computed(() => {
 
 const trafficProvidersCount = computed(() => {
   let n = 0
-  for (const p of providers.value || []) {
+  for (const p of providersScoped.value || []) {
     const act = (providerActivityByName.value[p.name] as any) || {}
     const live = (providerLiveStatusByName.value[p.name] as any) || {}
     if (Number(act.todayBytes || 0) > 0 || Number(act.bytes || 0) > 0 || Number(act.currentBytes || 0) > 0 || Number(act.speed || 0) > 0 || Boolean(live.active) || Number(live.connections || 0) > 0) n += 1
