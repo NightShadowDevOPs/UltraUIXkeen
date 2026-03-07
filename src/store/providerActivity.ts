@@ -3,6 +3,8 @@ import { proxyProviederList } from '@/store/proxies'
 import { activeConnections } from '@/store/connections'
 import { debounce, throttle } from 'lodash'
 
+const FALLBACK_SPEED_MULTIPLIER = 1
+
 export type ProviderActivity = {
   /** Number of active connections currently attributed to this provider. */
   connections: number
@@ -53,14 +55,15 @@ type PersistedConnTotalStore = {
   entries: Record<string, PersistedConnTotal>
 }
 
-const STORAGE_KEY = 'stats/provider-traffic-session-v2'
-const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v1'
-const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v1'
+const STORAGE_KEY = 'stats/provider-traffic-session-v3'
+const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v2'
+const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v2'
 const MAX_PERSISTED_CONN_TOTALS = 5000
 const trafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const dailyTrafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const connTotals = new Map<string, PersistedConnTotal>()
 const providerActivityCurrent = ref<Record<string, ProviderActivity>>({})
+let lastTickAt = Date.now()
 
 const pad2 = (v: number) => String(v).padStart(2, '0')
 const localDayKeyFromDate = (value: Date) => `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`
@@ -226,6 +229,8 @@ watch(
     }
 
     const now = Date.now()
+    const dt = Math.max(1, (now - lastTickAt) / 1000)
+    lastTickAt = now
     const proxyToProvider: Record<string, string> = {}
     const current: Record<string, ProviderActivity> = {}
 
@@ -283,6 +288,13 @@ watch(
       }
       if (!Number.isFinite(dDl) || dDl < 0) dDl = 0
       if (!Number.isFinite(dUl) || dUl < 0) dUl = 0
+
+      const speedDl = Number((c as any)?.downloadSpeed ?? 0) || 0
+      const speedUl = Number((c as any)?.uploadSpeed ?? 0) || 0
+      if (dDl <= 0 && dUl <= 0 && (speedDl > 0 || speedUl > 0)) {
+        dDl = Math.max(0, speedDl * dt * FALLBACK_SPEED_MULTIPLIER)
+        dUl = Math.max(0, speedUl * dt * FALLBACK_SPEED_MULTIPLIER)
+      }
 
       if (dDl > 0 || dUl > 0) {
         const totals = trafficTotals.value[providerName] || { dl: 0, ul: 0 }
