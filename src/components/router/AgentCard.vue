@@ -123,6 +123,33 @@
                 <button type="button" class="btn btn-xs" :class="backupArchiveView === 'both' ? '' : 'btn-outline'" @click="backupArchiveView = 'both'">{{ $t('agentBackupBothLocations') }}</button>
               </div>
 
+              <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+                <label class="flex min-w-0 flex-col gap-1">
+                  <span class="text-[11px] opacity-60">{{ $t('search') }}</span>
+                  <input
+                    v-model.trim="backupArchiveQuery"
+                    class="input input-xs w-full"
+                    :placeholder="$t('agentBackupSearchPlaceholder')"
+                  />
+                </label>
+
+                <label class="flex flex-col gap-1">
+                  <span class="text-[11px] opacity-60">{{ $t('sortBy') }}</span>
+                  <select v-model="backupArchiveSort" class="select select-xs w-full">
+                    <option value="timeDesc">{{ $t('agentBackupSortNewest') }}</option>
+                    <option value="timeAsc">{{ $t('agentBackupSortOldest') }}</option>
+                    <option value="sizeDesc">{{ $t('agentBackupSortLargest') }}</option>
+                    <option value="sizeAsc">{{ $t('agentBackupSortSmallest') }}</option>
+                    <option value="nameAsc">{{ $t('agentBackupSortNameAsc') }}</option>
+                    <option value="nameDesc">{{ $t('agentBackupSortNameDesc') }}</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="mt-2 text-[11px] opacity-60">
+                {{ $t('agentBackupShownCount', { shown: filteredUnifiedArchives.length, total: unifiedArchives.length }) }}
+              </div>
+
               <div v-if="filteredUnifiedArchives.length" class="mt-2 max-h-72 overflow-auto rounded-lg border border-base-300/50 bg-base-100/70">
                 <div
                   v-for="item in filteredUnifiedArchives"
@@ -589,6 +616,8 @@ const deletingLocalBackup = ref('')
 const deletingCloudBackup = ref('')
 const downloadingCloudBackup = ref('')
 const backupArchiveView = ref<'all' | 'local' | 'cloud' | 'both'>('all')
+const backupArchiveQuery = useStorage('config/agent-backup-archive-query-v1', '')
+const backupArchiveSort = useStorage<'timeDesc' | 'timeAsc' | 'sizeDesc' | 'sizeAsc' | 'nameAsc' | 'nameDesc'>('config/agent-backup-archive-sort-v1', 'timeDesc')
 
 const restore = ref<any>({ ok: true, running: false })
 const restoreLog = ref('')
@@ -711,12 +740,46 @@ const unifiedArchives = computed(() => {
 
 const filteredUnifiedArchives = computed(() => {
   const mode = backupArchiveView.value || 'all'
-  return (unifiedArchives.value || []).filter((item: any) => {
-    if (mode === 'local') return !!item.hasLocal && !item.hasCloud
-    if (mode === 'cloud') return !!item.hasCloud && !item.hasLocal
-    if (mode === 'both') return !!item.hasLocal && !!item.hasCloud
-    return true
-  })
+  const query = String(backupArchiveQuery.value || '').trim().toLowerCase()
+  const sort = backupArchiveSort.value || 'timeDesc'
+
+  return (unifiedArchives.value || [])
+    .filter((item: any) => {
+      if (mode === 'local' && (!item.hasLocal || item.hasCloud)) return false
+      if (mode === 'cloud' && (!item.hasCloud || item.hasLocal)) return false
+      if (mode === 'both' && (!item.hasLocal || !item.hasCloud)) return false
+      if (!query) return true
+      return String(item?.name || '').toLowerCase().includes(query)
+    })
+    .slice()
+    .sort((a: any, b: any) => {
+      const aTs = Number(a?.sortTs || 0)
+      const bTs = Number(b?.sortTs || 0)
+      const aSize = Number(a?.displaySize || 0)
+      const bSize = Number(b?.displaySize || 0)
+      const aName = String(a?.name || '')
+      const bName = String(b?.name || '')
+
+      if (sort === 'timeAsc') {
+        if (aTs !== bTs) return aTs - bTs
+      } else if (sort === 'sizeDesc') {
+        if (aSize !== bSize) return bSize - aSize
+      } else if (sort === 'sizeAsc') {
+        if (aSize !== bSize) return aSize - bSize
+      } else if (sort === 'nameAsc') {
+        const cmp = aName.localeCompare(bName)
+        if (cmp !== 0) return cmp
+      } else if (sort === 'nameDesc') {
+        const cmp = bName.localeCompare(aName)
+        if (cmp !== 0) return cmp
+      } else {
+        if (aTs !== bTs) return bTs - aTs
+      }
+
+      if (bTs !== aTs) return bTs - aTs
+      if (bSize !== aSize) return bSize - aSize
+      return aName.localeCompare(bName)
+    })
 })
 
 const formatBackupSize = (size?: number) => {
