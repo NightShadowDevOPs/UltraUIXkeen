@@ -1093,7 +1093,8 @@ IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
   val="${kv#*=}"
-  # basic URL decode for %2F etc.
+  # URL decode for %2F etc. and '+' -> space for query params like cron schedules.
+  val="${val//+/ }"
   val="$(printf '%b' "${val//%/\\x}")"
   case "$key" in
     cmd) cmd="$val" ;;
@@ -1600,7 +1601,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.30","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.31","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
