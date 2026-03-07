@@ -1604,7 +1604,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.35","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.36","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -1776,7 +1776,11 @@ rclone_configured_remotes() {
   if [ -z "$src" ]; then
     src="$RCLONE_REMOTE"
   fi
-  printf '%s' "$src" | tr ',;' '\\n' | tr ' ' '\\n' | sed 's/:$//; s/^ *//; s/ *$//' | awk 'NF && !seen[$0]++ {print $0}'
+  # BusyBox tr does not reliably interpret '\n' in all builds, so split with sed.
+  printf '%s' "$src" \
+    | sed 's/[;,[:space:]]\+/\n/g' \
+    | sed 's/:$//; s/^ *//; s/ *$//' \
+    | awk 'NF && !seen[$0]++ {print $0}'
 }
 
 rclone_list_remotes() {
