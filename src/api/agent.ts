@@ -540,6 +540,7 @@ export type AgentBackupCloudStatus = {
   configPath?: string
   remote?: string
   remoteExists?: boolean
+  remotes?: Array<{ name?: string; exists?: boolean }>
   path?: string
   cloudReady?: boolean
   keepDays?: string
@@ -593,6 +594,8 @@ export type AgentBackupCloudListItem = {
   Path?: string
   Size?: number
   ModTime?: string
+  Remote?: string
+  RemotePath?: string
 }
 
 export const agentBackupCloudListAPI = async (): Promise<{
@@ -638,10 +641,10 @@ export const agentBackupDeleteAPI = async (file: string): Promise<{ ok: boolean;
   }
 }
 
-export const agentBackupCloudDeleteAPI = async (file: string): Promise<{ ok: boolean; deleted?: boolean; name?: string; error?: string }> => {
+export const agentBackupCloudDeleteAPI = async (file: string, remote: string = ''): Promise<{ ok: boolean; deleted?: boolean; name?: string; remote?: string; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'backup_cloud_delete', file },
+      params: { cmd: 'backup_cloud_delete', file, remote: remote || undefined },
       timeout: 12000,
     })
     return (data || { ok: true }) as any
@@ -650,7 +653,7 @@ export const agentBackupCloudDeleteAPI = async (file: string): Promise<{ ok: boo
   }
 }
 
-export const agentBackupCloudDownloadAPI = async (file: string): Promise<{
+export const agentBackupCloudDownloadAPI = async (file: string, remote: string = ''): Promise<{
   ok: boolean
   downloaded?: boolean
   existed?: boolean
@@ -658,11 +661,12 @@ export const agentBackupCloudDownloadAPI = async (file: string): Promise<{
   path?: string
   size?: number
   mtime?: number
+  remote?: string
   error?: string
 }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'backup_cloud_download', file },
+      params: { cmd: 'backup_cloud_download', file, remote: remote || undefined },
       timeout: 60000,
     })
     return (data || { ok: true }) as any
@@ -706,6 +710,7 @@ export const agentRestoreStartAPI = async (
   scope: string,
   includeEnv: boolean,
   source: 'local' | 'cloud' = 'local',
+  remote: string = '',
 ): Promise<{ ok: boolean; running?: boolean; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
@@ -715,6 +720,7 @@ export const agentRestoreStartAPI = async (
         scope: scope || 'all',
         env: includeEnv ? '1' : '0',
         source: source || 'local',
+        remote: source === 'cloud' && remote ? remote : undefined,
       },
       timeout: 12000,
     })

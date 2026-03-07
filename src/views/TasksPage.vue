@@ -106,6 +106,16 @@
                     >
                       <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
                     </button>
+                    <select
+                      class="select select-bordered select-xs w-24"
+                      :value="getProviderIconRaw(p.name)"
+                      @change="(e) => setProviderIcon(p.name, ((e.target as HTMLSelectElement)?.value || ''))"
+                      :title="$t('providerIcon')"
+                    >
+                      <option value="">—</option>
+                      <option value="globe">🌐 globe</option>
+                      <option v-for="cc in providerIconCountries" :key="`sel-${p.name}-${cc}`" :value="cc">{{ fmtProviderIcon(cc) }}</option>
+                    </select>
 
                 <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
                 <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />

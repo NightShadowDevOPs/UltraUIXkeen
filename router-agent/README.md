@@ -87,8 +87,9 @@ UI_ZIP_URL="https://github.com/messireL/ZashUIFork/releases/download/rolling/dis
 BACKUP_KEEP_DAYS="30"
 
 # cloud upload via rclone
-RCLONE_CONFIG="/opt/etc/rclone.config"   # optional explicit config path
-RCLONE_REMOTE="gdrive"     # or yandex
+RCLONE_CONFIG="/opt/etc/rclone.config"   # shared rclone config
+RCLONE_REMOTE="gdrive"     # legacy single remote
+RCLONE_REMOTES="gdrive-crypt,yandex-crypt"   # preferred: upload to both if available
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"      # remote retention (best-effort)
 ```
@@ -127,7 +128,7 @@ Restore works with local archives from `/opt/zash-agent/var/backups` (created by
 **Note:** after restoring Mihomo config, you may need to restart Mihomo; after restoring agent settings/state — restart `zash-agent`.
 
 
-В UI карточка **Router agent** показывает и локальные, и облачные архивы. Облачный список строится через `rclone lsjson` для `RCLONE_REMOTE:RCLONE_PATH`.
+В UI карточка **Router agent** показывает и локальные, и облачные архивы. Облачный список строится через `rclone lsjson` для всех remotes из `RCLONE_REMOTES` (или для `RCLONE_REMOTE`, если список не задан).
 
 
 The installer also creates `/opt/zash-agent/restore-cloud.sh` — it downloads the selected archive from `RCLONE_REMOTE:RCLONE_PATH` and then starts the usual restore flow.
