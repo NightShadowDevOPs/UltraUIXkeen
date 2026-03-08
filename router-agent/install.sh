@@ -1605,7 +1605,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.41","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.42","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -2745,11 +2745,13 @@ if [ -n "$rems" ] && command -v rclone >/dev/null 2>&1; then
     dst="$remote:"
     [ -n "$RCLONE_PATH" ] && dst="$remote:$RCLONE_PATH"
     echo "[backup] uploading to: $dst" | tee -a "$BACKUP_LOG_FILE" >/dev/null 2>&1 || true
+    copy_log="$BACKUP_STATE_DIR/rclone-upload-${remote}.log"
+    rm -f "$copy_log" 2>/dev/null || true
     set +e
     # shellcheck disable=SC2086
     RCLONE_CONFIG="$RCLONE_CONFIG" rclone mkdir "$dst" >/dev/null 2>&1
     # shellcheck disable=SC2086
-    RCLONE_CONFIG="$RCLONE_CONFIG" rclone copy "$out" "$dst" --transfers 1 --checkers 1 --retries 2
+    RCLONE_CONFIG="$RCLONE_CONFIG" rclone copy "$out" "$dst" --transfers 1 --checkers 1 --retries 2 > "$copy_log" 2>&1
     rc=$?
     set -e
     if [ $rc -eq 0 ]; then
@@ -2763,8 +2765,12 @@ if [ -n "$rems" ] && command -v rclone >/dev/null 2>&1; then
         set -e
       fi
     else
-      append_upload_result "$remote" false "upload failed"
+      upload_err="$(tail -n 2 "$copy_log" 2>/dev/null | tr '
+' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//')"
+      [ -n "$upload_err" ] || upload_err='upload failed'
+      append_upload_result "$remote" false "$upload_err"
       echo "[backup] upload failed: $dst" | tee -a "$BACKUP_LOG_FILE" >/dev/null 2>&1 || true
+      [ -s "$copy_log" ] && tail -n 20 "$copy_log" >> "$BACKUP_LOG_FILE" 2>/dev/null || true
     fi
   done
   IFS="$oldIFS"

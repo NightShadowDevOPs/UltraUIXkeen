@@ -24,9 +24,9 @@ export const useSwipeRouter = () => {
           if (r === ROUTE_NAME.proxies && proxyProviederList.value.length > 0) {
             return Object.values(PROXY_TAB_TYPE).map((tab) => {
               return [
-                () => route.name === ROUTE_NAME.proxies && proxiesTabShow.value === tab,
+                () => (route.name === ROUTE_NAME.proxies || route.name === ROUTE_NAME.proxyProviders) && proxiesTabShow.value === tab,
                 () => {
-                  router.push({ name: ROUTE_NAME.proxies })
+                  router.push({ name: tab === PROXY_TAB_TYPE.PROVIDER ? ROUTE_NAME.proxyProviders : ROUTE_NAME.proxies })
                   proxiesTabShow.value = tab
                 },
               ]
@@ -67,7 +67,7 @@ export const useSwipeRouter = () => {
     const routeName = route.name as ROUTE_NAME
 
     if (routeName === ROUTE_NAME.setup) {
-      return router.push({ name: ROUTE_NAME.proxies })
+      return router.push({ name: ROUTE_NAME.proxyProviders })
     }
 
     return swipeList.value[(getNextIndexInSwipeList() + 1) % swipeList.value.length]?.[1]?.()

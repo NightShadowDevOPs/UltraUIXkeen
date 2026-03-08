@@ -10,7 +10,8 @@ import OverviewPage from '@/views/OverviewPage.vue'
 import RouterPage from '@/views/RouterPage.vue'
 import TasksPage from '@/views/TasksPage.vue'
 import PoliciesPage from '@/views/PoliciesPage.vue'
-import ProxiesPage from '@/views/ProxiesPage.vue'
+import ProxiesRoutePage from '@/views/ProxiesRoutePage.vue'
+import ProxyProvidersRoutePage from '@/views/ProxyProvidersRoutePage.vue'
 import RulesPage from '@/views/RulesPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 import UsersPage from '@/views/UsersPage.vue'
@@ -23,7 +24,12 @@ const childrenRouter = [
   {
     path: 'proxies',
     name: ROUTE_NAME.proxies,
-    component: ProxiesPage,
+    component: ProxiesRoutePage,
+  },
+  {
+    path: 'proxy-providers',
+    name: ROUTE_NAME.proxyProviders,
+    component: ProxyProvidersRoutePage,
   },
   {
     path: 'overview',

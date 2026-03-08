@@ -119,6 +119,7 @@ const ctrlsMap: Record<string, Component> = {
   [ROUTE_NAME.connections]: ConnectionCtrl,
   [ROUTE_NAME.logs]: LogsCtrl,
   [ROUTE_NAME.proxies]: ProxiesCtrl,
+  [ROUTE_NAME.proxyProviders]: ProxiesCtrl,
   [ROUTE_NAME.rules]: RulesCtrl,
 }
 
@@ -253,7 +254,7 @@ watch(documentVisible, () => {
 
   // Only refresh proxies data when user is on the Proxies page.
   const routeName = router.currentRoute.value?.name
-  if (routeName !== ROUTE_NAME.proxies) return
+  if (routeName !== ROUTE_NAME.proxies && routeName !== ROUTE_NAME.proxyProviders) return
 
   if (proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER) {
     fetchProxyProvidersOnly()

@@ -145,6 +145,7 @@
                   >
                     {{ it.remote }} · {{ it.ok ? $t('agentBackupRemoteOk') : $t('agentBackupRemoteFail') }}
                   </span>
+                  <span v-if="!it.ok && it.error" class="w-full break-all text-[11px] text-error">{{ it.remote }}: {{ it.error }}</span>
                 </div>
               </div>
               <div class="sm:col-span-2" v-if="cloudStatus.configPath">

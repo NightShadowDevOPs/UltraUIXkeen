@@ -140,7 +140,7 @@ const providerItems = computed<SearchItem[]>(() => {
       title: name,
       subtitle: t('globalSearchItemProxyProvider'),
       icon: ServerStackIcon,
-      routeName: ROUTE_NAME.proxies,
+      routeName: ROUTE_NAME.proxyProviders,
       focusKind: 'provider',
       focusValue: name,
     })

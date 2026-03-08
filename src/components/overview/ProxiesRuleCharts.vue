@@ -1003,7 +1003,7 @@ const openFocusedMain = async () => {
   if (f.stage === 'P') {
     setPendingPageFocus(ROUTE_NAME.proxies, 'provider', v)
     closeDetails()
-    await router.push({ name: ROUTE_NAME.proxies })
+    await router.push({ name: ROUTE_NAME.proxyProviders })
     return
   }
   if (f.stage === 'G') {
@@ -1028,7 +1028,7 @@ const openFocusedProvider = async () => {
   if (!p) return
   setPendingPageFocus(ROUTE_NAME.proxies, 'provider', p)
   closeDetails()
-  await router.push({ name: ROUTE_NAME.proxies })
+  await router.push({ name: ROUTE_NAME.proxyProviders })
 }
 
 const isSameFocus = (a: Focus | null, b: Focus | null) => {

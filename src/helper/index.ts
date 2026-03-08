@@ -131,9 +131,19 @@ export const getColorForLatency = (latency: number) => {
 }
 
 export const renderRoutes = computed(() => {
-  return Object.values(ROUTE_NAME).filter((r) => {
-    return ![ROUTE_NAME.setup].includes(r)
-  })
+  return [
+    ROUTE_NAME.proxies,
+    ROUTE_NAME.proxyProviders,
+    ROUTE_NAME.overview,
+    ROUTE_NAME.router,
+    ROUTE_NAME.tasks,
+    ROUTE_NAME.connections,
+    ROUTE_NAME.logs,
+    ROUTE_NAME.rules,
+    ROUTE_NAME.users,
+    ROUTE_NAME.policies,
+    ROUTE_NAME.settings,
+  ]
 })
 
 export const applyCustomThemes = () => {
