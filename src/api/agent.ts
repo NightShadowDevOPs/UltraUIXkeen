@@ -58,6 +58,13 @@ type AgentStatus = {
   memTotal?: number
   memUsed?: number
   memUsedPct?: number
+  hostname?: string
+  model?: string
+  firmware?: string
+  kernel?: string
+  arch?: string
+  xkeenVersion?: string
+  mihomoBinVersion?: string
   error?: string
 }
 

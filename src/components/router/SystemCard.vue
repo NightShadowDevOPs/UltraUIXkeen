@@ -1,5 +1,5 @@
 <template>
-  <div class="card gap-2 p-3">
+  <div class="card gap-3 p-3">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <div class="font-semibold">{{ $t('routerResources') }}</div>
@@ -20,41 +20,58 @@
       {{ $t('agentOfflineTip') }}
     </div>
 
-    <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <div class="flex flex-col gap-1">
-        <div class="flex items-center justify-between">
-          <div class="text-xs opacity-70">CPU</div>
-          <div class="text-sm font-mono">{{ cpuPctText }}</div>
+    <template v-else>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <div class="text-xs opacity-70">CPU</div>
+            <div class="text-sm font-mono">{{ cpuPctText }}</div>
+          </div>
+          <progress class="progress w-full" :value="status.cpuPct || 0" max="100" />
+          <div class="text-[11px] opacity-70">
+            {{ $t('loadAvg1m') }}: <span class="font-mono">{{ status.load1 ?? '—' }}</span>
+            <span class="opacity-50">·</span>
+            {{ $t('uptime') }}: <span class="font-mono">{{ uptimeText }}</span>
+          </div>
         </div>
-        <progress class="progress w-full" :value="status.cpuPct || 0" max="100" />
-        <div class="text-[11px] opacity-70">
-          {{ $t('loadAvg1m') }}: <span class="font-mono">{{ status.load1 ?? '—' }}</span>
-          <span class="opacity-50">·</span>
-          {{ $t('uptime') }}: <span class="font-mono">{{ uptimeText }}</span>
+
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <div class="text-xs opacity-70">{{ $t('memoryUsage') }}</div>
+            <div class="text-sm font-mono">{{ memPctText }}</div>
+          </div>
+          <progress class="progress w-full" :value="status.memUsedPct || 0" max="100" />
+          <div class="text-[11px] opacity-70">
+            <span class="font-mono">{{ prettyBytes(status.memUsed) }}</span>
+            <span class="opacity-50">/</span>
+            <span class="font-mono">{{ prettyBytes(status.memTotal) }}</span>
+          </div>
         </div>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <div class="flex items-center justify-between">
-          <div class="text-xs opacity-70">{{ $t('memoryUsage') }}</div>
-          <div class="text-sm font-mono">{{ memPctText }}</div>
+      <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3">
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <div class="font-medium">{{ $t('routerInfo') }}</div>
+          <div class="text-xs opacity-60">{{ $t('routerInfoTip') }}</div>
         </div>
-        <progress class="progress w-full" :value="status.memUsedPct || 0" max="100" />
-        <div class="text-[11px] opacity-70">
-          <span class="font-mono">{{ prettyBytes(status.memUsed) }}</span>
-          <span class="opacity-50">/</span>
-          <span class="font-mono">{{ prettyBytes(status.memTotal) }}</span>
+        <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-2 xl:grid-cols-3">
+          <div v-for="item in infoItems" :key="item.key" class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2">
+            <div class="text-[11px] uppercase tracking-wide opacity-60">{{ item.label }}</div>
+            <div class="mt-1 break-all font-mono text-xs sm:text-sm">{{ item.value }}</div>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { agentStatusAPI } from '@/api/agent'
+import { version as backendVersion } from '@/api'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 type AgentStatusExt = {
   ok: boolean
@@ -64,9 +81,17 @@ type AgentStatusExt = {
   memTotal?: number
   memUsed?: number
   memUsedPct?: number
+  hostname?: string
+  model?: string
+  firmware?: string
+  kernel?: string
+  arch?: string
+  xkeenVersion?: string
+  mihomoBinVersion?: string
   error?: string
 }
 
+const { t } = useI18n()
 const status = ref<AgentStatusExt>({ ok: false })
 
 const prettyBytes = (v: any) => {
@@ -97,6 +122,19 @@ const uptimeText = computed(() => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 })
 
+const infoItems = computed(() => {
+  const backendVer = String(backendVersion.value || '').trim()
+  return [
+    { key: 'hostname', label: t('hostname'), value: status.value.hostname || '—' },
+    { key: 'model', label: t('model'), value: status.value.model || '—' },
+    { key: 'firmware', label: t('firmware'), value: status.value.firmware || '—' },
+    { key: 'kernel', label: t('kernel'), value: status.value.kernel || '—' },
+    { key: 'arch', label: t('architecture'), value: status.value.arch || '—' },
+    { key: 'mihomo', label: t('mihomoVersion'), value: status.value.mihomoBinVersion || backendVer || '—' },
+    { key: 'xkeen', label: t('xkeenVersion'), value: status.value.xkeenVersion || '—' },
+  ]
+})
+
 const refresh = async () => {
   if (!agentEnabled.value) {
     status.value = { ok: false }
@@ -109,7 +147,6 @@ let timer: any = null
 
 onMounted(() => {
   refresh()
-  // Light polling for readable "router load".
   timer = setInterval(() => {
     if (agentEnabled.value) refresh()
   }, 10_000)

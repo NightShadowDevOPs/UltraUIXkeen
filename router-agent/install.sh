@@ -1603,14 +1603,51 @@ status() {
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
 
+  hostname="$(uname -n 2>/dev/null | tr -d '\r' | head -n 1)"
+  [ -n "$hostname" ] || hostname="router"
+
+  model=""
+  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d '\000\r' | head -n 1)"
+  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\000\r' | head -n 1)"
+  [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
+
+  firmware=""
+  if [ -r /etc/openwrt_release ]; then
+    firmware="$(grep '^DISTRIB_DESCRIPTION=' /etc/openwrt_release 2>/dev/null | head -n 1 | cut -d= -f2- | sed "s/^[\'\"]//; s/[\'\"]$//")"
+  fi
+  if [ -z "$firmware" ] && [ -r /etc/os-release ]; then
+    firmware="$(awk -F= '/^PRETTY_NAME=/{gsub(/^"|"$/,"",$2); print $2; exit}' /etc/os-release 2>/dev/null)"
+  fi
+  if [ -z "$firmware" ] && [ -r /etc/version ]; then
+    firmware="$(head -n 1 /etc/version 2>/dev/null | tr -d '\r')"
+  fi
+
+  kernel="$(uname -r 2>/dev/null | tr -d '\r' | head -n 1)"
+  arch="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
+
+  xkeen_ver=""
+  if command -v xkeen >/dev/null 2>&1; then
+    xkeen_ver="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '\r')"
+    [ -n "$xkeen_ver" ] || xkeen_ver="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '\r')"
+    [ -n "$xkeen_ver" ] || xkeen_ver="installed"
+  fi
+
+  mihomo_ver=""
+  if command -v mihomo >/dev/null 2>&1; then
+    mihomo_ver="$(mihomo -v 2>/dev/null | head -n 1 | tr -d '\r')"
+  elif command -v clash-meta >/dev/null 2>&1; then
+    mihomo_ver="$(clash-meta -v 2>/dev/null | head -n 1 | tr -d '\r')"
+  fi
+
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.43","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.44","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s,"hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
     $( [ $have_hashlimit -eq 1 ] && echo true || echo false ) \
-    "$cpu_pct" "$load1" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_used_pct")"
+    "$cpu_pct" "$load1" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_used_pct" \
+    "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 
 agent_log() {
