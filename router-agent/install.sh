@@ -226,6 +226,103 @@ remote_agent_version() {
   return 0
 }
 
+
+detect_router_firmware_text() {
+  firmware=""
+  if [ -r /etc/openwrt_release ]; then
+    firmware="$(grep '^DISTRIB_DESCRIPTION=' /etc/openwrt_release 2>/dev/null | head -n 1 | cut -d= -f2- | sed "s/^[\'\"]//; s/[\'\"]$//")"
+  fi
+  if [ -z "$firmware" ] && [ -r /etc/os-release ]; then
+    firmware="$(awk -F= '/^PRETTY_NAME=/{gsub(/^"|"$/,"",$2); print $2; exit}' /etc/os-release 2>/dev/null)"
+  fi
+  if [ -z "$firmware" ] && [ -r /etc/version ]; then
+    firmware="$(head -n 1 /etc/version 2>/dev/null | tr -d '\r')"
+  fi
+  printf '%s' "$firmware"
+}
+
+extract_semver3() {
+  printf '%s' "$1" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+}
+
+semver_gt() {
+  awk -v A="$1" -v B="$2" '
+    function fill(v, arr,   t,n,i){n=split(v,t,"."); for(i=1;i<=3;i++) arr[i]=(i<=n?t[i]+0:0)}
+    BEGIN{fill(A,a); fill(B,b); for(i=1;i<=3;i++){if(a[i]>b[i]) exit 0; if(a[i]<b[i]) exit 1} exit 1}
+  '
+}
+
+firmware_check_url() {
+  if [ -n "$FIRMWARE_CHECK_URL" ]; then
+    printf '%s' "$FIRMWARE_CHECK_URL"
+    return 0
+  fi
+  printf '%s' 'https://support.netcraze.ru/ultra/nc-1812/ru/46907-latest-main-release.html'
+}
+
+firmware_check_cached_json() {
+  cache_json="/opt/zash-agent/var/firmware-check.json"
+  cache_ts="/opt/zash-agent/var/firmware-check.ts"
+  ttl=43200
+  force="$1"
+  now="$(date +%s 2>/dev/null || echo 0)"
+
+  if [ "$force" != "1" ] && [ -f "$cache_json" ] && [ -f "$cache_ts" ]; then
+    ts="$(cat "$cache_ts" 2>/dev/null || echo 0)"
+    if echo "$ts" | grep -qE '^[0-9]+$' && [ "$now" -gt 0 ] && [ $((now-ts)) -lt "$ttl" ]; then
+      cat "$cache_json" 2>/dev/null || true
+      return 0
+    fi
+  fi
+
+  current_text="$(detect_router_firmware_text)"
+  current_ver="$(extract_semver3 "$current_text")"
+  url="$(firmware_check_url)"
+  page=""
+  wb="/opt/bin/wget"
+  [ -x "$wb" ] || wb="wget"
+
+  if command -v timeout >/dev/null 2>&1; then
+    page="$(timeout 8 "$wb" -qO- "$url" 2>/dev/null || true)"
+  else
+    page="$("$wb" -qO- "$url" 2>/dev/null || true)"
+  fi
+  if [ -z "$page" ] && command -v curl >/dev/null 2>&1; then
+    page="$(curl -fsSL --max-time 8 "$url" 2>/dev/null || true)"
+  fi
+
+  latest_ver="$(printf '%s' "$page" | tr '\r\n' ' ' | grep -Eo 'NDMS[^0-9]*[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')"
+
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+  checked_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
+
+  if [ -n "$latest_ver" ]; then
+    update=false
+    if [ -n "$current_ver" ] && semver_gt "$latest_ver" "$current_ver"; then
+      update=true
+    fi
+    json="$(printf '{"ok":true,"currentVersion":"%s","latestVersion":"%s","updateAvailable":%s,"checkedAt":"%s","sourceUrl":"%s","channel":"main","cached":false,"stale":false}' \
+      "$(jesc "$current_ver")" "$(jesc "$latest_ver")" "$(rclone_json_bool "$update")" "$(jesc "$checked_at")" "$(jesc "$url")")"
+    printf '%s' "$json" > "$cache_json" 2>/dev/null || true
+    echo "$now" > "$cache_ts" 2>/dev/null || true
+    printf '%s' "$json"
+    return 0
+  fi
+
+  if [ -f "$cache_json" ]; then
+    stale_json="$(cat "$cache_json" 2>/dev/null | sed 's/"stale":false/"stale":true/; s/"cached":false/"cached":true/')"
+    [ -n "$stale_json" ] && printf '%s' "$stale_json" && return 0
+  fi
+
+  printf '{"ok":false,"currentVersion":"%s","checkedAt":"%s","sourceUrl":"%s","channel":"main","error":"site-unavailable"}' \
+    "$(jesc "$current_ver")" "$(jesc "$checked_at")" "$(jesc "$url")"
+}
+
+firmware_check_json() {
+  force="$1"
+  reply_ok "$(firmware_check_cached_json "$force")"
+}
+
 mihomo_config_json() {
   if [ ! -f "$MIHOMO_CONFIG" ]; then
     reply_ok '{"ok":false,"error":"config-not-found"}'
@@ -1090,7 +1187,7 @@ if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
 fi
 
 # Parse query string (key=value&...)
-cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""; enabled_q=""; schedule_q=""; remote_q=""; remotes_q=""
+cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""; enabled_q=""; schedule_q=""; remote_q=""; remotes_q=""; force_q=""
 IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
@@ -1117,6 +1214,7 @@ for kv in $QUERY_STRING; do
     env) env_q="$val" ;;
     remote) remote_q="$val" ;;
     remotes) remotes_q="$val" ;;
+    force) force_q="$val" ;;
   esac
 done
 unset IFS
@@ -1611,16 +1709,7 @@ status() {
   [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\000\r' | head -n 1)"
   [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
 
-  firmware=""
-  if [ -r /etc/openwrt_release ]; then
-    firmware="$(grep '^DISTRIB_DESCRIPTION=' /etc/openwrt_release 2>/dev/null | head -n 1 | cut -d= -f2- | sed "s/^[\'\"]//; s/[\'\"]$//")"
-  fi
-  if [ -z "$firmware" ] && [ -r /etc/os-release ]; then
-    firmware="$(awk -F= '/^PRETTY_NAME=/{gsub(/^"|"$/,"",$2); print $2; exit}' /etc/os-release 2>/dev/null)"
-  fi
-  if [ -z "$firmware" ] && [ -r /etc/version ]; then
-    firmware="$(head -n 1 /etc/version 2>/dev/null | tr -d '\r')"
-  fi
+  firmware="$(detect_router_firmware_text)"
 
   kernel="$(uname -r 2>/dev/null | tr -d '\r' | head -n 1)"
   arch="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
@@ -1641,7 +1730,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.44","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s,"hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.5.45","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s,"hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
@@ -2536,6 +2625,9 @@ case "$cmd" in
     ;;
   users_db_put)
     users_db_put_json "$rev_q"
+    ;;
+  firmware_check)
+    firmware_check_json "$force_q"
     ;;
   backup_start)
     backup_start_json

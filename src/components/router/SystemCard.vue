@@ -50,6 +50,39 @@
       </div>
 
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3">
+        <div class="mb-3 rounded-lg border border-base-content/10 bg-base-100/40 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="font-medium">{{ $t('firmwareUpdateCheck') }}</div>
+              <div class="text-xs opacity-60">{{ $t('firmwareUpdateCheckTip') }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span v-if="firmwareCheck.checkedAt" class="text-[11px] opacity-60">{{ $t('lastCheck') }}: {{ firmwareCheck.checkedAt }}</span>
+              <button type="button" class="btn btn-xs" @click="refreshFirmware(true)" :disabled="!agentEnabled || firmwareLoading">
+                <span v-if="firmwareLoading" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ $t('refresh') }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span class="badge badge-ghost">{{ $t('firmware') }}: {{ firmwareCurrentLabel }}</span>
+            <span class="badge" :class="firmwareBadgeClass">{{ firmwareBadgeText }}</span>
+            <span v-if="firmwareCheck.latestVersion" class="badge badge-info">site: {{ firmwareCheck.latestVersion }}</span>
+            <span v-if="firmwareCheck.channel" class="badge badge-ghost">{{ firmwareCheck.channel }}</span>
+            <a v-if="firmwareCheck.sourceUrl" class="link link-hover text-xs" :href="firmwareCheck.sourceUrl" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+          </div>
+
+          <div v-if="firmwareCheck.updateAvailable" class="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+            {{ $t('firmwareUpdateAvailable', { version: firmwareCheck.latestVersion || '—' }) }}
+          </div>
+          <div v-else-if="firmwareCheck.ok && firmwareCheck.latestVersion" class="mt-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm">
+            {{ $t('firmwareUpToDate') }}
+          </div>
+          <div v-else-if="firmwareCheck.error" class="mt-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm">
+            {{ firmwareCheck.error }}
+          </div>
+        </div>
         <div class="mb-2 flex items-center justify-between gap-2">
           <div class="font-medium">{{ $t('routerInfo') }}</div>
           <div class="text-xs opacity-60">{{ $t('routerInfoTip') }}</div>
@@ -66,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { agentStatusAPI } from '@/api/agent'
+import { agentFirmwareCheckAPI, agentStatusAPI } from '@/api/agent'
 import { version as backendVersion } from '@/api'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
@@ -91,8 +124,23 @@ type AgentStatusExt = {
   error?: string
 }
 
+type FirmwareCheckState = {
+  ok: boolean
+  currentVersion?: string
+  latestVersion?: string
+  updateAvailable?: boolean
+  checkedAt?: string
+  sourceUrl?: string
+  channel?: string
+  cached?: boolean
+  stale?: boolean
+  error?: string
+}
+
 const { t } = useI18n()
 const status = ref<AgentStatusExt>({ ok: false })
+const firmwareCheck = ref<FirmwareCheckState>({ ok: false })
+const firmwareLoading = ref(false)
 
 const prettyBytes = (v: any) => {
   const n = Number(v || 0)
@@ -122,6 +170,37 @@ const uptimeText = computed(() => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 })
 
+const firmwareCurrentLabel = computed(() => firmwareCheck.value.currentVersion || status.value.firmware || '—')
+
+const firmwareBadgeClass = computed(() => {
+  if (firmwareLoading.value) return 'badge-ghost'
+  if (firmwareCheck.value.updateAvailable) return 'badge-warning'
+  if (firmwareCheck.value.ok && firmwareCheck.value.latestVersion) return 'badge-success'
+  if (firmwareCheck.value.error) return 'badge-error'
+  return 'badge-ghost'
+})
+
+const firmwareBadgeText = computed(() => {
+  if (firmwareLoading.value) return t('checking')
+  if (firmwareCheck.value.updateAvailable) return t('firmwareUpdateAvailableShort')
+  if (firmwareCheck.value.ok && firmwareCheck.value.latestVersion) return t('firmwareUpToDateShort')
+  if (firmwareCheck.value.error) return t('firmwareCheckFailed')
+  return t('firmwareCheckUnknown')
+})
+
+const refreshFirmware = async (force = false) => {
+  if (!agentEnabled.value) {
+    firmwareCheck.value = { ok: false }
+    return
+  }
+  firmwareLoading.value = true
+  try {
+    firmwareCheck.value = await agentFirmwareCheckAPI(force)
+  } finally {
+    firmwareLoading.value = false
+  }
+}
+
 const infoItems = computed(() => {
   const backendVer = String(backendVersion.value || '').trim()
   return [
@@ -147,6 +226,7 @@ let timer: any = null
 
 onMounted(() => {
   refresh()
+  refreshFirmware(false)
   timer = setInterval(() => {
     if (agentEnabled.value) refresh()
   }, 10_000)

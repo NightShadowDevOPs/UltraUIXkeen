@@ -68,6 +68,19 @@ type AgentStatus = {
   error?: string
 }
 
+export type AgentFirmwareCheck = {
+  ok: boolean
+  currentVersion?: string
+  latestVersion?: string
+  updateAvailable?: boolean
+  checkedAt?: string
+  sourceUrl?: string
+  channel?: string
+  cached?: boolean
+  stale?: boolean
+  error?: string
+}
+
 const agentAxios = () => {
   const instance = axios.create({
     baseURL: agentUrl.value || '',
@@ -103,6 +116,18 @@ export const agentStatusAPI = async (): Promise<AgentStatus> => {
     return (data || {}) as AgentStatus
   } catch (e: any) {
     return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentFirmwareCheckAPI = async (force = false): Promise<AgentFirmwareCheck> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'firmware_check', force: force ? '1' : '0' },
+      timeout: 8000,
+    })
+    return (data || { ok: false }) as AgentFirmwareCheck
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
   }
 }
 

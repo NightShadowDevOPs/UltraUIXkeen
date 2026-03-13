@@ -9,9 +9,9 @@
           <button
             type="button"
             :class="[
-              globalSearchOpen ? 'menu-active' : '',
+              globalSearchOpen ? activeNavClass : inactiveNavClass,
               isSidebarCollapsed && 'justify-center',
-              'w-full py-2',
+              'w-full py-2 rounded-xl transition-all',
             ]"
             @click="openGlobalSearch"
           >
@@ -30,9 +30,9 @@
         >
           <a
             :class="[
-              r === route.name ? 'menu-active' : '',
+              r === route.name ? activeNavClass : inactiveNavClass,
               isSidebarCollapsed && 'justify-center',
-              'py-2',
+              'py-2 rounded-xl transition-all',
             ]"
             @click.passive="() => router.push({ name: r })"
           >
@@ -110,6 +110,8 @@ const mouseenterHandler = (e: MouseEvent, r: string) => {
 }
 
 const route = useRoute()
+const activeNavClass = 'menu-active bg-primary/90 text-primary-content shadow-md ring-1 ring-primary/40 font-semibold'
+const inactiveNavClass = 'hover:bg-base-300/70 hover:text-base-content'
 
 const openGlobalSearch = () => {
   globalSearchOpen.value = true
