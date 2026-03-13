@@ -31,6 +31,10 @@
           <div class="text-[11px] opacity-70">
             {{ $t('loadAvg1m') }}: <span class="font-mono">{{ status.load1 ?? '—' }}</span>
             <span class="opacity-50">·</span>
+            {{ $t('loadAvg5m') }}: <span class="font-mono">{{ status.load5 ?? '—' }}</span>
+            <span class="opacity-50">·</span>
+            {{ $t('loadAvg15m') }}: <span class="font-mono">{{ status.load15 ?? '—' }}</span>
+            <span class="opacity-50">·</span>
             {{ $t('uptime') }}: <span class="font-mono">{{ uptimeText }}</span>
           </div>
         </div>
@@ -45,6 +49,8 @@
             <span class="font-mono">{{ prettyBytes(status.memUsed) }}</span>
             <span class="opacity-50">/</span>
             <span class="font-mono">{{ prettyBytes(status.memTotal) }}</span>
+            <span class="opacity-50">·</span>
+            {{ $t('freeMemory') }}: <span class="font-mono">{{ prettyBytes(status.memFree) }}</span>
           </div>
         </div>
       </div>
@@ -110,10 +116,18 @@ type AgentStatusExt = {
   ok: boolean
   cpuPct?: number
   load1?: string
+  load5?: string
+  load15?: string
   uptimeSec?: number
   memTotal?: number
   memUsed?: number
+  memFree?: number
   memUsedPct?: number
+  storagePath?: string
+  storageTotal?: number
+  storageUsed?: number
+  storageFree?: number
+  tempC?: string
   hostname?: string
   model?: string
   firmware?: string
@@ -211,6 +225,11 @@ const infoItems = computed(() => {
     { key: 'arch', label: t('architecture'), value: status.value.arch || '—' },
     { key: 'mihomo', label: t('mihomoVersion'), value: status.value.mihomoBinVersion || backendVer || '—' },
     { key: 'xkeen', label: t('xkeenVersion'), value: status.value.xkeenVersion || '—' },
+    { key: 'temperature', label: t('temperature'), value: status.value.tempC ? `${status.value.tempC} °C` : '—' },
+    { key: 'memoryFree', label: t('freeMemory'), value: prettyBytes(status.value.memFree) },
+    { key: 'storage', label: t('storage'), value: status.value.storageTotal
+      ? `${prettyBytes(status.value.storageUsed)} / ${prettyBytes(status.value.storageTotal)} · ${t('free')}: ${prettyBytes(status.value.storageFree)}${status.value.storagePath ? ` · ${status.value.storagePath}` : ''}`
+      : '—' },
   ]
 })
 

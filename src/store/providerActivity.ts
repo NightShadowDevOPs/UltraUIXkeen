@@ -55,9 +55,9 @@ type PersistedConnTotalStore = {
   entries: Record<string, PersistedConnTotal>
 }
 
-const STORAGE_KEY = 'stats/provider-traffic-session-v6'
-const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v5'
-const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v5'
+const STORAGE_KEY = 'stats/provider-traffic-session-v7'
+const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v6'
+const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v6'
 const MAX_PERSISTED_CONN_TOTALS = 5000
 const trafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const dailyTrafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
@@ -182,10 +182,48 @@ export const providerProxyNames = (provider: any): string[] => {
     .filter(Boolean)
 }
 
+const pushCandidate = (out: string[], value: unknown) => {
+  const name = String(value || '').trim()
+  if (name) out.push(name)
+}
+
+const pushCandidateList = (out: string[], value: unknown, reverse = false) => {
+  const arr = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.values(value as Record<string, unknown>)
+      : []
+  const items = reverse ? [...arr].reverse() : arr
+  for (const item of items) pushCandidate(out, item)
+}
+
+export const connectionProviderCandidates = (conn: any): string[] => {
+  const candidates: string[] = []
+  pushCandidateList(candidates, (conn as any)?.providerChains, true)
+  pushCandidateList(candidates, (conn as any)?.metadata?.providerChains, true)
+  pushCandidate(candidates, (conn as any)?.provider)
+  pushCandidate(candidates, (conn as any)?.providerName)
+  pushCandidate(candidates, (conn as any)?.['provider-name'])
+  pushCandidate(candidates, (conn as any)?.metadata?.provider)
+  pushCandidate(candidates, (conn as any)?.metadata?.providerName)
+  pushCandidate(candidates, (conn as any)?.metadata?.['provider-name'])
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const name of candidates) {
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    out.push(name)
+  }
+  return out
+}
+
 export const connectionProxyCandidates = (conn: any): string[] => {
   const candidates: string[] = []
   const specialProxy = String(conn?.metadata?.specialProxy || '').trim()
   if (specialProxy) candidates.push(specialProxy)
+  pushCandidate(candidates, (conn as any)?.metadata?.proxy)
+  pushCandidate(candidates, (conn as any)?.metadata?.proxyName)
+  pushCandidate(candidates, (conn as any)?.metadata?.['proxy-name'])
   const chains = Array.isArray(conn?.chains) ? conn.chains : []
   for (let i = chains.length - 1; i >= 0; i--) {
     const name = String(chains[i] || '').trim()
@@ -207,6 +245,17 @@ export const connectionMatchesProviderProxyNames = (conn: any, proxyNames: Itera
     if (set.has(proxyName)) return proxyName
   }
   return ''
+}
+
+export const connectionMatchesProvider = (conn: any, providerName: string, proxyNames: Iterable<string>): string => {
+  const provider = String(providerName || '').trim()
+  if (provider) {
+    const providerCandidates = connectionProviderCandidates(conn)
+    for (const candidate of providerCandidates) {
+      if (candidate === provider) return connectionProxyCandidates(conn)[0] || provider
+    }
+  }
+  return connectionMatchesProviderProxyNames(conn, proxyNames)
 }
 
 watch(
@@ -249,7 +298,7 @@ watch(
 
       for (const [providerName, proxyNames] of providerProxySets.entries()) {
         if (!proxyNames.size) continue
-        const proxyName = connectionMatchesProviderProxyNames(c as any, proxyNames)
+        const proxyName = connectionMatchesProvider(c as any, providerName, proxyNames)
         if (!proxyName) continue
 
         const seenKey = `${providerName}\u0000${id}`
@@ -428,7 +477,7 @@ export const providerLiveStatusByName = computed<Record<string, ProviderLiveStat
     }
     let connections = 0
     for (const c of list) {
-      if (connectionMatchesProviderProxyNames(c as any, names)) connections += 1
+      if (connectionMatchesProvider(c as any, providerName, names)) connections += 1
     }
     out[providerName] = { connections, active: connections > 0 }
   }

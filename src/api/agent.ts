@@ -54,10 +54,18 @@ type AgentStatus = {
   // optional system metrics (agent >= 0.4)
   cpuPct?: number
   load1?: string
+  load5?: string
+  load15?: string
   uptimeSec?: number
   memTotal?: number
   memUsed?: number
+  memFree?: number
   memUsedPct?: number
+  storagePath?: string
+  storageTotal?: number
+  storageUsed?: number
+  storageFree?: number
+  tempC?: string
   hostname?: string
   model?: string
   firmware?: string

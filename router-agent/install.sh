@@ -1655,8 +1655,6 @@ status() {
     read _ u1 n1 s1 i1 w1 irq1 sirq1 stl1 rest < /proc/stat
     t1=$((u1+n1+s1+i1+w1+irq1+sirq1+stl1))
     id1=$((i1+w1))
-    # Some router builds have a sleep that doesn't support fractional seconds.
-    # Prefer usleep if present, otherwise fall back to integer sleep.
     if command -v usleep >/dev/null 2>&1; then
       usleep 200000 2>/dev/null || true
     else
@@ -1675,8 +1673,16 @@ status() {
   [ "$cpu_pct" -gt 100 ] && cpu_pct=100
 
   load1="0"
-  [ -r /proc/loadavg ] && load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+  load5="0"
+  load15="0"
+  if [ -r /proc/loadavg ]; then
+    load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+    load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
+    load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
+  fi
   [ -n "$load1" ] || load1="0"
+  [ -n "$load5" ] || load5="0"
+  [ -n "$load15" ] || load15="0"
 
   uptime_sec=0
   [ -r /proc/uptime ] && uptime_sec="$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
@@ -1700,6 +1706,36 @@ status() {
   fi
   mem_total_b=$((mem_total_kb*1024))
   mem_used_b=$((mem_used_kb*1024))
+  mem_free_b=$((mem_avail_kb*1024))
+
+  storage_path="/opt"
+  storage_total_b=0
+  storage_used_b=0
+  storage_free_b=0
+  if ! df -k "$storage_path" >/dev/null 2>&1; then
+    storage_path="/"
+  fi
+  if df -k "$storage_path" >/dev/null 2>&1; then
+    set -- $(df -k "$storage_path" 2>/dev/null | awk 'NR==2{print $2, $3, $4}')
+    st_total_kb="$1"
+    st_used_kb="$2"
+    st_free_kb="$3"
+    echo "$st_total_kb" | grep -qE '^[0-9]+$' || st_total_kb=0
+    echo "$st_used_kb" | grep -qE '^[0-9]+$' || st_used_kb=0
+    echo "$st_free_kb" | grep -qE '^[0-9]+$' || st_free_kb=0
+    storage_total_b=$((st_total_kb*1024))
+    storage_used_b=$((st_used_kb*1024))
+    storage_free_b=$((st_free_kb*1024))
+  fi
+
+  temp_c=""
+  for tf in /sys/class/thermal/thermal_zone*/temp /sys/devices/virtual/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do
+    [ -r "$tf" ] || continue
+    raw_temp="$(cat "$tf" 2>/dev/null | tr -d '\\r\\n ')"
+    echo "$raw_temp" | grep -qE '^-?[0-9]+(\.[0-9]+)?$' || continue
+    temp_c="$(awk -v t="$raw_temp" 'BEGIN { if (t > 1000 || t < -1000) printf "%.1f", t/1000; else printf "%.1f", t }' 2>/dev/null)"
+    [ -n "$temp_c" ] && break
+  done
 
   hostname="$(uname -n 2>/dev/null | tr -d '\r' | head -n 1)"
   [ -n "$hostname" ] || hostname="router"
@@ -1730,15 +1766,8 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.45","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s,"hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}' \
-    "$server_ver" "$WAN_IF" "$LAN_IF" \
-    $( [ $have_tc -eq 1 ] && echo true || echo false ) \
-    $( [ $have_iptables -eq 1 ] && echo true || echo false ) \
-    $( [ $have_hashlimit -eq 1 ] && echo true || echo false ) \
-    "$cpu_pct" "$load1" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_used_pct" \
-    "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.46","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
-
 agent_log() {
   # Best-effort command log for troubleshooting.
   # Stored locally on router, can be viewed via cmd=logs&type=agent.
