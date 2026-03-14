@@ -340,7 +340,8 @@ traffic_iface_kind() {
   ifn="$1"
   case "$ifn" in
     xkeen*|*xkeen*) echo "xkeen" ;;
-    wg*|wireguard*|*wg*) echo "wireguard" ;;
+    wg*|wireguard*|*wg*|nordlynx*) echo "wireguard" ;;
+    ovpn*|ovpnc*|ovpns*|openvpn*) echo "openvpn" ;;
     tun*|tap*) echo "tun" ;;
     ppp*|pptp*|l2tp*|sstp*) echo "ppp" ;;
     tailscale*|ts*) echo "tailscale" ;;
@@ -365,12 +366,12 @@ list_extra_traffic_ifaces() {
         continue
         ;;
     esac
-    if printf '%s' "$ifn" | grep -qiE '(^|[-_])(xkeen|wg|wireguard|tun|tap|ppp|pptp|l2tp|sstp|ovpn|vpn|ipsec|tailscale|zt|zerotier|xfrm)($|[-_0-9])'; then
+    if printf '%s' "$ifn" | grep -qiE '(^|[-_])(xkeen|wg|wireguard|nordlynx|tun|tap|ppp|pptp|l2tp|sstp|ovpn|openvpn|vpn|ipsec|tailscale|zt|zerotier|xfrm)($|[-_0-9])'; then
       printf '%s
 ' "$ifn"
       continue
     fi
-    if ip -d link show "$ifn" 2>/dev/null | grep -qiE 'wireguard|tun|tap|ppp|gretap|ipip|sit|vxlan'; then
+    if ip -d link show "$ifn" 2>/dev/null | grep -qiE 'wireguard|tun|tap|ppp|gretap|ipip|sit|vxlan|openvpn'; then
       printf '%s
 ' "$ifn"
       continue
@@ -1848,7 +1849,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.48","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.49","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.

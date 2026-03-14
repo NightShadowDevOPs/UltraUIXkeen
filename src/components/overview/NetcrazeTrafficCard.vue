@@ -15,7 +15,7 @@
         <div ref="chartRef" class="h-full w-full" />
         <span
           ref="colorRef"
-          class="border-b-success/25 border-t-success/60 border-l-info/25 border-r-info/60 text-base-content/10 bg-base-100/80 hidden"
+          class="border-b-success/25 border-t-success/60 border-l-info/25 border-r-info/60 text-base-content/10 bg-base-100/80 hidden [--router-wan-down:#2563eb] [--router-wan-up:#14b8a6] [--router-mihomo-down:#7c3aed] [--router-mihomo-up:#ec4899] [--router-other-down:#f59e0b] [--router-other-up:#22c55e]"
         />
       </div>
 
@@ -23,12 +23,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficTotal') }}</div>
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-blue-600" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-wan-down)]" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentRouterDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-teal-500" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-wan-up)]" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentRouterUploadLabel }}</span>
           </div>
@@ -37,12 +37,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('mihomoVersion') }}</div>
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-violet-500" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-mihomo-down)]" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentMihomoDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-pink-500" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-mihomo-up)]" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentMihomoUploadLabel }}</span>
           </div>
@@ -51,12 +51,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficOutsideMihomo') }}</div>
           <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-other-down)]" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentOtherDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-other-up)]" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentOtherUploadLabel }}</span>
           </div>
@@ -85,14 +85,54 @@
           </div>
         </div>
       </div>
+
+      <div v-if="topTrafficHosts.length" class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-3">
+        <div class="mb-2 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-medium">{{ $t('routerTrafficTopHosts') }}</div>
+            <div class="text-xs opacity-60">{{ $t('routerTrafficTopHostsTip') }}</div>
+          </div>
+          <span class="badge badge-ghost badge-sm">Mihomo</span>
+        </div>
+
+        <div class="grid gap-2 md:grid-cols-2">
+          <div
+            v-for="item in topTrafficHosts"
+            :key="`traffic-host-${item.ip}`"
+            class="rounded-lg border border-base-content/10 bg-base-100/30 px-3 py-2"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-medium">{{ item.label }}</div>
+                <div class="truncate text-[11px] opacity-60">{{ item.ip }}</div>
+              </div>
+              <span class="badge badge-ghost badge-xs">{{ item.connections }} {{ $t('connections') }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              <span class="inline-flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-mihomo-down)]" />
+                {{ $t('download') }}: <span class="font-mono">{{ speedLabel(item.down) }}</span>
+              </span>
+              <span class="inline-flex items-center gap-2">
+                <span class="h-2.5 w-2.5 rounded-full bg-[var(--router-mihomo-up)]" />
+                {{ $t('upload') }}: <span class="font-mono">{{ speedLabel(item.up) }}</span>
+              </span>
+            </div>
+            <div v-if="item.targets.length" class="mt-2 truncate text-[11px] opacity-70">
+              {{ item.targets.join(' · ') }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { agentTrafficLiveAPI, type AgentTrafficLiveIface } from '@/api/agent'
+import { agentLanHostsAPI, agentTrafficLiveAPI, type AgentTrafficLiveIface } from '@/api/agent'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
+import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme } from '@/store/settings'
 import { useElementSize } from '@vueuse/core'
@@ -117,6 +157,7 @@ type ExtraHistoryMap = Record<string, { down: Point[]; up: Point[]; kind?: strin
 type ExtraCounterState = Record<string, { rxBytes: number; txBytes: number; ts: number; kind?: string }>
 
 type ExtraColorPair = { down: string; up: string }
+type HostTrafficStat = { label: string; ip: string; down: number; up: number; connections: number; targets: string[] }
 
 const { t } = useI18n()
 const chartRef = ref<HTMLElement | null>(null)
@@ -142,14 +183,14 @@ const colorSet = {
   info60: '',
 }
 const extraPalette: ExtraColorPair[] = [
-  { down: '#22c55e', up: '#15803d' },
-  { down: '#f97316', up: '#c2410c' },
-  { down: '#06b6d4', up: '#0f766e' },
-  { down: '#8b5cf6', up: '#6d28d9' },
-  { down: '#ef4444', up: '#be123c' },
-  { down: '#84cc16', up: '#4d7c0f' },
-  { down: '#14b8a6', up: '#0f766e' },
-  { down: '#f59e0b', up: '#b45309' },
+  { down: '#06b6d4', up: '#f97316' },
+  { down: '#84cc16', up: '#ef4444' },
+  { down: '#a855f7', up: '#14b8a6' },
+  { down: '#f43f5e', up: '#0ea5e9' },
+  { down: '#facc15', up: '#7c3aed' },
+  { down: '#22c55e', up: '#e11d48' },
+  { down: '#38bdf8', up: '#d97706' },
+  { down: '#10b981', up: '#8b5cf6' },
 ]
 let fontFamily = ''
 let pollTimer: number | null = null
@@ -157,6 +198,8 @@ let lastRxBytes: number | null = null
 let lastTxBytes: number | null = null
 let lastSampleTs: number | null = null
 const lastExtraCounters = ref<ExtraCounterState>({})
+const lanHostNames = ref<Record<string, string>>({})
+let hostsTimer: number | null = null
 
 const updateColorSet = () => {
   if (!colorRef.value) return
@@ -205,6 +248,7 @@ const ifaceDisplayName = (name: string, kind?: string) => {
   if (upperKind === 'xkeen') return `XKeen · ${name}`
   if (upperKind === 'wireguard') return `WireGuard · ${name}`
   if (upperKind === 'tailscale') return `Tailscale · ${name}`
+  if (upperKind === 'openvpn' || upperKind === 'ovpn') return `OpenVPN · ${name}`
   if (upperKind === 'zerotier') return `ZeroTier · ${name}`
   if (upperKind === 'ipsec') return `IPsec · ${name}`
   return name
@@ -237,6 +281,63 @@ const currentExtraStats = computed(() => {
     .filter((item) => item.down > 0 || item.up > 0 || !!item.kind)
     .sort((a, b) => (b.down + b.up) - (a.down + a.up))
 })
+
+const topTrafficHosts = computed<HostTrafficStat[]>(() => {
+  const map = new Map<string, { ip: string; label: string; down: number; up: number; connections: number; targets: Set<string> }>()
+
+  for (const conn of activeConnections.value) {
+    const ip = String(conn?.metadata?.sourceIP || '').trim()
+    if (!ip) continue
+
+    const down = Math.max(0, Number(conn?.downloadSpeed || 0))
+    const up = Math.max(0, Number(conn?.uploadSpeed || 0))
+    const target = String(conn?.metadata?.host || conn?.metadata?.sniffHost || conn?.metadata?.destinationIP || '').trim()
+    const label = lanHostNames.value[ip] || ip
+
+    const current = map.get(ip) || { ip, label, down: 0, up: 0, connections: 0, targets: new Set<string>() }
+    current.label = lanHostNames.value[ip] || current.label || ip
+    current.down += down
+    current.up += up
+    current.connections += 1
+    if (target && current.targets.size < 3) current.targets.add(target)
+    map.set(ip, current)
+  }
+
+  return [...map.values()]
+    .filter((item) => item.down > 0 || item.up > 0)
+    .sort((a, b) => (b.down + b.up) - (a.down + a.up))
+    .slice(0, 6)
+    .map((item) => ({
+      ip: item.ip,
+      label: item.label,
+      down: item.down,
+      up: item.up,
+      connections: item.connections,
+      targets: [...item.targets],
+    }))
+})
+
+const refreshLanHosts = async () => {
+  if (!agentEnabled.value) return
+  const res = await agentLanHostsAPI()
+  if (!res?.ok || !Array.isArray(res.items)) return
+  const next: Record<string, string> = {}
+  for (const item of res.items) {
+    const ip = String(item?.ip || '').trim()
+    if (!ip) continue
+    const label = String(item?.hostname || item?.mac || '').trim()
+    if (label) next[ip] = label
+  }
+  lanHostNames.value = next
+}
+
+const scheduleHostRefresh = () => {
+  if (hostsTimer !== null) window.clearTimeout(hostsTimer)
+  hostsTimer = window.setTimeout(async () => {
+    await refreshLanHosts()
+    scheduleHostRefresh()
+  }, 60000)
+}
 
 const extraSeriesValues = computed(() => {
   return extraInterfaceKeys.value.flatMap((name) => {
@@ -464,7 +565,7 @@ const options = computed(() => ({
       smooth: true,
       symbol: 'none',
       data: mihomoUploadHistory.value.map((item) => item.value),
-      color: '#db2777',
+      color: '#ec4899',
       lineStyle: { width: 1.8, type: 'dashed' },
       emphasis: { focus: 'series' },
     },
@@ -484,7 +585,7 @@ const options = computed(() => ({
       smooth: true,
       symbol: 'none',
       data: otherUploadHistory.value.map((item) => item.value),
-      color: '#e11d48',
+      color: '#22c55e',
       lineStyle: { width: 2 },
       emphasis: { focus: 'series' },
     },
@@ -604,10 +705,16 @@ onMounted(() => {
   const resize = debounce(() => chart.resize(), 100)
   watch(width, resize)
 
+  refreshLanHosts()
+  scheduleHostRefresh()
   pollTraffic()
 })
 
 onBeforeUnmount(() => {
   stopPolling()
+  if (hostsTimer !== null) {
+    window.clearTimeout(hostsTimer)
+    hostsTimer = null
+  }
 })
 </script>
