@@ -1,5 +1,5 @@
 <template>
-  <div class="card w-full">
+  <div class="card w-full" :style="trafficColorVars">
     <div class="card-title flex items-center justify-between gap-2 px-4 pt-4">
       <div class="flex min-w-0 flex-col">
         <span>{{ $t('routerTrafficLive') }}</span>
@@ -23,12 +23,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficTotal') }}</div>
           <div class="flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-wan-down)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.wanDown }" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentRouterDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-wan-up)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.wanUp }" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentRouterUploadLabel }}</span>
           </div>
@@ -37,12 +37,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('mihomoVersion') }}</div>
           <div class="flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-mihomo-down)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoDown }" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentMihomoDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-mihomo-up)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoUp }" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentMihomoUploadLabel }}</span>
           </div>
@@ -51,12 +51,12 @@
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficOutsideMihomo') }}</div>
           <div class="flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-other-down)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.otherDown }" />
             <span class="opacity-80">{{ $t('download') }}:</span>
             <span class="font-mono">{{ currentOtherDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-other-up)]" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.otherUp }" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
             <span class="font-mono">{{ currentOtherUploadLabel }}</span>
           </div>
@@ -114,11 +114,11 @@
               <div v-if="item.targets.length" class="truncate text-[11px] opacity-70">{{ item.targets.join(' · ') }}</div>
             </div>
             <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-mihomo-down)]" />
+              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoDown }" />
               <span>{{ speedLabel(item.down) }}</span>
             </div>
             <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--router-mihomo-up)]" />
+              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoUp }" />
               <span>{{ speedLabel(item.up) }}</span>
             </div>
             <div class="text-right">
@@ -133,6 +133,7 @@
 
 <script setup lang="ts">
 import { agentLanHostsAPI, agentTrafficLiveAPI, type AgentTrafficLiveIface } from '@/api/agent'
+import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
@@ -196,6 +197,24 @@ const extraPalette: ExtraColorPair[] = [
   { down: '#38bdf8', up: '#d97706' },
   { down: '#10b981', up: '#8b5cf6' },
 ]
+const trafficColors = {
+  wanDown: '#2563eb',
+  wanUp: '#14b8a6',
+  mihomoDown: '#7c3aed',
+  mihomoUp: '#ec4899',
+  otherDown: '#f59e0b',
+  otherUp: '#22c55e',
+} as const
+
+const trafficColorVars = {
+  '--router-wan-down': trafficColors.wanDown,
+  '--router-wan-up': trafficColors.wanUp,
+  '--router-mihomo-down': trafficColors.mihomoDown,
+  '--router-mihomo-up': trafficColors.mihomoUp,
+  '--router-other-down': trafficColors.otherDown,
+  '--router-other-up': trafficColors.otherUp,
+} as Record<string, string>
+
 let fontFamily = ''
 let pollTimer: number | null = null
 let lastRxBytes: number | null = null
@@ -299,7 +318,7 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
     const down = Math.max(0, Number(conn?.downloadSpeed || 0))
     const up = Math.max(0, Number(conn?.uploadSpeed || 0))
     const target = String(conn?.metadata?.host || conn?.metadata?.sniffHost || conn?.metadata?.destinationIP || '').trim()
-    const label = lanHostNames.value[ip] || ip
+    const label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || ip
 
     const current = map.get(ip) || { ip, label, down: 0, up: 0, connections: 0, targets: new Set<string>() }
     current.label = label || current.label || ip
