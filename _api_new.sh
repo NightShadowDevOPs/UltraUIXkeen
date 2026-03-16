@@ -170,13 +170,11 @@ mihomo_providers_json() {
   emit_current_provider() {
     [ -n "$pname" ] || return 0
 
-    scheme=""
     host=""
     port=""
     not_after=""
 
     if [ -n "$url" ]; then
-      scheme="${url%%://*}"
       rest="${url#*://}"
       hostport="${rest%%/*}"
 
@@ -193,37 +191,10 @@ mihomo_providers_json() {
           [ -n "$port_part" ] && port="$port_part"
         fi
       fi
-
-      if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
-        not_after="$(ssl_not_after "$host" "$port")"
-      fi
     fi
 
     panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
     panel_na=""
-    if [ -n "$panel_url" ]; then
-      pscheme="${panel_url%%://*}"
-      prest="${panel_url#*://}"
-      phostport="${prest%%/*}"
-
-      p_host="$phostport"
-      p_port="443"
-      if echo "$phostport" | grep -q '^\['; then
-        p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
-        pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
-        [ -n "$pport_part" ] && p_port="$pport_part"
-      else
-        p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
-        if echo "$phostport" | grep -q ':'; then
-          pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
-          [ -n "$pport_part" ] && p_port="$pport_part"
-        fi
-      fi
-
-      if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
-        panel_na="$(ssl_not_after "$p_host" "$p_port")"
-      fi
-    fi
 
     [ $first -eq 0 ] && out="$out,"
     first=0

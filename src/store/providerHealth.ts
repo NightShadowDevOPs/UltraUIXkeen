@@ -80,9 +80,11 @@ export const fetchAgentProviders = async (force = false) => {
   agentProvidersLoading.value = true
   try {
     const res = await agentMihomoProvidersAPI(force)
-    agentProvidersOk.value = !!res?.ok
-    agentProvidersError.value = res?.ok ? null : res?.error || 'offline'
-    agentProviders.value = (res as any)?.providers || []
+    const providers = Array.isArray((res as any)?.providers) ? ((res as any)?.providers as any[]) : []
+    const hasProviders = providers.length > 0
+    agentProvidersOk.value = !!res?.ok || hasProviders
+    agentProvidersError.value = res?.ok || hasProviders ? null : res?.error || 'offline'
+    agentProviders.value = hasProviders ? providers : (agentProviders.value || [])
     agentProvidersAt.value = Date.now()
   } finally {
     agentProvidersLoading.value = false

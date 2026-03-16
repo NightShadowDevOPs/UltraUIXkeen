@@ -462,13 +462,11 @@ mihomo_providers_json() {
   emit_current_provider() {
     [ -n "$pname" ] || return 0
 
-    scheme=""
     host=""
     port=""
     not_after=""
 
     if [ -n "$url" ]; then
-      scheme="${url%%://*}"
       rest="${url#*://}"
       hostport="${rest%%/*}"
 
@@ -485,37 +483,10 @@ mihomo_providers_json() {
           [ -n "$port_part" ] && port="$port_part"
         fi
       fi
-
-      if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
-        not_after="$(ssl_not_after "$host" "$port")"
-      fi
     fi
 
     panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
     panel_na=""
-    if [ -n "$panel_url" ]; then
-      pscheme="${panel_url%%://*}"
-      prest="${panel_url#*://}"
-      phostport="${prest%%/*}"
-
-      p_host="$phostport"
-      p_port="443"
-      if echo "$phostport" | grep -q '^\['; then
-        p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
-        pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
-        [ -n "$pport_part" ] && p_port="$pport_part"
-      else
-        p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
-        if echo "$phostport" | grep -q ':'; then
-          pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
-          [ -n "$pport_part" ] && p_port="$pport_part"
-        fi
-      fi
-
-      if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
-        panel_na="$(ssl_not_after "$p_host" "$p_port")"
-      fi
-    fi
 
     [ $first -eq 0 ] && out="$out,"
     first=0
@@ -1876,7 +1847,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.52","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.53","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.

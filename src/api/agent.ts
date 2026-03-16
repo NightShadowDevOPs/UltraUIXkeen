@@ -219,7 +219,7 @@ export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLa
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'lan_hosts' },
-      timeout: 10000,
+      timeout: 15000,
     })
     return (data || { ok: true }) as any
   } catch (e: any) {
@@ -439,7 +439,7 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'mihomo_providers' },
-      timeout: 10000,
+      timeout: 15000,
     })
     _mihomoProvidersCache = (data || {}) as any
     _mihomoProvidersAt = now
@@ -712,7 +712,7 @@ export const agentBackupDeleteAPI = async (file: string): Promise<{ ok: boolean;
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'backup_delete', file },
-      timeout: 10000,
+      timeout: 15000,
     })
     return (data || { ok: true }) as any
   } catch (e: any) {
@@ -846,7 +846,7 @@ export const agentBackupCronSetAPI = async (enabled: boolean, schedule: string):
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'backup_cron_set', enabled: enabled ? '1' : '0', schedule },
-      timeout: 10000,
+      timeout: 15000,
     })
     return (data || { ok: true }) as any
   } catch (e: any) {
