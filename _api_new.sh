@@ -101,6 +101,63 @@ panel_url_for_provider() {
   printf '%s\n' "$lines" | awk -F'\t' -v n="$name" 'tolower($1)==tolower(n){print $2; exit}'
 }
 
+list_proxy_provider_lines() {
+  [ -f "$MIHOMO_CONFIG" ] || return 0
+
+  awk '
+    function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
+    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
+    function trim(s)  { return rtrim(ltrim(s)) }
+    function emit() {
+      if (name != "") {
+        print name "	" url
+      }
+    }
+    BEGIN {
+      inside = 0
+      name = ""
+      url = ""
+    }
+    {
+      line = $0
+
+      if (!inside) {
+        if (line ~ /^proxy-providers:[[:space:]]*$/) {
+          inside = 1
+        }
+        next
+      }
+
+      if (line ~ /^[^[:space:]#][^:]*:[[:space:]]*$/) {
+        emit()
+        exit
+      }
+
+      if (line ~ /^[[:space:]]{2}[^#[:space:]][^:]*:[[:space:]]*$/) {
+        emit()
+        name = line
+        sub(/^[[:space:]]{2}/, "", name)
+        sub(/:[[:space:]]*$/, "", name)
+        name = trim(name)
+        url = ""
+        next
+      }
+
+      if (name != "" && line ~ /^[[:space:]]{4}url:[[:space:]]*/) {
+        url = line
+        sub(/^[[:space:]]{4}url:[[:space:]]*/, "", url)
+        url = trim(url)
+        next
+      }
+    }
+    END {
+      if (inside) {
+        emit()
+      }
+    }
+  ' "$MIHOMO_CONFIG"
+}
+
 remote_agent_version() {
   # Best-effort: fetch current agent version from the upstream install script.
   # Cached to avoid slowing down status calls.
@@ -158,17 +215,16 @@ mihomo_providers_json() {
 
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
   panel_map="$(users_db_panel_urls_lines)"
-
-  in=0
-  pname=""
-  url=""
-  emitted=0
+  provider_lines="$(list_proxy_provider_lines)"
+  tab="$(printf '\t' 2>/dev/null || echo ' ')"
 
   out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"providers\":["
   first=1
 
-  emit_current_provider() {
-    [ -n "$pname" ] || return 0
+  while IFS="$tab" read -r pname raw_url; do
+    [ -n "$pname" ] || continue
+
+    url="$(printf '%s' "$raw_url" | sed -E "s/^[\"']?//; s/[\"']?$//")"
 
     scheme=""
     host=""
@@ -228,59 +284,23 @@ mihomo_providers_json() {
     [ $first -eq 0 ] && out="$out,"
     first=0
 
-    esc_name="$(printf '%s' "$pname" | sed 's/"/\\\\\\"/g')"
-    esc_url="$(printf '%s' "$url" | sed 's/"/\\\\\\"/g')"
-    esc_host="$(printf '%s' "$host" | sed 's/"/\\\\\\"/g')"
-    esc_port="$(printf '%s' "$port" | sed 's/"/\\\\\\"/g')"
-    esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\\\\"/g')"
-    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\\\\"/g')"
-    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\\\\"/g')"
+    esc_name="$(printf '%s' "$pname" | sed 's/"/\\\"/g')"
+    esc_url="$(printf '%s' "$url" | sed 's/"/\\\"/g')"
+    esc_host="$(printf '%s' "$host" | sed 's/"/\\\"/g')"
+    esc_port="$(printf '%s' "$port" | sed 's/"/\\\"/g')"
+    esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\"/g')"
+    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\"/g')"
+    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\"/g')"
 
     out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"panelUrl\":\"$esc_purl\",\"panelSslNotAfter\":\"$esc_pna\"}"
-    emitted=1
-  }
-
-  while IFS= read -r line; do
-    if [ $in -eq 0 ]; then
-      case "$line" in
-        proxy-providers:*) in=1; continue ;;
-      esac
-      continue
-    fi
-
-    # next top-level key -> stop
-    echo "$line" | grep -qE '^[^[:space:]]' && break
-
-    # provider name line: "  Name:"
-    if echo "$line" | grep -qE '^[[:space:]]{2}[^[:space:]].*:[[:space:]]*$'; then
-      # flush previous provider even if it had no url
-      if [ -n "$pname" ] && [ $emitted -eq 0 ]; then
-        emit_current_provider
-      fi
-      pname="$(echo "$line" | sed -E 's/^[[:space:]]{2}([^:]+):.*/\1/')"
-      url=""
-      emitted=0
-      continue
-    fi
-
-    # url line (optional)
-    if echo "$line" | grep -qE '^[[:space:]]{4}url:[[:space:]]*'; then
-      url="$(echo "$line" | sed -E 's/^[[:space:]]{4}url:[[:space:]]*//')"
-      url="$(echo "$url" | sed -E 's/^["\x27]?//; s/["\x27]?$//')"
-      emitted=0
-      emit_current_provider
-      continue
-    fi
-  done < "$MIHOMO_CONFIG"
-
-  # flush last provider if not emitted yet (e.g. no url)
-  if [ $in -eq 1 ] && [ -n "$pname" ] && [ $emitted -eq 0 ]; then
-    emit_current_provider
-  fi
+  done <<__MPR_LINES__
+$provider_lines
+__MPR_LINES__
 
   out="$out]}"
   reply_ok "$out"
 }
+
 
 ssl_probe_batch_json() {
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
