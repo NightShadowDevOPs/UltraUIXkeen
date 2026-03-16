@@ -213,6 +213,120 @@ panel_url_for_provider() {
   printf '%s\n' "$lines" | awk -F'\t' -v n="$name" 'tolower($1)==tolower(n){print $2; exit}'
 }
 
+ssl_cache_ttl_secs() {
+  echo 1800
+}
+
+ssl_cache_fields_for_provider() {
+  name="$1"
+  [ -n "$name" ] || return 0
+  [ -f "$SSL_CACHE_FILE" ] || return 0
+  awk -F'\t' -v n="$name" 'tolower($1)==tolower(n){printf "%s\t%s", $2, $3; exit}' "$SSL_CACHE_FILE" 2>/dev/null
+}
+
+ssl_cache_is_fresh() {
+  [ -f "$SSL_CACHE_TS_FILE" ] || return 1
+  now="$(date +%s 2>/dev/null || echo 0)"
+  ts="$(cat "$SSL_CACHE_TS_FILE" 2>/dev/null || echo 0)"
+  ttl="$(ssl_cache_ttl_secs)"
+  echo "$ts" | grep -qE '^[0-9]+$' || return 1
+  [ "$now" -gt 0 ] || return 1
+  [ $((now-ts)) -lt "$ttl" ]
+}
+
+ssl_cache_refresh_sync() {
+  provider_lines="$1"
+  panel_map="$2"
+  tab="$(printf '\t' 2>/dev/null || echo ' ')"
+  tmp="${SSL_CACHE_FILE}.tmp.$$"
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+  : > "$tmp"
+
+  while IFS="$tab" read -r pname raw_url; do
+    [ -n "$pname" ] || continue
+
+    url="$(printf '%s' "$raw_url" | sed -E "s/^[\"']?//; s/[\"']?$//")"
+    not_after=""
+    panel_na=""
+
+    if [ -n "$url" ]; then
+      scheme="${url%%://*}"
+      rest="${url#*://}"
+      hostport="${rest%%/*}"
+
+      host="$hostport"
+      port="443"
+      if echo "$hostport" | grep -q '^\['; then
+        host="$(echo "$hostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
+        port_part="$(echo "$hostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+        [ -n "$port_part" ] && port="$port_part"
+      else
+        host="$(printf '%s' "$hostport" | cut -d: -f1)"
+        if echo "$hostport" | grep -q ':'; then
+          port_part="$(printf '%s' "$hostport" | awk -F: '{print $NF}')"
+          [ -n "$port_part" ] && port="$port_part"
+        fi
+      fi
+
+      if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
+        not_after="$(ssl_not_after "$host" "$port")"
+      fi
+    fi
+
+    panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
+    if [ -n "$panel_url" ]; then
+      pscheme="${panel_url%%://*}"
+      prest="${panel_url#*://}"
+      phostport="${prest%%/*}"
+
+      p_host="$phostport"
+      p_port="443"
+      if echo "$phostport" | grep -q '^\['; then
+        p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
+        pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
+        [ -n "$pport_part" ] && p_port="$pport_part"
+      else
+        p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
+        if echo "$phostport" | grep -q ':'; then
+          pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
+          [ -n "$pport_part" ] && p_port="$pport_part"
+        fi
+      fi
+
+      if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
+        panel_na="$(ssl_not_after "$p_host" "$p_port")"
+      fi
+    fi
+
+    printf '%s\t%s\t%s\n' "$pname" "$not_after" "$panel_na" >> "$tmp"
+  done <<__SSL_CACHE_LINES__
+$provider_lines
+__SSL_CACHE_LINES__
+
+  mv "$tmp" "$SSL_CACHE_FILE"
+  date +%s 2>/dev/null > "$SSL_CACHE_TS_FILE" || echo 0 > "$SSL_CACHE_TS_FILE"
+}
+
+ssl_cache_refresh_async() {
+  provider_lines="$1"
+  panel_map="$2"
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+
+  if [ -f "$SSL_CACHE_LOCK_FILE" ]; then
+    oldpid="$(cat "$SSL_CACHE_LOCK_FILE" 2>/dev/null || echo '')"
+    if echo "$oldpid" | grep -qE '^[0-9]+$' && kill -0 "$oldpid" 2>/dev/null; then
+      return 0
+    fi
+    rm -f "$SSL_CACHE_LOCK_FILE" 2>/dev/null || true
+  fi
+
+  (
+    echo $$ > "$SSL_CACHE_LOCK_FILE"
+    ssl_cache_refresh_sync "$provider_lines" "$panel_map"
+    rm -f "$SSL_CACHE_LOCK_FILE" 2>/dev/null || true
+  ) >/dev/null 2>&1 &
+}
+
 list_proxy_provider_lines() {
   [ -f "$MIHOMO_CONFIG" ] || return 0
 
@@ -510,6 +624,10 @@ mihomo_providers_json() {
   provider_lines="$(list_proxy_provider_lines)"
   tab="$(printf '\t' 2>/dev/null || echo ' ')"
 
+  if [ -n "$provider_lines" ] && ! ssl_cache_is_fresh; then
+    ssl_cache_refresh_async "$provider_lines" "$panel_map"
+  fi
+
   out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"providers\":["
   first=1
 
@@ -517,14 +635,10 @@ mihomo_providers_json() {
     [ -n "$pname" ] || continue
 
     url="$(printf '%s' "$raw_url" | sed -E "s/^[\"']?//; s/[\"']?$//")"
-
-    scheme=""
     host=""
     port=""
-    not_after=""
 
     if [ -n "$url" ]; then
-      scheme="${url%%://*}"
       rest="${url#*://}"
       hostport="${rest%%/*}"
 
@@ -541,48 +655,29 @@ mihomo_providers_json() {
           [ -n "$port_part" ] && port="$port_part"
         fi
       fi
-
-      if [ "$scheme" = "https" ] || [ "$scheme" = "wss" ]; then
-        not_after="$(ssl_not_after "$host" "$port")"
-      fi
     fi
 
     panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
+    cache_fields="$(ssl_cache_fields_for_provider "$pname")"
+    not_after=""
     panel_na=""
-    if [ -n "$panel_url" ]; then
-      pscheme="${panel_url%%://*}"
-      prest="${panel_url#*://}"
-      phostport="${prest%%/*}"
-
-      p_host="$phostport"
-      p_port="443"
-      if echo "$phostport" | grep -q '^\['; then
-        p_host="$(echo "$phostport" | sed -E 's/^\[([^\]]+)\].*/\1/')"
-        pport_part="$(echo "$phostport" | sed -nE 's/^\[[^\]]+\]:(.*)$/\1/p')"
-        [ -n "$pport_part" ] && p_port="$pport_part"
-      else
-        p_host="$(printf '%s' "$phostport" | cut -d: -f1)"
-        if echo "$phostport" | grep -q ':'; then
-          pport_part="$(printf '%s' "$phostport" | awk -F: '{print $NF}')"
-          [ -n "$pport_part" ] && p_port="$pport_part"
-        fi
-      fi
-
-      if [ "$pscheme" = "https" ] || [ "$pscheme" = "wss" ]; then
-        panel_na="$(ssl_not_after "$p_host" "$p_port")"
+    if [ -n "$cache_fields" ]; then
+      not_after="${cache_fields%%$tab*}"
+      if [ "$cache_fields" != "$not_after" ]; then
+        panel_na="${cache_fields#*$tab}"
       fi
     fi
 
     [ $first -eq 0 ] && out="$out,"
     first=0
 
-    esc_name="$(printf '%s' "$pname" | sed 's/"/\\\"/g')"
-    esc_url="$(printf '%s' "$url" | sed 's/"/\\\"/g')"
-    esc_host="$(printf '%s' "$host" | sed 's/"/\\\"/g')"
-    esc_port="$(printf '%s' "$port" | sed 's/"/\\\"/g')"
-    esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\"/g')"
-    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\"/g')"
-    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\"/g')"
+    esc_name="$(printf '%s' "$pname" | sed 's/"/\\\\\"/g')"
+    esc_url="$(printf '%s' "$url" | sed 's/"/\\\\\"/g')"
+    esc_host="$(printf '%s' "$host" | sed 's/"/\\\\\"/g')"
+    esc_port="$(printf '%s' "$port" | sed 's/"/\\\\\"/g')"
+    esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\\\"/g')"
+    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\\\"/g')"
+    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\\\"/g')"
 
     out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"panelUrl\":\"$esc_purl\",\"panelSslNotAfter\":\"$esc_pna\"}"
   done <<__MPR_LINES__
@@ -592,7 +687,6 @@ __MPR_LINES__
   out="$out]}"
   reply_ok "$out"
 }
-
 
 ssl_probe_batch_json() {
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
@@ -1896,7 +1990,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.55","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.56","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.
