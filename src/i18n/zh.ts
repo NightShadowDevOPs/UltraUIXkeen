@@ -589,7 +589,6 @@ usersDbChanged: '已更改',
   backendConnectionFailed: '后端连接失败，请检查配置信息',
   backendConfigSaved: '后端配置保存成功',
   saveFailed: '保存失败',
-  checking: '检查中...',
   copySuccess: '复制成功',
   importFromBackend: '从后端导入',
   importFromBackendTip:

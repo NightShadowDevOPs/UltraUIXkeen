@@ -215,6 +215,7 @@
 		  </div>
       </div>
     </div>
+    </div>
 
     <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">

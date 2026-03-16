@@ -591,7 +591,6 @@ usersDbChanged: 'Changed',
   backendConnectionFailed: 'Backend connection failed, please check configuration',
   backendConfigSaved: 'Backend configuration saved successfully',
   saveFailed: 'Save failed',
-  checking: 'Checking...',
   copySuccess: 'Copied successfully',
   importFromBackend: 'Import from Backend',
   importFromBackendTip:

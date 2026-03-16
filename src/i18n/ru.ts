@@ -593,7 +593,6 @@ usersDbChanged: 'Изменено',
   backendConnectionFailed: 'Не удалось подключиться к бэкенду, проверьте конфигурацию',
   backendConfigSaved: 'Конфигурация бэкенда успешно сохранена',
   saveFailed: 'Не удалось сохранить',
-  checking: 'Проверка...',
   copySuccess: 'Копирование успешно',
   importFromBackend: 'Импортировать из бэкенда',
   importFromBackendTip:
