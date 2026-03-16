@@ -167,6 +167,18 @@
             v-model="autoSortProxyProvidersByHealth"
           />
         </div>
+        <div class="flex flex-wrap items-center gap-2 lg:col-span-2">
+          {{ $t('proxyProviderCardOpacity') }}
+          <input
+            type="range"
+            min="45"
+            max="100"
+            v-model="proxyProviderCardOpacity"
+            class="range max-w-64"
+          />
+          <span class="w-12 text-right text-xs opacity-70">{{ proxyProviderCardOpacity }}%</span>
+        </div>
+        <div class="text-xs opacity-60 lg:col-span-2">{{ $t('proxyProviderCardOpacityTip') }}</div>
         <div class="flex items-center gap-2">
           {{ $t('proxyGroupIconSize') }}
           <input
@@ -213,6 +225,7 @@ import {
   speedtestUrl,
   truncateProxyName,
   hideUnusedProxyProviders,
+  proxyProviderCardOpacity,
   twoColumnProxyGroup,
 } from '@/store/settings'
 import { autoSortProxyProvidersByHealth } from '@/store/providerHealth'

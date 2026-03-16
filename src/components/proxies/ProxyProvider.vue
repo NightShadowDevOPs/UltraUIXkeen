@@ -1,6 +1,10 @@
 <template>
   <div v-if="proxyProvider" data-nav-kind="proxy-provider" :data-nav-value="proxyProvider.name">
-    <CollapseCard :name="proxyProvider.name">
+    <CollapseCard
+      :name="proxyProvider.name"
+      class="provider-collapse-card border border-base-content/10 shadow-lg"
+      :style="providerCardSurfaceStyle"
+    >
     <template v-slot:title="{ open }">
       <div class="flex items-center justify-between gap-2 rounded-xl px-2 py-1" :class="open ? 'bg-base-200 ring-1 ring-base-300' : ''">
         <div class="text-xl font-medium">
@@ -355,7 +359,8 @@
   <!-- Defensive fallback: avoid a totally blank page if provider is missing/mismatched -->
   <div
     v-else
-    class="rounded-box bg-base-200/40 p-4 text-sm opacity-80"
+    class="rounded-box border border-base-content/10 p-4 text-sm opacity-80 shadow-lg"
+    :style="providerCardSurfaceStyle"
   >
     Провайдер не найден: <span class="font-mono">{{ name }}</span>
   </div>
@@ -381,7 +386,14 @@ import { fetchProxyProviderByNameOnly, getLatencyByName, getTestUrl, proxyLatenc
 import { activeConnections } from '@/store/connections'
 import { connectionMatchesProviderProxyNames, providerActivityByName, providerLiveStatusByName } from '@/store/providerActivity'
 import { NOT_CONNECTED, ROUTE_NAME } from '@/constant'
-import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault, twoColumnProxyGroup } from '@/store/settings'
+import {
+  proxyProviderCardOpacity,
+  proxyProviderIconMap,
+  proxyProviderPanelUrlMap,
+  proxyProviderSslWarnDaysMap,
+  sslNearExpiryDaysDefault,
+  twoColumnProxyGroup,
+} from '@/store/settings'
 import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, BoltIcon, ClipboardDocumentIcon, LinkIcon, PresentationChartLineIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { ChevronDownIcon } from '@heroicons/vue/20/solid'
@@ -398,6 +410,19 @@ import ProxyPreview from './ProxyPreview.vue'
 const props = defineProps<{
   name: string
 }>()
+
+const clampPercent = (value: number, min = 45, max = 100) => {
+  if (!Number.isFinite(value)) return max
+  return Math.max(min, Math.min(max, Math.trunc(value)))
+}
+
+const providerCardSurfaceStyle = computed(() => {
+  const alpha = clampPercent(Number(proxyProviderCardOpacity.value), 45, 100) / 100
+  return {
+    backgroundColor: `oklch(var(--b1) / ${alpha})`,
+    borderColor: 'oklch(var(--bc) / 0.12)',
+  }
+})
 
 const router = useRouter()
 const { t } = useI18n()

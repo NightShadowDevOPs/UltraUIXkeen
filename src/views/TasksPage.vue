@@ -218,6 +218,81 @@
     </div>
 
     <div class="card gap-2 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" class="flex min-w-0 items-center gap-2 text-left" @click="toggleProviderTrafficDebugExpanded">
+          <ChevronDownIcon class="h-4 w-4 opacity-70 transition-transform" :class="providerTrafficDebugExpanded ? 'rotate-180' : ''" />
+          <div class="truncate font-semibold">{{ $t('providerTrafficDebugTitle') }}</div>
+        </button>
+        <div v-if="providerTrafficDebugSelectedName" class="text-xs opacity-70">
+          {{ $t('connections') }}: {{ providerTrafficDebugSummary.total }}
+          · {{ $t('activeConnections') }}: {{ providerTrafficDebugSummary.active }}
+          · {{ $t('closedConnections') }}: {{ providerTrafficDebugSummary.closed }}
+        </div>
+      </div>
+
+      <div v-show="providerTrafficDebugExpanded">
+        <div class="text-xs opacity-70">{{ $t('providerTrafficDebugTip') }}</div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <select class="select select-bordered select-sm min-w-56" v-model="providerTrafficDebugProvider">
+            <option value="">{{ $t('providerTrafficDebugSelectProvider') }}</option>
+            <option v-for="name in providerTrafficDebugProviderNames" :key="`ptd-${name}`" :value="name">{{ name }}</option>
+          </select>
+          <label class="label cursor-pointer gap-2 py-0">
+            <span class="label-text text-xs">{{ $t('providerTrafficDebugIncludeClosed') }}</span>
+            <input class="checkbox checkbox-xs" type="checkbox" v-model="providerTrafficDebugIncludeClosed" />
+          </label>
+          <div class="flex items-center gap-2 text-xs">
+            <span>{{ $t('providerTrafficDebugLimit') }}</span>
+            <input type="number" min="10" max="200" class="input input-bordered input-xs w-20" v-model.number="providerTrafficDebugLimit" />
+          </div>
+        </div>
+
+        <div v-if="providerTrafficDebugSelectedName" class="mt-2 rounded-lg border border-base-content/10 bg-base-200/55 p-2 text-xs">
+          <div class="flex flex-wrap gap-x-3 gap-y-1">
+            <span><span class="opacity-60">{{ $t('proxies') }}:</span> {{ providerTrafficDebugProxyNames.length }}</span>
+            <span><span class="opacity-60">{{ $t('connections') }}:</span> {{ providerTrafficDebugSummary.total }}</span>
+            <span><span class="opacity-60">providerCandidates:</span> {{ providerTrafficDebugSummary.byProvider }}</span>
+            <span><span class="opacity-60">proxyCandidates:</span> {{ providerTrafficDebugSummary.byProxy }}</span>
+          </div>
+          <div class="mt-1 break-all opacity-70">{{ providerTrafficDebugProxyNames.join(' • ') || '—' }}</div>
+        </div>
+
+        <div v-if="!providerTrafficDebugSelectedName" class="mt-3 text-sm opacity-70">{{ $t('providerTrafficDebugSelectProvider') }}</div>
+        <div v-else-if="!providerTrafficDebugRows.length" class="mt-3 rounded-lg border border-base-content/10 bg-base-200/40 p-3 text-sm opacity-70">
+          {{ $t('providerTrafficDebugNoRows') }}
+        </div>
+        <div v-else class="mt-3 space-y-2">
+          <div v-for="row in providerTrafficDebugRows" :key="row.key" class="rounded-lg border border-base-content/10 bg-base-200/55 p-2 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge badge-xs" :class="row.source === 'active' ? 'badge-success' : 'badge-ghost'">{{ row.source === 'active' ? $t('activeConnections') : $t('closedConnections') }}</span>
+              <span class="badge badge-xs" :class="row.matchedBy === 'provider' ? 'badge-info' : 'badge-warning'">{{ row.matchedBy === 'provider' ? $t('providerTrafficDebugMatchedByProvider') : $t('providerTrafficDebugMatchedByProxy') }}</span>
+              <span class="font-mono">{{ row.id }}</span>
+              <span class="opacity-70">{{ row.startLabel }}</span>
+              <span class="truncate opacity-70" :title="row.hostLabel">{{ row.hostLabel }}</span>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              <span><span class="opacity-60">proxy:</span> <span class="font-mono">{{ row.matchedProxy || '—' }}</span></span>
+              <span><span class="opacity-60">dl:</span> {{ prettyBytesHelper(row.download, { binary: true }) }}</span>
+              <span><span class="opacity-60">ul:</span> {{ prettyBytesHelper(row.upload, { binary: true }) }}</span>
+              <span><span class="opacity-60">total:</span> {{ prettyBytesHelper(row.totalBytes, { binary: true }) }}</span>
+              <span v-if="row.speed > 0"><span class="opacity-60">speed:</span> {{ prettyBytesHelper(row.speed, { binary: true }) }}/s</span>
+            </div>
+            <div class="mt-1 grid gap-1 text-[11px] opacity-75 sm:grid-cols-2">
+              <div><span class="opacity-60">providerCandidates:</span> <span class="font-mono break-all">{{ row.providerCandidatesLabel }}</span></div>
+              <div><span class="opacity-60">proxyCandidates:</span> <span class="font-mono break-all">{{ row.proxyCandidatesLabel }}</span></div>
+              <div><span class="opacity-60">chains:</span> <span class="font-mono break-all">{{ row.chainsLabel }}</span></div>
+              <div><span class="opacity-60">providerChains:</span> <span class="font-mono break-all">{{ row.providerChainsLabel }}</span></div>
+              <div><span class="opacity-60">specialProxy:</span> <span class="font-mono break-all">{{ row.specialProxy || '—' }}</span></div>
+              <div><span class="opacity-60">providerName:</span> <span class="font-mono break-all">{{ row.providerNameField || '—' }}</span></div>
+              <div class="sm:col-span-2"><span class="opacity-60">rule:</span> <span class="font-mono break-all">{{ row.ruleLabel }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('liveLogs') }}</div>
         <div class="flex items-center gap-2">
@@ -1249,9 +1324,10 @@ import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowedCidrs, userLimits } from '@/store/userLimits'
-import { activeConnections } from '@/store/connections'
+import { activeConnections, closedConnections } from '@/store/connections'
 import { ruleHitMap } from '@/store/rules'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
+import { connectionProviderCandidates, connectionProxyCandidates, providerProxyNames } from '@/store/providerActivity'
 import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
 import dayjs from 'dayjs'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -1686,6 +1762,201 @@ const refreshProvidersPanel = async (force = false) => {
     // Keep provider list visible even if SSL probing is unavailable.
   }
 }
+
+type ProviderTrafficDebugRow = {
+  key: string
+  source: 'active' | 'closed'
+  id: string
+  matchedBy: 'provider' | 'proxy'
+  matchedProxy: string
+  providerCandidatesLabel: string
+  proxyCandidatesLabel: string
+  chainsLabel: string
+  providerChainsLabel: string
+  specialProxy: string
+  providerNameField: string
+  startLabel: string
+  startedAt: number
+  hostLabel: string
+  ruleLabel: string
+  download: number
+  upload: number
+  totalBytes: number
+  speed: number
+}
+
+const PROVIDER_TRAFFIC_DEBUG_EXPANDED_LS_KEY = 'zash.tasks.providerTrafficDebug.expanded'
+const providerTrafficDebugExpanded = ref(false)
+const providerTrafficDebugProvider = ref('')
+const providerTrafficDebugIncludeClosed = ref(true)
+const providerTrafficDebugLimit = ref(60)
+
+try {
+  const v = localStorage.getItem(PROVIDER_TRAFFIC_DEBUG_EXPANDED_LS_KEY)
+  if (v === '1') providerTrafficDebugExpanded.value = true
+} catch {
+  // ignore
+}
+
+watch(
+  providerTrafficDebugExpanded,
+  (v) => {
+    try {
+      localStorage.setItem(PROVIDER_TRAFFIC_DEBUG_EXPANDED_LS_KEY, v ? '1' : '0')
+    } catch {
+      // ignore
+    }
+  },
+  { flush: 'post' },
+)
+
+const toggleProviderTrafficDebugExpanded = () => {
+  providerTrafficDebugExpanded.value = !providerTrafficDebugExpanded.value
+}
+
+const providerTrafficDebugProviderNames = computed(() => {
+  const names = new Set<string>()
+  for (const p of (proxyProviederList.value || []) as any[]) {
+    const name = String(p?.name || '').trim()
+    if (!name || name === 'default') continue
+    names.add(name)
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+})
+
+watch(
+  providerTrafficDebugProviderNames,
+  (names) => {
+    if (!names.length) {
+      providerTrafficDebugProvider.value = ''
+      return
+    }
+    if (!names.includes(providerTrafficDebugProvider.value)) {
+      providerTrafficDebugProvider.value = names[0] || ''
+    }
+  },
+  { immediate: true },
+)
+
+const providerTrafficDebugSelectedName = computed(() => String(providerTrafficDebugProvider.value || '').trim())
+
+const providerTrafficDebugSelectedProvider = computed(() => {
+  const name = providerTrafficDebugSelectedName.value
+  return (proxyProviederList.value || []).find((p: any) => String(p?.name || '').trim() === name) || null
+})
+
+const providerTrafficDebugProxyNames = computed(() => {
+  const provider = providerTrafficDebugSelectedProvider.value as any
+  const names = provider ? providerProxyNames(provider) : []
+  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b))
+})
+
+const providerTrafficDebugProxySet = computed(() => new Set(providerTrafficDebugProxyNames.value))
+
+const formatDebugNames = (items: unknown[]) => {
+  const names = (items || []).map((item) => String(item || '').trim()).filter(Boolean)
+  return names.length ? names.join(' • ') : '—'
+}
+
+const toDebugRow = (conn: any, source: 'active' | 'closed'): ProviderTrafficDebugRow | null => {
+  const selected = providerTrafficDebugSelectedName.value
+  if (!selected) return null
+
+  const providerCandidates = connectionProviderCandidates(conn as any)
+  const proxyCandidates = connectionProxyCandidates(conn as any)
+
+  let matchedBy: 'provider' | 'proxy' | '' = ''
+  let matchedProxy = ''
+
+  if (providerCandidates.includes(selected)) {
+    matchedBy = 'provider'
+    matchedProxy = proxyCandidates[0] || ''
+  } else {
+    for (const candidate of proxyCandidates) {
+      if (providerTrafficDebugProxySet.value.has(candidate)) {
+        matchedBy = 'proxy'
+        matchedProxy = candidate
+        break
+      }
+    }
+  }
+
+  if (!matchedBy) return null
+
+  const download = Number((conn as any)?.download ?? 0) || 0
+  const upload = Number((conn as any)?.upload ?? 0) || 0
+  const speed = source === 'active'
+    ? (Number((conn as any)?.downloadSpeed ?? 0) || 0) + (Number((conn as any)?.uploadSpeed ?? 0) || 0)
+    : 0
+  const startedAt = dayjs(String((conn as any)?.start || '')).valueOf()
+  const metadata = (conn as any)?.metadata || {}
+  const providerChains = Array.isArray((conn as any)?.providerChains)
+    ? (conn as any).providerChains
+    : Array.isArray(metadata?.providerChains)
+      ? metadata.providerChains
+      : []
+  const host = String(metadata?.host || metadata?.sniffHost || metadata?.destinationIP || '—').trim() || '—'
+  const port = String(metadata?.destinationPort || '').trim()
+  const rule = String((conn as any)?.rule || '').trim()
+  const rulePayload = String((conn as any)?.rulePayload || '').trim()
+
+  return {
+    key: `${source}:${String((conn as any)?.id || '').trim()}`,
+    source,
+    id: String((conn as any)?.id || '').trim() || '—',
+    matchedBy: matchedBy as 'provider' | 'proxy',
+    matchedProxy,
+    providerCandidatesLabel: formatDebugNames(providerCandidates),
+    proxyCandidatesLabel: formatDebugNames(proxyCandidates),
+    chainsLabel: formatDebugNames(Array.isArray((conn as any)?.chains) ? (conn as any).chains : []),
+    providerChainsLabel: formatDebugNames(providerChains),
+    specialProxy: String(metadata?.specialProxy || '').trim(),
+    providerNameField: String((conn as any)?.providerName || (conn as any)?.provider || metadata?.providerName || metadata?.provider || '').trim(),
+    startLabel: startedAt && Number.isFinite(startedAt) ? dayjs(startedAt).format('DD-MM HH:mm:ss') : '—',
+    startedAt: Number.isFinite(startedAt) ? startedAt : 0,
+    hostLabel: port ? `${host}:${port}` : host,
+    ruleLabel: [rule, rulePayload].filter(Boolean).join(' • ') || '—',
+    download,
+    upload,
+    totalBytes: download + upload,
+    speed,
+  }
+}
+
+const providerTrafficDebugAllRows = computed<ProviderTrafficDebugRow[]>(() => {
+  const rows: ProviderTrafficDebugRow[] = []
+  for (const conn of activeConnections.value || []) {
+    const row = toDebugRow(conn as any, 'active')
+    if (row) rows.push(row)
+  }
+  if (providerTrafficDebugIncludeClosed.value) {
+    for (const conn of closedConnections.value || []) {
+      const row = toDebugRow(conn as any, 'closed')
+      if (row) rows.push(row)
+    }
+  }
+  return rows.sort((a, b) => {
+    if (b.startedAt !== a.startedAt) return b.startedAt - a.startedAt
+    if (b.totalBytes !== a.totalBytes) return b.totalBytes - a.totalBytes
+    return a.id.localeCompare(b.id)
+  })
+})
+
+const providerTrafficDebugRows = computed(() => {
+  const limit = Math.max(10, Math.min(200, Math.trunc(Number(providerTrafficDebugLimit.value) || 60)))
+  return providerTrafficDebugAllRows.value.slice(0, limit)
+})
+
+const providerTrafficDebugSummary = computed(() => {
+  const rows = providerTrafficDebugAllRows.value
+  return {
+    total: rows.length,
+    active: rows.filter((row) => row.source === 'active').length,
+    closed: rows.filter((row) => row.source === 'closed').length,
+    byProvider: rows.filter((row) => row.matchedBy === 'provider').length,
+    byProxy: rows.filter((row) => row.matchedBy === 'proxy').length,
+  }
+})
 
 // --- Live logs (router-agent) ---
 const logSource = ref<'mihomo' | 'config' | 'agent'>('mihomo')
