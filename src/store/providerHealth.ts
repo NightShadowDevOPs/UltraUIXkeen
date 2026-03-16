@@ -153,22 +153,19 @@ export const probePanelSsl = async (force = false) => {
 watch(
   agentEnabled,
   (on) => {
-    if (on) {
-      fetchAgentProviders(false)
-      probePanelSsl(false)
-    }
+    if (on) fetchAgentProviders(false)
   },
   { immediate: true },
 )
 
-// Refresh SSL probes when panel URL map changes (debounced).
-let probeTimer: any = null
+// When panel URLs change, keep the previous SSL state visible until the user
+// explicitly refreshes it. This avoids false 'agent unavailable' / empty-state
+// regressions when one dead panel makes SSL probing slow.
 watch(
   proxyProviderPanelUrlMap,
   () => {
-    if (!agentEnabled.value) return
-    if (probeTimer) clearTimeout(probeTimer)
-    probeTimer = setTimeout(() => probePanelSsl(true), 600)
+    panelSslCheckedAt.value = 0
+    panelSslProbeError.value = null
   },
   { deep: true },
 )

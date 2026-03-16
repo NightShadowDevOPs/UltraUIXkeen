@@ -7,6 +7,7 @@ import { providerActivityByName, providerLiveStatusByName } from '@/store/provid
 import { hideUnusedProxyProviders, hiddenProxyProviderProtoKeys, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import {
   agentProviderByName,
+  agentProviders,
   agentProvidersAt,
   agentProvidersError,
   agentProvidersLoading,
@@ -237,6 +238,8 @@ const lastAgentUpdate = computed(() => {
   return dayjs(agentProvidersAt.value).format('HH:mm:ss')
 })
 
+const agentProvidersAvailable = computed(() => agentProvidersOk.value || (agentProviders.value?.length || 0) > 0)
+
 const setFilter = (v: string) => {
   providerHealthFilter.value = providerHealthFilter.value === v ? '' : v
 }
@@ -405,7 +408,7 @@ const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
           <option value="name">{{ $t('providerSortName') }}</option>
         </select>
         <div
-          v-if="agentProvidersOk"
+          v-if="agentProvidersAvailable"
           class="text-xs opacity-70"
           :title="$t('lastCheck')"
         >

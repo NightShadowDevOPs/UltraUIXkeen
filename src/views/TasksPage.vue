@@ -76,9 +76,10 @@
         <div v-else-if="providersPanelBusy" class="text-sm opacity-70">…</div>
 		  <div v-else>
 			<div v-if="providersPanelError" class="text-xs text-error" :title="providersPanelError">{{ friendlyProviderPanelError(providersPanelError, 'providers') }}</div>
-			<div v-else-if="panelSslProbeError" class="text-xs text-error" :title="panelSslProbeError">{{ friendlyProviderPanelError(panelSslProbeError, 'ssl') }}</div>
-			<div v-else-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
 			<div v-else>
+			  <div v-if="panelSslProbeError" class="mb-2 text-xs text-warning" :title="panelSslProbeError">{{ friendlyProviderPanelError(panelSslProbeError, 'ssl') }}</div>
+			  <div v-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
+			  <div v-else>
 				<div class="mt-1 text-[11px] opacity-60">
 				  <div>{{ $t('providersPanelColumnsExplain') }}</div>
 				  <div class="mt-0.5">{{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}</div>
@@ -1677,7 +1678,12 @@ const loadProvidersPanel = async (force = false) => {
 }
 
 const refreshProvidersPanel = async (force = false) => {
-  await Promise.all([loadProvidersPanel(force), probePanelSsl(force)])
+  await loadProvidersPanel(force)
+  try {
+    await probePanelSsl(force)
+  } catch {
+    // Keep provider list visible even if SSL probing is unavailable.
+  }
 }
 
 // --- Live logs (router-agent) ---
@@ -2655,7 +2661,7 @@ const refreshSsl = async () => {
   try {
     const id = startJob('Refresh providers SSL')
     try {
-      await refreshProvidersPanel(true)
+      await probePanelSsl(true)
       const n = Object.keys(panelSslNotAfterByName.value || {}).length
       finishJob(id, { ok: true, meta: { probed: n } })
       showNotification({ content: 'sslRefreshed', type: 'alert-success', timeout: 1600 })
