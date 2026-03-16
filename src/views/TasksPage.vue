@@ -75,8 +75,8 @@
         </div>
         <div v-else-if="providersPanelBusy" class="text-sm opacity-70">…</div>
 		  <div v-else>
-			<div v-if="providersPanelError" class="text-xs text-error">{{ providersPanelError }}</div>
-			<div v-else-if="panelSslProbeError" class="text-xs text-error">{{ panelSslProbeError }}</div>
+			<div v-if="providersPanelError" class="text-xs text-error" :title="providersPanelError">{{ friendlyProviderPanelError(providersPanelError, 'providers') }}</div>
+			<div v-else-if="panelSslProbeError" class="text-xs text-error" :title="panelSslProbeError">{{ friendlyProviderPanelError(panelSslProbeError, 'ssl') }}</div>
 			<div v-else-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
 			<div v-else>
 				<div class="mt-1 text-[11px] opacity-60">
@@ -1632,6 +1632,23 @@ const fmtProviderIcon = (v: any): string => {
   return f ? `${f} ${n}` : n
 }
 
+
+const friendlyProviderPanelError = (err: any, kind: 'providers' | 'ssl' = 'providers'): string => {
+  const raw = String(err || '').trim()
+  if (!raw) return '—'
+  const low = raw.toLowerCase()
+  if (low.includes('timeout')) {
+    return kind === 'ssl'
+      ? 'SSL-проверка не успела завершиться. Остальные данные страницы доступны.'
+      : 'Список провайдеров отвечает слишком долго. Попробуйте обновить ещё раз.'
+  }
+  if (low.includes('offline') || low.includes('network error') || low.includes('failed to fetch')) {
+    return kind === 'ssl'
+      ? 'SSL-проверка сейчас недоступна.'
+      : 'Не удалось получить список провайдеров.'
+  }
+  return raw
+}
 
 const loadProvidersPanel = async (force = false) => {
   if (!agentEnabled.value) {

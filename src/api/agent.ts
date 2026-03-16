@@ -439,13 +439,16 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'mihomo_providers' },
+      timeout: 10000,
     })
     _mihomoProvidersCache = (data || {}) as any
     _mihomoProvidersAt = now
     return _mihomoProvidersCache as any
   } catch (e: any) {
+    // Keep the last good provider list to avoid false "agent unavailable"
+    // badges when one probe or router response is temporarily slow.
+    if (_mihomoProvidersCache?.ok) return _mihomoProvidersCache as any
     const res = { ok: false, error: e?.message || 'offline' }
-    _mihomoProvidersCache = res as any
     _mihomoProvidersAt = now
     return res as any
   }
