@@ -141,16 +141,43 @@ b64enc() {
   fi
 }
 
+run_with_timeout_sh() {
+  secs="$1"
+  script="$2"
+  [ -n "$secs" ] || secs="7"
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" sh -c "$script"
+    return $?
+  fi
+
+  sh -c "$script" &
+  cmd_pid=$!
+  (
+    sleep "$secs"
+    kill -TERM "$cmd_pid" 2>/dev/null || true
+    sleep 1
+    kill -KILL "$cmd_pid" 2>/dev/null || true
+  ) &
+  killer_pid=$!
+
+  wait "$cmd_pid"
+  rc=$?
+  kill -TERM "$killer_pid" 2>/dev/null || true
+  wait "$killer_pid" 2>/dev/null || true
+  return $rc
+}
+
 ssl_not_after() {
   host="$1"; port="$2"
   [ -n "$host" ] || return 0
   [ -n "$port" ] || port="443"
   command -v openssl >/dev/null 2>&1 || return 0
-  if command -v timeout >/dev/null 2>&1; then
-    end="$(echo | timeout 7 openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | sed 's/^notAfter=//')"
-  else
-    end="$(echo | openssl s_client -servername "$host" -connect "$host:$port" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | sed 's/^notAfter=//')"
-  fi
+
+  host_esc="$(printf '%s' "$host" | sed "s/'/'\''/g")"
+  port_esc="$(printf '%s' "$port" | sed "s/'/'\''/g")"
+  script="echo | openssl s_client -servername '$host_esc' -connect '$host_esc:$port_esc' 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | sed 's/^notAfter=//'"
+  end="$(run_with_timeout_sh 7 "$script" 2>/dev/null || true)"
   printf '%s' "$end"
 }
 
