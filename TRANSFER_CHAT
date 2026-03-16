@@ -3,8 +3,8 @@
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
 Репозиторий: messireL/ZashUIFork
 Линейка версий: 1.1.x
-Текущая версия архива: v1.1.111
-router-agent: 0.5.56
+Текущая версия архива: v1.1.112
+router-agent: 0.5.57
 
 Последний фикс в этом релизе:
 - переписан разбор `proxy-providers` в router-agent: список провайдеров больше не должен обрываться после первого элемента на Keenetic/BusyBox
@@ -47,3 +47,4 @@ router-agent: 0.5.56
 - cat /opt/zash-agent/var/backup.last.json
 
 - Hotfix v1.1.111 / agent 0.5.56: список `mihomo_providers` больше не ждёт синхронные SSL-проверки всех провайдеров; SSL даты читаются из кэша, а обновление кэша запускается в фоне, чтобы endpoint не упирался в таймаут CGI/uhttpd на Keenetic.
+- Hotfix v1.1.112 / agent 0.5.57: добавлены явные пути для SSL-кэша `mihomo_providers` (`tsv/ts/lock`), из-за отсутствия которых на роутере кэш вообще не создавался; также исправлен двойной вывод последнего провайдера при завершении разбора `proxy-providers`.

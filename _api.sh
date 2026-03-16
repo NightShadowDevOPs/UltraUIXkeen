@@ -20,6 +20,9 @@ GEOSITE_URL="${GEOSITE_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases
 ASN_URL="${ASN_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb}"
 WAN_RATE="${WAN_RATE:-1000}"
 LAN_RATE="${LAN_RATE:-1000}"
+SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.tsv}"
+SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
+SSL_CACHE_LOCK_FILE="${SSL_CACHE_LOCK_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.lock}"
 
 json() {
   printf '{'
@@ -229,6 +232,7 @@ list_proxy_provider_lines() {
     }
     BEGIN {
       inside = 0
+      exiting = 0
       name = ""
       url = ""
     }
@@ -244,6 +248,7 @@ list_proxy_provider_lines() {
 
       if (line ~ /^[^[:space:]#][^:]*:[[:space:]]*$/) {
         emit()
+        exiting = 1
         exit
       }
 
@@ -265,7 +270,7 @@ list_proxy_provider_lines() {
       }
     }
     END {
-      if (inside) {
+      if (inside && !exiting) {
         emit()
       }
     }
