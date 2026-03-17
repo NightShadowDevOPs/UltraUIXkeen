@@ -220,6 +220,8 @@ agentRestoreConfirm: 'Restore from backup? This will overwrite files on the rout
   routerTrafficSortTraffic: 'Traffic volume',
   routerTrafficSortRecent: 'Recently active',
   routerTrafficHostsNoMatches: 'No hosts match the current filter yet.',
+  routerTrafficGroupTotal: 'Total',
+  routerTrafficHostsShort: 'hosts',
   routerTrafficHostGroupLan: 'Local LAN',
   routerTrafficHostGroupLanBadge: 'LAN',
   routerTrafficHostGroupRouted: 'Downstream site · {site}',

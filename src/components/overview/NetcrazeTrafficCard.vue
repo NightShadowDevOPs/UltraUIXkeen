@@ -152,19 +152,38 @@
 
           <template v-for="group in stableTrafficHostGroups" :key="group.key">
             <div class="border-t border-base-content/10 bg-base-200/15 px-3 py-2">
-              <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-start justify-between gap-2">
                 <div class="min-w-0">
                   <div class="truncate text-xs font-medium uppercase tracking-wide opacity-75">{{ group.label }}</div>
                   <div v-if="group.note" class="truncate text-[11px] opacity-60">{{ group.note }}</div>
+                  <div class="mt-1 flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'down') }" />
+                      <span>{{ $t('routerTrafficGroupTotal') }} ↓ {{ speedLabel(group.totalDown) }}</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'up') }" />
+                      <span>{{ $t('routerTrafficGroupTotal') }} ↑ {{ speedLabel(group.totalUp) }}</span>
+                    </span>
+                  </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
                   <span
                     class="badge badge-outline badge-xs uppercase"
                     :style="{ borderColor: group.color, color: group.color }"
                   >
                     {{ group.badge }}
                   </span>
-                  <span class="badge badge-ghost badge-xs">{{ group.items.length }}</span>
+                  <span
+                    v-for="badge in hostGroupScopeBadges(group)"
+                    :key="`${group.key}-${badge.key}`"
+                    class="badge badge-outline badge-xs"
+                    :style="{ borderColor: badge.color, color: badge.color }"
+                  >
+                    {{ badge.label }} {{ speedLabel(badge.value) }}
+                  </span>
+                  <span class="badge badge-ghost badge-xs">{{ group.items.length }} {{ $t('routerTrafficHostsShort') }}</span>
+                  <span class="badge badge-ghost badge-xs">{{ group.totalConnections }} {{ $t('connections') }}</span>
                 </div>
               </div>
             </div>
@@ -456,6 +475,18 @@ type HostSiteMeta = {
   color: string
   note?: string
   isRouted: boolean
+}
+type HostTrafficGroup = HostSiteMeta & {
+  items: HostTrafficStat[]
+  totalDown: number
+  totalUp: number
+  totalConnections: number
+  totalMihomoDown: number
+  totalMihomoUp: number
+  totalVpnDown: number
+  totalVpnUp: number
+  totalBypassDown: number
+  totalBypassUp: number
 }
 
 const { t } = useI18n()
@@ -1070,7 +1101,6 @@ const visibleTrafficHostsCount = computed(() => visibleTrafficHosts.value.length
 
 const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
   return visibleTrafficHosts.value
-    .slice(0, 10)
     .map((item) => ({
       ip: item.ip,
       label: item.label,
@@ -1089,25 +1119,73 @@ const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
     }))
 })
 
-const stableTrafficHostGroups = computed(() => {
+const stableTrafficHostGroups = computed<HostTrafficGroup[]>(() => {
   const order: string[] = []
-  const groups: Record<string, HostSiteMeta & { items: HostTrafficStat[] }> = {}
+  const groups: Record<string, HostTrafficGroup> = {}
   for (const item of stableTrafficHosts.value) {
     const meta = hostSiteMeta(item)
     if (!groups[meta.key]) {
       order.push(meta.key)
-      groups[meta.key] = { ...meta, items: [] }
+      groups[meta.key] = {
+        ...meta,
+        items: [],
+        totalDown: 0,
+        totalUp: 0,
+        totalConnections: 0,
+        totalMihomoDown: 0,
+        totalMihomoUp: 0,
+        totalVpnDown: 0,
+        totalVpnUp: 0,
+        totalBypassDown: 0,
+        totalBypassUp: 0,
+      }
     }
-    groups[meta.key].items.push(item)
+    const group = groups[meta.key]
+    group.items.push(item)
+    group.totalDown += item.down
+    group.totalUp += item.up
+    group.totalConnections += item.connections
+    group.totalMihomoDown += item.mihomoDown
+    group.totalMihomoUp += item.mihomoUp
+    group.totalVpnDown += item.vpnDown
+    group.totalVpnUp += item.vpnUp
+    group.totalBypassDown += item.bypassDown
+    group.totalBypassUp += item.bypassUp
   }
   return order.map((key) => groups[key]).sort((a, b) => {
     if (a.isRouted !== b.isRouted) return a.isRouted ? -1 : 1
-    const aTotal = a.items.reduce((sum, item) => sum + item.down + item.up, 0)
-    const bTotal = b.items.reduce((sum, item) => sum + item.down + item.up, 0)
+    const aTotal = a.totalDown + a.totalUp
+    const bTotal = b.totalDown + b.totalUp
     if (Math.abs(bTotal - aTotal) > 64) return bTotal - aTotal
     return a.label.localeCompare(b.label)
   })
 })
+
+const hostGroupPrimaryColor = (group: HostTrafficGroup, direction: 'down' | 'up') => {
+  const downTotals = [
+    { color: trafficColors.mihomoDown, value: group.totalMihomoDown },
+    { color: trafficColors.vpnDown, value: group.totalVpnDown },
+    { color: trafficColors.bypassDown, value: group.totalBypassDown },
+  ]
+  const upTotals = [
+    { color: trafficColors.mihomoUp, value: group.totalMihomoUp },
+    { color: trafficColors.vpnUp, value: group.totalVpnUp },
+    { color: trafficColors.bypassUp, value: group.totalBypassUp },
+  ]
+  const primary = (direction === 'down' ? downTotals : upTotals).sort((a, b) => b.value - a.value)[0]
+  return primary?.value > 0 ? primary.color : (direction === 'down' ? group.color : trafficColors.wanUp)
+}
+
+const hostGroupScopeBadges = (group: HostTrafficGroup) => {
+  const badges: Array<{ key: string; label: string; color: string; value: number }> = []
+  const mihomoValue = group.totalMihomoDown + group.totalMihomoUp
+  if (mihomoValue > 1) badges.push({ key: 'mihomo', label: t('mihomoVersion'), color: trafficColors.mihomoDown, value: mihomoValue })
+  const vpnValue = group.totalVpnDown + group.totalVpnUp
+  if (vpnValue > 1) badges.push({ key: 'vpn', label: t('routerTrafficVpn'), color: trafficColors.vpnDown, value: vpnValue })
+  const bypassValue = group.totalBypassDown + group.totalBypassUp
+  if (bypassValue > 1) badges.push({ key: 'bypass', label: t('routerTrafficBypass'), color: trafficColors.bypassDown, value: bypassValue })
+  return badges.sort((a, b) => b.value - a.value)
+}
 
 const isHostDetailsExpanded = (ip: string) => !!expandedHostDetails.value[ip]
 
