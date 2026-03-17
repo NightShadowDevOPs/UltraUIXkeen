@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getProviderHealth } from '@/helper/providerHealth'
+import { isMiddleScreen } from '@/helper/utils'
 import { normalizeProxyProtoKey, protoLabel } from '@/helper/proxyProto'
 import { PROXY_TAB_TYPE } from '@/constant'
 import { proxiesTabShow, proxyGroupList, proxyMap, proxyProviederList } from '@/store/proxies'
@@ -255,6 +256,7 @@ const refresh = async () => {
 }
 
 const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
+const denseToolbar = computed(() => props.compact || isMiddleScreen.value)
 
 const wrapperClass = computed(() => [
   'sticky top-0 z-30 -mx-2 px-2 pb-2 transition-all duration-150',
@@ -264,11 +266,32 @@ const wrapperClass = computed(() => [
 ])
 
 const panelClass = computed(() => [
-  'flex flex-wrap items-center gap-2 rounded-xl ring-1 ring-base-300 transition-all duration-150',
-  props.compact
-    ? 'bg-base-200/95 px-3 py-2 shadow-lg'
-    : 'bg-base-200 px-3 py-2 shadow-md',
+  'flex flex-wrap items-center rounded-xl ring-1 ring-base-300 transition-all duration-150',
+  denseToolbar.value
+    ? 'gap-1.5 bg-base-200/95 px-2.5 py-2 shadow-lg sm:gap-2 sm:px-3'
+    : 'gap-2 bg-base-200 px-3 py-2 shadow-md',
 ])
+
+const protoRowClass = computed(() => denseToolbar.value
+  ? 'flex w-full flex-col items-stretch gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2'
+  : 'flex w-full flex-wrap items-center gap-2')
+
+const protoTabsWrapClass = computed(() => denseToolbar.value
+  ? 'w-full overflow-x-auto pb-1 sm:w-auto sm:overflow-visible sm:pb-0'
+  : '')
+
+const healthSectionClass = computed(() => denseToolbar.value
+  ? 'flex w-full flex-col gap-1.5 sm:w-auto sm:flex-1'
+  : 'flex flex-1 flex-wrap items-center gap-2')
+
+const actionsClass = computed(() => denseToolbar.value
+  ? 'flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto sm:gap-2'
+  : 'ml-auto flex items-center gap-2')
+
+const compactBadgeClass = computed(() => denseToolbar.value ? 'badge-sm text-[11px]' : '')
+const compactSelectClass = computed(() => denseToolbar.value ? 'select-bordered select-xs min-w-[7.5rem] flex-1 sm:flex-none' : 'select-bordered select-xs')
+const compactMetaClass = computed(() => denseToolbar.value ? 'w-full text-[11px] opacity-70 sm:w-auto sm:text-xs' : 'text-xs opacity-70')
+const compactMetaWarningClass = computed(() => denseToolbar.value ? 'w-full text-[11px] text-warning sm:w-auto sm:text-xs' : 'text-xs text-warning')
 </script>
 
 <template>
@@ -279,8 +302,9 @@ const panelClass = computed(() => [
     <div
       :class="panelClass"
     >
-      <div v-if="protoTabs.length > 1" class="flex w-full flex-wrap items-center gap-2" data-proto-tabs>
-        <div class="tabs tabs-boxed tabs-sm">
+      <div v-if="protoTabs.length > 1" :class="protoRowClass" data-proto-tabs>
+        <div :class="protoTabsWrapClass">
+          <div class="tabs tabs-boxed tabs-sm inline-flex whitespace-nowrap">
           <a
             v-for="t2 in protoTabsVisible"
             :key="t2.key"
@@ -292,11 +316,12 @@ const panelClass = computed(() => [
             <template v-if="t2.key === 'all'">{{ $t('all') }}</template>
             <template v-else>{{ t2.label }} ({{ t2.count }})</template>
           </a>
+          </div>
         </div>
 
-        <div class="text-[11px] opacity-60">{{ $t('providerProtoTip') }}</div>
+        <div v-if="!denseToolbar" class="text-[11px] opacity-60">{{ $t('providerProtoTip') }}</div>
 
-        <div v-if="manageableProtoTabs.length" class="ml-auto">
+        <div v-if="manageableProtoTabs.length" :class="denseToolbar ? 'flex justify-end' : 'ml-auto'">
           <details class="dropdown dropdown-end">
             <summary
               class="btn btn-ghost btn-xs"
@@ -335,14 +360,15 @@ const panelClass = computed(() => [
       </div>
 
       <div class="w-full"></div>
-      <div class="font-medium">
-        {{ $t('providerHealth') }}
-      </div>
+      <div :class="healthSectionClass">
+        <div class="font-medium">
+          {{ $t('providerHealth') }}
+        </div>
 
-      <div class="flex flex-wrap items-center gap-1">
+        <div class="flex flex-wrap items-center gap-1">
         <button
           class="badge badge-neutral cursor-pointer"
-          :class="providerHealthFilter === '' ? 'badge-outline' : ''"
+          :class="[compactBadgeClass, providerHealthFilter === '' ? 'badge-outline' : '']"
           @click="setFilter('')"
           :title="$t('providerHealthAll')"
         >
@@ -350,46 +376,47 @@ const panelClass = computed(() => [
         </button>
         <button
           class="badge badge-error cursor-pointer"
-          :class="providerHealthFilter === 'expired' ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, providerHealthFilter === 'expired' ? '' : 'badge-outline']"
           @click="setFilter('expired')"
         >
           {{ $t('providerHealthExpired') }}: {{ counts.expired }}
         </button>
         <button
           class="badge badge-warning cursor-pointer"
-          :class="providerHealthFilter === 'nearExpiry' ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, providerHealthFilter === 'nearExpiry' ? '' : 'badge-outline']"
           @click="setFilter('nearExpiry')"
         >
           {{ $t('providerHealthNearExpiry') }}: {{ counts.nearExpiry }}
         </button>
         <button
           class="badge badge-error cursor-pointer"
-          :class="providerHealthFilter === 'offline' ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, providerHealthFilter === 'offline' ? '' : 'badge-outline']"
           @click="setFilter('offline')"
         >
           {{ $t('providerHealthOffline') }}: {{ counts.offline }}
         </button>
         <button
           class="badge badge-warning cursor-pointer"
-          :class="providerHealthFilter === 'degraded' ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, providerHealthFilter === 'degraded' ? '' : 'badge-outline']"
           @click="setFilter('degraded')"
         >
           {{ $t('providerHealthDegraded') }}: {{ counts.degraded }}
         </button>
         <button
           class="badge badge-success cursor-pointer"
-          :class="providerHealthFilter === 'healthy' ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, providerHealthFilter === 'healthy' ? '' : 'badge-outline']"
           @click="setFilter('healthy')"
         >
           {{ $t('providerHealthHealthy') }}: {{ counts.healthy }}
         </button>
+        </div>
       </div>
 
-      <div class="ml-auto flex items-center gap-2">
+      <div :class="actionsClass">
 
         <button
           class="badge badge-neutral cursor-pointer"
-          :class="hideUnusedProxyProviders ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, hideUnusedProxyProviders ? '' : 'badge-outline']"
           @click="hideUnusedProxyProviders = !hideUnusedProxyProviders"
           :title="$t('providerHideUnusedTip')"
         >
@@ -401,7 +428,7 @@ const panelClass = computed(() => [
 
         <button
           class="badge badge-neutral cursor-pointer"
-          :class="showOnlyActiveProxyProviders ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, showOnlyActiveProxyProviders ? '' : 'badge-outline']"
           @click="showOnlyActiveProxyProviders = !showOnlyActiveProxyProviders"
           :title="$t('providerOnlyActiveTip')"
         >
@@ -410,7 +437,7 @@ const panelClass = computed(() => [
 
         <button
           class="badge badge-neutral cursor-pointer"
-          :class="showOnlyTrafficProxyProviders ? '' : 'badge-outline'"
+          :class="[compactBadgeClass, showOnlyTrafficProxyProviders ? '' : 'badge-outline']"
           @click="showOnlyTrafficProxyProviders = !showOnlyTrafficProxyProviders"
           :title="$t('providerOnlyTrafficTip')"
         >
@@ -418,7 +445,8 @@ const panelClass = computed(() => [
         </button>
 
         <select
-          class="select select-bordered select-xs"
+          class="select"
+          :class="compactSelectClass"
           v-model="proxyProvidersSortMode"
           :title="$t('sortBy')"
         >
@@ -429,20 +457,21 @@ const panelClass = computed(() => [
         </select>
         <div
           v-if="agentProvidersAvailable"
-           :class="props.compact ? 'text-[11px] opacity-70' : 'text-xs opacity-70'"
+          :class="compactMetaClass"
           :title="$t('lastCheck')"
         >
           {{ $t('updated') }} {{ lastAgentUpdate }}
         </div>
         <div
           v-else-if="agentProvidersError"
-           :class="props.compact ? 'text-[11px] text-warning' : 'text-xs text-warning'"
+          :class="compactMetaWarningClass"
           :title="agentProvidersError"
         >
           {{ $t('providerHealthAgentOffline') }}
         </div>
         <button
           class="btn btn-ghost btn-xs"
+          :class="denseToolbar ? 'ml-auto sm:ml-0' : ''"
           @click="refresh"
           :disabled="agentProvidersLoading"
         >
