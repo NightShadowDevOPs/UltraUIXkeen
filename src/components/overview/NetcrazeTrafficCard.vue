@@ -703,14 +703,50 @@ const parseRouteSource = (source?: string) => {
   const match = raw.match(/^([a-z0-9_-]+)-route:(.+)$/i)
   if (!match) return null
   const kind = String(match[1] || '').trim().toLowerCase() || 'vpn'
-  const via = String(match[2] || '').trim()
+  const payload = String(match[2] || '').trim()
+  if (!payload) return null
+
+  const parts = payload.split('|').map((part) => part.trim()).filter(Boolean)
+  const via = String(parts.shift() || '').trim()
   if (!via) return null
-  return { kind, via, ifaceLabel: ifaceDisplayName(via, kind) }
+
+  const meta: Record<string, string> = {}
+  for (const part of parts) {
+    const eqIndex = part.indexOf('=')
+    if (eqIndex <= 0) continue
+    const key = part.slice(0, eqIndex).trim().toLowerCase()
+    const value = part.slice(eqIndex + 1).trim()
+    if (!key || !value) continue
+    meta[key] = value
+  }
+
+  const ifaceLabel = ifaceDisplayName(via, kind)
+  const subnet = meta.subnet || undefined
+  const peer = meta.peer || undefined
+  const peerLabel = peer ? t('routerTrafficPeerLabel', { peer }) : ''
+  const siteParts = [ifaceLabel]
+  if (peerLabel) siteParts.push(peerLabel)
+  if (subnet) siteParts.push(subnet)
+  const siteLabel = siteParts.join(' · ')
+  const compactSiteLabel = subnet || peerLabel || ifaceLabel
+  const siteKey = ['route', kind, via, peer || '-', subnet || '-'].join(':')
+
+  return {
+    kind,
+    via,
+    ifaceLabel,
+    subnet,
+    peer,
+    peerLabel,
+    siteLabel,
+    compactSiteLabel,
+    siteKey,
+  }
 }
 
 const describeHostSource = (source?: string) => {
   const route = parseRouteSource(source)
-  if (route) return t('routerTrafficRoutedSource', { iface: route.ifaceLabel })
+  if (route) return t('routerTrafficRoutedSource', { iface: route.siteLabel })
   return String(source || '').trim()
 }
 
@@ -718,11 +754,13 @@ const hostSiteMeta = (item: Pick<HostTrafficStat, 'source'>): HostSiteMeta => {
   const route = parseRouteSource(item.source)
   if (route) {
     return {
-      key: `route:${route.kind}:${route.via}`,
-      label: t('routerTrafficHostGroupRouted', { site: route.ifaceLabel }),
+      key: route.siteKey,
+      label: t('routerTrafficHostGroupRouted', { site: route.siteLabel }),
       badge: t('routerTrafficHostGroupRoutedBadge'),
       color: trafficColors.vpnDown,
-      note: t('routerTrafficDownstreamSiteHint', { iface: route.ifaceLabel }),
+      note: route.subnet
+        ? t('routerTrafficDownstreamSiteHintDetailed', { iface: route.ifaceLabel, subnet: route.subnet })
+        : t('routerTrafficDownstreamSiteHint', { iface: route.ifaceLabel }),
       isRouted: true,
     }
   }
@@ -739,7 +777,7 @@ const hostSiteMeta = (item: Pick<HostTrafficStat, 'source'>): HostSiteMeta => {
 const hostSiteBadge = (item: Pick<HostTrafficStat, 'source'>) => {
   const route = parseRouteSource(item.source)
   if (!route) return ''
-  return `${t('routerTrafficHostGroupRoutedBadge')} · ${route.ifaceLabel}`
+  return `${t('routerTrafficHostGroupRoutedBadge')} · ${route.compactSiteLabel}`
 }
 
 const hostSiteBadgeStyle = (item: Pick<HostTrafficStat, 'source'>) => {
@@ -1131,7 +1169,11 @@ const hostDetailNotes = (item: HostTrafficStat) => {
   const site = hostSiteMeta(item)
   if (item.source) notes.push(`${t('routerTrafficLabelSource')}: ${describeHostSource(item.source)}`)
   if (site.isRouted) notes.push(`${t('routerTrafficHostSiteLabel')}: ${site.label}`)
-  if (route) notes.push(t('routerTrafficRoutedHostHint', { iface: route.ifaceLabel }))
+  if (route) {
+    notes.push(t('routerTrafficRoutedHostHint', { iface: route.ifaceLabel }))
+    if (route.subnet) notes.push(t('routerTrafficHostSubnetLabel', { subnet: route.subnet }))
+    if (route.peer) notes.push(t('routerTrafficHostPeerLabel', { peer: route.peer }))
+  }
   if ((item.vpnDown + item.vpnUp + item.bypassDown + item.bypassUp) > 1) notes.push(t('routerTrafficRemoteTargetsWarmupHint'))
   return notes
 }

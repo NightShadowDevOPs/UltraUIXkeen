@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.62"
+AGENT_VERSION="0.5.63"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -1667,6 +1667,122 @@ route_iface_for_ip() {
   ' | head -n1
 }
 
+pick_wg_bin() {
+  if [ -x /opt/bin/wg ]; then echo '/opt/bin/wg'; return 0; fi
+  if command -v wg >/dev/null 2>&1; then echo 'wg'; return 0; fi
+  echo ''
+}
+
+route_prefix_for_ip_on_dev() {
+  dev="$1"
+  target_ip="$2"
+  [ -n "$dev" ] || return 0
+  [ -n "$target_ip" ] || return 0
+
+  ip -4 route show dev "$dev" 2>/dev/null | awk -v target="$target_ip" '
+    function is_ipv4(v) { return (v ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) }
+    function ip2int(ip,    a) {
+      split(ip, a, ".")
+      return (((a[1] * 256) + a[2]) * 256 + a[3]) * 256 + a[4]
+    }
+    function normalize_cidr(raw) {
+      if (raw == "default") return "0.0.0.0/0"
+      if (raw ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) return raw "/32"
+      if (raw ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$/) return raw
+      return ""
+    }
+    function cidr_prefix(cidr,    parts) {
+      split(cidr, parts, "/")
+      return (parts[2] == "" ? 32 : parts[2] + 0)
+    }
+    function block_size(bits,    size, i) {
+      size = 1
+      for (i = 0; i < bits; i++) size *= 2
+      return size
+    }
+    function cidr_match(ip, cidr,    parts, base, prefix, net, target_num, host_bits, size, low, high) {
+      split(cidr, parts, "/")
+      base = parts[1]
+      prefix = (parts[2] == "" ? 32 : parts[2] + 0)
+      if (!is_ipv4(ip) || !is_ipv4(base)) return 0
+      if (prefix < 0 || prefix > 32) return 0
+      if (prefix == 0) return 1
+      net = ip2int(base)
+      target_num = ip2int(ip)
+      host_bits = 32 - prefix
+      size = block_size(host_bits)
+      low = int(net / size) * size
+      high = low + size
+      return (target_num >= low && target_num < high)
+    }
+    {
+      cidr = normalize_cidr($1)
+      if (cidr == "" || cidr == "0.0.0.0/0") next
+      prefix = cidr_prefix(cidr)
+      if (!cidr_match(target, cidr)) next
+      if (prefix > best_prefix) {
+        best_prefix = prefix
+        best = cidr
+      }
+    }
+    END {
+      if (best != "") print best
+    }
+  ' | head -n1
+}
+
+wg_peer_hint_for_prefix() {
+  dev="$1"
+  prefix="$2"
+  [ -n "$dev" ] || return 0
+  [ -n "$prefix" ] || return 0
+  wgbin="$(pick_wg_bin)"
+  [ -n "$wgbin" ] || return 0
+
+  "$wgbin" show "$dev" allowed-ips 2>/dev/null | awk -v prefix="$prefix" '
+    function trim(v) {
+      sub(/^[ 	]+/, "", v)
+      sub(/[ 	]+$/, "", v)
+      return v
+    }
+    {
+      peer = $1
+      $1 = ""
+      allowed = trim($0)
+      count = split(allowed, items, /,[ 	]*/)
+      for (i = 1; i <= count; i++) {
+        item = trim(items[i])
+        if (item == prefix) {
+          if (peer != "") printf "peer-%s", substr(peer, 1, 8)
+          exit
+        }
+      }
+    }
+  ' | head -n1
+}
+
+route_site_source_for_ip() {
+  kind="$1"
+  dev="$2"
+  target_ip="$3"
+  [ -n "$kind" ] || kind="vpn"
+  [ -n "$dev" ] || return 0
+  [ -n "$target_ip" ] || return 0
+
+  source="${kind}-route:${dev}"
+  prefix="$(route_prefix_for_ip_on_dev "$dev" "$target_ip")"
+  [ -n "$prefix" ] && source="${source}|subnet=${prefix}"
+
+  case "$kind" in
+    wireguard|wg)
+      peer_hint="$(wg_peer_hint_for_prefix "$dev" "$prefix")"
+      [ -n "$peer_hint" ] && source="${source}|peer=${peer_hint}"
+      ;;
+  esac
+
+  printf '%s' "$source"
+}
+
 collect_routed_tunnel_hosts_tsv() {
   out_file="$1"
   [ -n "$out_file" ] || return 1
@@ -1716,7 +1832,9 @@ collect_routed_tunnel_hosts_tsv() {
     esac
     kind="$(traffic_iface_kind "$dev")"
     [ -n "$kind" ] || kind="vpn"
-    printf '%s\t\t\t%s-route:%s\n' "$ip_" "$kind" "$dev" >> "$out_file"
+    source="$(route_site_source_for_ip "$kind" "$dev" "$ip_")"
+    [ -n "$source" ] || source="${kind}-route:${dev}"
+    printf '%s\t\t\t%s\n' "$ip_" "$source" >> "$out_file"
   done < "$cand_tmp"
 
   sort -u -o "$out_file" "$out_file" 2>/dev/null || true
