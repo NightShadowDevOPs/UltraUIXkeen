@@ -3,6 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
+AGENT_VERSION="0.5.59"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -491,11 +492,39 @@ list_proxy_provider_lines() {
   ' "$MIHOMO_CONFIG"
 }
 
+
+version_to_sort_key() {
+  old_ifs="$IFS"
+  IFS='.'
+  set -- $1
+  IFS="$old_ifs"
+  a="$1"; b="$2"; c="$3"; d="$4"
+  echo "$a" | grep -qE '^[0-9]+$' || a=0
+  echo "$b" | grep -qE '^[0-9]+$' || b=0
+  echo "$c" | grep -qE '^[0-9]+$' || c=0
+  echo "$d" | grep -qE '^[0-9]+$' || d=0
+  printf '%09d%09d%09d%09d' "$a" "$b" "$c" "$d"
+}
+
+version_cmp_sh() {
+  a="$(version_to_sort_key "$1")"
+  b="$(version_to_sort_key "$2")"
+  [ "$a" = "$b" ] && { echo 0; return 0; }
+  first="$(printf '%s
+%s
+' "$a" "$b" | sort | head -n1)"
+  if [ "$first" = "$a" ]; then
+    echo -1
+  else
+    echo 1
+  fi
+}
+
 remote_agent_version() {
   # Best-effort: fetch current agent version from the upstream install script.
   # Cached to avoid slowing down status calls.
-  cache_v="/opt/zash-agent/var/remote-version.txt"
-  cache_t="/opt/zash-agent/var/remote-version.ts"
+  cache_v="/opt/zash-agent/var/remote-agent-version.txt"
+  cache_t="/opt/zash-agent/var/remote-agent-version.ts"
   ttl=21600 # 6 hours
 
   now="$(date +%s 2>/dev/null || echo 0)"
@@ -512,10 +541,21 @@ remote_agent_version() {
   [ -x "$wb" ] || wb="wget"
   v=""
 
+  fetch_cmd="$wb -qO- $url"
   if command -v timeout >/dev/null 2>&1; then
-    v="$(timeout 4 "$wb" -qO- "$url" 2>/dev/null | sed -n 's/.*"version":"\([0-9.]*\)".*/\1/p' | head -n1)"
+    raw="$(timeout 4 sh -c "$fetch_cmd" 2>/dev/null || true)"
   else
-    v="$("$wb" -qO- "$url" 2>/dev/null | sed -n 's/.*"version":"\([0-9.]*\)".*/\1/p' | head -n1)"
+    raw="$(sh -c "$fetch_cmd" 2>/dev/null || true)"
+  fi
+
+  if [ -n "$raw" ]; then
+    v="$(printf '%s\n' "$raw" | sed -n 's/^AGENT_VERSION="\([0-9.][0-9.]*\)"$/\1/p' | head -n1)"
+    if [ -z "$v" ]; then
+      v="$(printf '%s\n' "$raw" | sed -n 's/.*latestVersion":"\([0-9.][0-9.]*\)".*/\1/p' | head -n1)"
+    fi
+    if [ -z "$v" ]; then
+      v="$(printf '%s\n' "$raw" | sed -n 's/.*version":"\([0-9.][0-9.]*\)".*/\1/p' | head -n1)"
+    fi
   fi
 
   if [ -n "$v" ]; then
@@ -2095,9 +2135,13 @@ status() {
     mihomo_ver="$(clash-meta -v 2>/dev/null | head -n 1 | tr -d '\r')"
   fi
 
+  agent_ver="$AGENT_VERSION"
   server_ver="$(remote_agent_version 2>/dev/null || true)"
+  if [ -z "$server_ver" ] || [ "$(version_cmp_sh "$server_ver" "$agent_ver")" -lt 0 ]; then
+    server_ver="$agent_ver"
+  fi
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.58","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.59","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.

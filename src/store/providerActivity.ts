@@ -930,6 +930,26 @@ export const providerLiveStatusByName = computed<Record<string, ProviderLiveStat
   return out
 })
 
+export const providerTrafficSyncState = computed(() => ({
+  enabled: !!agentEnabled.value,
+  bootstrapped: providerTrafficRemoteBootstrapped,
+  pulling: providerTrafficPullInFlight,
+  pushing: providerTrafficPushInFlight,
+  dirty: providerTrafficLocalDirty,
+  rev: Number(providerTrafficRemoteRev.value || 0) || 0,
+  remoteUpdatedAt: String(providerTrafficRemoteUpdatedAt.value || '').trim(),
+  lastPullAt: Number(providerTrafficLastPullAt || 0) || 0,
+  lastPushAt: Number(providerTrafficLastPushAt || 0) || 0,
+}))
+
+export const providerTrafficPullNow = async () => {
+  await pullProviderTrafficRemote()
+}
+
+export const providerTrafficPushNow = async () => {
+  await pushProviderTrafficRemoteNow()
+}
+
 export const clearProviderTrafficSession = () => {
   sessionResetAt.value = Date.now()
   saveSessionResetAt()

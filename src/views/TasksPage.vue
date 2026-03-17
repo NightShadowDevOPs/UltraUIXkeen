@@ -232,6 +232,25 @@
 
       <div v-show="providerTrafficDebugExpanded">
         <div class="text-xs opacity-70">{{ $t('providerTrafficDebugTip') }}</div>
+        <div class="mt-2 rounded-lg border border-base-content/10 bg-base-200/45 p-2 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="opacity-60">{{ $t('providerTrafficSyncStatus') }}:</span>
+              <span class="badge badge-xs" :class="providerTrafficSyncBadgeClass">{{ providerTrafficSyncBadgeText }}</span>
+              <span v-if="providerTrafficSyncState.rev > 0" class="badge badge-ghost badge-xs">rev {{ providerTrafficSyncState.rev }}</span>
+              <span v-if="providerTrafficSyncState.remoteUpdatedAt" class="badge badge-ghost badge-xs">remote {{ providerTrafficSyncState.remoteUpdatedAt }}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-ghost btn-xs" @click="refreshProviderTrafficSync" :disabled="!agentEnabled">{{ $t('refresh') }}</button>
+              <button type="button" class="btn btn-ghost btn-xs" @click="flushProviderTrafficSync" :disabled="!agentEnabled || !providerTrafficSyncState.dirty">{{ $t('providerTrafficSyncFlush') }}</button>
+            </div>
+          </div>
+          <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 opacity-70">
+            <span><span class="opacity-60">{{ $t('providerTrafficSyncLastPull') }}:</span> {{ fmtTs(providerTrafficSyncState.lastPullAt) }}</span>
+            <span><span class="opacity-60">{{ $t('providerTrafficSyncLastPush') }}:</span> {{ fmtTs(providerTrafficSyncState.lastPushAt) }}</span>
+            <span v-if="providerTrafficSyncState.dirty" class="text-warning">{{ $t('providerTrafficSyncDirty') }}</span>
+          </div>
+        </div>
 
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <select class="select select-bordered select-sm min-w-56" v-model="providerTrafficDebugProvider">
@@ -1327,7 +1346,14 @@ import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowed
 import { activeConnections, closedConnections } from '@/store/connections'
 import { ruleHitMap } from '@/store/rules'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
-import { connectionProviderCandidates, connectionProxyCandidates, providerProxyNames } from '@/store/providerActivity'
+import {
+  connectionProviderCandidates,
+  connectionProxyCandidates,
+  providerProxyNames,
+  providerTrafficPullNow,
+  providerTrafficPushNow,
+  providerTrafficSyncState,
+} from '@/store/providerActivity'
 import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
 import dayjs from 'dayjs'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -1837,6 +1863,31 @@ watch(
   },
   { immediate: true },
 )
+
+const providerTrafficSyncBadgeClass = computed(() => {
+  if (!agentEnabled.value) return 'badge-ghost'
+  if (providerTrafficSyncState.value.pushing || providerTrafficSyncState.value.pulling) return 'badge-info'
+  if (!providerTrafficSyncState.value.bootstrapped) return 'badge-warning'
+  if (providerTrafficSyncState.value.dirty) return 'badge-warning'
+  return 'badge-success'
+})
+
+const providerTrafficSyncBadgeText = computed(() => {
+  if (!agentEnabled.value) return t('agentDisabled')
+  if (providerTrafficSyncState.value.pushing) return t('providerTrafficSyncPushing')
+  if (providerTrafficSyncState.value.pulling) return t('providerTrafficSyncPulling')
+  if (!providerTrafficSyncState.value.bootstrapped) return t('providerTrafficSyncBootstrapping')
+  if (providerTrafficSyncState.value.dirty) return t('providerTrafficSyncDirty')
+  return t('providerTrafficSyncSynced')
+})
+
+const refreshProviderTrafficSync = async () => {
+  await providerTrafficPullNow()
+}
+
+const flushProviderTrafficSync = async () => {
+  await providerTrafficPushNow()
+}
 
 const providerTrafficDebugSelectedName = computed(() => String(providerTrafficDebugProvider.value || '').trim())
 
