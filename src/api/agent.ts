@@ -237,6 +237,27 @@ export type AgentHostTrafficLive = {
   error?: string
 }
 
+export type AgentHostRemoteTargetItem = {
+  target: string
+  scope?: 'mihomo' | 'vpn' | 'bypass'
+  kind?: string
+  via?: string
+  proto?: string
+  connections?: number
+  downBps?: number
+  upBps?: number
+}
+
+export type AgentHostRemoteTargets = {
+  ok: boolean
+  ip?: string
+  ts?: number
+  dtMs?: number
+  trackedTargets?: number
+  items?: AgentHostRemoteTargetItem[]
+  error?: string
+}
+
 export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
@@ -256,6 +277,18 @@ export const agentHostTrafficLiveAPI = async (): Promise<AgentHostTrafficLive> =
       timeout: 8000,
     })
     return (data || { ok: false }) as AgentHostTrafficLive
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentHostRemoteTargetsAPI = async (ip: string): Promise<AgentHostRemoteTargets> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'host_remote_targets', ip },
+      timeout: 8000,
+    })
+    return (data || { ok: false }) as AgentHostRemoteTargets
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }

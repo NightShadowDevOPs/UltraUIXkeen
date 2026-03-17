@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.60"
+AGENT_VERSION="0.5.61"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -1808,6 +1808,230 @@ host_traffic_live_json() {
   rm -f "$hosts_tmp" "$raw_tmp" "$current_tmp" 2>/dev/null || true
 }
 
+
+read_conntrack_table() {
+  if [ -r /proc/net/nf_conntrack ]; then
+    cat /proc/net/nf_conntrack 2>/dev/null
+    return 0
+  fi
+  if [ -r /proc/net/ip_conntrack ]; then
+    cat /proc/net/ip_conntrack 2>/dev/null
+    return 0
+  fi
+  if command -v conntrack >/dev/null 2>&1; then
+    conntrack -L 2>/dev/null || true
+    return 0
+  fi
+  return 1
+}
+
+route_iface_for_host_target() {
+  src_ip="$1"
+  dst_ip="$2"
+  [ -n "$src_ip" ] || return 0
+  [ -n "$dst_ip" ] || return 0
+  ip route get "$dst_ip" from "$src_ip" 2>/dev/null | awk '
+    {
+      for (i = 1; i <= NF; i++) {
+        if ($i == "dev") {
+          print $(i + 1)
+          exit
+        }
+      }
+    }
+  ' | head -n1
+}
+
+host_remote_targets_json() {
+  host_ip="$ip"
+  printf '%s' "$host_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || {
+    reply_ok '{"ok":false,"error":"invalid-ip"}'
+    return 0
+  }
+
+  mkdir -p /tmp >/dev/null 2>&1 || true
+
+  raw_tmp="/tmp/zash_host_remote_targets_raw.$$"
+  agg_tmp="/tmp/zash_host_remote_targets_agg.$$"
+  current_tmp="/tmp/zash_host_remote_targets_current.$$"
+  state_id="$(printf '%s' "$host_ip" | tr -c '0-9A-Za-z._-' '_')"
+  prev_tmp="/tmp/zash-host-remote-targets-${state_id}.prev.tsv"
+  prev_ts_file="/tmp/zash-host-remote-targets-${state_id}.prev.ts"
+
+  : > "$raw_tmp" 2>/dev/null || true
+  : > "$agg_tmp" 2>/dev/null || true
+  : > "$current_tmp" 2>/dev/null || true
+
+  read_conntrack_table | awk -v host="$host_ip" '
+    function is_ipv4(v) { return (v ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) }
+    {
+      proto=""
+      srcc=dstc=sportc=dportc=bytesc=0
+      o_src=o_dst=o_sport=o_dport=o_bytes=""
+      r_src=r_dst=r_sport=r_dport=r_bytes=""
+      for (i = 1; i <= NF; i++) {
+        if (proto == "" && i == 3) proto = $i
+        if ($i ~ /^src=/) {
+          val = substr($i, 5)
+          srcc++
+          if (srcc == 1) o_src = val
+          else if (srcc == 2) r_src = val
+        } else if ($i ~ /^dst=/) {
+          val = substr($i, 5)
+          dstc++
+          if (dstc == 1) o_dst = val
+          else if (dstc == 2) r_dst = val
+        } else if ($i ~ /^sport=/) {
+          val = substr($i, 7)
+          sportc++
+          if (sportc == 1) o_sport = val
+          else if (sportc == 2) r_sport = val
+        } else if ($i ~ /^dport=/) {
+          val = substr($i, 7)
+          dportc++
+          if (dportc == 1) o_dport = val
+          else if (dportc == 2) r_dport = val
+        } else if ($i ~ /^bytes=/) {
+          val = substr($i, 7) + 0
+          bytesc++
+          if (bytesc == 1) o_bytes = val
+          else if (bytesc == 2) r_bytes = val
+        }
+      }
+
+      if (!is_ipv4(o_src) || !is_ipv4(o_dst)) next
+
+      remote=""; port=""; up=0; down=0
+      if (o_src == host) {
+        remote = o_dst
+        port = (o_dport != "" ? o_dport : r_sport)
+        up = (o_bytes + 0)
+        down = (r_bytes + 0)
+      } else if (o_dst == host) {
+        remote = o_src
+        port = (o_sport != "" ? o_sport : r_dport)
+        up = (r_bytes + 0)
+        down = (o_bytes + 0)
+      } else next
+
+      if (!is_ipv4(remote) || remote == host) next
+      gsub(/[^0-9A-Za-z_.:-]/, "", port)
+      print remote "\t" port "\t" proto "\t" up "\t" down
+    }
+  ' > "$raw_tmp" 2>/dev/null || true
+
+  awk -F'\t' '
+    {
+      key = $1 SUBSEP $2 SUBSEP $3
+      up[key] += ($4 + 0)
+      down[key] += ($5 + 0)
+      cnt[key] += 1
+    }
+    END {
+      for (key in cnt) {
+        split(key, parts, SUBSEP)
+        print parts[1] "\t" parts[2] "\t" parts[3] "\t" (up[key] + 0) "\t" (down[key] + 0) "\t" (cnt[key] + 0)
+      }
+    }
+  ' "$raw_tmp" 2>/dev/null | sort > "$agg_tmp" 2>/dev/null || true
+
+  extra_ifaces=" $(list_extra_traffic_ifaces 2>/dev/null | tr '\n' ' ') "
+  while IFS='\t' read -r remote port proto up_bytes down_bytes count; do
+    [ -n "$remote" ] || continue
+    dev="$(route_iface_for_host_target "$host_ip" "$remote")"
+    [ -n "$dev" ] || continue
+    scope=""
+    kind=""
+    via=""
+
+    if [ "$dev" = "$WAN_IF" ]; then
+      scope="bypass"
+      kind="bypass"
+      via="$WAN_IF"
+    else
+      case "$extra_ifaces" in
+        *" $dev "*)
+          scope="vpn"
+          kind="$(traffic_iface_kind "$dev")"
+          via="$dev"
+          ;;
+        *)
+          continue
+          ;;
+      esac
+    fi
+
+    target="$remote"
+    [ -n "$port" ] && target="${remote}:$port"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$target" "$scope" "$kind" "$via" "$proto" "$up_bytes" "$down_bytes" "$count" >> "$current_tmp"
+  done < "$agg_tmp"
+
+  sort -o "$current_tmp" "$current_tmp" 2>/dev/null || true
+
+  now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
+  prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '\r\n ' || true)"
+  echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
+  if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
+    dt_ms=$((now_ms - prev_ms))
+  else
+    dt_ms=0
+  fi
+  if [ "$dt_ms" -gt 0 ]; then
+    dt_sec="$(awk -v ms="$dt_ms" 'BEGIN { printf "%.3f", (ms / 1000) }')"
+  else
+    dt_sec="0"
+  fi
+
+  prev_input="/dev/null"
+  [ -f "$prev_tmp" ] && prev_input="$prev_tmp"
+
+  items_json="$(awk -F'\t' -v dt="$dt_sec" '
+    function clamp(v) { return (v < 0 ? 0 : v) }
+    function esc(s) {
+      gsub(/\\/, "\\\\", s)
+      gsub(/"/, "\\\"", s)
+      gsub(/\r/, "", s)
+      gsub(/\n/, " ", s)
+      return s
+    }
+    FNR == NR {
+      key = $1 SUBSEP $2 SUBSEP $4 SUBSEP $5
+      prev_up[key] = ($6 + 0)
+      prev_down[key] = ($7 + 0)
+      next
+    }
+    {
+      target = $1
+      scope = $2
+      kind = $3
+      via = $4
+      proto = $5
+      up_bytes = ($6 + 0)
+      down_bytes = ($7 + 0)
+      count = ($8 + 0)
+      key = target SUBSEP scope SUBSEP via SUBSEP proto
+      up_bps = (dt > 0 ? clamp((up_bytes - prev_up[key]) / dt) : 0)
+      down_bps = (dt > 0 ? clamp((down_bytes - prev_down[key]) / dt) : 0)
+      if (up_bps + down_bps <= 1 && count <= 0) next
+      if (first == 0) printf ","
+      first = 0
+      printf "{\"target\":\"%s\",\"scope\":\"%s\",\"kind\":\"%s\",\"via\":\"%s\",\"proto\":\"%s\",\"connections\":%d,\"downBps\":%.3f,\"upBps\":%.3f}", \
+        esc(target), esc(scope), esc(kind), esc(via), esc(proto), count, down_bps, up_bps
+    }
+  ' "$prev_input" "$current_tmp" 2>/dev/null)"
+
+  cp "$current_tmp" "$prev_tmp" 2>/dev/null || true
+  printf '%s' "$now_ms" > "$prev_ts_file" 2>/dev/null || true
+
+  tracked_targets="$(wc -l < "$current_tmp" 2>/dev/null | tr -d ' ')"
+  echo "$tracked_targets" | grep -qE '^[0-9]+$' || tracked_targets=0
+
+  reply_ok "$(printf '{\"ok\":true,\"ip\":\"%s\",\"ts\":%s,\"dtMs\":%s,\"trackedTargets\":%s,\"items\":[%s]}' "$(jesc "$host_ip")" "$now_ms" "$dt_ms" "$tracked_targets" "$items_json")"
+
+  rm -f "$raw_tmp" "$agg_tmp" "$current_tmp" 2>/dev/null || true
+}
+
 ensure_tc_base() {
   [ $have_tc -eq 1 ] || return 0
 
@@ -3140,6 +3364,10 @@ case "$cmd" in
   neighbors) neighbors ;;
   lan_hosts) lan_hosts_json ;;
   host_traffic_live) host_traffic_live_json ;;
+  host_remote_targets)
+    [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
+    host_remote_targets_json
+    ;;
   ip2mac)
     [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
     ip2mac "$ip"

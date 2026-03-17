@@ -261,12 +261,21 @@
                   <div v-if="hostTopTargets(item).length" class="space-y-2">
                     <div
                       v-for="target in hostTopTargets(item)"
-                      :key="`${item.ip}-target-${target.target}`"
+                      :key="`${item.ip}-target-${target.scope || 'mihomo'}-${target.target}-${target.via || 'direct'}`"
                       class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2"
                     >
                       <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                           <div class="truncate text-sm font-medium">{{ target.target }}</div>
+                          <div class="mt-1 flex flex-wrap gap-1">
+                            <span
+                              class="badge badge-outline badge-xs"
+                              :style="{ borderColor: hostTargetScopeColor(target), color: hostTargetScopeColor(target) }"
+                            >
+                              {{ hostTargetScopeLabel(target) }}
+                            </span>
+                            <span v-if="target.proto" class="badge badge-ghost badge-xs uppercase">{{ target.proto }}</span>
+                          </div>
                           <div v-if="target.via" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficVia') }}: {{ target.via }}</div>
                         </div>
                         <span class="badge badge-ghost badge-xs">{{ target.connections }} {{ $t('connections') }}</span>
@@ -278,7 +287,7 @@
                     </div>
                   </div>
                   <div v-else class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
-                    {{ $t('routerTrafficNoTargetDetails') }}
+                    {{ $t('routerTrafficNoActiveTargets') }}
                   </div>
                 </div>
 
@@ -308,7 +317,7 @@
 </template>
 
 <script setup lang="ts">
-import { agentHostTrafficLiveAPI, agentLanHostsAPI, agentTrafficLiveAPI, type AgentHostTrafficLiveItem, type AgentTrafficLiveIface } from '@/api/agent'
+import { agentHostRemoteTargetsAPI, agentHostTrafficLiveAPI, agentLanHostsAPI, agentTrafficLiveAPI, type AgentHostRemoteTargetItem, type AgentHostTrafficLiveItem, type AgentTrafficLiveIface } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
@@ -353,6 +362,9 @@ type HostTargetStat = {
   up: number
   connections: number
   via?: string
+  scope?: 'mihomo' | 'vpn' | 'bypass'
+  kind?: string
+  proto?: string
 }
 type HostTrafficStat = {
   label: string
@@ -408,6 +420,11 @@ type HostTimelineRow = {
   peak: string
   bars: HostTimelineBar[]
 }
+type HostRemoteTargetsState = {
+  items: HostTargetStat[]
+  fetchedAt: number
+}
+
 type HostScopeFilter = 'all' | 'mihomo' | 'vpn' | 'bypass' | 'mixed'
 type HostSortMode = 'traffic' | 'download' | 'upload' | 'connections' | 'recent'
 
@@ -476,6 +493,8 @@ let lastSampleTs: number | null = null
 const lastExtraCounters = ref<ExtraCounterState>({})
 const lanHostNames = ref<Record<string, string>>({})
 const agentHostTrafficByIp = ref<Record<string, AgentHostTrafficSnapshot>>({})
+const hostRemoteTargetsByIp = ref<Record<string, HostRemoteTargetsState>>({})
+const hostRemoteTargetsLoading = ref<Record<string, boolean>>({})
 let hostsTimer: number | null = null
 
 const updateColorSet = () => {
@@ -568,8 +587,10 @@ const hostSortBy = ref<HostSortMode>('traffic')
 const expandedHostDetails = ref<Record<string, boolean>>({})
 const hostTimelineLimit = 24
 const hostTimelineWindowSeconds = Math.round(hostTimelineLimit * 1.5)
+const hostRemoteTargetsRefreshMs = 3000
 let hostTrafficTimer: number | null = null
 let hostTrafficAgentTimer: number | null = null
+let hostRemoteTargetsTimer: number | null = null
 
 const normalizeAgentHostTrafficItem = (item: AgentHostTrafficLiveItem): AgentHostTrafficSnapshot | null => {
   const ip = String(item?.ip || '').trim()
@@ -586,18 +607,65 @@ const normalizeAgentHostTrafficItem = (item: AgentHostTrafficLiveItem): AgentHos
   }
 }
 
-const upsertHostTargetStat = (items: HostTargetStat[], target: string, down: number, up: number, via?: string) => {
+const upsertHostTargetStat = (
+  items: HostTargetStat[],
+  target: string,
+  down: number,
+  up: number,
+  via?: string,
+  meta?: Partial<Pick<HostTargetStat, 'scope' | 'kind' | 'proto'>>,
+) => {
   if (!target) return
-  const existing = items.find((item) => item.target === target)
+  const scope = meta?.scope || 'mihomo'
+  const kind = meta?.kind
+  const proto = meta?.proto
+  const existing = items.find((item) => item.target === target && (item.scope || 'mihomo') === scope && (item.via || '') === (via || ''))
   if (existing) {
     existing.down += down
     existing.up += up
     existing.connections += 1
     if (!existing.via && via) existing.via = via
+    if (!existing.kind && kind) existing.kind = kind
+    if (!existing.proto && proto) existing.proto = proto
     return
   }
-  items.push({ target, down, up, connections: 1, via })
+  items.push({ target, down, up, connections: 1, via, scope, kind, proto })
 }
+
+const normalizeAgentRemoteTargetItem = (item: AgentHostRemoteTargetItem): HostTargetStat | null => {
+  const target = String(item?.target || '').trim()
+  if (!target) return null
+  const scopeRaw = String(item?.scope || '').trim().toLowerCase()
+  const scope = scopeRaw === 'vpn' || scopeRaw === 'bypass' ? scopeRaw : 'bypass'
+  const kind = String(item?.kind || '').trim() || undefined
+  const viaName = String(item?.via || '').trim()
+  const via = viaName ? (scope === 'vpn' ? ifaceDisplayName(viaName, kind) : viaName) : undefined
+  const proto = String(item?.proto || '').trim().toUpperCase() || undefined
+  return {
+    target,
+    down: Math.max(0, Number(item?.downBps || 0)),
+    up: Math.max(0, Number(item?.upBps || 0)),
+    connections: Math.max(0, Number(item?.connections || 0)),
+    via,
+    scope,
+    kind,
+    proto,
+  }
+}
+
+const hostTargetScopeLabel = (target: HostTargetStat) => {
+  if (target.scope === 'vpn') return t('routerTrafficVpn')
+  if (target.scope === 'bypass') return t('routerTrafficBypass')
+  return t('mihomoVersion')
+}
+
+const hostTargetScopeColor = (target: HostTargetStat) => {
+  if (target.scope === 'vpn') return trafficColors.vpnDown
+  if (target.scope === 'bypass') return trafficColors.bypassDown
+  return trafficColors.mihomoDown
+}
+
+const hostRemoteTargets = (ip: string) => hostRemoteTargetsByIp.value[ip]?.items || []
 
 const collectHostSnapshot = (): HostTrafficStat[] => {
   const map = new Map<string, HostTrafficStat>()
@@ -635,7 +703,7 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
     if (target && current.targets.length < 3 && !current.targets.includes(target)) current.targets.push(target)
     const chains = Array.isArray(conn?.chains) ? conn.chains : []
     const via = String(chains?.[chains.length - 1] || chains?.[0] || '').trim() || undefined
-    upsertHostTargetStat(current.targetStats, target, mihomoDown, mihomoUp, via)
+    upsertHostTargetStat(current.targetStats, target, mihomoDown, mihomoUp, via, { scope: 'mihomo' })
     current.targetStats = [...current.targetStats]
       .sort((a, b) => ((b.down + b.up) - (a.down + a.up)) || (b.connections - a.connections))
       .slice(0, 6)
@@ -902,10 +970,12 @@ const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
 const isHostDetailsExpanded = (ip: string) => !!expandedHostDetails.value[ip]
 
 const toggleHostDetails = (ip: string) => {
+  const willExpand = !expandedHostDetails.value[ip]
   expandedHostDetails.value = {
     ...expandedHostDetails.value,
-    [ip]: !expandedHostDetails.value[ip],
+    [ip]: willExpand,
   }
+  if (willExpand) void refreshHostRemoteTargets(ip, true)
 }
 
 const hostDetailCards = (item: HostTrafficStat) => {
@@ -944,16 +1014,17 @@ const hostDetailCards = (item: HostTrafficStat) => {
 }
 
 const hostTopTargets = (item: HostTrafficStat) => {
-  return [...(item.targetStats || [])]
+  const merged = [...(item.targetStats || []), ...hostRemoteTargets(item.ip)]
+  return merged
     .filter((target) => (target.down + target.up) > 1 || target.connections > 0)
     .sort((a, b) => ((b.down + b.up) - (a.down + a.up)) || (b.connections - a.connections))
-    .slice(0, 6)
+    .slice(0, 8)
 }
 
 const hostDetailNotes = (item: HostTrafficStat) => {
   const notes: string[] = []
   if (item.source) notes.push(`${t('routerTrafficLabelSource')}: ${item.source}`)
-  if ((item.vpnDown + item.vpnUp + item.bypassDown + item.bypassUp) > 1) notes.push(t('routerTrafficNoTargetDetails'))
+  if ((item.vpnDown + item.vpnUp + item.bypassDown + item.bypassUp) > 1) notes.push(t('routerTrafficRemoteTargetsWarmupHint'))
   return notes
 }
 
@@ -1013,6 +1084,46 @@ watch(stableTrafficHosts, (items) => {
   expandedHostDetails.value = next
 }, { deep: true })
 
+const refreshHostRemoteTargets = async (ip: string, force = false) => {
+  if (!agentEnabled.value) return
+  const key = String(ip || '').trim()
+  if (!key) return
+  if (hostRemoteTargetsLoading.value[key]) return
+  const cachedAt = Number(hostRemoteTargetsByIp.value[key]?.fetchedAt || 0)
+  if (!force && cachedAt > 0 && (Date.now() - cachedAt) < Math.max(1200, hostRemoteTargetsRefreshMs - 500)) return
+
+  hostRemoteTargetsLoading.value = { ...hostRemoteTargetsLoading.value, [key]: true }
+  try {
+    const res = await agentHostRemoteTargetsAPI(key)
+    const items = Array.isArray(res?.items)
+      ? res.items.map(normalizeAgentRemoteTargetItem).filter((item): item is HostTargetStat => !!item)
+      : []
+    hostRemoteTargetsByIp.value = {
+      ...hostRemoteTargetsByIp.value,
+      [key]: { items, fetchedAt: Date.now() },
+    }
+  } finally {
+    const next = { ...hostRemoteTargetsLoading.value }
+    delete next[key]
+    hostRemoteTargetsLoading.value = next
+  }
+}
+
+const refreshExpandedHostRemoteTargets = async (force = false) => {
+  const ips = Object.entries(expandedHostDetails.value)
+    .filter(([, expanded]) => !!expanded)
+    .map(([ip]) => ip)
+  for (const ip of ips) await refreshHostRemoteTargets(ip, force)
+}
+
+const scheduleHostRemoteTargetsRefresh = () => {
+  if (hostRemoteTargetsTimer !== null) window.clearTimeout(hostRemoteTargetsTimer)
+  hostRemoteTargetsTimer = window.setTimeout(async () => {
+    await refreshExpandedHostRemoteTargets()
+    scheduleHostRemoteTargetsRefresh()
+  }, hostRemoteTargetsRefreshMs)
+}
+
 const refreshLanHosts = async () => {
   if (!agentEnabled.value) return
   const res = await agentLanHostsAPI()
@@ -1031,6 +1142,7 @@ const refreshLanHosts = async () => {
 const refreshAgentHostTraffic = async () => {
   if (!agentEnabled.value) {
     agentHostTrafficByIp.value = {}
+    hostRemoteTargetsByIp.value = {}
     refreshHostTraffic()
     return
   }
@@ -1472,6 +1584,7 @@ onMounted(() => {
   scheduleAgentHostTrafficRefresh()
   refreshHostTraffic()
   scheduleHostTrafficRefresh()
+  scheduleHostRemoteTargetsRefresh()
   pollTraffic()
 
   watch(activeConnections, refreshHostTraffic, { deep: true })
@@ -1490,6 +1603,10 @@ onBeforeUnmount(() => {
   if (hostTrafficAgentTimer !== null) {
     window.clearTimeout(hostTrafficAgentTimer)
     hostTrafficAgentTimer = null
+  }
+  if (hostRemoteTargetsTimer !== null) {
+    window.clearTimeout(hostRemoteTargetsTimer)
+    hostRemoteTargetsTimer = null
   }
 })
 </script>
