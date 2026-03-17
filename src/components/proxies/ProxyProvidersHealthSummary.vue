@@ -21,7 +21,7 @@ import {
   proxyProvidersProtoFilter,
 } from '@/store/providerHealth'
 import dayjs from 'dayjs'
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   compact?: boolean
@@ -256,42 +256,78 @@ const refresh = async () => {
 }
 
 const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
-const denseToolbar = computed(() => props.compact || isMiddleScreen.value)
+const isViewportCompact = computed(() => props.compact || isMiddleScreen.value)
+const scrolledCondensed = ref(false)
+
+let scrollRaf = 0
+const updateScrollCondensed = () => {
+  if (typeof window === 'undefined') return
+  const y = window.scrollY || window.pageYOffset || 0
+  scrolledCondensed.value = y > 180
+}
+
+const handleViewportScroll = () => {
+  if (typeof window === 'undefined') return
+  if (scrollRaf) return
+  scrollRaf = window.requestAnimationFrame(() => {
+    scrollRaf = 0
+    updateScrollCondensed()
+  })
+}
+
+onMounted(() => {
+  updateScrollCondensed()
+  if (typeof window === 'undefined') return
+  window.addEventListener('scroll', handleViewportScroll, { passive: true })
+  window.addEventListener('resize', handleViewportScroll, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('scroll', handleViewportScroll)
+  window.removeEventListener('resize', handleViewportScroll)
+  if (scrollRaf) {
+    window.cancelAnimationFrame(scrollRaf)
+    scrollRaf = 0
+  }
+})
+
+const miniToolbar = computed(() => isViewportCompact.value || scrolledCondensed.value)
 
 const wrapperClass = computed(() => [
   'sticky top-0 z-30 -mx-2 px-2 pb-2 transition-all duration-150',
-  props.compact
+  miniToolbar.value
     ? 'bg-base-100/75 supports-[backdrop-filter]:bg-base-100/55 backdrop-blur-md shadow-sm'
     : 'bg-transparent',
 ])
 
 const panelClass = computed(() => [
   'flex flex-wrap items-center rounded-xl ring-1 ring-base-300 transition-all duration-150',
-  denseToolbar.value
+  miniToolbar.value
     ? 'gap-1.5 bg-base-200/95 px-2.5 py-2 shadow-lg sm:gap-2 sm:px-3'
     : 'gap-2 bg-base-200 px-3 py-2 shadow-md',
 ])
 
-const protoRowClass = computed(() => denseToolbar.value
+const protoRowClass = computed(() => miniToolbar.value
   ? 'flex w-full flex-col items-stretch gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2'
   : 'flex w-full flex-wrap items-center gap-2')
 
-const protoTabsWrapClass = computed(() => denseToolbar.value
+const protoTabsWrapClass = computed(() => miniToolbar.value
   ? 'w-full overflow-x-auto pb-1 sm:w-auto sm:overflow-visible sm:pb-0'
   : '')
 
-const healthSectionClass = computed(() => denseToolbar.value
+const healthSectionClass = computed(() => miniToolbar.value
   ? 'flex w-full flex-col gap-1.5 sm:w-auto sm:flex-1'
   : 'flex flex-1 flex-wrap items-center gap-2')
 
-const actionsClass = computed(() => denseToolbar.value
+const actionsClass = computed(() => miniToolbar.value
   ? 'flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto sm:gap-2'
   : 'ml-auto flex items-center gap-2')
 
-const compactBadgeClass = computed(() => denseToolbar.value ? 'badge-sm text-[11px]' : '')
-const compactSelectClass = computed(() => denseToolbar.value ? 'select-bordered select-xs min-w-[7.5rem] flex-1 sm:flex-none' : 'select-bordered select-xs')
-const compactMetaClass = computed(() => denseToolbar.value ? 'w-full text-[11px] opacity-70 sm:w-auto sm:text-xs' : 'text-xs opacity-70')
-const compactMetaWarningClass = computed(() => denseToolbar.value ? 'w-full text-[11px] text-warning sm:w-auto sm:text-xs' : 'text-xs text-warning')
+const compactBadgeClass = computed(() => miniToolbar.value ? 'badge-sm text-[11px]' : '')
+const compactSelectClass = computed(() => miniToolbar.value ? 'select-bordered select-xs min-w-[7.5rem] flex-1 sm:flex-none' : 'select-bordered select-xs')
+const compactMetaClass = computed(() => miniToolbar.value ? 'w-full text-[11px] opacity-70 sm:w-auto sm:text-xs' : 'text-xs opacity-70')
+const compactMetaWarningClass = computed(() => miniToolbar.value ? 'w-full text-[11px] text-warning sm:w-auto sm:text-xs' : 'text-xs text-warning')
 </script>
 
 <template>
@@ -319,9 +355,9 @@ const compactMetaWarningClass = computed(() => denseToolbar.value ? 'w-full text
           </div>
         </div>
 
-        <div v-if="!denseToolbar" class="text-[11px] opacity-60">{{ $t('providerProtoTip') }}</div>
+        <div v-if="!miniToolbar" class="text-[11px] opacity-60">{{ $t('providerProtoTip') }}</div>
 
-        <div v-if="manageableProtoTabs.length" :class="denseToolbar ? 'flex justify-end' : 'ml-auto'">
+        <div v-if="manageableProtoTabs.length" :class="miniToolbar ? 'flex justify-end' : 'ml-auto'">
           <details class="dropdown dropdown-end">
             <summary
               class="btn btn-ghost btn-xs"
@@ -471,7 +507,7 @@ const compactMetaWarningClass = computed(() => denseToolbar.value ? 'w-full text
         </div>
         <button
           class="btn btn-ghost btn-xs"
-          :class="denseToolbar ? 'ml-auto sm:ml-0' : ''"
+          :class="miniToolbar ? 'ml-auto sm:ml-0' : ''"
           @click="refresh"
           :disabled="agentProvidersLoading"
         >
