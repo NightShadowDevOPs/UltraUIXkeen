@@ -19,7 +19,7 @@
         />
       </div>
 
-      <div class="grid gap-2 px-1 text-sm sm:grid-cols-3">
+      <div class="grid gap-2 px-1 text-sm sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
           <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficTotal') }}</div>
           <div class="flex items-center gap-2">
@@ -49,16 +49,36 @@
         </div>
 
         <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
-          <div class="mb-1 text-xs opacity-60">{{ $t('routerTrafficOutsideMihomo') }}</div>
+          <div class="mb-1 flex items-center justify-between gap-2 text-xs">
+            <span class="opacity-60">{{ $t('routerTrafficVpn') }}</span>
+            <span class="badge badge-ghost badge-xs uppercase">VPN</span>
+          </div>
           <div class="flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.otherDown }" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.vpnDown }" />
             <span class="opacity-80">{{ $t('download') }}:</span>
-            <span class="font-mono">{{ currentOtherDownloadLabel }}</span>
+            <span class="font-mono">{{ currentVpnDownloadLabel }}</span>
           </div>
           <div class="mt-1 flex items-center gap-2">
-            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.otherUp }" />
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.vpnUp }" />
             <span class="opacity-80">{{ $t('upload') }}:</span>
-            <span class="font-mono">{{ currentOtherUploadLabel }}</span>
+            <span class="font-mono">{{ currentVpnUploadLabel }}</span>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
+          <div class="mb-1 flex items-center justify-between gap-2 text-xs">
+            <span class="opacity-60">{{ $t('routerTrafficBypass') }}</span>
+            <span class="badge badge-ghost badge-xs">Bypass</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.bypassDown }" />
+            <span class="opacity-80">{{ $t('download') }}:</span>
+            <span class="font-mono">{{ currentBypassDownloadLabel }}</span>
+          </div>
+          <div class="mt-1 flex items-center gap-2">
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.bypassUp }" />
+            <span class="opacity-80">{{ $t('upload') }}:</span>
+            <span class="font-mono">{{ currentBypassUploadLabel }}</span>
           </div>
         </div>
       </div>
@@ -92,12 +112,13 @@
             <div class="text-sm font-medium">{{ $t('routerTrafficTopHosts') }}</div>
             <div class="text-xs opacity-60">{{ $t('routerTrafficTopHostsTip') }}</div>
           </div>
-          <span class="badge badge-ghost badge-sm">Mihomo</span>
+          <span class="badge badge-ghost badge-sm">{{ $t('mihomoVersion') }}</span>
         </div>
 
         <div class="overflow-hidden rounded-lg border border-base-content/10 bg-base-100/30">
-          <div class="grid grid-cols-[minmax(0,1.4fr)_96px_96px_72px] items-center gap-3 px-3 py-2 text-[11px] uppercase tracking-wide opacity-60">
+          <div class="grid grid-cols-[minmax(0,1.5fr)_88px_96px_96px_72px] items-center gap-3 px-3 py-2 text-[11px] uppercase tracking-wide opacity-60">
             <div>{{ $t('routerTrafficTopHosts') }}</div>
+            <div>{{ $t('type') }}</div>
             <div>{{ $t('download') }}</div>
             <div>{{ $t('upload') }}</div>
             <div class="text-right">{{ $t('connections') }}</div>
@@ -106,12 +127,15 @@
           <div
             v-for="item in stableTrafficHosts"
             :key="`traffic-host-${item.ip}`"
-            class="grid grid-cols-[minmax(0,1.4fr)_96px_96px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-sm"
+            class="grid grid-cols-[minmax(0,1.5fr)_88px_96px_96px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-sm"
           >
             <div class="min-w-0">
               <div class="truncate font-medium">{{ item.label }}</div>
               <div class="truncate text-[11px] opacity-60">{{ item.ip }}</div>
               <div v-if="item.targets.length" class="truncate text-[11px] opacity-70">{{ item.targets.join(' · ') }}</div>
+            </div>
+            <div>
+              <span class="badge badge-outline badge-xs sm:badge-sm" :style="{ borderColor: trafficColors.mihomoDown, color: trafficColors.mihomoDown }">{{ $t('mihomoVersion') }}</span>
             </div>
             <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
               <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoDown }" />
@@ -173,8 +197,10 @@ const routerDownloadHistory = ref<Point[]>(initValue())
 const routerUploadHistory = ref<Point[]>(initValue())
 const mihomoDownloadHistory = ref<Point[]>(initValue())
 const mihomoUploadHistory = ref<Point[]>(initValue())
-const otherDownloadHistory = ref<Point[]>(initValue())
-const otherUploadHistory = ref<Point[]>(initValue())
+const bypassDownloadHistory = ref<Point[]>(initValue())
+const bypassUploadHistory = ref<Point[]>(initValue())
+const vpnDownloadHistory = ref<Point[]>(initValue())
+const vpnUploadHistory = ref<Point[]>(initValue())
 const extraHistories = ref<ExtraHistoryMap>({})
 const extraOrder = ref<string[]>([])
 
@@ -202,8 +228,10 @@ const trafficColors = {
   wanUp: '#14b8a6',
   mihomoDown: '#7c3aed',
   mihomoUp: '#ec4899',
-  otherDown: '#f59e0b',
-  otherUp: '#22c55e',
+  bypassDown: '#f59e0b',
+  bypassUp: '#22c55e',
+  vpnDown: '#0ea5e9',
+  vpnUp: '#8b5cf6',
 } as const
 
 const trafficColorVars = {
@@ -211,8 +239,10 @@ const trafficColorVars = {
   '--router-wan-up': trafficColors.wanUp,
   '--router-mihomo-down': trafficColors.mihomoDown,
   '--router-mihomo-up': trafficColors.mihomoUp,
-  '--router-other-down': trafficColors.otherDown,
-  '--router-other-up': trafficColors.otherUp,
+  '--router-other-down': trafficColors.bypassDown,
+  '--router-other-up': trafficColors.bypassUp,
+  '--router-vpn-down': trafficColors.vpnDown,
+  '--router-vpn-up': trafficColors.vpnUp,
 } as Record<string, string>
 
 let fontFamily = ''
@@ -263,8 +293,10 @@ const currentRouterUploadLabel = computed(() => speedLabel(latestValue(routerUpl
 const currentRouterDownloadLabel = computed(() => speedLabel(latestValue(routerDownloadHistory.value)))
 const currentMihomoUploadLabel = computed(() => speedLabel(latestValue(mihomoUploadHistory.value)))
 const currentMihomoDownloadLabel = computed(() => speedLabel(latestValue(mihomoDownloadHistory.value)))
-const currentOtherUploadLabel = computed(() => speedLabel(latestValue(otherUploadHistory.value)))
-const currentOtherDownloadLabel = computed(() => speedLabel(latestValue(otherDownloadHistory.value)))
+const currentBypassUploadLabel = computed(() => speedLabel(latestValue(bypassUploadHistory.value)))
+const currentBypassDownloadLabel = computed(() => speedLabel(latestValue(bypassDownloadHistory.value)))
+const currentVpnUploadLabel = computed(() => speedLabel(latestValue(vpnUploadHistory.value)))
+const currentVpnDownloadLabel = computed(() => speedLabel(latestValue(vpnDownloadHistory.value)))
 
 const ifaceDisplayName = (name: string, kind?: string) => {
   const upperKind = (kind || '').toLowerCase()
@@ -451,8 +483,10 @@ const allSeriesValues = computed(() => [
   ...routerUploadHistory.value,
   ...mihomoDownloadHistory.value,
   ...mihomoUploadHistory.value,
-  ...otherDownloadHistory.value,
-  ...otherUploadHistory.value,
+  ...bypassDownloadHistory.value,
+  ...bypassUploadHistory.value,
+  ...vpnDownloadHistory.value,
+  ...vpnUploadHistory.value,
 ].map((item) => Number(item?.value || 0)).concat(extraSeriesValues.value))
 
 const maxObserved = computed(() => Math.max(0, ...allSeriesValues.value))
@@ -478,8 +512,10 @@ const routerDownLabel = computed(() => t('routerTrafficLegendRouterDown'))
 const routerUpLabel = computed(() => t('routerTrafficLegendRouterUp'))
 const mihomoDownLabel = computed(() => t('routerTrafficLegendMihomoDown'))
 const mihomoUpLabel = computed(() => t('routerTrafficLegendMihomoUp'))
-const otherDownLabel = computed(() => t('routerTrafficLegendOtherDown'))
-const otherUpLabel = computed(() => t('routerTrafficLegendOtherUp'))
+const bypassDownLabel = computed(() => t('routerTrafficLegendBypassDown'))
+const bypassUpLabel = computed(() => t('routerTrafficLegendBypassUp'))
+const vpnDownLabel = computed(() => t('routerTrafficLegendVpnDown'))
+const vpnUpLabel = computed(() => t('routerTrafficLegendVpnUp'))
 
 const dynamicLegendItems = computed(() => extraInterfaceKeys.value.flatMap((name) => {
   const kind = extraHistories.value[name]?.kind
@@ -545,8 +581,10 @@ const options = computed(() => ({
       routerUpLabel.value,
       mihomoDownLabel.value,
       mihomoUpLabel.value,
-      otherDownLabel.value,
-      otherUpLabel.value,
+      bypassDownLabel.value,
+      bypassUpLabel.value,
+      vpnDownLabel.value,
+      vpnUpLabel.value,
       ...dynamicLegendItems.value,
     ],
   },
@@ -669,23 +707,43 @@ const options = computed(() => ({
       emphasis: { focus: 'series' },
     },
     {
-      name: otherDownLabel.value,
+      name: bypassDownLabel.value,
       type: 'line',
       smooth: true,
       symbol: 'none',
-      data: otherDownloadHistory.value.map((item) => item.value),
+      data: bypassDownloadHistory.value.map((item) => item.value),
       color: '#f59e0b',
       lineStyle: { width: 2 },
       emphasis: { focus: 'series' },
     },
     {
-      name: otherUpLabel.value,
+      name: bypassUpLabel.value,
       type: 'line',
       smooth: true,
       symbol: 'none',
-      data: otherUploadHistory.value.map((item) => item.value),
+      data: bypassUploadHistory.value.map((item) => item.value),
       color: '#22c55e',
       lineStyle: { width: 2 },
+      emphasis: { focus: 'series' },
+    },
+    {
+      name: vpnDownLabel.value,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      data: vpnDownloadHistory.value.map((item) => item.value),
+      color: '#0ea5e9',
+      lineStyle: { width: 1.8, type: 'dashdot' },
+      emphasis: { focus: 'series' },
+    },
+    {
+      name: vpnUpLabel.value,
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      data: vpnUploadHistory.value.map((item) => item.value),
+      color: '#8b5cf6',
+      lineStyle: { width: 1.8, type: 'dashdot' },
       emphasis: { focus: 'series' },
     },
     ...dynamicExtraSeries.value,
@@ -765,13 +823,21 @@ const pollTraffic = async () => {
 
   const otherDown = Math.max(routerDown - mihomoDown, 0)
   const otherUp = Math.max(routerUp - mihomoUp, 0)
+  const vpnDownRaw = Object.values(extraSpeeds).reduce((sum, item) => sum + Math.max(0, Number(item?.down || 0)), 0)
+  const vpnUpRaw = Object.values(extraSpeeds).reduce((sum, item) => sum + Math.max(0, Number(item?.up || 0)), 0)
+  const vpnDown = Math.min(otherDown, vpnDownRaw)
+  const vpnUp = Math.min(otherUp, vpnUpRaw)
+  const bypassDown = Math.max(otherDown - vpnDown, 0)
+  const bypassUp = Math.max(otherUp - vpnUp, 0)
 
   pushHistory(routerDownloadHistory, timestamp, routerDown)
   pushHistory(routerUploadHistory, timestamp, routerUp)
   pushHistory(mihomoDownloadHistory, timestamp, mihomoDown)
   pushHistory(mihomoUploadHistory, timestamp, mihomoUp)
-  pushHistory(otherDownloadHistory, timestamp, otherDown)
-  pushHistory(otherUploadHistory, timestamp, otherUp)
+  pushHistory(vpnDownloadHistory, timestamp, vpnDown)
+  pushHistory(vpnUploadHistory, timestamp, vpnUp)
+  pushHistory(bypassDownloadHistory, timestamp, bypassDown)
+  pushHistory(bypassUploadHistory, timestamp, bypassUp)
 
   for (const name of extraInterfaceKeys.value) {
     const hist = extraHistories.value[name]
