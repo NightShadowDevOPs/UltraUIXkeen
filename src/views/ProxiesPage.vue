@@ -4,7 +4,7 @@
     ref="proxiesRef"
     @scroll.passive="handleScroll"
   >
-    <ProxyProvidersHealthSummary />
+    <ProxyProvidersHealthSummary :compact="isProviderToolbarCompact" />
 
     <div
       v-if="proxiesTabShow === PROXY_TAB_TYPE.PROVIDER && renderGroups.length === 0"
@@ -71,6 +71,10 @@ const scrollStatus = useSessionStorage('cache/proxies-scroll-status', {
 const handleScroll = () => {
   scrollStatus.value[proxiesTabShow.value] = proxiesRef.value.scrollTop
 }
+
+const isProviderToolbarCompact = computed(() => {
+  return proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER && Number(scrollStatus.value[PROXY_TAB_TYPE.PROVIDER] || 0) > 12
+})
 
 const waitTickUntilReady = (startTime = performance.now()) => {
   if (

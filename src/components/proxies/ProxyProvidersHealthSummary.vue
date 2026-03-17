@@ -22,6 +22,12 @@ import {
 import dayjs from 'dayjs'
 import { computed, watch } from 'vue'
 
+const props = withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false,
+})
+
 const usedProxyNames = computed(() => {
   const set = new Set<string>()
   for (const g of proxyGroupList.value) {
@@ -249,15 +255,29 @@ const refresh = async () => {
 }
 
 const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
+
+const wrapperClass = computed(() => [
+  'sticky top-0 z-30 -mx-2 px-2 pb-2 transition-all duration-150',
+  props.compact
+    ? 'bg-base-100/75 supports-[backdrop-filter]:bg-base-100/55 backdrop-blur-md shadow-sm'
+    : 'bg-transparent',
+])
+
+const panelClass = computed(() => [
+  'flex flex-wrap items-center gap-2 rounded-xl ring-1 ring-base-300 transition-all duration-150',
+  props.compact
+    ? 'bg-base-200/95 px-3 py-2 shadow-lg'
+    : 'bg-base-200 px-3 py-2 shadow-md',
+])
 </script>
 
 <template>
   <div
     v-if="show"
-    class="sticky top-0 z-20 pb-2"
+    :class="wrapperClass"
   >
     <div
-      class="flex flex-wrap items-center gap-2 rounded-xl bg-base-200 px-3 py-2 ring-1 ring-base-300 shadow-md"
+      :class="panelClass"
     >
       <div v-if="protoTabs.length > 1" class="flex w-full flex-wrap items-center gap-2" data-proto-tabs>
         <div class="tabs tabs-boxed tabs-sm">
@@ -409,14 +429,14 @@ const show = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
         </select>
         <div
           v-if="agentProvidersAvailable"
-          class="text-xs opacity-70"
+           :class="props.compact ? 'text-[11px] opacity-70' : 'text-xs opacity-70'"
           :title="$t('lastCheck')"
         >
           {{ $t('updated') }} {{ lastAgentUpdate }}
         </div>
         <div
           v-else-if="agentProvidersError"
-          class="text-xs text-warning"
+           :class="props.compact ? 'text-[11px] text-warning' : 'text-xs text-warning'"
           :title="agentProvidersError"
         >
           {{ $t('providerHealthAgentOffline') }}
