@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue'
-import { proxyProviederList } from '@/store/proxies'
+import { getNowProxyNodeName, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections, closedConnections } from '@/store/connections'
 import { debounce, throttle } from 'lodash'
 
@@ -239,10 +239,63 @@ export const connectionProxyCandidates = (conn: any): string[] => {
   return out
 }
 
+const resolvedProxyCandidateNames = (name: string): string[] => {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const push = (value: unknown) => {
+    const next = String(value || '').trim()
+    if (!next || seen.has(next)) return
+    seen.add(next)
+    out.push(next)
+  }
+
+  const candidate = String(name || '').trim()
+  if (!candidate) return out
+
+  push(candidate)
+
+  const node = (proxyMap.value || {})[candidate] as any
+  if (node?.now) push(node.now)
+
+  try {
+    push(getNowProxyNodeName(candidate))
+  } catch {
+    // ignore
+  }
+
+  if (node?.now) {
+    try {
+      push(getNowProxyNodeName(String(node.now || '').trim()))
+    } catch {
+      // ignore
+    }
+  }
+
+  return out
+}
+
 export const connectionMatchesProviderProxyNames = (conn: any, proxyNames: Iterable<string>): string => {
   const set = proxyNames instanceof Set ? proxyNames : new Set(Array.from(proxyNames || []))
   for (const proxyName of connectionProxyCandidates(conn)) {
-    if (set.has(proxyName)) return proxyName
+    for (const alias of resolvedProxyCandidateNames(proxyName)) {
+      if (set.has(alias)) return alias
+    }
+
+    const node = (proxyMap.value || {})[String(proxyName || '').trim()] as any
+    const members = Array.isArray(node?.all) ? node.all : []
+    if (!members.length || members.length > 16) continue
+
+    for (const member of members) {
+      const candidate = String(member || '').trim()
+      if (!candidate) continue
+      if (set.has(candidate)) return candidate
+      try {
+        const resolved = getNowProxyNodeName(candidate)
+        if (set.has(resolved)) return resolved
+      } catch {
+        // ignore
+      }
+    }
   }
   return ''
 }
@@ -302,6 +355,7 @@ watch(
         if (!proxyName) continue
 
         const seenKey = `${providerName}\u0000${id}`
+        if (seen.has(seenKey)) continue
         seen.add(seenKey)
 
         const rec = current[providerName] || (current[providerName] = emptyActivity())
