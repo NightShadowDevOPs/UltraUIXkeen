@@ -216,6 +216,44 @@
                 </div>
               </div>
 
+              <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
+                <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-sm font-medium">{{ $t('routerTrafficRecentTimeline') }}</div>
+                  <span class="badge badge-ghost badge-xs">~{{ hostTimelineWindowSeconds }}s</span>
+                </div>
+                <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRecentTimelineTip', { seconds: hostTimelineWindowSeconds }) }}</div>
+                <div v-if="hostTimelineRows(item).length" class="space-y-2">
+                  <div
+                    v-for="row in hostTimelineRows(item)"
+                    :key="`${item.ip}-timeline-${row.key}`"
+                    class="rounded-lg border border-base-content/10 bg-base-200/15 px-3 py-2"
+                  >
+                    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div class="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
+                        <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: row.color }" />
+                        <span class="truncate">{{ row.label }}</span>
+                      </div>
+                      <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
+                        <span>{{ $t('routerTrafficTimelineCurrent') }}: {{ row.current }}</span>
+                        <span>{{ $t('routerTrafficTimelinePeak') }}: {{ row.peak }}</span>
+                      </div>
+                    </div>
+                    <div class="flex h-14 items-end gap-1 rounded-lg border border-base-content/10 bg-base-100/40 px-2 py-2">
+                      <div
+                        v-for="bar in row.bars"
+                        :key="`${item.ip}-${row.key}-${bar.key}`"
+                        class="min-h-[4px] flex-1 rounded-[4px] transition-[height,opacity] duration-200"
+                        :style="{ height: `${bar.height}%`, backgroundColor: row.color, opacity: bar.opacity }"
+                        :title="`${row.label}: ${speedLabel(bar.value)}`"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
+                  {{ $t('routerTrafficTimelineIdle') }}
+                </div>
+              </div>
+
               <div class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
                 <div class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
                   <div class="mb-1 text-sm font-medium">{{ $t('routerTrafficActiveTargets') }}</div>
@@ -344,6 +382,31 @@ type HostTrafficState = HostTrafficStat & {
   lastSeen: number
   score: number
   missingTicks: number
+}
+type HostHistoryPoint = {
+  ts: number
+  down: number
+  up: number
+  mihomoDown: number
+  mihomoUp: number
+  bypassDown: number
+  bypassUp: number
+  vpnDown: number
+  vpnUp: number
+}
+type HostTimelineBar = {
+  key: string
+  value: number
+  height: number
+  opacity: number
+}
+type HostTimelineRow = {
+  key: string
+  label: string
+  color: string
+  current: string
+  peak: string
+  bars: HostTimelineBar[]
 }
 type HostScopeFilter = 'all' | 'mihomo' | 'vpn' | 'bypass' | 'mixed'
 type HostSortMode = 'traffic' | 'download' | 'upload' | 'connections' | 'recent'
@@ -499,9 +562,12 @@ const currentExtraStats = computed(() => {
 })
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
+const hostHistoryState = ref<Record<string, HostHistoryPoint[]>>({})
 const hostScopeFilter = ref<HostScopeFilter>('all')
 const hostSortBy = ref<HostSortMode>('traffic')
 const expandedHostDetails = ref<Record<string, boolean>>({})
+const hostTimelineLimit = 24
+const hostTimelineWindowSeconds = Math.round(hostTimelineLimit * 1.5)
 let hostTrafficTimer: number | null = null
 let hostTrafficAgentTimer: number | null = null
 
@@ -687,6 +753,38 @@ const refreshHostTraffic = () => {
   }
 
   hostTrafficState.value = next
+  refreshHostHistory(next, now)
+}
+
+const refreshHostHistory = (items: Record<string, HostTrafficState>, ts: number) => {
+  const next: Record<string, HostHistoryPoint[]> = { ...hostHistoryState.value }
+
+  for (const [ip, item] of Object.entries(items)) {
+    const sample: HostHistoryPoint = {
+      ts,
+      down: Math.max(0, Number(item.displayDown || 0)),
+      up: Math.max(0, Number(item.displayUp || 0)),
+      mihomoDown: Math.max(0, Number(item.displayMihomoDown || 0)),
+      mihomoUp: Math.max(0, Number(item.displayMihomoUp || 0)),
+      bypassDown: Math.max(0, Number(item.displayBypassDown || 0)),
+      bypassUp: Math.max(0, Number(item.displayBypassUp || 0)),
+      vpnDown: Math.max(0, Number(item.displayVpnDown || 0)),
+      vpnUp: Math.max(0, Number(item.displayVpnUp || 0)),
+    }
+    const prev = Array.isArray(next[ip]) ? [...next[ip]] : []
+    const last = prev[prev.length - 1]
+    if (last && (ts - last.ts) < 1100) prev[prev.length - 1] = sample
+    else prev.push(sample)
+    next[ip] = prev.slice(-1 * hostTimelineLimit)
+  }
+
+  for (const [ip, series] of Object.entries(next)) {
+    if (items[ip]) continue
+    const last = series[series.length - 1]
+    if (!last || (ts - last.ts) > (hostTimelineWindowSeconds * 2500)) delete next[ip]
+  }
+
+  hostHistoryState.value = next
 }
 
 const scheduleHostTrafficRefresh = () => {
@@ -858,6 +956,53 @@ const hostDetailNotes = (item: HostTrafficStat) => {
   if ((item.vpnDown + item.vpnUp + item.bypassDown + item.bypassUp) > 1) notes.push(t('routerTrafficNoTargetDetails'))
   return notes
 }
+
+const hostTimelineBars = (values: number[]): HostTimelineBar[] => {
+  const clean = values.map((value) => Math.max(0, Number(value || 0))).slice(-1 * hostTimelineLimit)
+  const maxValue = Math.max(1, ...clean)
+  return clean.map((value, index) => {
+    const ratio = value > 0 ? (value / maxValue) : 0
+    return {
+      key: String(index),
+      value,
+      height: value > 0 ? Math.max(12, Math.round(ratio * 100)) : 6,
+      opacity: value > 0 ? Math.min(1, 0.35 + (ratio * 0.65)) : 0.16,
+    }
+  })
+}
+
+const buildHostTimelineRows = (item: HostTrafficStat): HostTimelineRow[] => {
+  const history = hostHistoryState.value[item.ip] || []
+  if (!history.length) return []
+
+  const rows: HostTimelineRow[] = []
+  const pushRow = (key: string, label: string, color: string, values: number[]) => {
+    const hasActivity = values.some((value) => value > 1)
+    if (!hasActivity && key !== 'total') return
+    rows.push({
+      key,
+      label,
+      color,
+      current: speedLabel(values[values.length - 1] || 0),
+      peak: speedLabel(Math.max(0, ...values)),
+      bars: hostTimelineBars(values),
+    })
+  }
+
+  pushRow('total', t('routerTrafficTimelineTotal'), hostPrimaryColor(item, 'down'), history.map((entry) => entry.down + entry.up))
+  pushRow('mihomo', t('mihomoVersion'), trafficColors.mihomoDown, history.map((entry) => entry.mihomoDown + entry.mihomoUp))
+  pushRow('vpn', t('routerTrafficVpn'), trafficColors.vpnDown, history.map((entry) => entry.vpnDown + entry.vpnUp))
+  pushRow('bypass', t('routerTrafficBypass'), trafficColors.bypassDown, history.map((entry) => entry.bypassDown + entry.bypassUp))
+  return rows
+}
+
+const stableTrafficHostTimelineRows = computed<Record<string, HostTimelineRow[]>>(() => {
+  const out: Record<string, HostTimelineRow[]> = {}
+  for (const item of stableTrafficHosts.value) out[item.ip] = buildHostTimelineRows(item)
+  return out
+})
+
+const hostTimelineRows = (item: HostTrafficStat) => stableTrafficHostTimelineRows.value[item.ip] || []
 
 watch(stableTrafficHosts, (items) => {
   const visible = new Set(items.map((item) => item.ip))
