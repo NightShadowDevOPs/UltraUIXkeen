@@ -16,6 +16,7 @@ import {
   theme,
 } from './store/settings'
 import { initUsersDbSync } from './store/usersDbSync'
+import { initProviderTrafficSync } from './store/providerActivity'
 
 const app = ref<HTMLElement>()
 const toast = ref<HTMLElement>()
@@ -74,6 +75,7 @@ watch(
 
 onMounted(() => {
   initUsersDbSync()
+  initProviderTrafficSync()
   if (autoImportSettings.value) {
     importSettingsFromUrl()
   }

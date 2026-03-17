@@ -2,25 +2,27 @@ import { computed, ref, watch } from 'vue'
 import { getNowProxyNodeName, proxyMap, proxyProviederList } from '@/store/proxies'
 import { activeConnections, closedConnections } from '@/store/connections'
 import { debounce, throttle } from 'lodash'
+import { agentProviderTrafficGetAPI, agentProviderTrafficPutAPI } from '@/api/agent'
+import { decodeB64Utf8 } from '@/helper/b64'
+import { agentEnabled } from '@/store/agent'
 
 const FALLBACK_SPEED_MULTIPLIER = 1
+const REMOTE_SCHEMA_VERSION = 1
+const REMOTE_PUSH_DEBOUNCE_MS = 15_000
+const REMOTE_PULL_INTERVAL_MS = 90_000
+const REMOTE_PUSH_INTERVAL_MS = 75_000
+const REMOTE_HIDDEN_PUSH_THROTTLE_MS = 20_000
 
 export type ProviderActivity = {
-  /** Number of active connections currently attributed to this provider. */
   connections: number
-  /** Whether the provider is currently active in routing/traffic. */
   active: boolean
-  /** Accumulated traffic observed for this provider since manual reset. */
   bytes: number
   speed: number
   activeProxy: string
   activeProxyBytes: number
-  /** Sum of currently active connection counters for this provider. */
   currentBytes: number
-  /** Since reset totals split by direction. */
   download: number
   upload: number
-  /** Since start of current day totals split by direction. */
   todayBytes: number
   todayDownload: number
   todayUpload: number
@@ -55,15 +57,36 @@ type PersistedConnTotalStore = {
   entries: Record<string, PersistedConnTotal>
 }
 
+type ProviderTrafficRemotePayload = {
+  version: number
+  sessionResetAt?: number
+  sessionTotals: Record<string, ProviderTrafficTotals>
+  daily: DailyTrafficStore
+  connTotals: PersistedConnTotalStore
+}
+
 const STORAGE_KEY = 'stats/provider-traffic-session-v7'
 const DAILY_STORAGE_KEY = 'stats/provider-traffic-daily-v6'
 const CONN_TOTALS_STORAGE_KEY = 'stats/provider-traffic-conn-baselines-v6'
+const SESSION_RESET_STORAGE_KEY = 'stats/provider-traffic-session-reset-at-v1'
 const MAX_PERSISTED_CONN_TOTALS = 5000
 const trafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const dailyTrafficTotals = ref<Record<string, ProviderTrafficTotals>>({})
 const connTotals = new Map<string, PersistedConnTotal>()
 const providerActivityCurrent = ref<Record<string, ProviderActivity>>({})
+const sessionResetAt = ref(0)
+const providerTrafficRemoteRev = ref(0)
+const providerTrafficRemoteUpdatedAt = ref('')
 let lastTickAt = Date.now()
+let providerTrafficSyncStarted = false
+let providerTrafficRemoteBootstrapped = false
+let providerTrafficPullInFlight = false
+let providerTrafficPushInFlight = false
+let providerTrafficSuppressRemotePush = 0
+let providerTrafficLocalDirty = false
+let providerTrafficLastPullAt = 0
+let providerTrafficLastPushAt = 0
+let providerTrafficLastHiddenPushAt = 0
 
 const pad2 = (v: number) => String(v).padStart(2, '0')
 const localDayKeyFromDate = (value: Date) => `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`
@@ -86,16 +109,182 @@ const safeParse = <T>(raw: string | null, fallback: T): T => {
   }
 }
 
+const normalizeTrafficTotals = (raw: unknown): Record<string, ProviderTrafficTotals> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, ProviderTrafficTotals> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, any>)) {
+    const name = String(key || '').trim()
+    if (!name) continue
+    const dl = Number(value?.dl ?? value?.download ?? 0)
+    const ul = Number(value?.ul ?? value?.upload ?? 0)
+    const updatedAt = Number(value?.updatedAt ?? 0)
+    out[name] = {
+      dl: Number.isFinite(dl) && dl >= 0 ? dl : 0,
+      ul: Number.isFinite(ul) && ul >= 0 ? ul : 0,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : undefined,
+    }
+  }
+  return out
+}
+
+const normalizeConnEntry = (value: unknown): PersistedConnTotal | null => {
+  if (!value || typeof value !== 'object') return null
+  const provider = String((value as any)?.provider || '').trim()
+  if (!provider) return null
+  const dl = Number((value as any)?.dl ?? 0)
+  const ul = Number((value as any)?.ul ?? 0)
+  const start = String((value as any)?.start || '').trim()
+  const seenAt = Number((value as any)?.seenAt ?? 0)
+  return {
+    provider,
+    dl: Number.isFinite(dl) && dl >= 0 ? dl : 0,
+    ul: Number.isFinite(ul) && ul >= 0 ? ul : 0,
+    start: start || undefined,
+    seenAt: Number.isFinite(seenAt) && seenAt > 0 ? seenAt : undefined,
+  }
+}
+
+const normalizeConnEntries = (raw: unknown): Record<string, PersistedConnTotal> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, PersistedConnTotal> = {}
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const id = String(key || '').trim()
+    if (!id) continue
+    const entry = normalizeConnEntry(value)
+    if (!entry) continue
+    out[id] = entry
+  }
+  return out
+}
+
+const normalizeDailyStore = (raw: unknown): DailyTrafficStore => {
+  const day = todayKey()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { day, totals: {} }
+  const incomingDay = String((raw as any)?.day || '').trim() || day
+  return {
+    day: incomingDay,
+    totals: normalizeTrafficTotals((raw as any)?.totals),
+  }
+}
+
+const normalizeRemotePayload = (raw: unknown): ProviderTrafficRemotePayload => {
+  const day = todayKey()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {
+      version: REMOTE_SCHEMA_VERSION,
+      sessionResetAt: 0,
+      sessionTotals: {},
+      daily: { day, totals: {} },
+      connTotals: { entries: {} },
+    }
+  }
+  return {
+    version: Number((raw as any)?.version ?? REMOTE_SCHEMA_VERSION) || REMOTE_SCHEMA_VERSION,
+    sessionResetAt: Number((raw as any)?.sessionResetAt ?? 0) || 0,
+    sessionTotals: normalizeTrafficTotals((raw as any)?.sessionTotals),
+    daily: normalizeDailyStore((raw as any)?.daily),
+    connTotals: { entries: normalizeConnEntries((raw as any)?.connTotals?.entries) },
+  }
+}
+
+const mergeTrafficTotals = (
+  left: Record<string, ProviderTrafficTotals>,
+  right: Record<string, ProviderTrafficTotals>,
+): Record<string, ProviderTrafficTotals> => {
+  const out: Record<string, ProviderTrafficTotals> = {}
+  const keys = new Set<string>([...Object.keys(left || {}), ...Object.keys(right || {})])
+  for (const key of keys) {
+    const a = left?.[key]
+    const b = right?.[key]
+    out[key] = {
+      dl: Math.max(Number(a?.dl ?? 0) || 0, Number(b?.dl ?? 0) || 0),
+      ul: Math.max(Number(a?.ul ?? 0) || 0, Number(b?.ul ?? 0) || 0),
+      updatedAt: Math.max(Number(a?.updatedAt ?? 0) || 0, Number(b?.updatedAt ?? 0) || 0) || undefined,
+    }
+  }
+  return out
+}
+
+const pickNewerConnEntry = (left: PersistedConnTotal, right: PersistedConnTotal): PersistedConnTotal => {
+  const leftSeen = Number(left?.seenAt ?? 0) || 0
+  const rightSeen = Number(right?.seenAt ?? 0) || 0
+  if (rightSeen > leftSeen) return right
+  if (leftSeen > rightSeen) return left
+  const leftBytes = (Number(left?.dl ?? 0) || 0) + (Number(left?.ul ?? 0) || 0)
+  const rightBytes = (Number(right?.dl ?? 0) || 0) + (Number(right?.ul ?? 0) || 0)
+  return rightBytes >= leftBytes ? right : left
+}
+
+const mergeConnEntries = (
+  left: Record<string, PersistedConnTotal>,
+  right: Record<string, PersistedConnTotal>,
+): Record<string, PersistedConnTotal> => {
+  const merged = new Map<string, PersistedConnTotal>()
+  const keys = new Set<string>([...Object.keys(left || {}), ...Object.keys(right || {})])
+  for (const key of keys) {
+    const a = left?.[key]
+    const b = right?.[key]
+    if (!a && b) {
+      merged.set(key, b)
+      continue
+    }
+    if (a && !b) {
+      merged.set(key, a)
+      continue
+    }
+    if (!a || !b) continue
+    if ((a.start || '') === (b.start || '') && a.provider === b.provider) {
+      merged.set(key, {
+        provider: a.provider || b.provider,
+        start: a.start || b.start,
+        dl: Math.max(Number(a.dl || 0), Number(b.dl || 0)),
+        ul: Math.max(Number(a.ul || 0), Number(b.ul || 0)),
+        seenAt: Math.max(Number(a.seenAt || 0), Number(b.seenAt || 0)) || undefined,
+      })
+      continue
+    }
+    merged.set(key, pickNewerConnEntry(a, b))
+  }
+  return Object.fromEntries(
+    Array.from(merged.entries())
+      .sort((a, b) => (Number(b[1]?.seenAt ?? 0) || 0) - (Number(a[1]?.seenAt ?? 0) || 0))
+      .slice(0, MAX_PERSISTED_CONN_TOTALS),
+  )
+}
+
+const serializeConnTotalsEntries = (): Record<string, PersistedConnTotal> => {
+  const out: Record<string, PersistedConnTotal> = {}
+  const sorted = Array.from(connTotals.entries())
+    .sort((a, b) => (Number(b[1]?.seenAt ?? 0) || 0) - (Number(a[1]?.seenAt ?? 0) || 0))
+    .slice(0, MAX_PERSISTED_CONN_TOTALS)
+  for (const [key, value] of sorted) {
+    out[key] = {
+      provider: value.provider,
+      dl: Number(value.dl || 0) || 0,
+      ul: Number(value.ul || 0) || 0,
+      start: value.start || undefined,
+      seenAt: Number(value.seenAt || 0) || undefined,
+    }
+  }
+  return out
+}
+
+const replaceConnTotalsFromEntries = (entries: Record<string, PersistedConnTotal>) => {
+  connTotals.clear()
+  for (const [key, value] of Object.entries(entries || {})) {
+    connTotals.set(key, value)
+  }
+}
+
 const loadTrafficTotals = () => {
   if (typeof localStorage === 'undefined') return
-  trafficTotals.value = safeParse<Record<string, ProviderTrafficTotals>>(localStorage.getItem(STORAGE_KEY), {})
+  trafficTotals.value = normalizeTrafficTotals(safeParse<Record<string, ProviderTrafficTotals>>(localStorage.getItem(STORAGE_KEY), {}))
 }
 
 const loadDailyTrafficTotals = () => {
   if (typeof localStorage === 'undefined') return
-  const day = todayKey()
-  const parsed = safeParse<DailyTrafficStore>(localStorage.getItem(DAILY_STORAGE_KEY), { day, totals: {} })
-  if (parsed.day !== day) {
+  const parsed = normalizeDailyStore(safeParse<DailyTrafficStore>(localStorage.getItem(DAILY_STORAGE_KEY), { day: todayKey(), totals: {} }))
+  if (parsed.day !== todayKey()) {
     dailyTrafficTotals.value = {}
     return
   }
@@ -106,19 +295,15 @@ const loadConnTotals = () => {
   connTotals.clear()
   if (typeof localStorage === 'undefined') return
   const parsed = safeParse<PersistedConnTotalStore>(localStorage.getItem(CONN_TOTALS_STORAGE_KEY), { entries: {} })
-  for (const [id, entry] of Object.entries(parsed.entries || {})) {
-    const provider = String(entry?.provider || '').trim()
-    if (!id || !provider) continue
-    const dl = Number(entry?.dl ?? 0)
-    const ul = Number(entry?.ul ?? 0)
-    connTotals.set(id, {
-      provider,
-      dl: Number.isFinite(dl) && dl >= 0 ? dl : 0,
-      ul: Number.isFinite(ul) && ul >= 0 ? ul : 0,
-      start: entry?.start ? String(entry.start) : undefined,
-      seenAt: Number(entry?.seenAt ?? 0) || undefined,
-    })
+  for (const [id, entry] of Object.entries(normalizeConnEntries(parsed.entries || {}))) {
+    connTotals.set(id, entry)
   }
+}
+
+const loadSessionResetAt = () => {
+  if (typeof localStorage === 'undefined') return
+  const raw = Number(localStorage.getItem(SESSION_RESET_STORAGE_KEY) || 0)
+  sessionResetAt.value = Number.isFinite(raw) && raw > 0 ? raw : 0
 }
 
 const saveTrafficTotals = debounce(() => {
@@ -143,19 +328,21 @@ const saveDailyTrafficTotals = debounce(() => {
 const saveConnTotals = debounce(() => {
   if (typeof localStorage === 'undefined') return
   try {
-    const sorted = Array.from(connTotals.entries())
-      .sort((a, b) => (Number(b[1]?.seenAt ?? 0) || 0) - (Number(a[1]?.seenAt ?? 0) || 0))
-      .slice(0, MAX_PERSISTED_CONN_TOTALS)
-    const entries = Object.fromEntries(sorted)
-    localStorage.setItem(CONN_TOTALS_STORAGE_KEY, JSON.stringify({ entries }))
+    localStorage.setItem(CONN_TOTALS_STORAGE_KEY, JSON.stringify({ entries: serializeConnTotalsEntries() }))
   } catch {
     // ignore
   }
 }, 1500)
 
-loadTrafficTotals()
-loadDailyTrafficTotals()
-loadConnTotals()
+const saveSessionResetAt = () => {
+  if (typeof localStorage === 'undefined') return
+  try {
+    if (sessionResetAt.value > 0) localStorage.setItem(SESSION_RESET_STORAGE_KEY, String(sessionResetAt.value))
+    else localStorage.removeItem(SESSION_RESET_STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+}
 
 const emptyActivity = (): ProviderActivity => ({
   connections: 0,
@@ -172,6 +359,187 @@ const emptyActivity = (): ProviderActivity => ({
   todayUpload: 0,
   updatedAt: undefined,
 })
+
+const buildRemotePayload = (): ProviderTrafficRemotePayload => ({
+  version: REMOTE_SCHEMA_VERSION,
+  sessionResetAt: Number(sessionResetAt.value || 0) || 0,
+  sessionTotals: normalizeTrafficTotals(trafficTotals.value || {}),
+  daily: { day: todayKey(), totals: normalizeTrafficTotals(dailyTrafficTotals.value || {}) },
+  connTotals: { entries: serializeConnTotalsEntries() },
+})
+
+const syncStoredTotalsIntoCurrent = () => {
+  const next: Record<string, ProviderActivity> = { ...(providerActivityCurrent.value || {}) }
+  const keys = new Set<string>([
+    ...Object.keys(next),
+    ...Object.keys(trafficTotals.value || {}),
+    ...Object.keys(dailyTrafficTotals.value || {}),
+    ...((proxyProviederList.value || []).map((provider: any) => String(provider?.name || '').trim()).filter(Boolean)),
+  ])
+
+  for (const providerName of keys) {
+    const rec = next[providerName] || emptyActivity()
+    const totals = trafficTotals.value[providerName]
+    const daily = dailyTrafficTotals.value[providerName]
+    rec.download = Number(totals?.dl ?? 0) || 0
+    rec.upload = Number(totals?.ul ?? 0) || 0
+    rec.bytes = rec.download + rec.upload
+    rec.todayDownload = Number(daily?.dl ?? 0) || 0
+    rec.todayUpload = Number(daily?.ul ?? 0) || 0
+    rec.todayBytes = rec.todayDownload + rec.todayUpload
+    rec.updatedAt = Math.max(Number(totals?.updatedAt ?? 0) || 0, Number(daily?.updatedAt ?? 0) || 0) || undefined
+    next[providerName] = rec
+  }
+
+  providerActivityCurrent.value = next
+}
+
+const applyRemotePayload = (raw: unknown) => {
+  const payload = normalizeRemotePayload(raw)
+  const remoteResetAt = Number(payload.sessionResetAt || 0) || 0
+  const localResetAt = Number(sessionResetAt.value || 0) || 0
+  const mergedSession = remoteResetAt > localResetAt
+    ? normalizeTrafficTotals(payload.sessionTotals || {})
+    : localResetAt > remoteResetAt
+      ? normalizeTrafficTotals(trafficTotals.value || {})
+      : mergeTrafficTotals(trafficTotals.value || {}, payload.sessionTotals || {})
+  const mergedDaily = payload.daily.day === todayKey()
+    ? mergeTrafficTotals(dailyTrafficTotals.value || {}, payload.daily.totals || {})
+    : normalizeTrafficTotals(dailyTrafficTotals.value || {})
+  const mergedConnEntries = mergeConnEntries(serializeConnTotalsEntries(), payload.connTotals?.entries || {})
+
+  providerTrafficSuppressRemotePush += 1
+  sessionResetAt.value = Math.max(localResetAt, remoteResetAt)
+  saveSessionResetAt()
+  trafficTotals.value = mergedSession
+  dailyTrafficTotals.value = mergedDaily
+  replaceConnTotalsFromEntries(mergedConnEntries)
+  saveTrafficTotals()
+  saveDailyTrafficTotals()
+  saveConnTotals()
+  syncStoredTotalsIntoCurrent()
+}
+
+const pushProviderTrafficRemoteNow = async () => {
+  if (!agentEnabled.value || providerTrafficPushInFlight || providerTrafficPullInFlight) return
+  if (!providerTrafficRemoteBootstrapped) return
+  if (!providerTrafficLocalDirty) return
+  providerTrafficPushInFlight = true
+  try {
+    const body = JSON.stringify(buildRemotePayload())
+    const res: any = await agentProviderTrafficPutAPI({
+      rev: Number(providerTrafficRemoteRev.value || 0),
+      content: body,
+    })
+
+    if (res?.ok) {
+      providerTrafficRemoteRev.value = Number(res.rev ?? providerTrafficRemoteRev.value + 1) || providerTrafficRemoteRev.value + 1
+      providerTrafficRemoteUpdatedAt.value = String(res.updatedAt || '').trim()
+      providerTrafficLocalDirty = false
+      providerTrafficLastPushAt = Date.now()
+      return
+    }
+
+    if (res?.error === 'conflict') {
+      const remoteRev = Number(res.rev ?? providerTrafficRemoteRev.value) || providerTrafficRemoteRev.value
+      providerTrafficRemoteRev.value = remoteRev
+      providerTrafficRemoteUpdatedAt.value = String(res.updatedAt || '').trim()
+      const content = decodeB64Utf8(String(res.contentB64 || ''))
+      const parsed = content ? safeParse<ProviderTrafficRemotePayload>(content, buildRemotePayload()) : buildRemotePayload()
+      applyRemotePayload(parsed)
+      const retryBody = JSON.stringify(buildRemotePayload())
+      const retry: any = await agentProviderTrafficPutAPI({ rev: remoteRev, content: retryBody })
+      if (retry?.ok) {
+        providerTrafficRemoteRev.value = Number(retry.rev ?? remoteRev + 1) || remoteRev + 1
+        providerTrafficRemoteUpdatedAt.value = String(retry.updatedAt || '').trim()
+        providerTrafficLocalDirty = false
+        providerTrafficLastPushAt = Date.now()
+      }
+    }
+  } finally {
+    providerTrafficPushInFlight = false
+  }
+}
+
+const scheduleProviderTrafficRemotePush = debounce(() => {
+  pushProviderTrafficRemoteNow()
+}, REMOTE_PUSH_DEBOUNCE_MS)
+
+const markProviderTrafficDirty = () => {
+  if (providerTrafficSuppressRemotePush > 0) {
+    providerTrafficSuppressRemotePush -= 1
+    return
+  }
+  providerTrafficLocalDirty = true
+  scheduleProviderTrafficRemotePush()
+}
+
+const pullProviderTrafficRemote = async () => {
+  if (!agentEnabled.value || providerTrafficPullInFlight) return
+  providerTrafficPullInFlight = true
+  try {
+    const res: any = await agentProviderTrafficGetAPI()
+    if (!res?.ok) return
+    providerTrafficRemoteRev.value = Number(res.rev ?? 0) || 0
+    providerTrafficRemoteUpdatedAt.value = String(res.updatedAt || '').trim()
+    providerTrafficLastPullAt = Date.now()
+    const content = decodeB64Utf8(String(res.contentB64 || ''))
+    const parsed = content ? safeParse<ProviderTrafficRemotePayload>(content, buildRemotePayload()) : buildRemotePayload()
+    applyRemotePayload(parsed)
+    providerTrafficRemoteBootstrapped = true
+    if (providerTrafficLocalDirty) scheduleProviderTrafficRemotePush()
+  } finally {
+    providerTrafficPullInFlight = false
+  }
+}
+
+export const initProviderTrafficSync = () => {
+  if (providerTrafficSyncStarted || typeof window === 'undefined') return
+  providerTrafficSyncStarted = true
+
+  watch(
+    agentEnabled,
+    async (enabled) => {
+      if (!enabled) {
+        providerTrafficRemoteBootstrapped = false
+        return
+      }
+      await pullProviderTrafficRemote()
+      providerTrafficRemoteBootstrapped = true
+      if (providerTrafficLocalDirty) scheduleProviderTrafficRemotePush()
+    },
+    { immediate: true },
+  )
+
+  window.setInterval(() => {
+    if (!agentEnabled.value) return
+    if (providerTrafficPullInFlight || providerTrafficPushInFlight) return
+    if (Date.now() - providerTrafficLastPullAt < REMOTE_PULL_INTERVAL_MS) return
+    pullProviderTrafficRemote()
+  }, 30_000)
+
+  window.setInterval(() => {
+    if (!agentEnabled.value) return
+    if (!providerTrafficLocalDirty) return
+    if (providerTrafficPullInFlight || providerTrafficPushInFlight) return
+    if (!providerTrafficRemoteBootstrapped) return
+    if (Date.now() - providerTrafficLastPushAt < REMOTE_PUSH_INTERVAL_MS) return
+    pushProviderTrafficRemoteNow()
+  }, 20_000)
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return
+    if (!agentEnabled.value || !providerTrafficLocalDirty) return
+    if (Date.now() - providerTrafficLastHiddenPushAt < REMOTE_HIDDEN_PUSH_THROTTLE_MS) return
+    providerTrafficLastHiddenPushAt = Date.now()
+    pushProviderTrafficRemoteNow()
+  })
+}
+
+loadTrafficTotals()
+loadDailyTrafficTotals()
+loadConnTotals()
+loadSessionResetAt()
 
 export const providerProxyNames = (provider: any): string[] => {
   const raw = provider?.proxies
@@ -317,6 +685,7 @@ watch(
     if (todayKey() !== safeParse<DailyTrafficStore>(typeof localStorage === 'undefined' ? null : localStorage.getItem(DAILY_STORAGE_KEY), { day: todayKey(), totals: {} }).day) {
       dailyTrafficTotals.value = {}
       saveDailyTrafficTotals()
+      markProviderTrafficDirty()
     }
 
     const now = Date.now()
@@ -336,6 +705,9 @@ watch(
 
     const perProxyBytes: Record<string, number> = {}
     const seen = new Set<string>()
+    let totalsChanged = false
+    let dailyChanged = false
+    let connTotalsChanged = false
 
     const processConnection = (c: any, mode: 'active' | 'closed') => {
       const id = String((c as any)?.id || '').trim()
@@ -402,18 +774,28 @@ watch(
 
         if (dDl > 0 || dUl > 0) {
           const totals = trafficTotals.value[providerName] || { dl: 0, ul: 0 }
-          totals.dl += dDl
-          totals.ul += dUl
+          const nextDl = (Number(totals.dl || 0) || 0) + dDl
+          const nextUl = (Number(totals.ul || 0) || 0) + dUl
+          if (nextDl !== totals.dl || nextUl !== totals.ul) totalsChanged = true
+          totals.dl = nextDl
+          totals.ul = nextUl
           totals.updatedAt = now
           trafficTotals.value[providerName] = totals
 
           const daily = dailyTrafficTotals.value[providerName] || { dl: 0, ul: 0 }
-          daily.dl += dDl
-          daily.ul += dUl
+          const nextDailyDl = (Number(daily.dl || 0) || 0) + dDl
+          const nextDailyUl = (Number(daily.ul || 0) || 0) + dUl
+          if (nextDailyDl !== daily.dl || nextDailyUl !== daily.ul) dailyChanged = true
+          daily.dl = nextDailyDl
+          daily.ul = nextDailyUl
           daily.updatedAt = now
           dailyTrafficTotals.value[providerName] = daily
         }
 
+        const prevConn = connTotals.get(seenKey)
+        if (!prevConn || prevConn.dl !== curDl || prevConn.ul !== curUl || prevConn.start !== (start || undefined) || prevConn.provider !== providerName) {
+          connTotalsChanged = true
+        }
         connTotals.set(seenKey, { provider: providerName, dl: curDl, ul: curUl, start: start || undefined, seenAt: now })
       }
     }
@@ -422,7 +804,10 @@ watch(
     for (const c of closedList || []) processConnection(c, 'closed')
 
     for (const id of Array.from(connTotals.keys())) {
-      if (!seen.has(id)) connTotals.delete(id)
+      if (!seen.has(id)) {
+        connTotals.delete(id)
+        connTotalsChanged = true
+      }
     }
 
     for (const [providerName, totals] of Object.entries(trafficTotals.value || {})) {
@@ -450,8 +835,11 @@ watch(
           rec.upload = Math.max(rec.upload, Math.max(0, Number(liveTotals.ul || 0)))
           rec.bytes = rec.download + rec.upload
           const totals = trafficTotals.value[providerName] || { dl: 0, ul: 0 }
-          totals.dl = Math.max(Number(totals.dl || 0), rec.download)
-          totals.ul = Math.max(Number(totals.ul || 0), rec.upload)
+          const nextDl = Math.max(Number(totals.dl || 0), rec.download)
+          const nextUl = Math.max(Number(totals.ul || 0), rec.upload)
+          if (nextDl !== totals.dl || nextUl !== totals.ul) totalsChanged = true
+          totals.dl = nextDl
+          totals.ul = nextUl
           totals.updatedAt = now
           trafficTotals.value[providerName] = totals
           rec.updatedAt = Math.max(Number(rec.updatedAt || 0), now) || undefined
@@ -474,8 +862,11 @@ watch(
         rec.todayUpload = nextTodayUl
         rec.todayBytes = rec.todayDownload + rec.todayUpload
         const daily = dailyTrafficTotals.value[providerName] || { dl: 0, ul: 0 }
-        daily.dl = Math.max(Number(daily.dl || 0), rec.todayDownload)
-        daily.ul = Math.max(Number(daily.ul || 0), rec.todayUpload)
+        const nextDl = Math.max(Number(daily.dl || 0), rec.todayDownload)
+        const nextUl = Math.max(Number(daily.ul || 0), rec.todayUpload)
+        if (nextDl !== daily.dl || nextUl !== daily.ul) dailyChanged = true
+        daily.dl = nextDl
+        daily.ul = nextUl
         daily.updatedAt = now
         dailyTrafficTotals.value[providerName] = daily
         rec.updatedAt = Math.max(Number(rec.updatedAt || 0), now) || undefined
@@ -499,6 +890,7 @@ watch(
     saveTrafficTotals()
     saveDailyTrafficTotals()
     saveConnTotals()
+    if (totalsChanged || dailyChanged || connTotalsChanged) markProviderTrafficDirty()
   },
   { immediate: true, deep: false },
 )
@@ -539,6 +931,8 @@ export const providerLiveStatusByName = computed<Record<string, ProviderLiveStat
 })
 
 export const clearProviderTrafficSession = () => {
+  sessionResetAt.value = Date.now()
+  saveSessionResetAt()
   trafficTotals.value = {}
   providerActivityCurrent.value = {}
   if (typeof localStorage !== 'undefined') {
@@ -548,4 +942,6 @@ export const clearProviderTrafficSession = () => {
       // ignore
     }
   }
+  providerTrafficLocalDirty = true
+  scheduleProviderTrafficRemotePush()
 }

@@ -518,6 +518,50 @@ export const agentUsersDbPutAPI = async (args: { rev: number; content: string })
 }
 
 
+// --- Shared provider traffic store (provider Today / Since reset counters) ---
+
+export const agentProviderTrafficGetAPI = async (): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  contentB64?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'provider_traffic_get' },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentProviderTrafficPutAPI = async (args: { rev: number; content: string }): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  error?: string
+  contentB64?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post(`/cgi-bin/api.sh?cmd=provider_traffic_put&rev=${encodeURIComponent(String(args.rev ?? 0))}`,
+      args.content,
+      {
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        timeout: 20000,
+      },
+    )
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' } as any
+  }
+}
+
+
 // --- Shared users DB history / restore ---
 
 export type UsersDbHistoryItem = {

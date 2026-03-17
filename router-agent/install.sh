@@ -42,6 +42,8 @@ BIND_IP="$BIND_IP"
 PORT="$PORT"
 STATE_FILE="$AGENT_DIR/var/shapers.db"
 BLOCKS_FILE="$AGENT_DIR/var/blocks.db"
+PROVIDER_TRAFFIC_FILE="$AGENT_DIR/var/provider-traffic.json"
+PROVIDER_TRAFFIC_META="$AGENT_DIR/var/provider-traffic.meta.json"
 
 # Path to Mihomo YAML config on the router
 MIHOMO_CONFIG="/opt/etc/mihomo/config.yaml"
@@ -85,6 +87,8 @@ LAN_IF="${LAN_IF:-br0}"
 PORT="${PORT:-9099}"
 STATE_FILE="${STATE_FILE:-/opt/zash-agent/var/shapers.db}"
 BLOCKS_FILE="${BLOCKS_FILE:-/opt/zash-agent/var/blocks.db}"
+PROVIDER_TRAFFIC_FILE="${PROVIDER_TRAFFIC_FILE:-/opt/zash-agent/var/provider-traffic.json}"
+PROVIDER_TRAFFIC_META="${PROVIDER_TRAFFIC_META:-/opt/zash-agent/var/provider-traffic.meta.json}"
 USERS_DB_FILE="${USERS_DB_FILE:-/opt/zash-agent/var/users-db.json}"
 USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
@@ -182,6 +186,104 @@ ssl_not_after() {
   script="echo | openssl s_client -servername '$host_esc' -connect '$host_esc:$port_esc' 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | sed 's/^notAfter=//'"
   end="$(run_with_timeout_sh 7 "$script" 2>/dev/null || true)"
   printf '%s' "$end"
+}
+
+provider_traffic_now_iso() {
+  date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo ""
+}
+
+provider_traffic_load_meta() {
+  pt_rev="$(sed -nE 's/.*"rev"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$PROVIDER_TRAFFIC_META" 2>/dev/null | head -n1)"
+  pt_updatedAt="$(sed -nE 's/.*"updatedAt"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' "$PROVIDER_TRAFFIC_META" 2>/dev/null | head -n1)"
+  echo "$pt_rev" | grep -qE '^[0-9]+$' || pt_rev=0
+}
+
+provider_traffic_write_meta() {
+  printf '{"rev":%s,"updatedAt":"%s"}' "$pt_rev" "$(jesc "$pt_updatedAt")" > "$PROVIDER_TRAFFIC_META" 2>/dev/null || true
+}
+
+provider_traffic_init_if_missing() {
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+  if [ ! -f "$PROVIDER_TRAFFIC_FILE" ]; then
+    printf '{"version":1,"sessionTotals":{},"daily":{"day":"","totals":{}},"connTotals":{"entries":{}}}' > "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || true
+  fi
+  if [ ! -f "$PROVIDER_TRAFFIC_META" ]; then
+    printf '{"rev":0,"updatedAt":""}' > "$PROVIDER_TRAFFIC_META" 2>/dev/null || true
+  fi
+  provider_traffic_load_meta
+}
+
+provider_traffic_get_json() {
+  provider_traffic_init_if_missing
+  content="$( (head -c 4194304 "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || cat "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || printf '{}') | b64enc )"
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","contentB64":"%s"}' "$pt_rev" "$(jesc "$pt_updatedAt")" "$content")"
+}
+
+provider_traffic_put_json() {
+  expected_rev="$1"
+  [ -n "$expected_rev" ] || expected_rev='-1'
+
+  if [ "$REQUEST_METHOD" != "POST" ]; then
+    reply_ok '{"ok":false,"error":"method-not-allowed"}'
+    return
+  fi
+
+  provider_traffic_init_if_missing
+
+  lockdir="${PROVIDER_TRAFFIC_FILE}.lock"
+  if [ -d "$lockdir" ]; then
+    lm="$(stat_mtime_sec "$lockdir")"
+    now="$(date +%s 2>/dev/null || echo 0)"
+    echo "$lm" | grep -qE '^[0-9]+$' || lm=0
+    echo "$now" | grep -qE '^[0-9]+$' || now=0
+    if [ "$lm" -gt 0 ] && [ "$now" -gt 0 ] && [ $((now - lm)) -gt 120 ]; then
+      rmdir "$lockdir" 2>/dev/null || true
+    fi
+  fi
+
+  i=0
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    i=$((i+1))
+    [ $i -ge 10 ] && { reply_ok '{"ok":false,"error":"busy"}'; return; }
+    sleep 1 2>/dev/null || true
+  done
+
+  provider_traffic_load_meta
+  echo "$expected_rev" | grep -qE '^-?[0-9]+$' || expected_rev='-1'
+  if [ "$expected_rev" != "$pt_rev" ]; then
+    content="$( (head -c 4194304 "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || cat "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || printf '{}') | b64enc )"
+    rmdir "$lockdir" 2>/dev/null || true
+    reply_ok "$(printf '{"ok":false,"error":"conflict","rev":%s,"updatedAt":"%s","contentB64":"%s"}' "$pt_rev" "$(jesc "$pt_updatedAt")" "$content")"
+    return
+  fi
+
+  body=""
+  if [ -n "$CONTENT_LENGTH" ] && echo "$CONTENT_LENGTH" | grep -qE '^[0-9]+$'; then
+    body="$(head -c "$CONTENT_LENGTH" 2>/dev/null || dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null || true)"
+  else
+    body="$(cat 2>/dev/null || true)"
+  fi
+  [ -n "$body" ] || body='{}'
+
+  sz="$(printf '%s' "$body" | wc -c 2>/dev/null || echo 0)"
+  echo "$sz" | grep -qE '^[0-9]+$' || sz=0
+  if [ "$sz" -gt 4194304 ]; then
+    rmdir "$lockdir" 2>/dev/null || true
+    reply_ok '{"ok":false,"error":"too-large"}'
+    return
+  fi
+
+  tmp="${PROVIDER_TRAFFIC_FILE}.tmp.$$"
+  printf '%s' "$body" > "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; rmdir "$lockdir" 2>/dev/null || true; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$PROVIDER_TRAFFIC_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; rmdir "$lockdir" 2>/dev/null || true; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+
+  pt_rev=$((pt_rev + 1))
+  pt_updatedAt="$(provider_traffic_now_iso)"
+  provider_traffic_write_meta >/dev/null 2>&1 || true
+
+  rmdir "$lockdir" 2>/dev/null || true
+
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s"}' "$pt_rev" "$(jesc "$pt_updatedAt")")"
 }
 
 users_db_panel_urls_lines() {
@@ -1995,7 +2097,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.57","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"0.5.58","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.
@@ -2883,6 +2985,12 @@ case "$cmd" in
     ;;
   users_db_put)
     users_db_put_json "$rev_q"
+    ;;
+  provider_traffic_get)
+    provider_traffic_get_json
+    ;;
+  provider_traffic_put)
+    provider_traffic_put_json "$rev_q"
     ;;
   firmware_check)
     firmware_check_json "$force_q"
