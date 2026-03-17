@@ -215,6 +215,28 @@ export const agentNeighborsAPI = async (): Promise<{ ok: boolean; items?: AgentN
 
 export type AgentLanHost = { ip: string; mac?: string; hostname?: string; source?: string }
 
+export type AgentHostTrafficLiveItem = {
+  ip: string
+  mac?: string
+  hostname?: string
+  source?: string
+  bypassDownBps?: number
+  bypassUpBps?: number
+  vpnDownBps?: number
+  vpnUpBps?: number
+  totalDownBps?: number
+  totalUpBps?: number
+}
+
+export type AgentHostTrafficLive = {
+  ok: boolean
+  ts?: number
+  dtMs?: number
+  trackedHosts?: number
+  items?: AgentHostTrafficLiveItem[]
+  error?: string
+}
+
 export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
@@ -222,6 +244,18 @@ export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLa
       timeout: 15000,
     })
     return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentHostTrafficLiveAPI = async (): Promise<AgentHostTrafficLive> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'host_traffic_live' },
+      timeout: 8000,
+    })
+    return (data || { ok: false }) as AgentHostTrafficLive
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }

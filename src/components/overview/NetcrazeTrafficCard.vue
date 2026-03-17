@@ -112,11 +112,15 @@
             <div class="text-sm font-medium">{{ $t('routerTrafficTopHosts') }}</div>
             <div class="text-xs opacity-60">{{ $t('routerTrafficTopHostsTip') }}</div>
           </div>
-          <span class="badge badge-ghost badge-sm">{{ $t('mihomoVersion') }}</span>
+          <div class="flex flex-wrap justify-end gap-1">
+            <span class="badge badge-ghost badge-sm">{{ $t('mihomoVersion') }}</span>
+            <span class="badge badge-ghost badge-sm">{{ $t('routerTrafficVpn') }}</span>
+            <span class="badge badge-ghost badge-sm">{{ $t('routerTrafficBypass') }}</span>
+          </div>
         </div>
 
         <div class="overflow-hidden rounded-lg border border-base-content/10 bg-base-100/30">
-          <div class="grid grid-cols-[minmax(0,1.5fr)_88px_96px_96px_72px] items-center gap-3 px-3 py-2 text-[11px] uppercase tracking-wide opacity-60">
+          <div class="grid grid-cols-[minmax(0,1.7fr)_128px_112px_112px_72px] items-center gap-3 px-3 py-2 text-[11px] uppercase tracking-wide opacity-60">
             <div>{{ $t('routerTrafficTopHosts') }}</div>
             <div>{{ $t('type') }}</div>
             <div>{{ $t('download') }}</div>
@@ -127,22 +131,32 @@
           <div
             v-for="item in stableTrafficHosts"
             :key="`traffic-host-${item.ip}`"
-            class="grid grid-cols-[minmax(0,1.5fr)_88px_96px_96px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-sm"
+            class="grid grid-cols-[minmax(0,1.7fr)_128px_112px_112px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-sm"
           >
             <div class="min-w-0">
               <div class="truncate font-medium">{{ item.label }}</div>
               <div class="truncate text-[11px] opacity-60">{{ item.ip }}</div>
-              <div v-if="item.targets.length" class="truncate text-[11px] opacity-70">{{ item.targets.join(' · ') }}</div>
+              <div v-if="hostBreakdownLabel(item)" class="truncate text-[11px] opacity-75">{{ hostBreakdownLabel(item) }}</div>
+              <div v-if="item.targets.length" class="truncate text-[11px] opacity-65">{{ item.targets.join(' · ') }}</div>
             </div>
             <div>
-              <span class="badge badge-outline badge-xs sm:badge-sm" :style="{ borderColor: trafficColors.mihomoDown, color: trafficColors.mihomoDown }">{{ $t('mihomoVersion') }}</span>
+              <div class="flex flex-wrap gap-1">
+                <span
+                  v-for="badge in hostScopeBadges(item)"
+                  :key="`${item.ip}-${badge.key}`"
+                  class="badge badge-outline badge-xs sm:badge-sm"
+                  :style="{ borderColor: badge.color, color: badge.color }"
+                >
+                  {{ badge.label }}
+                </span>
+              </div>
             </div>
             <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoDown }" />
+              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostScopeBadges(item)[0]?.color || trafficColors.wanDown }" />
               <span>{{ speedLabel(item.down) }}</span>
             </div>
             <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: trafficColors.mihomoUp }" />
+              <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostScopeBadges(item)[0]?.color || trafficColors.wanUp }" />
               <span>{{ speedLabel(item.up) }}</span>
             </div>
             <div class="text-right">
@@ -156,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { agentLanHostsAPI, agentTrafficLiveAPI, type AgentTrafficLiveIface } from '@/api/agent'
+import { agentHostTrafficLiveAPI, agentLanHostsAPI, agentTrafficLiveAPI, type AgentHostTrafficLiveItem, type AgentTrafficLiveIface } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
@@ -185,8 +199,44 @@ type ExtraHistoryMap = Record<string, { down: Point[]; up: Point[]; kind?: strin
 type ExtraCounterState = Record<string, { rxBytes: number; txBytes: number; ts: number; kind?: string }>
 
 type ExtraColorPair = { down: string; up: string }
-type HostTrafficStat = { label: string; ip: string; down: number; up: number; connections: number; targets: string[] }
-type HostTrafficState = HostTrafficStat & { displayDown: number; displayUp: number; lastSeen: number; score: number; missingTicks: number }
+type AgentHostTrafficSnapshot = {
+  ip: string
+  hostname?: string
+  mac?: string
+  source?: string
+  bypassDown: number
+  bypassUp: number
+  vpnDown: number
+  vpnUp: number
+}
+type HostTrafficStat = {
+  label: string
+  ip: string
+  down: number
+  up: number
+  mihomoDown: number
+  mihomoUp: number
+  bypassDown: number
+  bypassUp: number
+  vpnDown: number
+  vpnUp: number
+  connections: number
+  targets: string[]
+  source?: string
+}
+type HostTrafficState = HostTrafficStat & {
+  displayDown: number
+  displayUp: number
+  displayMihomoDown: number
+  displayMihomoUp: number
+  displayBypassDown: number
+  displayBypassUp: number
+  displayVpnDown: number
+  displayVpnUp: number
+  lastSeen: number
+  score: number
+  missingTicks: number
+}
 
 const { t } = useI18n()
 const chartRef = ref<HTMLElement | null>(null)
@@ -252,6 +302,7 @@ let lastTxBytes: number | null = null
 let lastSampleTs: number | null = null
 const lastExtraCounters = ref<ExtraCounterState>({})
 const lanHostNames = ref<Record<string, string>>({})
+const agentHostTrafficByIp = ref<Record<string, AgentHostTrafficSnapshot>>({})
 let hostsTimer: number | null = null
 
 const updateColorSet = () => {
@@ -339,36 +390,87 @@ const currentExtraStats = computed(() => {
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
 let hostTrafficTimer: number | null = null
+let hostTrafficAgentTimer: number | null = null
+
+const normalizeAgentHostTrafficItem = (item: AgentHostTrafficLiveItem): AgentHostTrafficSnapshot | null => {
+  const ip = String(item?.ip || '').trim()
+  if (!ip) return null
+  return {
+    ip,
+    hostname: String(item?.hostname || '').trim() || undefined,
+    mac: String(item?.mac || '').trim() || undefined,
+    source: String(item?.source || '').trim() || undefined,
+    bypassDown: Math.max(0, Number(item?.bypassDownBps || 0)),
+    bypassUp: Math.max(0, Number(item?.bypassUpBps || 0)),
+    vpnDown: Math.max(0, Number(item?.vpnDownBps || 0)),
+    vpnUp: Math.max(0, Number(item?.vpnUpBps || 0)),
+  }
+}
 
 const collectHostSnapshot = (): HostTrafficStat[] => {
-  const map = new Map<string, { ip: string; label: string; down: number; up: number; connections: number; targets: Set<string> }>()
+  const map = new Map<string, HostTrafficStat>()
 
   for (const conn of activeConnections.value) {
     const ip = String(conn?.metadata?.sourceIP || '').trim()
     if (!ip) continue
 
-    const down = Math.max(0, Number(conn?.downloadSpeed || 0))
-    const up = Math.max(0, Number(conn?.uploadSpeed || 0))
+    const mihomoDown = Math.max(0, Number(conn?.downloadSpeed || 0))
+    const mihomoUp = Math.max(0, Number(conn?.uploadSpeed || 0))
     const target = String(conn?.metadata?.host || conn?.metadata?.sniffHost || conn?.metadata?.destinationIP || '').trim()
-    const label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || ip
+    const current = map.get(ip) || {
+      ip,
+      label: getIPLabelFromMap(ip) || lanHostNames.value[ip] || ip,
+      down: 0,
+      up: 0,
+      mihomoDown: 0,
+      mihomoUp: 0,
+      bypassDown: 0,
+      bypassUp: 0,
+      vpnDown: 0,
+      vpnUp: 0,
+      connections: 0,
+      targets: [],
+      source: undefined,
+    }
 
-    const current = map.get(ip) || { ip, label, down: 0, up: 0, connections: 0, targets: new Set<string>() }
-    current.label = label || current.label || ip
-    current.down += down
-    current.up += up
+    current.label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || current.label || ip
+    current.mihomoDown += mihomoDown
+    current.mihomoUp += mihomoUp
+    current.down += mihomoDown
+    current.up += mihomoUp
     current.connections += 1
-    if (target && current.targets.size < 3) current.targets.add(target)
+    if (target && current.targets.length < 3 && !current.targets.includes(target)) current.targets.push(target)
     map.set(ip, current)
   }
 
-  return [...map.values()].map((item) => ({
-    ip: item.ip,
-    label: item.label,
-    down: item.down,
-    up: item.up,
-    connections: item.connections,
-    targets: [...item.targets],
-  }))
+  for (const [ip, item] of Object.entries(agentHostTrafficByIp.value)) {
+    const current = map.get(ip) || {
+      ip,
+      label: getIPLabelFromMap(ip) || lanHostNames.value[ip] || item.hostname || item.mac || ip,
+      down: 0,
+      up: 0,
+      mihomoDown: 0,
+      mihomoUp: 0,
+      bypassDown: 0,
+      bypassUp: 0,
+      vpnDown: 0,
+      vpnUp: 0,
+      connections: 0,
+      targets: [],
+      source: item.source,
+    }
+    current.label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || item.hostname || item.mac || current.label || ip
+    current.source = current.source || item.source
+    current.bypassDown += item.bypassDown
+    current.bypassUp += item.bypassUp
+    current.vpnDown += item.vpnDown
+    current.vpnUp += item.vpnUp
+    current.down += item.bypassDown + item.vpnDown
+    current.up += item.bypassUp + item.vpnUp
+    map.set(ip, current)
+  }
+
+  return [...map.values()]
 }
 
 const refreshHostTraffic = () => {
@@ -381,13 +483,27 @@ const refreshHostTraffic = () => {
     seen.add(item.ip)
     const prev = next[item.ip]
     const alpha = prev ? 0.38 : 1
-    const displayDown = prev ? ((prev.displayDown * (1 - alpha)) + (item.down * alpha)) : item.down
-    const displayUp = prev ? ((prev.displayUp * (1 - alpha)) + (item.up * alpha)) : item.up
-    const scoreBase = item.down + item.up
+    const smooth = (prevValue: number, nextValue: number) => (prev ? ((prevValue * (1 - alpha)) + (nextValue * alpha)) : nextValue)
+    const displayMihomoDown = smooth(prev?.displayMihomoDown || 0, item.mihomoDown)
+    const displayMihomoUp = smooth(prev?.displayMihomoUp || 0, item.mihomoUp)
+    const displayBypassDown = smooth(prev?.displayBypassDown || 0, item.bypassDown)
+    const displayBypassUp = smooth(prev?.displayBypassUp || 0, item.bypassUp)
+    const displayVpnDown = smooth(prev?.displayVpnDown || 0, item.vpnDown)
+    const displayVpnUp = smooth(prev?.displayVpnUp || 0, item.vpnUp)
+    const displayDown = displayMihomoDown + displayBypassDown + displayVpnDown
+    const displayUp = displayMihomoUp + displayBypassUp + displayVpnUp
+    const scoreBase = item.down + item.up + (item.connections * 1024)
+
     next[item.ip] = {
       ...item,
       displayDown,
       displayUp,
+      displayMihomoDown,
+      displayMihomoUp,
+      displayBypassDown,
+      displayBypassUp,
+      displayVpnDown,
+      displayVpnUp,
       lastSeen: now,
       score: prev ? ((prev.score * 0.7) + (scoreBase * 0.3)) : scoreBase,
       missingTicks: 0,
@@ -398,8 +514,14 @@ const refreshHostTraffic = () => {
     if (seen.has(ip)) continue
     const agedMs = now - Number(item.lastSeen || 0)
     const decay = agedMs > 20000 ? 0.72 : 0.84
-    const displayDown = (item.displayDown || 0) * decay
-    const displayUp = (item.displayUp || 0) * decay
+    const displayMihomoDown = (item.displayMihomoDown || 0) * decay
+    const displayMihomoUp = (item.displayMihomoUp || 0) * decay
+    const displayBypassDown = (item.displayBypassDown || 0) * decay
+    const displayBypassUp = (item.displayBypassUp || 0) * decay
+    const displayVpnDown = (item.displayVpnDown || 0) * decay
+    const displayVpnUp = (item.displayVpnUp || 0) * decay
+    const displayDown = displayMihomoDown + displayBypassDown + displayVpnDown
+    const displayUp = displayMihomoUp + displayBypassUp + displayVpnUp
     const score = (item.score || 0) * decay
     const missingTicks = (item.missingTicks || 0) + 1
     if ((displayDown + displayUp) < 256 && missingTicks > 8) {
@@ -410,8 +532,20 @@ const refreshHostTraffic = () => {
       ...item,
       down: displayDown,
       up: displayUp,
+      mihomoDown: displayMihomoDown,
+      mihomoUp: displayMihomoUp,
+      bypassDown: displayBypassDown,
+      bypassUp: displayBypassUp,
+      vpnDown: displayVpnDown,
+      vpnUp: displayVpnUp,
       displayDown,
       displayUp,
+      displayMihomoDown,
+      displayMihomoUp,
+      displayBypassDown,
+      displayBypassUp,
+      displayVpnDown,
+      displayVpnUp,
       connections: 0,
       score,
       missingTicks,
@@ -429,6 +563,22 @@ const scheduleHostTrafficRefresh = () => {
   }, 1500)
 }
 
+const hostScopeBadges = (item: HostTrafficStat) => {
+  const badges: Array<{ key: string; label: string; color: string }> = []
+  if ((item.mihomoDown + item.mihomoUp) > 1 || item.connections > 0) badges.push({ key: 'mihomo', label: t('mihomoVersion'), color: trafficColors.mihomoDown })
+  if ((item.vpnDown + item.vpnUp) > 1) badges.push({ key: 'vpn', label: t('routerTrafficVpn'), color: trafficColors.vpnDown })
+  if ((item.bypassDown + item.bypassUp) > 1) badges.push({ key: 'bypass', label: t('routerTrafficBypass'), color: trafficColors.bypassDown })
+  return badges
+}
+
+const hostBreakdownLabel = (item: HostTrafficStat) => {
+  const parts: string[] = []
+  if ((item.mihomoDown + item.mihomoUp) > 1 || item.connections > 0) parts.push(`${t('mihomoVersion')} ↓${speedLabel(item.mihomoDown)} ↑${speedLabel(item.mihomoUp)}`)
+  if ((item.vpnDown + item.vpnUp) > 1) parts.push(`${t('routerTrafficVpn')} ↓${speedLabel(item.vpnDown)} ↑${speedLabel(item.vpnUp)}`)
+  if ((item.bypassDown + item.bypassUp) > 1) parts.push(`${t('routerTrafficBypass')} ↓${speedLabel(item.bypassDown)} ↑${speedLabel(item.bypassUp)}`)
+  return parts.join(' · ')
+}
+
 const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
   return Object.values(hostTrafficState.value)
     .filter((item) => (item.displayDown + item.displayUp) > 0)
@@ -443,8 +593,15 @@ const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
       label: item.label,
       down: item.displayDown,
       up: item.displayUp,
+      mihomoDown: item.displayMihomoDown,
+      mihomoUp: item.displayMihomoUp,
+      bypassDown: item.displayBypassDown,
+      bypassUp: item.displayBypassUp,
+      vpnDown: item.displayVpnDown,
+      vpnUp: item.displayVpnUp,
       connections: item.connections,
       targets: item.targets,
+      source: item.source,
     }))
 })
 
@@ -460,6 +617,29 @@ const refreshLanHosts = async () => {
     if (label) next[ip] = label
   }
   lanHostNames.value = next
+  refreshHostTraffic()
+}
+
+const refreshAgentHostTraffic = async () => {
+  if (!agentEnabled.value) {
+    agentHostTrafficByIp.value = {}
+    refreshHostTraffic()
+    return
+  }
+  const res = await agentHostTrafficLiveAPI()
+  if (!res?.ok || !Array.isArray(res.items)) {
+    agentHostTrafficByIp.value = {}
+    refreshHostTraffic()
+    return
+  }
+  const next: Record<string, AgentHostTrafficSnapshot> = {}
+  for (const raw of res.items) {
+    const item = normalizeAgentHostTrafficItem(raw)
+    if (!item) continue
+    next[item.ip] = item
+  }
+  agentHostTrafficByIp.value = next
+  refreshHostTraffic()
 }
 
 const scheduleHostRefresh = () => {
@@ -468,6 +648,14 @@ const scheduleHostRefresh = () => {
     await refreshLanHosts()
     scheduleHostRefresh()
   }, 60000)
+}
+
+const scheduleAgentHostTrafficRefresh = () => {
+  if (hostTrafficAgentTimer !== null) window.clearTimeout(hostTrafficAgentTimer)
+  hostTrafficAgentTimer = window.setTimeout(async () => {
+    await refreshAgentHostTraffic()
+    scheduleAgentHostTrafficRefresh()
+  }, 3000)
 }
 
 const extraSeriesValues = computed(() => {
@@ -872,6 +1060,8 @@ onMounted(() => {
 
   refreshLanHosts()
   scheduleHostRefresh()
+  refreshAgentHostTraffic()
+  scheduleAgentHostTrafficRefresh()
   refreshHostTraffic()
   scheduleHostTrafficRefresh()
   pollTraffic()
@@ -888,6 +1078,10 @@ onBeforeUnmount(() => {
   if (hostTrafficTimer !== null) {
     window.clearTimeout(hostTrafficTimer)
     hostTrafficTimer = null
+  }
+  if (hostTrafficAgentTimer !== null) {
+    window.clearTimeout(hostTrafficAgentTimer)
+    hostTrafficAgentTimer = null
   }
 })
 </script>

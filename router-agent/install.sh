@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.59"
+AGENT_VERSION="0.5.60"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -68,6 +68,10 @@ RCLONE_REMOTES=""  # comma/space separated remotes, e.g. gdrive-crypt,yandex-cry
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"
 
+# Live host traffic state (keep in /tmp to avoid flash writes on every poll)
+HOST_TRAFFIC_STATE_FILE="/tmp/zash-host-traffic.prev.tsv"
+HOST_TRAFFIC_TS_FILE="/tmp/zash-host-traffic.prev.ts"
+
 # Root class rates (mbit). Keep high unless you want a global cap.
 WAN_RATE="1000"
 LAN_RATE="1000"
@@ -109,6 +113,8 @@ RCLONE_REMOTES="${RCLONE_REMOTES:-}"
 RCLONE_PATH="${RCLONE_PATH:-NetcrazeBackups/zash-agent}"
 RCLONE_KEEP_DAYS="${RCLONE_KEEP_DAYS:-30}"
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-${RCLONE_KEEP_DAYS:-30}}"
+HOST_TRAFFIC_STATE_FILE="${HOST_TRAFFIC_STATE_FILE:-/tmp/zash-host-traffic.prev.tsv}"
+HOST_TRAFFIC_TS_FILE="${HOST_TRAFFIC_TS_FILE:-/tmp/zash-host-traffic.prev.ts}"
 UI_ZIP_URL="${UI_ZIP_URL:-}"
 SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.tsv}"
 SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
@@ -1615,6 +1621,193 @@ ensure_iptables_chains() {
   iptables -t mangle -C FORWARD -j ZASH_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_DOWN
 }
 
+
+ensure_host_traffic_chains() {
+  iptables -t mangle -nL ZASH_HOST_UP >/dev/null 2>&1 || iptables -t mangle -N ZASH_HOST_UP
+  iptables -t mangle -nL ZASH_HOST_DOWN >/dev/null 2>&1 || iptables -t mangle -N ZASH_HOST_DOWN
+  iptables -t mangle -C FORWARD -j ZASH_HOST_UP >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_HOST_UP
+  iptables -t mangle -C FORWARD -j ZASH_HOST_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_HOST_DOWN
+}
+
+ensure_host_traffic_rule() {
+  chain="$1"
+  direction="$2"
+  ip_="$3"
+  if_="$4"
+  [ -n "$chain" ] || return 0
+  [ -n "$direction" ] || return 0
+  [ -n "$ip_" ] || return 0
+  [ -n "$if_" ] || return 0
+
+  case "$direction" in
+    up)
+      iptables -t mangle -C "$chain" -i "$LAN_IF" -s "$ip_" -o "$if_" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$LAN_IF" -s "$ip_" -o "$if_" -j RETURN >/dev/null 2>&1 || true
+      ;;
+    down)
+      iptables -t mangle -C "$chain" -i "$if_" -d "$ip_" -o "$LAN_IF" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$if_" -d "$ip_" -o "$LAN_IF" -j RETURN >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+host_traffic_sync_rules() {
+  ensure_host_traffic_chains
+
+  hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
+  collect_lan_hosts_tsv "$hosts_tmp"
+  extra_ifaces="$(list_extra_traffic_ifaces 2>/dev/null | tr '
+' ' ')"
+
+  while IFS='	' read -r ip_ mac_ host_ src_; do
+    printf '%s' "$ip_" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || continue
+    ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$WAN_IF"
+    ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$WAN_IF"
+    for ex_if in $extra_ifaces; do
+      [ -n "$ex_if" ] || continue
+      ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$ex_if"
+      ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$ex_if"
+    done
+  done < "$hosts_tmp"
+
+  rm -f "$hosts_tmp" 2>/dev/null || true
+}
+
+host_traffic_collect_bytes_tsv() {
+  out_file="$1"
+  [ -n "$out_file" ] || return 1
+  : > "$out_file" 2>/dev/null || true
+
+  iptables -t mangle -nvxL ZASH_HOST_UP 2>/dev/null | awk -v wan="$WAN_IF" '
+    NR>2 && $3=="RETURN" {
+      iface=$6; ip=$7; bytes=$2+0;
+      if(ip ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) {
+        key=(iface==wan ? "bypassUpBytes" : "vpnUpBytes");
+        sum[ip SUBSEP key]+=bytes;
+        ips[ip]=1;
+      }
+    }
+    END {
+      for (k in sum) {
+        split(k, parts, SUBSEP);
+        print parts[1] "	" parts[2] "	" sum[k];
+      }
+    }
+  ' >> "$out_file" || true
+
+  iptables -t mangle -nvxL ZASH_HOST_DOWN 2>/dev/null | awk -v wan="$WAN_IF" '
+    NR>2 && $3=="RETURN" {
+      iface=$5; ip=$8; bytes=$2+0;
+      if(ip ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) {
+        key=(iface==wan ? "bypassDownBytes" : "vpnDownBytes");
+        sum[ip SUBSEP key]+=bytes;
+      }
+    }
+    END {
+      for (k in sum) {
+        split(k, parts, SUBSEP);
+        print parts[1] "	" parts[2] "	" sum[k];
+      }
+    }
+  ' >> "$out_file" || true
+}
+
+host_traffic_live_json() {
+  mkdir -p /tmp >/dev/null 2>&1 || true
+  host_traffic_sync_rules
+
+  hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
+  raw_tmp="/tmp/zash_host_traffic_raw.$$"
+  current_tmp="/tmp/zash_host_traffic_current.$$"
+  prev_tmp="$HOST_TRAFFIC_STATE_FILE"
+  prev_ts_file="$HOST_TRAFFIC_TS_FILE"
+
+  collect_lan_hosts_tsv "$hosts_tmp"
+  host_traffic_collect_bytes_tsv "$raw_tmp"
+
+  awk -F'	' '
+    FNR==NR {
+      ip=$1; mac=$2; host=$3; src=$4;
+      if(ip!="") {
+        host_mac[ip]=mac;
+        host_name[ip]=host;
+        host_src[ip]=src;
+        ips[ip]=1;
+      }
+      next
+    }
+    {
+      ip=$1; key=$2; val=$3+0;
+      if(ip!="") {
+        data[ip SUBSEP key]=val;
+        ips[ip]=1;
+      }
+    }
+    END {
+      for (ip in ips) {
+        print ip "	"           (data[ip SUBSEP "bypassDownBytes"] + 0) "	"           (data[ip SUBSEP "bypassUpBytes"] + 0) "	"           (data[ip SUBSEP "vpnDownBytes"] + 0) "	"           (data[ip SUBSEP "vpnUpBytes"] + 0) "	"           host_mac[ip] "	" host_name[ip] "	" host_src[ip];
+      }
+    }
+  ' "$hosts_tmp" "$raw_tmp" 2>/dev/null | sort > "$current_tmp" 2>/dev/null || true
+
+  now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
+  prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '\r\n ' || true)"
+  echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
+  if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
+    dt_ms=$((now_ms - prev_ms))
+  else
+    dt_ms=0
+  fi
+  if [ "$dt_ms" -gt 0 ]; then
+    dt_sec="$(awk -v ms="$dt_ms" 'BEGIN { printf "%.3f", (ms / 1000) }')"
+  else
+    dt_sec="0"
+  fi
+
+  prev_input="/dev/null"
+  [ -f "$prev_tmp" ] && prev_input="$prev_tmp"
+
+  items_json="$(awk -F'	' -v dt="$dt_sec" '
+    function clamp(v) { return (v < 0 ? 0 : v) }
+    function esc(s) {
+      gsub(/\\/, "\\\\", s)
+      gsub(/"/, "\\"", s)
+      gsub(/\r/, "", s)
+      gsub(/\n/, " ", s)
+      return s
+    }
+    FNR==NR {
+      ip=$1;
+      prev_bd[ip]=$2+0;
+      prev_bu[ip]=$3+0;
+      prev_vd[ip]=$4+0;
+      prev_vu[ip]=$5+0;
+      next
+    }
+    {
+      ip=$1; bd=$2+0; bu=$3+0; vd=$4+0; vu=$5+0; mac=$6; host=$7; src=$8;
+      bypassDownBps = (dt > 0 ? clamp((bd - prev_bd[ip]) / dt) : 0);
+      bypassUpBps = (dt > 0 ? clamp((bu - prev_bu[ip]) / dt) : 0);
+      vpnDownBps = (dt > 0 ? clamp((vd - prev_vd[ip]) / dt) : 0);
+      vpnUpBps = (dt > 0 ? clamp((vu - prev_vu[ip]) / dt) : 0);
+      totalDownBps = bypassDownBps + vpnDownBps;
+      totalUpBps = bypassUpBps + vpnUpBps;
+      if (totalDownBps + totalUpBps <= 1 && bd + bu + vd + vu <= 0) next;
+      if (first == 0) printf ",";
+      first = 0;
+      printf "{\"ip\":\"%s\",\"mac\":\"%s\",\"hostname\":\"%s\",\"source\":\"%s\",\"bypassDownBps\":%.3f,\"bypassUpBps\":%.3f,\"vpnDownBps\":%.3f,\"vpnUpBps\":%.3f,\"totalDownBps\":%.3f,\"totalUpBps\":%.3f}",         esc(ip), esc(mac), esc(host), esc(src), bypassDownBps, bypassUpBps, vpnDownBps, vpnUpBps, totalDownBps, totalUpBps;
+    }
+  ' "$prev_input" "$current_tmp" 2>/dev/null)"
+
+  cp "$current_tmp" "$prev_tmp" 2>/dev/null || true
+  printf '%s' "$now_ms" > "$prev_ts_file" 2>/dev/null || true
+
+  tracked_hosts="$(wc -l < "$current_tmp" 2>/dev/null | tr -d ' ')"
+  echo "$tracked_hosts" | grep -qE '^[0-9]+$' || tracked_hosts=0
+
+  reply_ok "$(printf '{"ok":true,"ts":%s,"dtMs":%s,"trackedHosts":%s,"items":[%s]}' "$now_ms" "$dt_ms" "$tracked_hosts" "$items_json")"
+
+  rm -f "$hosts_tmp" "$raw_tmp" "$current_tmp" 2>/dev/null || true
+}
+
 ensure_tc_base() {
   [ $have_tc -eq 1 ] || return 0
 
@@ -1658,16 +1851,9 @@ neighbors() {
   printf ']}'
 }
 
-lan_hosts_json() {
-  # Return LAN hosts from DHCP leases and ARP table (best effort).
-  # items: {ip, mac, hostname, source}
-  echo "Content-Type: application/json"
-  echo "Access-Control-Allow-Origin: *"
-  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
-  echo "Access-Control-Allow-Private-Network: true"
-  echo "Cache-Control: no-store"
-  echo
+collect_lan_hosts_tsv() {
+  out_file="$1"
+  [ -n "$out_file" ] || return 1
 
   leases_tmp="/tmp/zash_leases.$$"
   arp_tmp="/tmp/zash_arp.$$"
@@ -1687,9 +1873,6 @@ lan_hosts_json() {
     awk 'NR>1 { ip=$1; mac=tolower($4); if(ip!="" && mac ~ /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/ && mac!="00:00:00:00:00:00") print ip"|"mac }' /proc/net/arp 2>/dev/null >> "$arp_tmp" || true
   fi
 
-  # Merge: prefer DHCP hostname/mac; use ARP for missing entries.
-  # Output lines: ip	mac	hostname	source
-  merged_tmp="/tmp/zash_hosts.$$"
   awk -F'|' '
     FNR==NR {
       ip=$1; mac=$2; host=$3;
@@ -1712,17 +1895,32 @@ lan_hosts_json() {
         mac=dhcp_mac[ip]; host=dhcp_host[ip]; src="dhcp";
         if(mac=="") { mac=arp_mac[ip]; src="arp"; }
         if(mac=="") mac="";
-        if(host=="") src=src;
         print ip"	"mac"	"host"	"src;
       }
     }
-  ' "$leases_tmp" "$arp_tmp" 2>/dev/null | sort > "$merged_tmp" 2>/dev/null || true
+  ' "$leases_tmp" "$arp_tmp" 2>/dev/null | sort > "$out_file" 2>/dev/null || true
+
+  rm -f "$leases_tmp" "$arp_tmp" 2>/dev/null || true
+}
+
+lan_hosts_json() {
+  # Return LAN hosts from DHCP leases and ARP table (best effort).
+  # items: {ip, mac, hostname, source}
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  merged_tmp="/tmp/zash_hosts.$$"
+  collect_lan_hosts_tsv "$merged_tmp"
 
   printf '{"ok":true,"items":['
   first=1
   while IFS='	' read -r ipn macn hostn srcn; do
     [ -n "$ipn" ] || continue
-    # Escape strings
     ipj="$(jesc "$ipn")"
     macj="$(jesc "$macn")"
     hostj="$(jesc "$hostn")"
@@ -1733,7 +1931,7 @@ lan_hosts_json() {
   done < "$merged_tmp"
   printf ']}'
 
-  rm -f "$leases_tmp" "$arp_tmp" "$merged_tmp" 2>/dev/null || true
+  rm -f "$merged_tmp" 2>/dev/null || true
 }
 
 ip2mac() {
@@ -2141,7 +2339,7 @@ status() {
     server_ver="$agent_ver"
   fi
 
-  reply_ok "$(printf '{"ok":true,"version":"0.5.59","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
 agent_log() {
   # Best-effort command log for troubleshooting.
@@ -2941,6 +3139,7 @@ case "$cmd" in
   status|"") status ;;
   neighbors) neighbors ;;
   lan_hosts) lan_hosts_json ;;
+  host_traffic_live) host_traffic_live_json ;;
   ip2mac)
     [ -n "$ip" ] || { reply_ok '{"ok":false,"error":"missing-ip"}'; exit 0; }
     ip2mac "$ip"
