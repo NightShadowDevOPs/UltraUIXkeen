@@ -16,20 +16,7 @@
       </button>
     </div>
 
-    <template v-if="providerCardsAutoGrid">
-      <div
-        class="grid gap-1"
-        :style="providerGridStyle"
-      >
-        <component
-          v-for="name in renderGroups"
-          :is="renderComponent"
-          :key="name"
-          :name="name"
-        />
-      </div>
-    </template>
-    <template v-else-if="displayTwoColumns">
+    <template v-if="displayTwoColumns">
       <div class="grid grid-cols-2 gap-1">
         <div
           v-for="idx in [0, 1]"
@@ -129,21 +116,10 @@ const renderComponent = computed(() => {
 
 const isProviderTab = computed(() => proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER)
 
-const providerCardsAutoGrid = computed(() => {
-  // Providers tab: render provider cards in a stable 2-column grid.
-  // This avoids the auto-fit layout jumping to 3 cards in a row and breaking on narrower screens.
-  return isProviderTab.value && renderGroups.value.length > 1
-})
-
-const providerGridStyle = computed(() => {
-  // Keep provider cards two per row on desktop/tablet, single column on very narrow screens.
-  return width.value < 640
-    ? 'grid-template-columns: minmax(0, 1fr);'
-    : 'grid-template-columns: repeat(2, minmax(0, 1fr));'
-})
-
 const displayTwoColumns = computed(() => {
-  // Two-column layout is used for proxy groups (not provider cards).
+  // Two-column layout is used for proxy groups only.
+  // Proxy-provider cards stay in a single vertical column so their heights can change
+  // without reflowing adjacent cards during live refreshes.
   if (isProviderTab.value) return false
 
   if (renderGroups.value.length < 2 || !twoColumnProxyGroup.value) {
