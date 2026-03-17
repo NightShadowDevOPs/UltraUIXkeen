@@ -121,6 +121,7 @@
                 <option value="vpn">{{ $t('routerTrafficVpn') }}</option>
                 <option value="bypass">{{ $t('routerTrafficBypass') }}</option>
                 <option value="mixed">{{ $t('routerTrafficHostFilterMixed') }}</option>
+                <option value="routed">{{ $t('routerTrafficHostFilterRouted') }}</option>
               </select>
             </div>
             <div class="flex items-center gap-2 text-xs opacity-70">
@@ -149,162 +150,183 @@
             <div class="text-right">{{ $t('connections') }}</div>
           </div>
 
-          <template v-for="item in stableTrafficHosts" :key="`traffic-host-${item.ip}`">
-            <button
-              type="button"
-              class="grid w-full grid-cols-[minmax(0,1.7fr)_128px_112px_112px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-left text-sm transition hover:bg-base-200/20"
-              @click="toggleHostDetails(item.ip)"
-            >
-              <div class="min-w-0">
+          <template v-for="group in stableTrafficHostGroups" :key="group.key">
+            <div class="border-t border-base-content/10 bg-base-200/15 px-3 py-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="truncate text-xs font-medium uppercase tracking-wide opacity-75">{{ group.label }}</div>
+                  <div v-if="group.note" class="truncate text-[11px] opacity-60">{{ group.note }}</div>
+                </div>
                 <div class="flex items-center gap-2">
-                  <span class="truncate font-medium">{{ item.label }}</span>
-                  <span class="badge badge-ghost badge-xs">{{ isHostDetailsExpanded(item.ip) ? $t('collapse') : $t('details') }}</span>
-                </div>
-                <div class="truncate text-[11px] opacity-60">{{ item.ip }}</div>
-                <div v-if="hostBreakdownLabel(item)" class="truncate text-[11px] opacity-75">{{ hostBreakdownLabel(item) }}</div>
-                <div v-if="item.targets.length" class="truncate text-[11px] opacity-65">{{ item.targets.join(' · ') }}</div>
-              </div>
-              <div>
-                <div class="flex flex-wrap gap-1">
                   <span
-                    v-for="badge in hostScopeBadges(item)"
-                    :key="`${item.ip}-${badge.key}`"
-                    class="badge badge-outline badge-xs sm:badge-sm"
-                    :style="{ borderColor: badge.color, color: badge.color }"
+                    class="badge badge-outline badge-xs uppercase"
+                    :style="{ borderColor: group.color, color: group.color }"
                   >
-                    {{ badge.label }}
+                    {{ group.badge }}
                   </span>
+                  <span class="badge badge-ghost badge-xs">{{ group.items.length }}</span>
                 </div>
               </div>
-              <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-                <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostPrimaryColor(item, 'down') }" />
-                <span>{{ speedLabel(item.down) }}</span>
-              </div>
-              <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
-                <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostPrimaryColor(item, 'up') }" />
-                <span>{{ speedLabel(item.up) }}</span>
-              </div>
-              <div class="text-right">
-                <span class="badge badge-ghost badge-xs sm:badge-sm">{{ item.connections }}</span>
-              </div>
-            </button>
+            </div>
 
-            <div v-if="isHostDetailsExpanded(item.ip)" class="border-t border-base-content/10 bg-base-200/10 px-3 py-3">
-              <div class="mb-3 text-xs opacity-65">{{ $t('routerTrafficHostDetailsTip') }}</div>
-              <div class="grid gap-2 lg:grid-cols-3">
-                <div
-                  v-for="card in hostDetailCards(item)"
-                  :key="`${item.ip}-detail-${card.key}`"
-                  class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2"
-                >
-                  <div class="mb-1 flex items-center justify-between gap-2">
-                    <div class="inline-flex items-center gap-2 text-sm font-medium">
-                      <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: card.color }" />
-                      <span>{{ card.label }}</span>
-                    </div>
-                    <span v-if="typeof card.connections === 'number'" class="badge badge-ghost badge-xs">{{ card.connections }} {{ $t('connections') }}</span>
+            <template v-for="item in group.items" :key="`traffic-host-${group.key}-${item.ip}`">
+              <button
+                type="button"
+                class="grid w-full grid-cols-[minmax(0,1.7fr)_128px_112px_112px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-left text-sm transition hover:bg-base-200/20"
+                @click="toggleHostDetails(item.ip)"
+              >
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="truncate font-medium">{{ item.label }}</span>
+                    <span v-if="hostSiteBadge(item)" class="badge badge-outline badge-xs" :style="hostSiteBadgeStyle(item)">{{ hostSiteBadge(item) }}</span>
+                    <span class="badge badge-ghost badge-xs">{{ isHostDetailsExpanded(item.ip) ? $t('collapse') : $t('details') }}</span>
                   </div>
-                  <div class="flex items-center gap-2 font-mono text-xs sm:text-sm">
-                    <span class="opacity-70">{{ $t('download') }}:</span>
-                    <span>{{ speedLabel(card.down) }}</span>
-                  </div>
-                  <div class="mt-1 flex items-center gap-2 font-mono text-xs sm:text-sm">
-                    <span class="opacity-70">{{ $t('upload') }}:</span>
-                    <span>{{ speedLabel(card.up) }}</span>
-                  </div>
-                  <div v-if="card.note" class="mt-2 text-[11px] opacity-65">{{ card.note }}</div>
+                  <div class="truncate text-[11px] opacity-60">{{ item.ip }}</div>
+                  <div v-if="hostBreakdownLabel(item)" class="truncate text-[11px] opacity-75">{{ hostBreakdownLabel(item) }}</div>
+                  <div v-if="item.targets.length" class="truncate text-[11px] opacity-65">{{ item.targets.join(' · ') }}</div>
                 </div>
-              </div>
-
-              <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
-                <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <div class="text-sm font-medium">{{ $t('routerTrafficRecentTimeline') }}</div>
-                  <span class="badge badge-ghost badge-xs">~{{ hostTimelineWindowSeconds }}s</span>
-                </div>
-                <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRecentTimelineTip', { seconds: hostTimelineWindowSeconds }) }}</div>
-                <div v-if="hostTimelineRows(item).length" class="space-y-2">
-                  <div
-                    v-for="row in hostTimelineRows(item)"
-                    :key="`${item.ip}-timeline-${row.key}`"
-                    class="rounded-lg border border-base-content/10 bg-base-200/15 px-3 py-2"
-                  >
-                    <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div class="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
-                        <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: row.color }" />
-                        <span class="truncate">{{ row.label }}</span>
-                      </div>
-                      <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
-                        <span>{{ $t('routerTrafficTimelineCurrent') }}: {{ row.current }}</span>
-                        <span>{{ $t('routerTrafficTimelinePeak') }}: {{ row.peak }}</span>
-                      </div>
-                    </div>
-                    <div class="flex h-14 items-end gap-1 rounded-lg border border-base-content/10 bg-base-100/40 px-2 py-2">
-                      <div
-                        v-for="bar in row.bars"
-                        :key="`${item.ip}-${row.key}-${bar.key}`"
-                        class="min-h-[4px] flex-1 rounded-[4px] transition-[height,opacity] duration-200"
-                        :style="{ height: `${bar.height}%`, backgroundColor: row.color, opacity: bar.opacity }"
-                        :title="`${row.label}: ${speedLabel(bar.value)}`"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
-                  {{ $t('routerTrafficTimelineIdle') }}
-                </div>
-              </div>
-
-              <div class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-                <div class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
-                  <div class="mb-1 text-sm font-medium">{{ $t('routerTrafficActiveTargets') }}</div>
-                  <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficActiveTargetsTip') }}</div>
-                  <div v-if="hostTopTargets(item).length" class="space-y-2">
-                    <div
-                      v-for="target in hostTopTargets(item)"
-                      :key="`${item.ip}-target-${target.scope || 'mihomo'}-${target.target}-${target.via || 'direct'}`"
-                      class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2"
+                <div>
+                  <div class="flex flex-wrap gap-1">
+                    <span
+                      v-for="badge in hostScopeBadges(item)"
+                      :key="`${item.ip}-${badge.key}`"
+                      class="badge badge-outline badge-xs sm:badge-sm"
+                      :style="{ borderColor: badge.color, color: badge.color }"
                     >
-                      <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                          <div class="truncate text-sm font-medium">{{ target.target }}</div>
-                          <div class="mt-1 flex flex-wrap gap-1">
-                            <span
-                              class="badge badge-outline badge-xs"
-                              :style="{ borderColor: hostTargetScopeColor(target), color: hostTargetScopeColor(target) }"
-                            >
-                              {{ hostTargetScopeLabel(target) }}
-                            </span>
-                            <span v-if="target.proto" class="badge badge-ghost badge-xs uppercase">{{ target.proto }}</span>
-                          </div>
-                          <div v-if="target.via" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficVia') }}: {{ target.via }}</div>
-                        </div>
-                        <span class="badge badge-ghost badge-xs">{{ target.connections }} {{ $t('connections') }}</span>
+                      {{ badge.label }}
+                    </span>
+                  </div>
+                </div>
+                <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
+                  <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostPrimaryColor(item, 'down') }" />
+                  <span>{{ speedLabel(item.down) }}</span>
+                </div>
+                <div class="inline-flex items-center gap-2 font-mono text-xs sm:text-sm">
+                  <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: hostPrimaryColor(item, 'up') }" />
+                  <span>{{ speedLabel(item.up) }}</span>
+                </div>
+                <div class="text-right">
+                  <span class="badge badge-ghost badge-xs sm:badge-sm">{{ item.connections }}</span>
+                </div>
+              </button>
+
+              <div v-if="isHostDetailsExpanded(item.ip)" class="border-t border-base-content/10 bg-base-200/10 px-3 py-3">
+                <div class="mb-3 text-xs opacity-65">{{ $t('routerTrafficHostDetailsTip') }}</div>
+                <div class="grid gap-2 lg:grid-cols-3">
+                  <div
+                    v-for="card in hostDetailCards(item)"
+                    :key="`${item.ip}-detail-${card.key}`"
+                    class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2"
+                  >
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                      <div class="inline-flex items-center gap-2 text-sm font-medium">
+                        <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: card.color }" />
+                        <span>{{ card.label }}</span>
                       </div>
-                      <div class="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs sm:text-sm">
-                        <span>{{ $t('download') }}: {{ speedLabel(target.down) }}</span>
-                        <span>{{ $t('upload') }}: {{ speedLabel(target.up) }}</span>
+                      <span v-if="typeof card.connections === 'number'" class="badge badge-ghost badge-xs">{{ card.connections }} {{ $t('connections') }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 font-mono text-xs sm:text-sm">
+                      <span class="opacity-70">{{ $t('download') }}:</span>
+                      <span>{{ speedLabel(card.down) }}</span>
+                    </div>
+                    <div class="mt-1 flex items-center gap-2 font-mono text-xs sm:text-sm">
+                      <span class="opacity-70">{{ $t('upload') }}:</span>
+                      <span>{{ speedLabel(card.up) }}</span>
+                    </div>
+                    <div v-if="card.note" class="mt-2 text-[11px] opacity-65">{{ card.note }}</div>
+                  </div>
+                </div>
+
+                <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
+                  <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                    <div class="text-sm font-medium">{{ $t('routerTrafficRecentTimeline') }}</div>
+                    <span class="badge badge-ghost badge-xs">~{{ hostTimelineWindowSeconds }}s</span>
+                  </div>
+                  <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRecentTimelineTip', { seconds: hostTimelineWindowSeconds }) }}</div>
+                  <div v-if="hostTimelineRows(item).length" class="space-y-2">
+                    <div
+                      v-for="row in hostTimelineRows(item)"
+                      :key="`${item.ip}-timeline-${row.key}`"
+                      class="rounded-lg border border-base-content/10 bg-base-200/15 px-3 py-2"
+                    >
+                      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div class="inline-flex min-w-0 items-center gap-2 text-sm font-medium">
+                          <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full" :style="{ backgroundColor: row.color }" />
+                          <span class="truncate">{{ row.label }}</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
+                          <span>{{ $t('routerTrafficTimelineCurrent') }}: {{ row.current }}</span>
+                          <span>{{ $t('routerTrafficTimelinePeak') }}: {{ row.peak }}</span>
+                        </div>
+                      </div>
+                      <div class="flex h-14 items-end gap-1 rounded-lg border border-base-content/10 bg-base-100/40 px-2 py-2">
+                        <div
+                          v-for="bar in row.bars"
+                          :key="`${item.ip}-${row.key}-${bar.key}`"
+                          class="min-h-[4px] flex-1 rounded-[4px] transition-[height,opacity] duration-200"
+                          :style="{ height: `${bar.height}%`, backgroundColor: row.color, opacity: bar.opacity }"
+                          :title="`${row.label}: ${speedLabel(bar.value)}`"
+                        />
                       </div>
                     </div>
                   </div>
                   <div v-else class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
-                    {{ $t('routerTrafficNoActiveTargets') }}
+                    {{ $t('routerTrafficTimelineIdle') }}
                   </div>
                 </div>
 
-                <div class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
-                  <div class="mb-1 text-sm font-medium">{{ $t('details') }}</div>
-                  <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRouteContext') }}</div>
-                  <div class="space-y-2 text-sm">
-                    <div v-for="note in hostDetailNotes(item)" :key="`${item.ip}-${note}`" class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
-                      {{ note }}
+                <div class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
+                    <div class="mb-1 text-sm font-medium">{{ $t('routerTrafficActiveTargets') }}</div>
+                    <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficActiveTargetsTip') }}</div>
+                    <div v-if="hostTopTargets(item).length" class="space-y-2">
+                      <div
+                        v-for="target in hostTopTargets(item)"
+                        :key="`${item.ip}-target-${target.scope || 'mihomo'}-${target.target}-${target.via || 'direct'}`"
+                        class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2"
+                      >
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="truncate text-sm font-medium">{{ target.target }}</div>
+                            <div class="mt-1 flex flex-wrap gap-1">
+                              <span
+                                class="badge badge-outline badge-xs"
+                                :style="{ borderColor: hostTargetScopeColor(target), color: hostTargetScopeColor(target) }"
+                              >
+                                {{ hostTargetScopeLabel(target) }}
+                              </span>
+                              <span v-if="target.proto" class="badge badge-ghost badge-xs uppercase">{{ target.proto }}</span>
+                            </div>
+                            <div v-if="target.via" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficVia') }}: {{ target.via }}</div>
+                          </div>
+                          <span class="badge badge-ghost badge-xs">{{ target.connections }} {{ $t('connections') }}</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs sm:text-sm">
+                          <span>{{ $t('download') }}: {{ speedLabel(target.down) }}</span>
+                          <span>{{ $t('upload') }}: {{ speedLabel(target.up) }}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div v-if="!hostDetailNotes(item).length" class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
-                      {{ $t('routerTrafficNoExtraContext') }}
+                    <div v-else class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
+                      {{ $t('routerTrafficNoActiveTargets') }}
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-3">
+                    <div class="mb-1 text-sm font-medium">{{ $t('details') }}</div>
+                    <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRouteContext') }}</div>
+                    <div class="space-y-2 text-sm">
+                      <div v-for="note in hostDetailNotes(item)" :key="`${item.ip}-${note}`" class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
+                        {{ note }}
+                      </div>
+                      <div v-if="!hostDetailNotes(item).length" class="rounded-lg border border-dashed border-base-content/10 bg-base-200/10 px-3 py-3 text-sm opacity-70">
+                        {{ $t('routerTrafficNoExtraContext') }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </template>
           </template>
         </div>
 
@@ -425,8 +447,16 @@ type HostRemoteTargetsState = {
   fetchedAt: number
 }
 
-type HostScopeFilter = 'all' | 'mihomo' | 'vpn' | 'bypass' | 'mixed'
+type HostScopeFilter = 'all' | 'mihomo' | 'vpn' | 'bypass' | 'mixed' | 'routed'
 type HostSortMode = 'traffic' | 'download' | 'upload' | 'connections' | 'recent'
+type HostSiteMeta = {
+  key: string
+  label: string
+  badge: string
+  color: string
+  note?: string
+  isRouted: boolean
+}
 
 const { t } = useI18n()
 const chartRef = ref<HTMLElement | null>(null)
@@ -667,6 +697,59 @@ const hostTargetScopeColor = (target: HostTargetStat) => {
 
 const hostRemoteTargets = (ip: string) => hostRemoteTargetsByIp.value[ip]?.items || []
 
+const parseRouteSource = (source?: string) => {
+  const raw = String(source || '').trim()
+  if (!raw) return null
+  const match = raw.match(/^([a-z0-9_-]+)-route:(.+)$/i)
+  if (!match) return null
+  const kind = String(match[1] || '').trim().toLowerCase() || 'vpn'
+  const via = String(match[2] || '').trim()
+  if (!via) return null
+  return { kind, via, ifaceLabel: ifaceDisplayName(via, kind) }
+}
+
+const describeHostSource = (source?: string) => {
+  const route = parseRouteSource(source)
+  if (route) return t('routerTrafficRoutedSource', { iface: route.ifaceLabel })
+  return String(source || '').trim()
+}
+
+const hostSiteMeta = (item: Pick<HostTrafficStat, 'source'>): HostSiteMeta => {
+  const route = parseRouteSource(item.source)
+  if (route) {
+    return {
+      key: `route:${route.kind}:${route.via}`,
+      label: t('routerTrafficHostGroupRouted', { site: route.ifaceLabel }),
+      badge: t('routerTrafficHostGroupRoutedBadge'),
+      color: trafficColors.vpnDown,
+      note: t('routerTrafficDownstreamSiteHint', { iface: route.ifaceLabel }),
+      isRouted: true,
+    }
+  }
+  return {
+    key: 'lan',
+    label: t('routerTrafficHostGroupLan'),
+    badge: t('routerTrafficHostGroupLanBadge'),
+    color: trafficColors.wanDown,
+    note: undefined,
+    isRouted: false,
+  }
+}
+
+const hostSiteBadge = (item: Pick<HostTrafficStat, 'source'>) => {
+  const route = parseRouteSource(item.source)
+  if (!route) return ''
+  return `${t('routerTrafficHostGroupRoutedBadge')} · ${route.ifaceLabel}`
+}
+
+const hostSiteBadgeStyle = (item: Pick<HostTrafficStat, 'source'>) => {
+  const meta = hostSiteMeta(item)
+  return {
+    borderColor: meta.color,
+    color: meta.color,
+  }
+}
+
 const collectHostSnapshot = (): HostTrafficStat[] => {
   const map = new Map<string, HostTrafficStat>()
 
@@ -883,6 +966,7 @@ const hostScopeCount = (item: HostTrafficStat) => hostScopeBadges(item).length
 const hostMatchesScopeFilter = (item: HostTrafficState) => {
   if (hostScopeFilter.value === 'all') return true
   if (hostScopeFilter.value === 'mixed') return hostScopeCount(item) > 1
+  if (hostScopeFilter.value === 'routed') return hostSiteMeta(item).isRouted
   return hostScopeBadges(item).some((badge) => badge.key === hostScopeFilter.value)
 }
 
@@ -948,7 +1032,7 @@ const visibleTrafficHostsCount = computed(() => visibleTrafficHosts.value.length
 
 const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
   return visibleTrafficHosts.value
-    .slice(0, 8)
+    .slice(0, 10)
     .map((item) => ({
       ip: item.ip,
       label: item.label,
@@ -965,6 +1049,26 @@ const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
       targetStats: item.targetStats,
       source: item.source,
     }))
+})
+
+const stableTrafficHostGroups = computed(() => {
+  const order: string[] = []
+  const groups: Record<string, HostSiteMeta & { items: HostTrafficStat[] }> = {}
+  for (const item of stableTrafficHosts.value) {
+    const meta = hostSiteMeta(item)
+    if (!groups[meta.key]) {
+      order.push(meta.key)
+      groups[meta.key] = { ...meta, items: [] }
+    }
+    groups[meta.key].items.push(item)
+  }
+  return order.map((key) => groups[key]).sort((a, b) => {
+    if (a.isRouted !== b.isRouted) return a.isRouted ? -1 : 1
+    const aTotal = a.items.reduce((sum, item) => sum + item.down + item.up, 0)
+    const bTotal = b.items.reduce((sum, item) => sum + item.down + item.up, 0)
+    if (Math.abs(bTotal - aTotal) > 64) return bTotal - aTotal
+    return a.label.localeCompare(b.label)
+  })
 })
 
 const isHostDetailsExpanded = (ip: string) => !!expandedHostDetails.value[ip]
@@ -1023,7 +1127,11 @@ const hostTopTargets = (item: HostTrafficStat) => {
 
 const hostDetailNotes = (item: HostTrafficStat) => {
   const notes: string[] = []
-  if (item.source) notes.push(`${t('routerTrafficLabelSource')}: ${item.source}`)
+  const route = parseRouteSource(item.source)
+  const site = hostSiteMeta(item)
+  if (item.source) notes.push(`${t('routerTrafficLabelSource')}: ${describeHostSource(item.source)}`)
+  if (site.isRouted) notes.push(`${t('routerTrafficHostSiteLabel')}: ${site.label}`)
+  if (route) notes.push(t('routerTrafficRoutedHostHint', { iface: route.ifaceLabel }))
   if ((item.vpnDown + item.vpnUp + item.bypassDown + item.bypassUp) > 1) notes.push(t('routerTrafficRemoteTargetsWarmupHint'))
   return notes
 }

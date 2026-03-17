@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.61"
+AGENT_VERSION="0.5.62"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -1633,44 +1633,168 @@ ensure_host_traffic_rule() {
   chain="$1"
   direction="$2"
   ip_="$3"
-  if_="$4"
+  host_if="$4"
+  target_if="$5"
   [ -n "$chain" ] || return 0
   [ -n "$direction" ] || return 0
   [ -n "$ip_" ] || return 0
-  [ -n "$if_" ] || return 0
+  [ -n "$host_if" ] || return 0
+  [ -n "$target_if" ] || return 0
+  [ "$host_if" = "$target_if" ] && return 0
 
   case "$direction" in
     up)
-      iptables -t mangle -C "$chain" -i "$LAN_IF" -s "$ip_" -o "$if_" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$LAN_IF" -s "$ip_" -o "$if_" -j RETURN >/dev/null 2>&1 || true
+      iptables -t mangle -C "$chain" -i "$host_if" -s "$ip_" -o "$target_if" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$host_if" -s "$ip_" -o "$target_if" -j RETURN >/dev/null 2>&1 || true
       ;;
     down)
-      iptables -t mangle -C "$chain" -i "$if_" -d "$ip_" -o "$LAN_IF" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$if_" -d "$ip_" -o "$LAN_IF" -j RETURN >/dev/null 2>&1 || true
+      iptables -t mangle -C "$chain" -i "$target_if" -d "$ip_" -o "$host_if" -j RETURN >/dev/null 2>&1 ||         iptables -t mangle -A "$chain" -i "$target_if" -d "$ip_" -o "$host_if" -j RETURN >/dev/null 2>&1 || true
       ;;
   esac
+}
+
+route_iface_for_ip() {
+  target_ip="$1"
+  [ -n "$target_ip" ] || return 0
+  ip route get "$target_ip" 2>/dev/null | awk '
+    {
+      for (i = 1; i <= NF; i++) {
+        if ($i == "dev") {
+          print $(i + 1)
+          exit
+        }
+      }
+    }
+  ' | head -n1
+}
+
+collect_routed_tunnel_hosts_tsv() {
+  out_file="$1"
+  [ -n "$out_file" ] || return 1
+
+  extra_ifaces=" $(list_extra_traffic_ifaces 2>/dev/null | tr '\n' ' ') "
+  local_ips_tmp="/tmp/zash_local_ips.$$"
+  cand_tmp="/tmp/zash_routed_host_candidates.$$"
+
+  : > "$out_file" 2>/dev/null || true
+  : > "$local_ips_tmp" 2>/dev/null || true
+  : > "$cand_tmp" 2>/dev/null || true
+
+  ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | sort -u > "$local_ips_tmp" 2>/dev/null || true
+
+  read_conntrack_table | awk '
+    function is_ipv4(v) { return (v ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) }
+    {
+      srcc=dstc=0
+      o_src=o_dst=""
+      for (i = 1; i <= NF; i++) {
+        if ($i ~ /^src=/) {
+          val = substr($i, 5)
+          srcc++
+          if (srcc == 1) o_src = val
+        } else if ($i ~ /^dst=/) {
+          val = substr($i, 5)
+          dstc++
+          if (dstc == 1) o_dst = val
+        }
+      }
+      if (is_ipv4(o_src)) seen[o_src] = 1
+      if (is_ipv4(o_dst)) seen[o_dst] = 1
+    }
+    END {
+      for (ip in seen) print ip
+    }
+  ' 2>/dev/null | sort -u > "$cand_tmp" 2>/dev/null || true
+
+  while IFS= read -r ip_; do
+    printf '%s' "$ip_" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || continue
+    grep -qx "$ip_" "$local_ips_tmp" 2>/dev/null && continue
+    dev="$(route_iface_for_ip "$ip_")"
+    [ -n "$dev" ] || continue
+    case "$extra_ifaces" in
+      *" $dev "*) ;;
+      *) continue ;;
+    esac
+    kind="$(traffic_iface_kind "$dev")"
+    [ -n "$kind" ] || kind="vpn"
+    printf '%s\t\t\t%s-route:%s\n' "$ip_" "$kind" "$dev" >> "$out_file"
+  done < "$cand_tmp"
+
+  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+  rm -f "$local_ips_tmp" "$cand_tmp" 2>/dev/null || true
+}
+
+collect_tracked_hosts_tsv() {
+  out_file="$1"
+  [ -n "$out_file" ] || return 1
+
+  lan_tmp="/tmp/zash_tracked_lan_hosts.$$"
+  routed_tmp="/tmp/zash_tracked_routed_hosts.$$"
+
+  collect_lan_hosts_tsv "$lan_tmp"
+  collect_routed_tunnel_hosts_tsv "$routed_tmp"
+
+  awk -F'\t' '
+    FNR == NR {
+      if ($1 != "") {
+        mac[$1] = $2
+        host[$1] = $3
+        src[$1] = ($4 != "" ? $4 : "dhcp")
+        order[$1] = 1
+      }
+      next
+    }
+    {
+      if ($1 != "") {
+        if (!($1 in order)) order[$1] = 2
+        if (mac[$1] == "" && $2 != "") mac[$1] = $2
+        if (host[$1] == "" && $3 != "") host[$1] = $3
+        if (src[$1] == "" && $4 != "") src[$1] = $4
+      }
+    }
+    END {
+      for (ip in src) print ip "\t" mac[ip] "\t" host[ip] "\t" src[ip] "\t" order[ip]
+    }
+  ' "$lan_tmp" "$routed_tmp" 2>/dev/null | sort -t'\t' -k5,5n -k1,1 | awk -F'\t' '{print $1 "\t" $2 "\t" $3 "\t" $4}' > "$out_file" 2>/dev/null || true
+
+  rm -f "$lan_tmp" "$routed_tmp" 2>/dev/null || true
 }
 
 host_traffic_sync_rules() {
   ensure_host_traffic_chains
 
   hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
-  collect_lan_hosts_tsv "$hosts_tmp"
+  collect_tracked_hosts_tsv "$hosts_tmp"
   extra_ifaces="$(list_extra_traffic_ifaces 2>/dev/null | tr '
 ' ' ')"
 
   while IFS='	' read -r ip_ mac_ host_ src_; do
     printf '%s' "$ip_" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || continue
-    ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$WAN_IF"
-    ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$WAN_IF"
-    for ex_if in $extra_ifaces; do
-      [ -n "$ex_if" ] || continue
-      ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$ex_if"
-      ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$ex_if"
-    done
+    host_if="$(route_iface_for_ip "$ip_")"
+    [ -n "$host_if" ] || host_if="$LAN_IF"
+    if [ "$host_if" = "$LAN_IF" ]; then
+      ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$host_if" "$WAN_IF"
+      ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$host_if" "$WAN_IF"
+      for ex_if in $extra_ifaces; do
+        [ -n "$ex_if" ] || continue
+        ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$host_if" "$ex_if"
+        ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$host_if" "$ex_if"
+      done
+    else
+      ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$host_if" "$WAN_IF"
+      ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$host_if" "$WAN_IF"
+      ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$host_if" "$LAN_IF"
+      ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$host_if" "$LAN_IF"
+      for ex_if in $extra_ifaces; do
+        [ -n "$ex_if" ] || continue
+        [ "$ex_if" = "$host_if" ] && continue
+        ensure_host_traffic_rule ZASH_HOST_UP up "$ip_" "$host_if" "$ex_if"
+        ensure_host_traffic_rule ZASH_HOST_DOWN down "$ip_" "$host_if" "$ex_if"
+      done
+    fi
   done < "$hosts_tmp"
 
   rm -f "$hosts_tmp" 2>/dev/null || true
 }
-
 host_traffic_collect_bytes_tsv() {
   out_file="$1"
   [ -n "$out_file" ] || return 1
@@ -1720,7 +1844,7 @@ host_traffic_live_json() {
   prev_tmp="$HOST_TRAFFIC_STATE_FILE"
   prev_ts_file="$HOST_TRAFFIC_TS_FILE"
 
-  collect_lan_hosts_tsv "$hosts_tmp"
+  collect_tracked_hosts_tsv "$hosts_tmp"
   host_traffic_collect_bytes_tsv "$raw_tmp"
 
   awk -F'	' '
@@ -1808,22 +1932,6 @@ host_traffic_live_json() {
   rm -f "$hosts_tmp" "$raw_tmp" "$current_tmp" 2>/dev/null || true
 }
 
-
-read_conntrack_table() {
-  if [ -r /proc/net/nf_conntrack ]; then
-    cat /proc/net/nf_conntrack 2>/dev/null
-    return 0
-  fi
-  if [ -r /proc/net/ip_conntrack ]; then
-    cat /proc/net/ip_conntrack 2>/dev/null
-    return 0
-  fi
-  if command -v conntrack >/dev/null 2>&1; then
-    conntrack -L 2>/dev/null || true
-    return 0
-  fi
-  return 1
-}
 
 route_iface_for_host_target() {
   src_ip="$1"
@@ -1936,6 +2044,11 @@ host_remote_targets_json() {
   ' "$raw_tmp" 2>/dev/null | sort > "$agg_tmp" 2>/dev/null || true
 
   extra_ifaces=" $(list_extra_traffic_ifaces 2>/dev/null | tr '\n' ' ') "
+  host_dev="$(route_iface_for_ip "$host_ip")"
+  host_dev_is_extra=0
+  case "$extra_ifaces" in
+    *" $host_dev "*) host_dev_is_extra=1 ;;
+  esac
   while IFS='\t' read -r remote port proto up_bytes down_bytes count; do
     [ -n "$remote" ] || continue
     dev="$(route_iface_for_host_target "$host_ip" "$remote")"
@@ -1948,6 +2061,10 @@ host_remote_targets_json() {
       scope="bypass"
       kind="bypass"
       via="$WAN_IF"
+    elif [ "$dev" = "$LAN_IF" ] && [ "$host_dev_is_extra" -eq 1 ]; then
+      scope="vpn"
+      kind="$(traffic_iface_kind "$host_dev")"
+      via="$host_dev"
     else
       case "$extra_ifaces" in
         *" $dev "*)
