@@ -134,6 +134,21 @@
                 <option value="recent">{{ $t('routerTrafficSortRecent') }}</option>
               </select>
             </div>
+            <button type="button" class="btn btn-ghost btn-xs sm:btn-sm" @click="expandAllHostGroups">
+              {{ $t('routerTrafficExpandAllGroups') }}
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs sm:btn-sm" @click="collapseAllHostGroups">
+              {{ $t('routerTrafficCollapseAllGroups') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs sm:btn-sm"
+              :class="{ 'btn-active': autoCollapseQuietHostGroups }"
+              @click="toggleAutoCollapseQuietHostGroups"
+            >
+              {{ $t('routerTrafficAutoCollapseQuietGroups') }}
+              <span class="ml-1 badge badge-ghost badge-xs">{{ quietHostGroupsCount }}</span>
+            </button>
             <span class="badge badge-ghost badge-sm">{{ visibleTrafficHostsCount }}</span>
             <span class="badge badge-ghost badge-sm">{{ $t('mihomoVersion') }}</span>
             <span class="badge badge-ghost badge-sm">{{ $t('routerTrafficVpn') }}</span>
@@ -153,20 +168,32 @@
           <template v-for="group in stableTrafficHostGroups" :key="group.key">
             <div class="border-t border-base-content/10 bg-base-200/15 px-3 py-2">
               <div class="flex flex-wrap items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="truncate text-xs font-medium uppercase tracking-wide opacity-75">{{ group.label }}</div>
-                  <div v-if="group.note" class="truncate text-[11px] opacity-60">{{ group.note }}</div>
-                  <div class="mt-1 flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
-                    <span class="inline-flex items-center gap-1.5">
-                      <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'down') }" />
-                      <span>{{ $t('routerTrafficGroupTotal') }} ↓ {{ speedLabel(group.totalDown) }}</span>
+                <button
+                  type="button"
+                  class="min-w-0 flex-1 text-left transition hover:opacity-90"
+                  :aria-expanded="!isHostGroupCollapsed(group)"
+                  @click="toggleHostGroup(group)"
+                >
+                  <div class="flex items-start gap-2">
+                    <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-base-content/10 bg-base-100/50 text-[11px] opacity-70">
+                      {{ isHostGroupCollapsed(group) ? '▶' : '▼' }}
                     </span>
-                    <span class="inline-flex items-center gap-1.5">
-                      <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'up') }" />
-                      <span>{{ $t('routerTrafficGroupTotal') }} ↑ {{ speedLabel(group.totalUp) }}</span>
-                    </span>
+                    <div class="min-w-0">
+                      <div class="truncate text-xs font-medium uppercase tracking-wide opacity-75">{{ group.label }}</div>
+                      <div v-if="group.note" class="truncate text-[11px] opacity-60">{{ group.note }}</div>
+                      <div class="mt-1 flex flex-wrap items-center gap-3 font-mono text-[11px] opacity-75">
+                        <span class="inline-flex items-center gap-1.5">
+                          <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'down') }" />
+                          <span>{{ $t('routerTrafficGroupTotal') }} ↓ {{ speedLabel(group.totalDown) }}</span>
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                          <span class="inline-block h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: hostGroupPrimaryColor(group, 'up') }" />
+                          <span>{{ $t('routerTrafficGroupTotal') }} ↑ {{ speedLabel(group.totalUp) }}</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </button>
                 <div class="flex flex-wrap items-center justify-end gap-2">
                   <span
                     class="badge badge-outline badge-xs uppercase"
@@ -184,11 +211,15 @@
                   </span>
                   <span class="badge badge-ghost badge-xs">{{ group.items.length }} {{ $t('routerTrafficHostsShort') }}</span>
                   <span class="badge badge-ghost badge-xs">{{ group.totalConnections }} {{ $t('connections') }}</span>
+                  <button type="button" class="btn btn-ghost btn-xs" @click="toggleHostGroup(group)">
+                    {{ isHostGroupCollapsed(group) ? $t('expand') : $t('collapse') }}
+                  </button>
                 </div>
               </div>
             </div>
 
-            <template v-for="item in group.items" :key="`traffic-host-${group.key}-${item.ip}`">
+            <template v-if="!isHostGroupCollapsed(group)">
+              <template v-for="item in group.items" :key="`traffic-host-${group.key}-${item.ip}`">
               <button
                 type="button"
                 class="grid w-full grid-cols-[minmax(0,1.7fr)_128px_112px_112px_72px] items-center gap-3 border-t border-base-content/10 px-3 py-2 text-left text-sm transition hover:bg-base-200/20"
@@ -345,6 +376,7 @@
                   </div>
                 </div>
               </div>
+              </template>
             </template>
           </template>
         </div>
@@ -645,6 +677,8 @@ const hostTrafficState = ref<Record<string, HostTrafficState>>({})
 const hostHistoryState = ref<Record<string, HostHistoryPoint[]>>({})
 const hostScopeFilter = ref<HostScopeFilter>('all')
 const hostSortBy = ref<HostSortMode>('traffic')
+const hostGroupCollapseState = ref<Record<string, 'collapsed' | 'expanded'>>({})
+const autoCollapseQuietHostGroups = ref(false)
 const expandedHostDetails = ref<Record<string, boolean>>({})
 const hostTimelineLimit = 24
 const hostTimelineWindowSeconds = Math.round(hostTimelineLimit * 1.5)
@@ -652,6 +686,9 @@ const hostRemoteTargetsRefreshMs = 3000
 let hostTrafficTimer: number | null = null
 let hostTrafficAgentTimer: number | null = null
 let hostRemoteTargetsTimer: number | null = null
+const hostGroupCollapseStorageKey = 'router-traffic-host-groups-collapsed-v2'
+const hostGroupAutoCollapseStorageKey = 'router-traffic-host-groups-autocollapse-v1'
+const quietHostGroupThresholdBps = 32 * 1024
 
 const normalizeAgentHostTrafficItem = (item: AgentHostTrafficLiveItem): AgentHostTrafficSnapshot | null => {
   const ip = String(item?.ip || '').trim()
@@ -1186,6 +1223,60 @@ const hostGroupScopeBadges = (group: HostTrafficGroup) => {
   if (bypassValue > 1) badges.push({ key: 'bypass', label: t('routerTrafficBypass'), color: trafficColors.bypassDown, value: bypassValue })
   return badges.sort((a, b) => b.value - a.value)
 }
+
+const isHostGroupQuiet = (group: HostTrafficGroup) => (group.totalDown + group.totalUp) < quietHostGroupThresholdBps
+
+const isHostGroupCollapsed = (groupOrKey: HostTrafficGroup | string) => {
+  const key = typeof groupOrKey === 'string' ? groupOrKey : groupOrKey.key
+  const manual = hostGroupCollapseState.value[key]
+  if (manual === 'collapsed') return true
+  if (manual === 'expanded') return false
+  if (typeof groupOrKey === 'string') return false
+  return autoCollapseQuietHostGroups.value && isHostGroupQuiet(groupOrKey)
+}
+
+const setHostGroupManualState = (key: string, state?: 'collapsed' | 'expanded') => {
+  const next = { ...hostGroupCollapseState.value }
+  if (state) next[key] = state
+  else delete next[key]
+  hostGroupCollapseState.value = next
+}
+
+const toggleHostGroup = (group: HostTrafficGroup | string) => {
+  const target = typeof group === 'string' ? stableTrafficHostGroups.value.find((item) => item.key === group) || group : group
+  const key = typeof target === 'string' ? target : target.key
+  const collapsed = isHostGroupCollapsed(target)
+  if (collapsed) {
+    if (typeof target === 'string') setHostGroupManualState(key)
+    else if (autoCollapseQuietHostGroups.value && isHostGroupQuiet(target)) setHostGroupManualState(key, 'expanded')
+    else setHostGroupManualState(key)
+    return
+  }
+  setHostGroupManualState(key, 'collapsed')
+}
+
+const collapseAllHostGroups = () => {
+  const next: Record<string, 'collapsed' | 'expanded'> = { ...hostGroupCollapseState.value }
+  for (const group of stableTrafficHostGroups.value) {
+    next[group.key] = 'collapsed'
+  }
+  hostGroupCollapseState.value = next
+}
+
+const expandAllHostGroups = () => {
+  const next = { ...hostGroupCollapseState.value }
+  for (const group of stableTrafficHostGroups.value) {
+    if (autoCollapseQuietHostGroups.value && isHostGroupQuiet(group)) next[group.key] = 'expanded'
+    else delete next[group.key]
+  }
+  hostGroupCollapseState.value = next
+}
+
+const toggleAutoCollapseQuietHostGroups = () => {
+  autoCollapseQuietHostGroups.value = !autoCollapseQuietHostGroups.value
+}
+
+const quietHostGroupsCount = computed(() => stableTrafficHostGroups.value.filter((group) => isHostGroupQuiet(group)).length)
 
 const isHostDetailsExpanded = (ip: string) => !!expandedHostDetails.value[ip]
 
@@ -1794,6 +1885,41 @@ onMounted(() => {
   updateFontFamily()
   watch(theme, updateColorSet)
   watch(font, updateFontFamily)
+
+  try {
+    const raw = window.localStorage.getItem(hostGroupCollapseStorageKey)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const entries = Object.entries(parsed).filter(([key, value]) => !!key && (value === 'collapsed' || value === 'expanded'))
+        hostGroupCollapseState.value = Object.fromEntries(entries) as Record<string, 'collapsed' | 'expanded'>
+      }
+    }
+  } catch {
+    // ignore localStorage parse issues
+  }
+
+  try {
+    autoCollapseQuietHostGroups.value = window.localStorage.getItem(hostGroupAutoCollapseStorageKey) === '1'
+  } catch {
+    // ignore localStorage read issues
+  }
+
+  watch(hostGroupCollapseState, (value) => {
+    try {
+      window.localStorage.setItem(hostGroupCollapseStorageKey, JSON.stringify(value))
+    } catch {
+      // ignore localStorage write issues
+    }
+  }, { deep: true })
+
+  watch(autoCollapseQuietHostGroups, (value) => {
+    try {
+      window.localStorage.setItem(hostGroupAutoCollapseStorageKey, value ? '1' : '0')
+    } catch {
+      // ignore localStorage write issues
+    }
+  })
 
   const chart = echarts.init(chartRef.value!)
   chart.setOption(options.value)
