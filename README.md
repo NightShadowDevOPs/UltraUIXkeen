@@ -94,6 +94,7 @@ Router-agent устанавливает `/opt/zash-agent/backup.sh`.
 В UI: **Router → Router agent → Backup schedule** можно задать время (по умолчанию **04:00**) и применить cron на роутере.
 
 Подробная инструкция: `docs/backup.md`
+Если в `RCLONE_REMOTE` / `RCLONE_REMOTES` остались старые имена remote, router-agent теперь умеет fallback на реальные remotes из `rclone.conf`, чтобы облачная история бэкапов не исчезала из UI.
 
 Справка по агенту: `router-agent/README.md`.
 

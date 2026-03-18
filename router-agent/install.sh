@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.2"
+AGENT_VERSION="0.6.3"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -3304,6 +3304,51 @@ rclone_known_remotes() {
   fi
 }
 
+rclone_known_remote_names() {
+  cfg_path="$1"
+  rclone_known_remotes "$cfg_path" | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+}
+
+rclone_resolved_remotes() {
+  req_remote="$1"
+  test_path="$2"
+  cfg_path="$3"
+  if [ -n "$req_remote" ]; then
+    printf '%s\n' "$req_remote" | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  configured="$(rclone_configured_remotes)"
+  valid=""
+  known="$(rclone_known_remotes "$cfg_path")"
+  if [ -n "$configured" ]; then
+    oldIFS="$IFS"
+    IFS='
+'
+    for remote in $configured; do
+      [ -n "$remote" ] || continue
+      exists=false
+      if printf '%s\n' "$known" | grep -Fxq "$remote:"; then
+        exists=true
+      elif rclone_remote_accessible "$remote" "$test_path"; then
+        exists=true
+      fi
+      if [ "$exists" = true ]; then
+        valid="$valid
+$remote"
+      fi
+    done
+    IFS="$oldIFS"
+  fi
+
+  if [ -n "$(printf '%s' "$valid" | awk 'NF{print $0; exit}')" ]; then
+    printf '%s\n' "$valid" | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  rclone_known_remote_names "$cfg_path"
+}
+
 rclone_json_bool() {
   [ "$1" = "true" ] && printf true || printf false
 }
@@ -3339,12 +3384,7 @@ rclone_find_file_remote() {
   path="$2"
   req_remote="$3"
   [ -n "$name" ] || return 1
-  rems=""
-  if [ -n "$req_remote" ]; then
-    rems="$req_remote"
-  else
-    rems="$(rclone_configured_remotes)"
-  fi
+  rems="$(rclone_resolved_remotes "$req_remote" "$path" "")"
   [ -n "$rems" ] || return 1
   oldIFS="$IFS"
   IFS=$(printf '\n_'); IFS=${IFS%_}
@@ -3370,12 +3410,7 @@ rclone_find_file_remote() {
 rclone_latest_remote_name() {
   path="$1"
   req_remote="$2"
-  rems=""
-  if [ -n "$req_remote" ]; then
-    rems="$req_remote"
-  else
-    rems="$(rclone_configured_remotes)"
-  fi
+  rems="$(rclone_resolved_remotes "$req_remote" "$path" "")"
   [ -n "$rems" ] || return 1
   rcfg=""
   if [ -n "$RCLONE_CONFIG" ]; then
@@ -3419,11 +3454,29 @@ backup_cloud_status_json() {
   remotes_json='[]'
   primary_remote=""
   primary_exists=false
-  remote_names="$(rclone_configured_remotes)"
+  configured_remote_names="$(rclone_configured_remotes)"
+  remote_names="$(rclone_resolved_remotes "" "$path" "$cfg")"
 
   if command -v rclone >/dev/null 2>&1; then
     rclone_installed=true
     known="$(rclone_known_remotes "$cfg")"
+    if [ -n "$configured_remote_names" ] && [ -n "$remote_names" ]; then
+      has_ready_configured=false
+      oldIFS="$IFS"
+      IFS='
+'
+      for configured_remote in $configured_remote_names; do
+        [ -n "$configured_remote" ] || continue
+        if printf '%s\n' "$remote_names" | grep -Fxq "$configured_remote"; then
+          has_ready_configured=true
+          break
+        fi
+      done
+      IFS="$oldIFS"
+      if [ "$has_ready_configured" = true ]; then
+        remote_names="$configured_remote_names"
+      fi
+    fi
     items=""
     oldIFS="$IFS"
     IFS='
@@ -3462,7 +3515,7 @@ backup_cloud_list_json() {
     return
   fi
 
-  remotes="$(rclone_configured_remotes)"
+  remotes="$(rclone_resolved_remotes "" "$path" "")"
   if [ -z "$remotes" ]; then
     reply_ok "$(printf '{"ok":true,"remote":"%s","path":"%s","dir":"","items":[]}' "$(jesc "$RCLONE_REMOTE")" "$(jesc "$path")")"
     return
@@ -4346,17 +4399,86 @@ rclone_configured_remotes() {
     | awk 'NF && !seen[$0]++ {print $0}'
 }
 
+rclone_known_remotes() {
+  if ! command -v rclone >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -n "$RCLONE_CONFIG" ]; then
+    rclone listremotes --config "$RCLONE_CONFIG" 2>/dev/null || true
+  else
+    rclone listremotes 2>/dev/null || true
+  fi
+}
+
+rclone_known_remote_names() {
+  rclone_known_remotes | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+}
+
+rclone_remote_accessible() {
+  remote="$1"
+  test_path="$2"
+  [ -n "$remote" ] || return 1
+  if ! command -v rclone >/dev/null 2>&1; then
+    return 1
+  fi
+  root_target="$remote:"
+  if RCLONE_CONFIG="$RCLONE_CONFIG" rclone lsf "$root_target" --max-depth 1 >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -n "$test_path" ]; then
+    path_target="$remote:$test_path"
+    if RCLONE_CONFIG="$RCLONE_CONFIG" rclone lsf "$path_target" --max-depth 1 >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+rclone_resolved_remotes() {
+  req_remote="$1"
+  test_path="$2"
+  if [ -n "$req_remote" ]; then
+    printf '%s\n' "$req_remote" | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  configured="$(rclone_configured_remotes)"
+  valid=""
+  known="$(rclone_known_remotes)"
+  if [ -n "$configured" ]; then
+    oldIFS="$IFS"
+    IFS='
+'
+    for remote in $configured; do
+      [ -n "$remote" ] || continue
+      exists=false
+      if printf '%s\n' "$known" | grep -Fxq "$remote:"; then
+        exists=true
+      elif rclone_remote_accessible "$remote" "$test_path"; then
+        exists=true
+      fi
+      if [ "$exists" = true ]; then
+        valid="$valid
+$remote"
+      fi
+    done
+    IFS="$oldIFS"
+  fi
+
+  if [ -n "$(printf '%s' "$valid" | awk 'NF{print $0; exit}')" ]; then
+    printf '%s\n' "$valid" | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  rclone_known_remote_names
+}
+
 rclone_find_file_remote() {
   name="$1"
   path="$2"
   req_remote="$3"
   [ -n "$name" ] || return 1
-  rems=""
-  if [ -n "$req_remote" ]; then
-    rems="$req_remote"
-  else
-    rems="$(rclone_configured_remotes)"
-  fi
+  rems="$(rclone_resolved_remotes "$req_remote" "$path")"
   [ -n "$rems" ] || return 1
   rcfg=""
   if [ -n "$RCLONE_CONFIG" ]; then
@@ -4382,12 +4504,7 @@ rclone_find_file_remote() {
 rclone_latest_remote_name() {
   path="$1"
   req_remote="$2"
-  rems=""
-  if [ -n "$req_remote" ]; then
-    rems="$req_remote"
-  else
-    rems="$(rclone_configured_remotes)"
-  fi
+  rems="$(rclone_resolved_remotes "$req_remote" "$path")"
   [ -n "$rems" ] || return 1
   rcfg=""
   if [ -n "$RCLONE_CONFIG" ]; then
@@ -4474,7 +4591,7 @@ finish() {
 }
 trap finish EXIT
 
-rems="$(rclone_configured_remotes)"
+rems="$(rclone_resolved_remotes "" "$RCLONE_PATH")"
 if [ -z "$rems" ] || ! command -v rclone >/dev/null 2>&1; then
   err="cloud-not-ready"
   log "[restore-cloud] ERROR: rclone/remote is not configured"
