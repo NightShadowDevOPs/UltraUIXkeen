@@ -1,3 +1,8 @@
+## 1.2.8
+
+- router-agent 0.6.4: cloud uploads in `backup.sh` / cron now fall back to real remotes from `rclone.conf` when `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale names
+- backup log now explicitly notes stale-remote fallback to help debug broken `rclone` env settings
+
 # Changelog
 
 # Changelog

@@ -207,7 +207,7 @@ RCLONE_KEEP_DAYS="30"                    # удалять из облака ст
 Router → Router agent:
 - блок **Cloud backup** покажет, видит ли агент `rclone`, какой `remote:path` используется и какой путь к `rclone` config обнаружен
 - в списках **Backup history** и **Cloud backups** можно выбрать архив для восстановления или удалить его прямо из UI
-- если в `RCLONE_REMOTE` / `RCLONE_REMOTES` остались старые имена remote, агент теперь умеет fallback на реальные remotes из `rclone.conf`, чтобы история облачных архивов и restore не пропадали из UI только из-за устаревших названий
+- если в `RCLONE_REMOTE` / `RCLONE_REMOTES` остались старые имена remote, агент теперь умеет fallback на реальные remotes из `rclone.conf`: это касается не только истории облачных архивов и restore в UI, но и самой выгрузки новых архивов через `backup.sh` / cron
 - блок **Backup schedule** позволяет менять время (по умолчанию **04:00**) и применять cron‑строку на роутере (`# zash-backup`)
 
 ### Вручную
@@ -307,7 +307,7 @@ command -v rclone && rclone version
 rclone listremotes
 ```
 
-3) Проверь переменные в `agent.env`: `RCLONE_REMOTE`, `RCLONE_PATH`.
+3) Проверь переменные в `agent.env`: `RCLONE_REMOTE`, `RCLONE_REMOTES`, `RCLONE_PATH`. Если там остались старые имена remote, новые версии agent умеют fallback на живые remotes из `rclone.conf`, но сами env-переменные всё равно лучше привести в порядок.
 
 4) Посмотри лог:
 

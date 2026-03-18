@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.3"
+AGENT_VERSION="0.6.4"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -4151,6 +4151,102 @@ rclone_configured_remotes() {
     | awk 'NF && !seen[$0]++ {print $0}'
 }
 
+rclone_list_remotes() {
+  if ! command -v rclone >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -n "$RCLONE_CONFIG" ]; then
+    rclone listremotes --config "$RCLONE_CONFIG" 2>/dev/null || true
+  else
+    rclone listremotes 2>/dev/null || true
+  fi
+}
+
+rclone_known_remotes() {
+  cfg_path="$1"
+  known="$(rclone_list_remotes)"
+  if [ -n "$known" ]; then
+    printf '%s\n' "$known"
+    return 0
+  fi
+  [ -n "$cfg_path" ] || cfg_path="$RCLONE_CONFIG"
+  if [ -n "$cfg_path" ] && [ -f "$cfg_path" ]; then
+    awk '
+      /^[[:space:]]*\[[^]]+\][[:space:]]*$/ {
+        name=$0
+        sub(/^[[:space:]]*\[/, "", name)
+        sub(/\][[:space:]]*$/, "", name)
+        if (name != "") print name ":"
+      }
+    ' "$cfg_path" | awk '!seen[$0]++'
+  fi
+}
+
+rclone_known_remote_names() {
+  cfg_path="$1"
+  rclone_known_remotes "$cfg_path" | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+}
+
+rclone_remote_accessible() {
+  remote="$1"
+  test_path="$2"
+  [ -n "$remote" ] || return 1
+  if ! command -v rclone >/dev/null 2>&1; then
+    return 1
+  fi
+  root_target="$remote:"
+  if RCLONE_CONFIG="$RCLONE_CONFIG" rclone lsf "$root_target" --max-depth 1 >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -n "$test_path" ]; then
+    path_target="$remote:$test_path"
+    if RCLONE_CONFIG="$RCLONE_CONFIG" rclone lsf "$path_target" --max-depth 1 >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+rclone_resolved_remotes() {
+  req_remote="$1"
+  test_path="$2"
+  cfg_path="$3"
+  if [ -n "$req_remote" ]; then
+    printf '%s\n' "$req_remote" | sed 's/:$//' | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  configured="$(rclone_configured_remotes)"
+  valid=""
+  known="$(rclone_known_remotes "$cfg_path")"
+  if [ -n "$configured" ]; then
+    oldIFS="$IFS"
+    IFS='
+'
+    for remote in $configured; do
+      [ -n "$remote" ] || continue
+      exists=false
+      if printf '%s\n' "$known" | grep -Fxq "$remote:"; then
+        exists=true
+      elif rclone_remote_accessible "$remote" "$test_path"; then
+        exists=true
+      fi
+      if [ "$exists" = true ]; then
+        valid="$valid
+$remote"
+      fi
+    done
+    IFS="$oldIFS"
+  fi
+
+  if [ -n "$(printf '%s' "$valid" | awk 'NF{print $0; exit}')" ]; then
+    printf '%s\n' "$valid" | awk 'NF && !seen[$0]++ {print $0}'
+    return 0
+  fi
+
+  rclone_known_remote_names "$cfg_path"
+}
+
 RCLONE_PATH="$(normalize_rclone_path "$RCLONE_PATH")"
 
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-${RCLONE_KEEP_DAYS:-30}}"
@@ -4290,15 +4386,17 @@ if echo "$BACKUP_KEEP_DAYS" | grep -qE '^[0-9]+$' && [ "$BACKUP_KEEP_DAYS" -gt 0
   find "$BACKUP_TMP_DIR" -maxdepth 1 -type f \( -name "zash-backup-*.tar.gz" -o -name "ui-dist-*.zip" \) -mtime +"$BACKUP_KEEP_DAYS" -print -delete 2>/dev/null || true
 fi
 
-rems_source="$REQUESTED_REMOTES"
-if [ -z "$rems_source" ]; then
-  rems_source="$RCLONE_REMOTES"
-fi
-if [ -z "$rems_source" ]; then
-  rems_source="$RCLONE_REMOTE"
-fi
-rems="$(printf '%s' "$rems_source" | sed 's/[;,[:space:]]\+/\n/g' | sed 's/:$//; s/^ *//; s/ *$//' | awk 'NF && !seen[$0]++ {print $0}')"
+rems="$(rclone_resolved_remotes "$REQUESTED_REMOTES" "$RCLONE_PATH" "$RCLONE_CONFIG")"
 if [ -n "$rems" ] && command -v rclone >/dev/null 2>&1; then
+  configured_rems="$(rclone_configured_remotes)"
+  if [ -z "$REQUESTED_REMOTES" ] && [ -n "$configured_rems" ]; then
+    configured_first="$(printf '%s\n' "$configured_rems" | awk 'NF{print $0; exit}')"
+    resolved_first="$(printf '%s\n' "$rems" | awk 'NF{print $0; exit}')"
+    if [ -n "$resolved_first" ] && [ "$configured_first" != "$resolved_first" ] && ! printf '%s\n' "$configured_rems" | grep -Fxq "$resolved_first"; then
+      resolved_csv="$(printf '%s\n' "$rems" | awk 'NF{if(out) out=out ","; out=out $0} END{printf "%s", out}')"
+      echo "[backup] configured remotes are stale; falling back to remotes from rclone.conf: $resolved_csv" | tee -a "$BACKUP_LOG_FILE" >/dev/null 2>&1 || true
+    fi
+  fi
   rcfg=""
   if [ -n "$RCLONE_CONFIG" ]; then
     rcfg="--config $RCLONE_CONFIG"

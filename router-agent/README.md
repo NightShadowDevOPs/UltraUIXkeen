@@ -138,7 +138,7 @@ Restore works with local archives from `/opt/zash-agent/var/backups` (created by
 
 
 The installer also creates `/opt/zash-agent/restore-cloud.sh` — it downloads the selected archive from `RCLONE_REMOTE:RCLONE_PATH` and then starts the usual restore flow.
-If `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale remote names, the agent now falls back to actual remotes discovered in `rclone.conf`, so cloud history and restore do not disappear just because the old names were removed from the config.
+If `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale remote names, the agent now falls back to actual remotes discovered in `rclone.conf` — not only for cloud history and restore, but also for new uploads triggered by `backup.sh` / cron.
 
 
 ## HTTPS publication for subscriptions
