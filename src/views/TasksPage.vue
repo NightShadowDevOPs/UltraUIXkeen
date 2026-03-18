@@ -47,9 +47,18 @@
             type="button"
             class="btn btn-sm btn-ghost"
             @click="refreshProvidersPanel(true)"
-            :disabled="providersPanelBusy || panelSslProbeLoading || !agentEnabled"
+            :disabled="providersPanelBusy || panelSslProbeLoading || providerSslCacheRefreshBusy || !agentEnabled"
           >
             {{ $t('refresh') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            @click="refreshProviderSslCacheNow"
+            :disabled="providersPanelBusy || panelSslProbeLoading || providerSslCacheRefreshBusy || !agentEnabled"
+          >
+            <span v-if="providerSslCacheRefreshBusy" class="loading loading-spinner loading-xs"></span>
+            <span v-else>{{ $t('refreshProviderSslCache') }}</span>
           </button>
         </div>
       </div>
@@ -78,6 +87,7 @@
 			<div v-if="providersPanelError" class="text-xs text-error" :title="providersPanelError">{{ friendlyProviderPanelError(providersPanelError, 'providers') }}</div>
 			<div v-else>
 			  <div v-if="panelSslProbeError" class="mb-2 text-xs text-warning" :title="panelSslProbeError">{{ friendlyProviderPanelError(panelSslProbeError, 'ssl') }}</div>
+			  <div v-if="providerSslCacheStatusText" class="mb-2 text-xs" :class="providerSslCacheStatusClass" :title="$t('providerSslRefreshingTip')">{{ providerSslCacheStatusText }}</div>
 			  <div v-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
 			  <div v-else>
 				<div class="mt-1 text-[11px] opacity-60">
@@ -1338,7 +1348,7 @@ import { FLAG_CODES } from '@/helper/flagIcons'
 import { activeBackend } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
-import { panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl } from '@/store/providerHealth'
+import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProvidersSslRefreshing, fetchAgentProviders, panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl, refreshAgentProviderSslCache } from '@/store/providerHealth'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
@@ -1551,6 +1561,14 @@ const clearProviderSslWarnOverride = (name: string) => {
 const sslPanelInfo = (name: string, v: any, fromPanel: boolean) => {
   const d = parseDateMaybe(v)
   if (!d) {
+    const pending = agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value || !agentProvidersSslCacheReady.value
+    if (pending) {
+      return {
+        text: t('providerSslRefreshing'),
+        cls: 'text-info',
+        title: t('providerSslRefreshingTip'),
+      }
+    }
     return {
       text: '—',
       cls: '',
@@ -1783,9 +1801,51 @@ const loadProvidersPanel = async (force = false) => {
 const refreshProvidersPanel = async (force = false) => {
   await loadProvidersPanel(force)
   try {
+    await fetchAgentProviders(force)
+  } catch {
+    // ignore store refresh failure here
+  }
+  try {
     await probePanelSsl(force)
   } catch {
     // Keep provider list visible even if SSL probing is unavailable.
+  }
+}
+
+const providerSslCacheRefreshBusy = ref(false)
+const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms))
+
+const providerSslCacheStatusText = computed(() => {
+  if (agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value) return t('providerSslRefreshing')
+  if (!agentProvidersSslCacheReady.value && providersPanelRenderList.value.length > 0) return t('providerSslPending')
+  return ''
+})
+
+const providerSslCacheStatusClass = computed(() => {
+  if (agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value) return 'text-info'
+  if (!agentProvidersSslCacheReady.value && providersPanelRenderList.value.length > 0) return 'text-warning'
+  return 'text-base-content/60'
+})
+
+const refreshProviderSslCacheNow = async () => {
+  if (!agentEnabled.value || providerSslCacheRefreshBusy.value) return
+  providerSslCacheRefreshBusy.value = true
+  try {
+    const res: any = await refreshAgentProviderSslCache()
+    if (!res?.ok) {
+      showNotification({ content: res?.error || 'operationFailed', type: 'alert-error', timeout: 2200 })
+      return
+    }
+    for (let i = 0; i < 6; i += 1) {
+      await refreshProvidersPanel(true)
+      if (agentProvidersSslCacheReady.value && !agentProvidersSslRefreshing.value && !agentProvidersSslRefreshPending.value) break
+      await sleep(900)
+    }
+    showNotification({ content: 'refreshProviderSslCache', type: 'alert-success', timeout: 1600 })
+  } catch (e: any) {
+    showNotification({ content: e?.message || 'operationFailed', type: 'alert-error', timeout: 2200 })
+  } finally {
+    providerSslCacheRefreshBusy.value = false
   }
 }
 

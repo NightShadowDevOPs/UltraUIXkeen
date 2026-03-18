@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.63"
+AGENT_VERSION="0.5.64"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -336,14 +336,32 @@ ssl_cache_fields_for_provider() {
   awk -F'\t' -v n="$name" 'tolower($1)==tolower(n){printf "%s\t%s", $2, $3; exit}' "$SSL_CACHE_FILE" 2>/dev/null
 }
 
-ssl_cache_is_fresh() {
-  [ -f "$SSL_CACHE_TS_FILE" ] || return 1
+ssl_cache_age_secs() {
+  [ -f "$SSL_CACHE_TS_FILE" ] || { echo -1; return 0; }
   now="$(date +%s 2>/dev/null || echo 0)"
   ts="$(cat "$SSL_CACHE_TS_FILE" 2>/dev/null || echo 0)"
+  echo "$ts" | grep -qE '^[0-9]+$' || { echo -1; return 0; }
+  [ "$now" -gt 0 ] || { echo -1; return 0; }
+  echo $((now-ts))
+}
+
+ssl_cache_is_fresh() {
+  age="$(ssl_cache_age_secs)"
   ttl="$(ssl_cache_ttl_secs)"
-  echo "$ts" | grep -qE '^[0-9]+$' || return 1
-  [ "$now" -gt 0 ] || return 1
-  [ $((now-ts)) -lt "$ttl" ]
+  echo "$age" | grep -qE '^-?[0-9]+$' || return 1
+  [ "$age" -ge 0 ] || return 1
+  [ "$age" -lt "$ttl" ]
+}
+
+ssl_cache_lock_is_active() {
+  [ -f "$SSL_CACHE_LOCK_FILE" ] || return 1
+  oldpid="$(cat "$SSL_CACHE_LOCK_FILE" 2>/dev/null || echo '')"
+  echo "$oldpid" | grep -qE '^[0-9]+$' || return 1
+  kill -0 "$oldpid" 2>/dev/null
+}
+
+ssl_cache_ready() {
+  [ -s "$SSL_CACHE_FILE" ]
 }
 
 ssl_cache_refresh_sync() {
@@ -424,19 +442,31 @@ ssl_cache_refresh_async() {
   panel_map="$2"
   mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
 
-  if [ -f "$SSL_CACHE_LOCK_FILE" ]; then
-    oldpid="$(cat "$SSL_CACHE_LOCK_FILE" 2>/dev/null || echo '')"
-    if echo "$oldpid" | grep -qE '^[0-9]+$' && kill -0 "$oldpid" 2>/dev/null; then
-      return 0
-    fi
-    rm -f "$SSL_CACHE_LOCK_FILE" 2>/dev/null || true
+  if ssl_cache_lock_is_active; then
+    return 0
   fi
+  rm -f "$SSL_CACHE_LOCK_FILE" 2>/dev/null || true
 
   (
     echo $$ > "$SSL_CACHE_LOCK_FILE"
     ssl_cache_refresh_sync "$provider_lines" "$panel_map"
     rm -f "$SSL_CACHE_LOCK_FILE" 2>/dev/null || true
   ) >/dev/null 2>&1 &
+}
+
+ssl_cache_refresh_json() {
+  provider_lines="$(list_proxy_provider_lines)"
+  panel_map="$(users_db_panel_urls_lines)"
+  if [ -z "$provider_lines" ]; then
+    reply_ok '{"ok":false,"error":"no-providers"}'
+    return
+  fi
+
+  rm -f "$SSL_CACHE_FILE" "$SSL_CACHE_TS_FILE" 2>/dev/null || true
+  ssl_cache_refresh_async "$provider_lines" "$panel_map"
+
+  checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
+  reply_ok "{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"ready\":false,\"fresh\":false,\"refreshing\":true,\"cacheAgeSec\":-1}"
 }
 
 list_proxy_provider_lines() {
@@ -775,13 +805,32 @@ mihomo_providers_json() {
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
   panel_map="$(users_db_panel_urls_lines)"
   provider_lines="$(list_proxy_provider_lines)"
-  tab="$(printf '\t' 2>/dev/null || echo ' ')"
-
+  tab="$(printf '	' 2>/dev/null || echo ' ')"
+  refresh_pending=0
   if [ -n "$provider_lines" ] && ! ssl_cache_is_fresh; then
+    refresh_pending=1
     ssl_cache_refresh_async "$provider_lines" "$panel_map"
   fi
 
-  out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"providers\":["
+  cache_ready=false
+  ssl_cache_ready && cache_ready=true
+  cache_fresh=false
+  ssl_cache_is_fresh && cache_fresh=true
+  cache_age_sec="$(ssl_cache_age_secs)"
+  echo "$cache_age_sec" | grep -qE '^-?[0-9]+$' || cache_age_sec=-1
+  refreshing=false
+  if ssl_cache_lock_is_active; then
+    refreshing=true
+  fi
+  if [ "$refresh_pending" = "1" ]; then
+    refreshing=true
+  fi
+  refresh_pending_json=false
+  if [ "$refresh_pending" = "1" ]; then
+    refresh_pending_json=true
+  fi
+
+  out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"sslCacheReady\":${cache_ready},\"sslCacheFresh\":${cache_fresh},\"sslRefreshing\":${refreshing},\"sslRefreshPending\":${refresh_pending_json},\"sslCacheAgeSec\":${cache_age_sec},\"providers\":["
   first=1
 
   while IFS="$tab" read -r pname raw_url; do
@@ -3673,6 +3722,9 @@ case "$cmd" in
     ;;
   mihomo_providers)
     mihomo_providers_json
+    ;;
+  ssl_cache_refresh)
+    ssl_cache_refresh_json
     ;;
   ssl_probe_batch)
     ssl_probe_batch_json

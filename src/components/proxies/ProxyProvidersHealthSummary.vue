@@ -13,6 +13,9 @@ import {
   agentProvidersError,
   agentProvidersLoading,
   agentProvidersOk,
+  agentProvidersSslCacheReady,
+  agentProvidersSslRefreshPending,
+  agentProvidersSslRefreshing,
   fetchAgentProviders,
   providerHealthFilter,
   proxyProvidersSortMode,
@@ -22,12 +25,15 @@ import {
 } from '@/store/providerHealth'
 import dayjs from 'dayjs'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   compact?: boolean
 }>(), {
   compact: false,
 })
+
+const { t } = useI18n()
 
 const usedProxyNames = computed(() => {
   const set = new Set<string>()
@@ -246,6 +252,12 @@ const lastAgentUpdate = computed(() => {
 })
 
 const agentProvidersAvailable = computed(() => agentProvidersOk.value || (agentProviders.value?.length || 0) > 0)
+
+const providerSslRefreshingText = computed(() => {
+  if (agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value) return t('providerSslRefreshing')
+  if (!agentProvidersSslCacheReady.value && agentProvidersAvailable.value) return t('providerSslPending')
+  return ''
+})
 
 const setFilter = (v: string) => {
   providerHealthFilter.value = providerHealthFilter.value === v ? '' : v
@@ -497,6 +509,14 @@ const compactMetaWarningClass = computed(() => miniToolbar.value ? 'w-full text-
           :title="$t('lastCheck')"
         >
           {{ $t('updated') }} {{ lastAgentUpdate }}
+        </div>
+        <div
+          v-if="providerSslRefreshingText"
+          class="badge badge-info badge-outline"
+          :class="compactBadgeClass"
+          :title="$t('providerSslRefreshingTip')"
+        >
+          {{ providerSslRefreshingText }}
         </div>
         <div
           v-else-if="agentProvidersError"

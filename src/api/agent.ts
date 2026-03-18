@@ -491,12 +491,20 @@ export const agentMihomoConfigAPI = async (): Promise<{
 
 export const agentMihomoProvidersAPI = async (force = false): Promise<{
   ok: boolean
+  checkedAtSec?: number
+  sslCacheReady?: boolean
+  sslCacheFresh?: boolean
+  sslRefreshing?: boolean
+  sslRefreshPending?: boolean
+  sslCacheAgeSec?: number
   providers?: Array<{
     name: string
     url?: string
     host?: string
     port?: string
     sslNotAfter?: string
+    panelUrl?: string
+    panelSslNotAfter?: string
   }>
   error?: string
 }> => {
@@ -505,7 +513,7 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
 
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'mihomo_providers' },
+      params: { cmd: 'mihomo_providers', force: force ? '1' : '0' },
       timeout: 15000,
     })
     _mihomoProvidersCache = (data || {}) as any
@@ -518,6 +526,28 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
     const res = { ok: false, error: e?.message || 'offline' }
     _mihomoProvidersAt = now
     return res as any
+  }
+}
+
+
+
+export const agentProviderSslCacheRefreshAPI = async (): Promise<{
+  ok: boolean
+  checkedAtSec?: number
+  ready?: boolean
+  fresh?: boolean
+  refreshing?: boolean
+  cacheAgeSec?: number
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'ssl_cache_refresh' },
+      timeout: 10000,
+    })
+    return (data || { ok: false }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
   }
 }
 

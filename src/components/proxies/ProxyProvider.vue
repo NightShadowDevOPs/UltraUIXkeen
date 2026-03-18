@@ -372,6 +372,8 @@ import { getProviderHealth } from '@/helper/providerHealth'
 import {
   agentProviderByName,
   agentProvidersAt,
+  agentProvidersSslRefreshPending,
+  agentProvidersSslRefreshing,
   fetchAgentProviders,
   panelSslCheckedAt,
   panelSslNotAfterByName,
@@ -485,7 +487,7 @@ const sslWarnDays = computed(() => {
 
 const providerHealth = computed(() => {
   const ap = agentProviderByName.value[props.name]
-  return getProviderHealth(proxyProvider.value as any, ap, { nearExpiryDays: sslWarnDays.value })
+  return getProviderHealth(proxyProvider.value as any, ap, { nearExpiryDays: sslWarnDays.value, sslRefreshing: agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value })
 })
 
 const activeConnectionTargets = computed(() => {
@@ -746,10 +748,23 @@ const sslExpireInfo = computed(() => {
 
   const d = parseDateMaybe(raw2)
   if (!d) {
-    const tip = checked
-      ? `SSL: not available (non-https or not retrieved) • Checked: ${checked}`
-      : 'SSL: not available (non-https or not retrieved)'
-    return { dateTime: '—', days: Number.NaN, cls: 'text-base-content/60', label: '—', tip }
+    const hasHttpsSource = [panelUrl.value, agentP?.panelUrl, agentP?.url]
+      .map((x) => String(x || '').trim().toLowerCase())
+      .some((x) => x.startsWith('https://') || x.startsWith('wss://'))
+    const sslRefreshing = hasHttpsSource && (agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value)
+    const tip = sslRefreshing
+      ? t('providerSslRefreshingTip') + (checked ? ` • ${t('checkedAt')}: ${checked}` : '')
+      : checked
+        ? `SSL: not available (non-https or not retrieved) • Checked: ${checked}`
+        : 'SSL: not available (non-https or not retrieved)'
+    return {
+      dateTime: '—',
+      days: Number.NaN,
+      cls: sslRefreshing ? 'text-info' : 'text-base-content/60',
+      label: sslRefreshing ? t('providerSslRefreshing') : '—',
+      tip,
+      isRefreshing: sslRefreshing,
+    }
   }
 
   const days = d.diff(dayjs(), 'day')
@@ -783,6 +798,9 @@ const sslExpireBadge = computed(() => {
   if (!info) return null
 
   if (!Number.isFinite(info.days)) {
+    if ((info as any)?.isRefreshing) {
+      return { badgeCls: 'badge-info badge-outline', text: t('providerSslRefreshing'), tip: info.tip }
+    }
     return { badgeCls: 'badge-ghost', text: 'SSL —', tip: info.tip }
   }
 

@@ -1,4 +1,4 @@
-import { agentMihomoProvidersAPI, agentSslProbeBatchAPI } from '@/api/agent'
+import { agentMihomoProvidersAPI, agentProviderSslCacheRefreshAPI, agentSslProbeBatchAPI } from '@/api/agent'
 import { normalizeProxyProtoKey } from '@/helper/proxyProto'
 import { useStorage } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
@@ -51,6 +51,11 @@ export const agentProvidersOk = ref(false)
 export const agentProvidersError = ref<string | null>(null)
 export const agentProvidersAt = ref<number>(0)
 export const agentProviders = ref<any[]>([])
+export const agentProvidersSslCacheReady = ref(false)
+export const agentProvidersSslCacheFresh = ref(false)
+export const agentProvidersSslRefreshing = ref(false)
+export const agentProvidersSslRefreshPending = ref(false)
+export const agentProvidersSslCacheAgeSec = ref<number>(-1)
 
 // SSL probe results for provider management panel URLs (name -> notAfter string).
 export const panelSslNotAfterByName = ref<Record<string, string>>({})
@@ -71,6 +76,11 @@ export const fetchAgentProviders = async (force = false) => {
     agentProvidersOk.value = false
     agentProvidersError.value = null
     agentProviders.value = []
+    agentProvidersSslCacheReady.value = false
+    agentProvidersSslCacheFresh.value = false
+    agentProvidersSslRefreshing.value = false
+    agentProvidersSslRefreshPending.value = false
+    agentProvidersSslCacheAgeSec.value = -1
     agentProvidersAt.value = Date.now()
     return
   }
@@ -85,10 +95,31 @@ export const fetchAgentProviders = async (force = false) => {
     agentProvidersOk.value = !!res?.ok || hasProviders
     agentProvidersError.value = res?.ok || hasProviders ? null : res?.error || 'offline'
     agentProviders.value = hasProviders ? providers : (agentProviders.value || [])
-    agentProvidersAt.value = Date.now()
+    agentProvidersSslCacheReady.value = Boolean((res as any)?.sslCacheReady)
+    agentProvidersSslCacheFresh.value = Boolean((res as any)?.sslCacheFresh)
+    agentProvidersSslRefreshing.value = Boolean((res as any)?.sslRefreshing)
+    agentProvidersSslRefreshPending.value = Boolean((res as any)?.sslRefreshPending)
+    const ageSec = Number((res as any)?.sslCacheAgeSec)
+    agentProvidersSslCacheAgeSec.value = Number.isFinite(ageSec) ? ageSec : -1
+    agentProvidersAt.value = typeof (res as any)?.checkedAtSec === 'number' && (res as any).checkedAtSec > 0 ? (res as any).checkedAtSec * 1000 : Date.now()
   } finally {
     agentProvidersLoading.value = false
   }
+}
+
+export const refreshAgentProviderSslCache = async () => {
+  if (!agentEnabled.value) return { ok: false, error: 'agent-disabled' }
+  const res: any = await agentProviderSslCacheRefreshAPI()
+  if (res?.ok) {
+    agentProvidersSslCacheReady.value = Boolean(res?.ready)
+    agentProvidersSslCacheFresh.value = Boolean(res?.fresh)
+    agentProvidersSslRefreshing.value = Boolean(res?.refreshing ?? true)
+    agentProvidersSslRefreshPending.value = true
+    const ageSec = Number(res?.cacheAgeSec)
+    agentProvidersSslCacheAgeSec.value = Number.isFinite(ageSec) ? ageSec : -1
+    agentProvidersAt.value = typeof res?.checkedAtSec === 'number' && res.checkedAtSec > 0 ? res.checkedAtSec * 1000 : Date.now()
+  }
+  return res
 }
 
 const buildProbeLines = (): string => {

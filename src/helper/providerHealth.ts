@@ -20,6 +20,8 @@ export type ProviderHealth = {
 export type ProviderHealthOpts = {
   /** SSL "near expiry" threshold in days. Default: 14 (UI may override). */
   nearExpiryDays?: number
+  /** When router-agent is rebuilding SSL cache, do not mark missing SSL as degraded yet. */
+  sslRefreshing?: boolean
 }
 
 const getAnyFromObj = (obj: any, candidates: string[]): any => {
@@ -136,7 +138,7 @@ export const getProviderHealth = (provider: any, agentProvider?: any, opts?: Pro
   const offline = (ageMin !== null && ageMin >= 360) || (proxiesLen !== null && proxiesLen === 0) // 6h or empty
   const degraded =
     (ageMin !== null && ageMin >= 90) ||
-    (isHttpsUrl(agentProvider?.url) && !ssl) // https but no cert info
+    (isHttpsUrl(agentProvider?.url) && !ssl && !opts?.sslRefreshing) // https but no cert info
 
   // priority per request: expired -> nearExpiry -> offline -> degraded -> healthy
   if (sslDays !== null && sslDays < 0) {
