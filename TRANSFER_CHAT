@@ -3,13 +3,13 @@
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
 Репозиторий: messireL/ZashUIFork
 Линейка версий: 1.1.x
-Текущая версия архива: v1.1.135
+Текущая версия архива: v1.1.136
 router-agent: 0.5.66
 
 Последний фикс в этом релизе:
-- добавлена отдельная вкладка `Подписки` / `Subscriptions` для агрегированных клиентских ссылок; она умеет собирать bundle из всех, доступных или вручную выбранных proxy-providers и показывать URL + QR-коды
-- `router-agent` получил endpoint `cmd=subscription` с форматами `mihomo`, `b64` и `plain`: для Mihomo/Clash генерируется YAML с `Manual / Auto / Failover / Balance`, а для V2Ray/Xray-клиентов — склеенная подписка из provider URL
-- исправлен парсинг `proxy-providers` на стороне `router-agent`: refresh SSL-кэша и список `mihomo_providers` теперь используют более надёжный разбор `config.yaml`, чтобы не валиться в `No providers`; добавлен отдельный файл `docs/aggregated-subscriptions.md`
+- исправлен UI новой вкладки `Подписки`: badge `Mihomo / Clash` и `V2Ray / Xray` больше не сжимаются и не переносятся в две строки на узких карточках
+- в текстах вкладки явно указано, что список для bundle содержит только `proxy-providers` из `config.yaml` — источники серверов/подписок, а не группы, правила или локальные узлы
+- обновлены `TRANSFER_CHAT` и `docs/chat-transfer.md`
 
 Ключевые особенности:
 - отдельные пункты меню: Прокси, Прокси-провайдеры и Подписки

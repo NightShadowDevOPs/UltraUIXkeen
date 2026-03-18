@@ -38,6 +38,7 @@
           <span class="badge badge-neutral badge-outline">{{ $t('subscriptionsProvidersTotal') }}: {{ providers.length }}</span>
           <button class="btn btn-ghost btn-xs" @click="refreshProviders">{{ $t('refresh') }}</button>
         </div>
+        <div class="mt-2 text-xs text-base-content/60">{{ $t('subscriptionsProvidersHint') }}</div>
 
         <div v-if="selectionMode === 'custom'" class="mt-4 rounded-2xl border border-base-300 bg-base-200/40 p-3">
           <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -67,12 +68,12 @@
 
       <div class="grid gap-4 xl:grid-cols-2">
         <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
-          <div class="mb-4 flex items-start justify-between gap-3">
-            <div>
+          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0 flex-1">
               <h3 class="text-lg font-semibold">{{ $t('subscriptionsMihomoTitle') }}</h3>
               <p class="mt-1 text-sm text-base-content/70">{{ $t('subscriptionsMihomoDesc') }}</p>
             </div>
-            <span class="badge badge-primary badge-outline">Mihomo / Clash</span>
+            <span class="badge badge-primary badge-outline self-start whitespace-nowrap shrink-0">Mihomo / Clash</span>
           </div>
 
           <div class="space-y-3">
@@ -107,12 +108,12 @@
         </section>
 
         <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
-          <div class="mb-4 flex items-start justify-between gap-3">
-            <div>
+          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0 flex-1">
               <h3 class="text-lg font-semibold">{{ $t('subscriptionsUniversalTitle') }}</h3>
               <p class="mt-1 text-sm text-base-content/70">{{ $t('subscriptionsUniversalDesc') }}</p>
             </div>
-            <span class="badge badge-secondary badge-outline">V2Ray / Xray</span>
+            <span class="badge badge-secondary badge-outline self-start whitespace-nowrap shrink-0">V2Ray / Xray</span>
           </div>
 
           <div class="space-y-3">
