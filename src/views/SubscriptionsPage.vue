@@ -131,7 +131,7 @@
             <p class="text-sm text-base-content/70">{{ $t('subscriptionsHttpsDesc') }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <span class="badge" :class="publishedHttpsReady ? 'badge-success badge-outline' : 'badge-info badge-outline'">
+            <span class="badge gap-1" :class="publishedHttpsReady ? 'badge-success badge-outline' : 'badge-neutral badge-outline'">
               {{ publishedHttpsReady ? $t('subscriptionsHttpsReady') : $t('subscriptionsHttpsLocalMode') }}
             </span>
             <span v-if="publishedBaseUrlNormalized && !publishedBaseUrlLooksHttps" class="badge badge-warning badge-outline">
@@ -144,7 +144,7 @@
           <p class="mt-2">{{ $t('subscriptionsHttpsHint2') }}</p>
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
-          <button class="btn btn-sm btn-ghost" @click="togglePublicationSettings">
+          <button class="btn btn-sm btn-outline" @click="togglePublicationSettings">
             {{ publicationSettingsOpen ? $t('subscriptionsHttpsAdvancedHide') : $t('subscriptionsHttpsAdvancedShow') }}
           </button>
           <button v-if="publishedBaseUrlNormalized" class="btn btn-sm" @click="copyText(publishedBaseUrlNormalized)">

@@ -150,7 +150,7 @@ For a normal router-only LAN setup you do **not** need this at all. Leave the pu
 Use a published HTTPS base only when you really put `router-agent` behind a normal HTTPS reverse proxy, tunnel, or separate external host. In the UI this now belongs to the advanced publication settings on the `Subscriptions` page:
 
 ```text
-Published HTTPS base (optional) = https://sub.example.com
+Configure external HTTPS -> Published HTTPS base (optional) = https://sub.example.com
 ```
 
 When this base is set, the UI prefers it for:
