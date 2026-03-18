@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.66"
+AGENT_VERSION="0.5.67"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -160,6 +160,27 @@ reply_text() {
   echo "Cache-Control: no-store"
   if [ -n "$fname" ]; then
     echo "Content-Disposition: inline; filename=\"$fname\""
+  fi
+  echo
+  cat
+}
+
+reply_text_with_headers() {
+  ctype="$1"
+  fname="$2"
+  extra_headers="$3"
+  [ -n "$ctype" ] || ctype='text/plain; charset=utf-8'
+  echo "Content-Type: $ctype"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  if [ -n "$fname" ]; then
+    echo "Content-Disposition: inline; filename=\"$fname\""
+  fi
+  if [ -n "$extra_headers" ]; then
+    printf '%s\n' "$extra_headers"
   fi
   echo
   cat
@@ -461,6 +482,14 @@ __PROVIDER_LINES__
   rm -f "$tmp" 2>/dev/null || true
 }
 
+subscription_v2raytun_headers() {
+  title="$1"
+  [ -n "$title" ] || title='Zash Aggregated'
+  printf 'profile-title: %s\n' "$title"
+  printf 'profile-update-interval: 6\n'
+  printf 'update-always: true\n'
+}
+
 yaml_sq() {
   printf '%s' "$1" | sed "s/'/''/g"
 }
@@ -557,6 +586,10 @@ subscriptions_export_text() {
       ;;
     plain)
       subscription_links_merged_text "$provider_lines" | reply_text 'text/plain; charset=utf-8' 'zash-aggregated-subscription.txt'
+      ;;
+    v2raytun)
+      extra_headers="$(subscription_v2raytun_headers "$title")"
+      subscription_links_merged_text "$provider_lines" | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
       ;;
     b64|base64|'')
       subscription_links_merged_text "$provider_lines" | b64enc | reply_text 'text/plain; charset=utf-8' 'zash-aggregated-subscription.txt'

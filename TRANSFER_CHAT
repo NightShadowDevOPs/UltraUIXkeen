@@ -3,8 +3,8 @@
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
 Репозиторий: messireL/ZashUIFork
 Линейка версий: 1.1.x
-Текущая версия архива: v1.1.141
-router-agent: 0.5.66
+Текущая версия архива: v1.1.142
+router-agent: 0.5.67
 
 Последний фикс в этом релизе:
 - на вкладке `Подписки` кнопка `CopyLink` теперь копирует ссылку с fallback через `execCommand('copy')`, поэтому работает и там, где `navigator.clipboard` недоступен или капризничает
@@ -95,3 +95,4 @@ router-agent: 0.5.66
 
 - UI v1.1.139 / agent 0.5.66: вкладка `Подписки` получила составные карточки `proxy-provider` с мини-сводкой по составу узлов — top protocols и top countries; добавлены быстрые фильтры инвентаря `Есть протокол` / `Есть страна` / `Только доступные`, чтобы собирать bundle уже не вслепую, а по фактическому наполнению провайдеров, при этом сами фильтры только помогают отобрать источники и не переписывают bundle автоматически.
 - UI v1.1.141 / agent 0.5.66: на вкладке `Подписки` исправлены две реальные занозы: кнопка `CopyLink` теперь копирует ссылку не только через `navigator.clipboard`, но и через fallback `execCommand('copy')` для небезопасных/капризных браузерных окружений; кроме того, deeplink-импорт для клиентов поправлен на более безопасное кодирование subscription URL, а схема Hiddify переведена с устаревшего `install-sub` на актуальный `hiddify://import/<sublink>#name`, чтобы импорт подписок не падал из-за криво собранной ссылки.
+- UI v1.1.142 / agent 0.5.67: для V2RayTun убран спорный `import-sub?url=`-deeplink и введён отдельный формат подписки `format=v2raytun` с поддерживаемыми HTTP headers (`profile-title`, `profile-update-interval`, `update-always`); кнопка `V2RayTun` и QR теперь используют официальный deep-link `v2raytun://import/{subscription_link}`, а буфер обмена остаётся обычным subscription URL, чтобы импорт работал и через deep-link, и через Import from Clipboard.

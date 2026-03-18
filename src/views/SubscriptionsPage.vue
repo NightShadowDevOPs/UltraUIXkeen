@@ -446,7 +446,7 @@ const agentReady = computed(() => !!agentBase.value)
 const safeBundleName = computed(() => String(bundleName.value || '').trim() || 'Zash Aggregated')
 const noProvidersSelected = computed(() => selectionMode.value === 'custom' && selectedProviderNames.value.length === 0)
 
-const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain') => {
+const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain' | 'v2raytun') => {
   if (!agentBase.value || noProvidersSelected.value) return ''
   const params = new URLSearchParams({
     cmd: 'subscription',
@@ -463,14 +463,13 @@ const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain') => {
 
 const mihomoUrl = computed(() => buildSubscriptionUrl('mihomo'))
 const universalUrl = computed(() => buildSubscriptionUrl('b64'))
-const v2rayTunImportUrl = computed(() => buildSubscriptionUrl('plain'))
+const v2rayTunImportUrl = computed(() => buildSubscriptionUrl('v2raytun'))
 const encodedMihomoUrl = computed(() => (mihomoUrl.value ? encodeURIComponent(mihomoUrl.value) : ''))
 const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
 const encodedUniversalUrl = computed(() => (universalUrl.value ? encodeURIComponent(universalUrl.value) : ''))
-const encodedV2rayTunImportUrl = computed(() => (v2rayTunImportUrl.value ? encodeURIComponent(v2rayTunImportUrl.value) : ''))
 const encodedBundleName = computed(() => encodeURIComponent(safeBundleName.value))
 
-const v2rayTunDeepLink = computed(() => (encodedV2rayTunImportUrl.value ? `v2raytun://import-sub?url=${encodedV2rayTunImportUrl.value}` : ''))
+const v2rayTunDeepLink = computed(() => (v2rayTunImportUrl.value ? `v2raytun://import/${v2rayTunImportUrl.value}` : ''))
 const v2rayNgDeepLink = computed(() => (
   encodedUniversalUrl.value
     ? `v2rayng://install-config?url=${encodedUniversalUrl.value}&name=${encodedBundleName.value}`
@@ -486,7 +485,7 @@ const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepL
 const universalQrText = computed(() => {
   switch (universalQrMode.value) {
     case 'v2raytun':
-      return v2rayTunImportUrl.value
+      return v2rayTunDeepLink.value
     case 'v2rayng':
       return v2rayNgDeepLink.value
     case 'hiddify':
