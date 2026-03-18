@@ -497,6 +497,7 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
   sslRefreshing?: boolean
   sslRefreshPending?: boolean
   sslCacheAgeSec?: number
+  sslCacheNextRefreshAtSec?: number
   providers?: Array<{
     name: string
     url?: string
@@ -538,6 +539,7 @@ export const agentProviderSslCacheRefreshAPI = async (): Promise<{
   fresh?: boolean
   refreshing?: boolean
   cacheAgeSec?: number
+  nextRefreshAtSec?: number
   error?: string
 }> => {
   try {

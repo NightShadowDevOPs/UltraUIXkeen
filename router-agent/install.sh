@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.64"
+AGENT_VERSION="0.5.65"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -68,6 +68,9 @@ RCLONE_REMOTES=""  # comma/space separated remotes, e.g. gdrive-crypt,yandex-cry
 RCLONE_PATH="NetcrazeBackups/zash-agent"
 RCLONE_KEEP_DAYS="30"
 
+# Provider SSL cache auto-refresh interval in seconds (default: 6h)
+SSL_CACHE_AUTO_REFRESH_SECS="21600"
+
 # Live host traffic state (keep in /tmp to avoid flash writes on every poll)
 HOST_TRAFFIC_STATE_FILE="/tmp/zash-host-traffic.prev.tsv"
 HOST_TRAFFIC_TS_FILE="/tmp/zash-host-traffic.prev.ts"
@@ -118,6 +121,7 @@ HOST_TRAFFIC_TS_FILE="${HOST_TRAFFIC_TS_FILE:-/tmp/zash-host-traffic.prev.ts}"
 UI_ZIP_URL="${UI_ZIP_URL:-}"
 SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.tsv}"
 SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
+SSL_CACHE_AUTO_REFRESH_SECS="${SSL_CACHE_AUTO_REFRESH_SECS:-21600}"
 SSL_CACHE_LOCK_FILE="${SSL_CACHE_LOCK_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.lock}"
 
 json() {
@@ -326,7 +330,20 @@ panel_url_for_provider() {
 }
 
 ssl_cache_ttl_secs() {
-  echo 1800
+  ttl="${SSL_CACHE_AUTO_REFRESH_SECS:-21600}"
+  echo "$ttl" | grep -qE '^[0-9]+$' || ttl=21600
+  [ "$ttl" -gt 0 ] || ttl=21600
+  echo "$ttl"
+}
+
+ssl_cache_next_refresh_at_sec() {
+  [ -f "$SSL_CACHE_TS_FILE" ] || { echo -1; return 0; }
+  ts="$(cat "$SSL_CACHE_TS_FILE" 2>/dev/null || echo 0)"
+  ttl="$(ssl_cache_ttl_secs)"
+  echo "$ts" | grep -qE '^[0-9]+$' || { echo -1; return 0; }
+  echo "$ttl" | grep -qE '^[0-9]+$' || ttl=21600
+  [ "$ts" -gt 0 ] || { echo -1; return 0; }
+  echo $((ts + ttl))
 }
 
 ssl_cache_fields_for_provider() {
@@ -367,7 +384,7 @@ ssl_cache_ready() {
 ssl_cache_refresh_sync() {
   provider_lines="$1"
   panel_map="$2"
-  tab="$(printf '\t' 2>/dev/null || echo ' ')"
+  tab="$(printf '	' 2>/dev/null || echo ' ')"
   tmp="${SSL_CACHE_FILE}.tmp.$$"
   mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
   : > "$tmp"
@@ -378,6 +395,15 @@ ssl_cache_refresh_sync() {
     url="$(printf '%s' "$raw_url" | sed -E "s/^[\"']?//; s/[\"']?$//")"
     not_after=""
     panel_na=""
+    old_fields="$(ssl_cache_fields_for_provider "$pname")"
+    old_not_after=""
+    old_panel_na=""
+    if [ -n "$old_fields" ]; then
+      old_not_after="${old_fields%%$tab*}"
+      if [ "$old_fields" != "$old_not_after" ]; then
+        old_panel_na="${old_fields#*$tab}"
+      fi
+    fi
 
     if [ -n "$url" ]; then
       scheme="${url%%://*}"
@@ -402,6 +428,7 @@ ssl_cache_refresh_sync() {
         not_after="$(ssl_not_after "$host" "$port")"
       fi
     fi
+    [ -n "$not_after" ] || not_after="$old_not_after"
 
     panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
     if [ -n "$panel_url" ]; then
@@ -427,8 +454,9 @@ ssl_cache_refresh_sync() {
         panel_na="$(ssl_not_after "$p_host" "$p_port")"
       fi
     fi
+    [ -n "$panel_na" ] || panel_na="$old_panel_na"
 
-    printf '%s\t%s\t%s\n' "$pname" "$not_after" "$panel_na" >> "$tmp"
+    printf '%s	%s	%s\n' "$pname" "$not_after" "$panel_na" >> "$tmp"
   done <<__SSL_CACHE_LINES__
 $provider_lines
 __SSL_CACHE_LINES__
@@ -462,259 +490,18 @@ ssl_cache_refresh_json() {
     return
   fi
 
-  rm -f "$SSL_CACHE_FILE" "$SSL_CACHE_TS_FILE" 2>/dev/null || true
   ssl_cache_refresh_async "$provider_lines" "$panel_map"
 
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
-  reply_ok "{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"ready\":false,\"fresh\":false,\"refreshing\":true,\"cacheAgeSec\":-1}"
-}
-
-list_proxy_provider_lines() {
-  [ -f "$MIHOMO_CONFIG" ] || return 0
-
-  awk '
-    function ltrim(s) { sub(/^[[:space:]]+/, "", s); return s }
-    function rtrim(s) { sub(/[[:space:]]+$/, "", s); return s }
-    function trim(s)  { return rtrim(ltrim(s)) }
-    function emit() {
-      if (name != "") {
-        print name "	" url
-      }
-    }
-    BEGIN {
-      inside = 0
-      exiting = 0
-      name = ""
-      url = ""
-    }
-    {
-      line = $0
-
-      if (!inside) {
-        if (line ~ /^proxy-providers:[[:space:]]*$/) {
-          inside = 1
-        }
-        next
-      }
-
-      if (line ~ /^[^[:space:]#][^:]*:[[:space:]]*$/) {
-        emit()
-        exiting = 1
-        exit
-      }
-
-      if (line ~ /^[[:space:]]{2}[^#[:space:]][^:]*:[[:space:]]*$/) {
-        emit()
-        name = line
-        sub(/^[[:space:]]{2}/, "", name)
-        sub(/:[[:space:]]*$/, "", name)
-        name = trim(name)
-        url = ""
-        next
-      }
-
-      if (name != "" && line ~ /^[[:space:]]{4}url:[[:space:]]*/) {
-        url = line
-        sub(/^[[:space:]]{4}url:[[:space:]]*/, "", url)
-        url = trim(url)
-        next
-      }
-    }
-    END {
-      if (inside && !exiting) {
-        emit()
-      }
-    }
-  ' "$MIHOMO_CONFIG"
-}
-
-
-version_to_sort_key() {
-  old_ifs="$IFS"
-  IFS='.'
-  set -- $1
-  IFS="$old_ifs"
-  a="$1"; b="$2"; c="$3"; d="$4"
-  echo "$a" | grep -qE '^[0-9]+$' || a=0
-  echo "$b" | grep -qE '^[0-9]+$' || b=0
-  echo "$c" | grep -qE '^[0-9]+$' || c=0
-  echo "$d" | grep -qE '^[0-9]+$' || d=0
-  printf '%09d%09d%09d%09d' "$a" "$b" "$c" "$d"
-}
-
-version_cmp_sh() {
-  a="$(version_to_sort_key "$1")"
-  b="$(version_to_sort_key "$2")"
-  [ "$a" = "$b" ] && { echo 0; return 0; }
-  first="$(printf '%s
-%s
-' "$a" "$b" | sort | head -n1)"
-  if [ "$first" = "$a" ]; then
-    echo -1
-  else
-    echo 1
-  fi
-}
-
-remote_agent_version() {
-  # Best-effort: fetch current agent version from the upstream install script.
-  # Cached to avoid slowing down status calls.
-  cache_v="/opt/zash-agent/var/remote-agent-version.txt"
-  cache_t="/opt/zash-agent/var/remote-agent-version.ts"
-  ttl=21600 # 6 hours
-
-  now="$(date +%s 2>/dev/null || echo 0)"
-  if [ -f "$cache_v" ] && [ -f "$cache_t" ]; then
-    ts="$(cat "$cache_t" 2>/dev/null || echo 0)"
-    if echo "$ts" | grep -qE '^[0-9]+$' && [ "$now" -gt 0 ] && [ $((now-ts)) -lt "$ttl" ]; then
-      cat "$cache_v" 2>/dev/null || echo ""
-      return 0
-    fi
-  fi
-
-  url="https://raw.githubusercontent.com/messireL/ZashUIFork/main/router-agent/install.sh"
-  wb="/opt/bin/wget"
-  [ -x "$wb" ] || wb="wget"
-  v=""
-
-  fetch_cmd="$wb -qO- $url"
-  if command -v timeout >/dev/null 2>&1; then
-    raw="$(timeout 4 sh -c "$fetch_cmd" 2>/dev/null || true)"
-  else
-    raw="$(sh -c "$fetch_cmd" 2>/dev/null || true)"
-  fi
-
-  if [ -n "$raw" ]; then
-    v="$(printf '%s\n' "$raw" | sed -n 's/^AGENT_VERSION="\([0-9.][0-9.]*\)"$/\1/p' | head -n1)"
-    if [ -z "$v" ]; then
-      v="$(printf '%s\n' "$raw" | sed -n 's/.*latestVersion":"\([0-9.][0-9.]*\)".*/\1/p' | head -n1)"
-    fi
-    if [ -z "$v" ]; then
-      v="$(printf '%s\n' "$raw" | sed -n 's/.*version":"\([0-9.][0-9.]*\)".*/\1/p' | head -n1)"
-    fi
-  fi
-
-  if [ -n "$v" ]; then
-    mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
-    echo "$v" > "$cache_v" 2>/dev/null || true
-    echo "$now" > "$cache_t" 2>/dev/null || true
-    printf '%s' "$v"
-    return 0
-  fi
-
-  # fallback to cached value even if stale
-  [ -f "$cache_v" ] && cat "$cache_v" 2>/dev/null || echo ""
-  return 0
-}
-
-
-detect_router_firmware_text() {
-  firmware=""
-  if [ -r /etc/openwrt_release ]; then
-    firmware="$(grep '^DISTRIB_DESCRIPTION=' /etc/openwrt_release 2>/dev/null | head -n 1 | cut -d= -f2- | sed "s/^[\'\"]//; s/[\'\"]$//")"
-  fi
-  if [ -z "$firmware" ] && [ -r /etc/os-release ]; then
-    firmware="$(awk -F= '/^PRETTY_NAME=/{gsub(/^"|"$/,"",$2); print $2; exit}' /etc/os-release 2>/dev/null)"
-  fi
-  if [ -z "$firmware" ] && [ -r /etc/version ]; then
-    firmware="$(head -n 1 /etc/version 2>/dev/null | tr -d '\r')"
-  fi
-  printf '%s' "$firmware"
-}
-
-extract_semver3() {
-  printf '%s' "$1" | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1
-}
-
-semver_gt() {
-  awk -v A="$1" -v B="$2" '
-    function fill(v, arr,   t,n,i){n=split(v,t,"."); for(i=1;i<=3;i++) arr[i]=(i<=n?t[i]+0:0)}
-    BEGIN{fill(A,a); fill(B,b); for(i=1;i<=3;i++){if(a[i]>b[i]) exit 0; if(a[i]<b[i]) exit 1} exit 1}
-  '
-}
-
-firmware_check_url() {
-  if [ -n "$FIRMWARE_CHECK_URL" ]; then
-    printf '%s' "$FIRMWARE_CHECK_URL"
-    return 0
-  fi
-  printf '%s' 'https://support.netcraze.ru/ultra/nc-1812/ru/46907-latest-main-release.html'
-}
-
-firmware_check_cached_json() {
-  cache_json="/opt/zash-agent/var/firmware-check.json"
-  cache_ts="/opt/zash-agent/var/firmware-check.ts"
-  ttl=43200
-  force="$1"
-  now="$(date +%s 2>/dev/null || echo 0)"
-
-  if [ "$force" != "1" ] && [ -f "$cache_json" ] && [ -f "$cache_ts" ]; then
-    ts="$(cat "$cache_ts" 2>/dev/null || echo 0)"
-    if echo "$ts" | grep -qE '^[0-9]+$' && [ "$now" -gt 0 ] && [ $((now-ts)) -lt "$ttl" ]; then
-      cat "$cache_json" 2>/dev/null || true
-      return 0
-    fi
-  fi
-
-  current_text="$(detect_router_firmware_text)"
-  current_ver="$(extract_semver3 "$current_text")"
-  url="$(firmware_check_url)"
-  page=""
-  wb="/opt/bin/wget"
-  [ -x "$wb" ] || wb="wget"
-
-  if command -v timeout >/dev/null 2>&1; then
-    page="$(timeout 8 "$wb" -qO- "$url" 2>/dev/null || true)"
-  else
-    page="$("$wb" -qO- "$url" 2>/dev/null || true)"
-  fi
-  if [ -z "$page" ] && command -v curl >/dev/null 2>&1; then
-    page="$(curl -fsSL --max-time 8 "$url" 2>/dev/null || true)"
-  fi
-
-  latest_ver="$(printf '%s' "$page" | tr '\r\n' ' ' | grep -Eo 'NDMS[^0-9]*[0-9]+\.[0-9]+\.[0-9]+' | head -n1 | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')"
-
-  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
-  checked_at="$(date -Iseconds 2>/dev/null || date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo now)"
-
-  if [ -n "$latest_ver" ]; then
-    update=false
-    if [ -n "$current_ver" ] && semver_gt "$latest_ver" "$current_ver"; then
-      update=true
-    fi
-    json="$(printf '{"ok":true,"currentVersion":"%s","latestVersion":"%s","updateAvailable":%s,"checkedAt":"%s","sourceUrl":"%s","channel":"main","cached":false,"stale":false}' \
-      "$(jesc "$current_ver")" "$(jesc "$latest_ver")" "$(rclone_json_bool "$update")" "$(jesc "$checked_at")" "$(jesc "$url")")"
-    printf '%s' "$json" > "$cache_json" 2>/dev/null || true
-    echo "$now" > "$cache_ts" 2>/dev/null || true
-    printf '%s' "$json"
-    return 0
-  fi
-
-  if [ -f "$cache_json" ]; then
-    stale_json="$(cat "$cache_json" 2>/dev/null | sed 's/"stale":false/"stale":true/; s/"cached":false/"cached":true/')"
-    [ -n "$stale_json" ] && printf '%s' "$stale_json" && return 0
-  fi
-
-  printf '{"ok":false,"currentVersion":"%s","checkedAt":"%s","sourceUrl":"%s","channel":"main","error":"site-unavailable"}' \
-    "$(jesc "$current_ver")" "$(jesc "$checked_at")" "$(jesc "$url")"
-}
-
-firmware_check_json() {
-  force="$1"
-  reply_ok "$(firmware_check_cached_json "$force")"
-}
-
-read_iface_counter() {
-  iface="$1"
-  dir="$2"
-  file="/sys/class/net/$iface/statistics/${dir}_bytes"
-  if [ -r "$file" ]; then
-    value="$(cat "$file" 2>/dev/null | tr -d '\r\n ')"
-    echo "$value" | grep -qE '^[0-9]+$' || value=0
-    printf '%s' "$value"
-    return 0
-  fi
-  printf '0'
+  cache_ready=false
+  ssl_cache_ready && cache_ready=true
+  cache_fresh=false
+  ssl_cache_is_fresh && cache_fresh=true
+  cache_age_sec="$(ssl_cache_age_secs)"
+  echo "$cache_age_sec" | grep -qE '^-?[0-9]+$' || cache_age_sec=-1
+  next_refresh_at="$(ssl_cache_next_refresh_at_sec)"
+  echo "$next_refresh_at" | grep -qE '^-?[0-9]+$' || next_refresh_at=-1
+  reply_ok "{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"ready\":${cache_ready},\"fresh\":${cache_fresh},\"refreshing\":true,\"cacheAgeSec\":${cache_age_sec},\"nextRefreshAtSec\":${next_refresh_at}}"
 }
 
 traffic_iface_kind() {
@@ -818,6 +605,8 @@ mihomo_providers_json() {
   ssl_cache_is_fresh && cache_fresh=true
   cache_age_sec="$(ssl_cache_age_secs)"
   echo "$cache_age_sec" | grep -qE '^-?[0-9]+$' || cache_age_sec=-1
+  next_refresh_at="$(ssl_cache_next_refresh_at_sec)"
+  echo "$next_refresh_at" | grep -qE '^-?[0-9]+$' || next_refresh_at=-1
   refreshing=false
   if ssl_cache_lock_is_active; then
     refreshing=true
@@ -830,7 +619,7 @@ mihomo_providers_json() {
     refresh_pending_json=true
   fi
 
-  out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"sslCacheReady\":${cache_ready},\"sslCacheFresh\":${cache_fresh},\"sslRefreshing\":${refreshing},\"sslRefreshPending\":${refresh_pending_json},\"sslCacheAgeSec\":${cache_age_sec},\"providers\":["
+  out="{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"sslCacheReady\":${cache_ready},\"sslCacheFresh\":${cache_fresh},\"sslRefreshing\":${refreshing},\"sslRefreshPending\":${refresh_pending_json},\"sslCacheAgeSec\":${cache_age_sec},\"sslCacheNextRefreshAtSec\":${next_refresh_at},\"providers\":["
   first=1
 
   while IFS="$tab" read -r pname raw_url; do
@@ -4536,6 +4325,29 @@ EOF
 
 chmod +x "$AGENT_DIR/restore.sh"
 
+cat > "$AGENT_DIR/ssl-refresh.sh" <<'EOF'
+#!/bin/sh
+set -eu
+
+ENV_FILE="/opt/zash-agent/agent.env"
+[ -f "$ENV_FILE" ] && . "$ENV_FILE"
+
+PORT="${PORT:-9099}"
+BIND_IP="${BIND_IP:-127.0.0.1}"
+HOST="$BIND_IP"
+[ "$HOST" = "0.0.0.0" ] && HOST="127.0.0.1"
+
+WGET_BIN="$(command -v wget 2>/dev/null || true)"
+[ -n "$WGET_BIN" ] || WGET_BIN="/opt/bin/wget"
+URL="http://$HOST:$PORT/cgi-bin/api.sh?cmd=ssl_cache_refresh&keep=1&cron=1"
+
+"$WGET_BIN" -qO- "$URL" >/dev/null 2>&1 \
+  || busybox wget -qO- "$URL" >/dev/null 2>&1 \
+  || true
+EOF
+
+chmod +x "$AGENT_DIR/ssl-refresh.sh"
+
 cat > "$AGENT_DIR/start.sh" <<'EOF'
 #!/bin/sh
 set -e
@@ -4623,6 +4435,44 @@ esac
 EOF
 
 chmod +x /opt/etc/init.d/S99zash-agent
+
+# Install/refresh background SSL cache cron (every 6 hours by default).
+SSL_CRON_SCHEDULE="17 */6 * * *"
+if [ -f "$AGENT_DIR/agent.env" ]; then
+  custom_ssl_secs="$(sed -n 's/^SSL_CACHE_AUTO_REFRESH_SECS="\([0-9][0-9]*\)"$/\1/p' "$AGENT_DIR/agent.env" | head -n1)"
+  if [ -n "$custom_ssl_secs" ] && echo "$custom_ssl_secs" | grep -qE '^[0-9]+$' && [ "$custom_ssl_secs" -gt 0 ]; then
+    if [ $((custom_ssl_secs % 3600)) -eq 0 ]; then
+      every_hours=$((custom_ssl_secs / 3600))
+      [ "$every_hours" -lt 1 ] && every_hours=1
+      [ "$every_hours" -gt 24 ] && every_hours=24
+      SSL_CRON_SCHEDULE="17 */${every_hours} * * *"
+    fi
+  fi
+fi
+cron_tab=""
+for f in /opt/etc/crontabs/root /opt/var/spool/cron/crontabs/root /etc/crontabs/root /var/spool/cron/crontabs/root; do
+  d="$(dirname "$f")"
+  if [ -d "$d" ] || [ -f "$f" ]; then
+    cron_tab="$f"
+    break
+  fi
+done
+if [ -n "$cron_tab" ]; then
+  mkdir -p "$(dirname "$cron_tab")" >/dev/null 2>&1 || true
+  touch "$cron_tab" >/dev/null 2>&1 || true
+  tmp_cron="${cron_tab}.tmp.$$"
+  grep -v 'zash-ssl-cache-refresh' "$cron_tab" 2>/dev/null > "$tmp_cron" || true
+  printf '%s %s >/dev/null 2>&1 # zash-ssl-cache-refresh\n' "$SSL_CRON_SCHEDULE" "$AGENT_DIR/ssl-refresh.sh" >> "$tmp_cron"
+  mv "$tmp_cron" "$cron_tab"
+  if command -v crontab >/dev/null 2>&1; then
+    crontab "$cron_tab" >/dev/null 2>&1 || true
+  fi
+  for init in /opt/etc/init.d/S10cron /opt/etc/init.d/S10crond /etc/init.d/cron /etc/init.d/crond; do
+    [ -x "$init" ] || continue
+    "$init" restart >/dev/null 2>&1 || "$init" start >/dev/null 2>&1 || true
+    break
+  done
+fi
 
 echo "[zash-agent] installing: done"
 

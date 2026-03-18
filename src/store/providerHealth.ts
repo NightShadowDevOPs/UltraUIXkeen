@@ -56,6 +56,7 @@ export const agentProvidersSslCacheFresh = ref(false)
 export const agentProvidersSslRefreshing = ref(false)
 export const agentProvidersSslRefreshPending = ref(false)
 export const agentProvidersSslCacheAgeSec = ref<number>(-1)
+export const agentProvidersSslCacheNextRefreshAtMs = ref<number>(0)
 
 // SSL probe results for provider management panel URLs (name -> notAfter string).
 export const panelSslNotAfterByName = ref<Record<string, string>>({})
@@ -81,6 +82,7 @@ export const fetchAgentProviders = async (force = false) => {
     agentProvidersSslRefreshing.value = false
     agentProvidersSslRefreshPending.value = false
     agentProvidersSslCacheAgeSec.value = -1
+    agentProvidersSslCacheNextRefreshAtMs.value = 0
     agentProvidersAt.value = Date.now()
     return
   }
@@ -101,6 +103,8 @@ export const fetchAgentProviders = async (force = false) => {
     agentProvidersSslRefreshPending.value = Boolean((res as any)?.sslRefreshPending)
     const ageSec = Number((res as any)?.sslCacheAgeSec)
     agentProvidersSslCacheAgeSec.value = Number.isFinite(ageSec) ? ageSec : -1
+    const nextSec = Number((res as any)?.sslCacheNextRefreshAtSec)
+    agentProvidersSslCacheNextRefreshAtMs.value = Number.isFinite(nextSec) && nextSec > 0 ? nextSec * 1000 : 0
     agentProvidersAt.value = typeof (res as any)?.checkedAtSec === 'number' && (res as any).checkedAtSec > 0 ? (res as any).checkedAtSec * 1000 : Date.now()
   } finally {
     agentProvidersLoading.value = false
@@ -117,6 +121,8 @@ export const refreshAgentProviderSslCache = async () => {
     agentProvidersSslRefreshPending.value = true
     const ageSec = Number(res?.cacheAgeSec)
     agentProvidersSslCacheAgeSec.value = Number.isFinite(ageSec) ? ageSec : -1
+    const nextSec = Number(res?.nextRefreshAtSec)
+    agentProvidersSslCacheNextRefreshAtMs.value = Number.isFinite(nextSec) && nextSec > 0 ? nextSec * 1000 : 0
     agentProvidersAt.value = typeof res?.checkedAtSec === 'number' && res.checkedAtSec > 0 ? res.checkedAtSec * 1000 : Date.now()
   }
   return res

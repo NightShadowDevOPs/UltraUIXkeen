@@ -296,3 +296,46 @@ https://87.121.82.34:15905/...
 После очистки кэша UI временно показывает пусто.
 
 Это нормальный переходный этап, пока `router-agent` пересобирает SSL-кэш асинхронно.
+
+
+### Важно
+
+Начиная с `router-agent 0.5.65` ручной `ssl_cache_refresh` больше **не удаляет** текущий кэш перед обновлением. Старые значения остаются видимыми, пока новые даты тихо пересобираются в фоне.
+
+---
+
+## 14. Проверить фоновой refresh SSL-кэша и cron-задание
+
+Начиная с `router-agent 0.5.65` для SSL-кэша по умолчанию ставится фоновый refresh раз в **6 часов**. Проверить можно так:
+
+```bash
+echo '=== zash ssl cron ==='
+grep 'zash-ssl-cache-refresh' /opt/etc/crontabs/root /opt/var/spool/cron/crontabs/root /etc/crontabs/root /var/spool/cron/crontabs/root 2>/dev/null || echo 'cron entry not found'
+
+echo
+echo '=== next refresh hint from API ==='
+WGET_BIN="$(command -v wget || echo /opt/bin/wget)"
+"$WGET_BIN" -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_providers" | sed 's/},{/},\
+{/g'
+```
+
+Что смотреть:
+- наличие строки `zash-ssl-cache-refresh` в cron;
+- поле `sslCacheNextRefreshAtSec` в ответе `mihomo_providers`;
+- поле `nextRefreshAtSec` в ответе `ssl_cache_refresh`.
+
+---
+
+## 15. Если нужно прямо сейчас мягко обновить SSL-кэш без очистки
+
+```bash
+WGET_BIN="$(command -v wget || echo /opt/bin/wget)"
+"$WGET_BIN" -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ssl_cache_refresh"
+
+sleep 2
+
+"$WGET_BIN" -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_providers" | sed 's/},{/},\
+{/g'
+```
+
+Это запускает пересборку в фоне, но не делает UI пустым на время refresh.
