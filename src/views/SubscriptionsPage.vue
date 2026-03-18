@@ -189,6 +189,15 @@
           </div>
 
           <div class="space-y-3">
+            <div class="rounded-2xl border border-base-300 bg-base-200/40 p-3 text-xs text-base-content/75">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium text-base-content">{{ $t('subscriptionsCurrentSourceLabel') }}:</span>
+                <span class="badge badge-outline" :class="effectiveMihomoUsesPublished ? 'badge-success' : 'badge-neutral'">
+                  {{ effectiveMihomoUsesPublished ? $t('subscriptionsCurrentSourcePublished') : $t('subscriptionsCurrentSourceLocal') }}
+                </span>
+              </div>
+              <p class="mt-2 leading-5">{{ $t('subscriptionsCurrentSourceHint') }}</p>
+            </div>
             <label class="form-control">
               <div class="label py-1">
                 <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalLink') }}</span>
@@ -202,8 +211,8 @@
               <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedMihomoUrl" readonly />
             </label>
             <div class="flex flex-wrap gap-2">
+              <button class="btn btn-sm" :disabled="!effectiveMihomoUrl" @click="copyText(effectiveMihomoUrl)">{{ $t('subscriptionsCopyCurrentUrl') }}</button>
               <button class="btn btn-sm" :disabled="!mihomoUrl" @click="copyText(mihomoUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
-              <button class="btn btn-sm" :disabled="!effectiveMihomoUrl" @click="copyText(effectiveMihomoUrl)">{{ $t('subscriptionsCopyBestUrl') }}</button>
               <a class="btn btn-sm btn-primary" :class="!clashDeepLink && 'btn-disabled'" :href="clashDeepLink || undefined">{{ $t('subscriptionsOpenInClash') }}</a>
             </div>
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -236,6 +245,18 @@
           </div>
 
           <div class="space-y-3">
+            <div class="rounded-2xl border border-base-300 bg-base-200/40 p-3 text-xs text-base-content/75">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium text-base-content">{{ $t('subscriptionsCurrentSourceLabel') }}:</span>
+                <span class="badge badge-outline" :class="effectiveUniversalUsesPublished ? 'badge-success' : 'badge-neutral'">
+                  {{ effectiveUniversalUsesPublished ? $t('subscriptionsCurrentSourcePublished') : $t('subscriptionsCurrentSourceLocal') }}
+                </span>
+                <span class="badge badge-outline" :class="effectiveJsonUsesPublished ? 'badge-success' : 'badge-neutral'">
+                  JSON: {{ effectiveJsonUsesPublished ? $t('subscriptionsCurrentSourcePublished') : $t('subscriptionsCurrentSourceLocal') }}
+                </span>
+              </div>
+              <p class="mt-2 leading-5">{{ $t('subscriptionsCurrentSourceHint') }}</p>
+            </div>
             <label class="form-control">
               <div class="label py-1">
                 <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalLink') }}</span>
@@ -267,9 +288,9 @@
               <p v-else class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingLocalOnly') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
+              <button class="btn btn-sm" :disabled="!effectiveUniversalUrl" @click="copyText(effectiveUniversalUrl)">{{ $t('subscriptionsCopyCurrentUrl') }}</button>
               <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
-              <button class="btn btn-sm" :disabled="!effectiveUniversalUrl" @click="copyText(effectiveUniversalUrl)">{{ $t('subscriptionsCopyBestUrl') }}</button>
-              <button class="btn btn-sm" :disabled="!effectiveJsonUrl" @click="copyText(effectiveJsonUrl)">{{ $t('subscriptionsCopyJsonUrl') }}</button>
+              <button class="btn btn-sm" :disabled="!effectiveJsonUrl" @click="copyText(effectiveJsonUrl)">{{ $t('subscriptionsCopyCurrentJsonUrl') }}</button>
               <a class="btn btn-sm" :class="!v2rayNgDeepLink && 'btn-disabled'" :href="v2rayNgDeepLink || undefined">v2rayNG</a>
               <a class="btn btn-sm" :class="!hiddifyDeepLink && 'btn-disabled'" :href="hiddifyDeepLink || undefined">Hiddify</a>
             </div>
@@ -573,6 +594,9 @@ const publishedJsonUrl = computed(() => buildSubscriptionUrlFromBase(publishedBa
 const effectiveMihomoUrl = computed(() => publishedMihomoUrl.value || mihomoUrl.value)
 const effectiveUniversalUrl = computed(() => publishedUniversalUrl.value || universalUrl.value)
 const effectiveJsonUrl = computed(() => publishedJsonUrl.value || jsonUrl.value)
+const effectiveMihomoUsesPublished = computed(() => !!publishedMihomoUrl.value)
+const effectiveUniversalUsesPublished = computed(() => !!publishedUniversalUrl.value)
+const effectiveJsonUsesPublished = computed(() => !!publishedJsonUrl.value)
 const encodedMihomoUrl = computed(() => (effectiveMihomoUrl.value ? encodeURIComponent(effectiveMihomoUrl.value) : ''))
 const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
 const encodedUniversalUrl = computed(() => (effectiveUniversalUrl.value ? encodeURIComponent(effectiveUniversalUrl.value) : ''))

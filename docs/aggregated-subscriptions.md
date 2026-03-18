@@ -153,10 +153,14 @@ Use a published HTTPS base only when you really put `router-agent` behind a norm
 Configure external HTTPS -> Published HTTPS base (optional) = https://sub.example.com
 ```
 
+Buttons are now phrased as `Copy current URL` / `Copy current JSON URL`, so the page no longer uses the vague `best URL` wording.
+
 When this base is set, the UI prefers it for:
 - client-facing subscription URLs;
 - QR codes;
 - deeplinks for Clash / v2rayNG / Hiddify.
+
+On the `Subscriptions` page the UI now also shows an explicit `Currently used` / `Сейчас используется` badge above the client actions, so it is obvious whether copy/QR/deeplink uses the local router URL or the published HTTPS URL.
 
 ### Reverse proxy notes
 
