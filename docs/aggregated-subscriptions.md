@@ -143,14 +143,14 @@ Current project status for V2RayTun 5.20.67:
 - the next real step is a normal **HTTPS subscription endpoint**, then a more specific **JSON-based client flow** if needed.
 
 
-## Published HTTPS endpoint
+## Published HTTPS endpoint (optional)
 
-The next practical step is to put router-agent behind a normal HTTPS reverse proxy and then use that public HTTPS base in the UI.
+For a normal router-only LAN setup you do **not** need this at all. Leave the publication field empty and the UI will keep building links from the local `router-agent` URL.
 
-Recommended UI field on the `Subscriptions` page:
+Use a published HTTPS base only when you really put `router-agent` behind a normal HTTPS reverse proxy, tunnel, or separate external host. In the UI this now belongs to the advanced publication settings on the `Subscriptions` page:
 
 ```text
-Published HTTPS base = https://sub.example.com
+Published HTTPS base (optional) = https://sub.example.com
 ```
 
 When this base is set, the UI prefers it for:

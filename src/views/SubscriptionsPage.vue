@@ -30,16 +30,6 @@
                 <option value="custom">{{ $t('subscriptionsModeCustom') }}</option>
               </select>
             </label>
-            <label class="form-control sm:col-span-2">
-              <div class="label py-1">
-                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedBase') }}</span>
-              </div>
-              <input
-                v-model.trim="publishedBaseUrl"
-                class="input input-bordered input-sm"
-                :placeholder="$t('subscriptionsPublishedBasePlaceholder')"
-              />
-            </label>
           </div>
         </div>
 
@@ -141,34 +131,45 @@
             <p class="text-sm text-base-content/70">{{ $t('subscriptionsHttpsDesc') }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <span class="badge" :class="publishedHttpsReady ? 'badge-success badge-outline' : 'badge-ghost'">
-              {{ publishedHttpsReady ? $t('subscriptionsHttpsReady') : $t('subscriptionsHttpsNotConfigured') }}
+            <span class="badge" :class="publishedHttpsReady ? 'badge-success badge-outline' : 'badge-info badge-outline'">
+              {{ publishedHttpsReady ? $t('subscriptionsHttpsReady') : $t('subscriptionsHttpsLocalMode') }}
             </span>
             <span v-if="publishedBaseUrlNormalized && !publishedBaseUrlLooksHttps" class="badge badge-warning badge-outline">
               {{ $t('subscriptionsHttpsNeedsTls') }}
             </span>
           </div>
         </div>
-        <div class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+        <div class="mt-3 rounded-2xl bg-base-200/40 p-3 text-xs text-base-content/70">
+          <p>{{ publishedHttpsReady ? $t('subscriptionsHttpsHintConfigured') : $t('subscriptionsHttpsHintLocalOnly') }}</p>
+          <p class="mt-2">{{ $t('subscriptionsHttpsHint2') }}</p>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn btn-sm btn-ghost" @click="togglePublicationSettings">
+            {{ publicationSettingsOpen ? $t('subscriptionsHttpsAdvancedHide') : $t('subscriptionsHttpsAdvancedShow') }}
+          </button>
+          <button v-if="publishedBaseUrlNormalized" class="btn btn-sm" @click="copyText(publishedBaseUrlNormalized)">
+            {{ $t('copyLink') }}
+          </button>
+          <button v-if="publishedBaseUrl" class="btn btn-sm btn-ghost" @click="clearPublishedBase">
+            {{ $t('clear') }}
+          </button>
+        </div>
+        <div v-if="publicationSettingsOpen" class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div class="space-y-3">
             <label class="form-control">
               <div class="label py-1">
                 <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedBase') }}</span>
               </div>
-              <textarea class="textarea textarea-bordered min-h-20 text-xs" :value="publishedBaseUrlNormalized" readonly />
+              <input
+                v-model.trim="publishedBaseUrl"
+                class="input input-bordered input-sm"
+                :placeholder="$t('subscriptionsPublishedBasePlaceholder')"
+              />
             </label>
-            <div class="rounded-2xl bg-base-200/40 p-3 text-xs text-base-content/70">
+            <div class="rounded-2xl border border-base-300 bg-base-100 p-3 text-xs text-base-content/70">
               <p>{{ $t('subscriptionsHttpsHint') }}</p>
-              <p class="mt-2">{{ $t('subscriptionsHttpsHint2') }}</p>
+              <p v-if="publishedBaseUrlNormalized" class="mt-2 break-all"><span class="font-medium">{{ $t('subscriptionsPublishedLink') }}:</span> {{ publishedBaseUrlNormalized }}</p>
             </div>
-          </div>
-          <div class="flex flex-wrap gap-2 xl:flex-col xl:items-stretch">
-            <button class="btn btn-sm" :disabled="!publishedBaseUrlNormalized" @click="copyText(publishedBaseUrlNormalized)">
-              {{ $t('copyLink') }}
-            </button>
-            <button class="btn btn-sm btn-ghost" :disabled="!publishedBaseUrl" @click="clearPublishedBase">
-              {{ $t('clear') }}
-            </button>
           </div>
         </div>
       </div>
@@ -263,6 +264,7 @@
               <div class="font-semibold text-base-content">{{ $t('subscriptionsV2rayTunPendingTitle') }}</div>
               <p class="mt-1 leading-5">{{ $t('subscriptionsV2rayTunPendingDesc') }}</p>
               <p v-if="publishedHttpsReady" class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingHttpsReady') }}</p>
+              <p v-else class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingLocalOnly') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
@@ -370,6 +372,7 @@ const universalQrMode = useStorage<'url' | 'v2rayng' | 'hiddify'>(
   'url',
 )
 const publishedBaseUrl = useStorage('config/subscriptions-published-base-v1', '')
+const publicationSettingsOpen = ref(!!String(publishedBaseUrl.value || '').trim())
 const busy = ref(false)
 const providerQuickAvailableOnly = useStorage('config/subscriptions-provider-quick-available-only-v1', false)
 const providerQuickProtoFilter = useStorage('config/subscriptions-provider-quick-proto-filter-v1', 'all')
@@ -624,6 +627,10 @@ const handleProviderChipClick = (name: string) => {
   if (next.has(name)) next.delete(name)
   else next.add(name)
   customProviderNames.value = providerNames.value.filter((providerName) => next.has(providerName))
+}
+
+const togglePublicationSettings = () => {
+  publicationSettingsOpen.value = !publicationSettingsOpen.value
 }
 
 const clearPublishedBase = () => {

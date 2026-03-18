@@ -140,7 +140,7 @@ The installer also creates `/opt/zash-agent/restore-cloud.sh` — it downloads t
 
 ## HTTPS publication for subscriptions
 
-`cmd=subscription` works locally over HTTP, but for mobile clients and future V2RayTun/Xray flows it is better to publish it behind a normal HTTPS reverse proxy.
+`cmd=subscription` works locally over HTTP and that is enough for a normal router-only LAN setup. Publish it behind a normal HTTPS reverse proxy only when you really need external/public client access or want to test future V2RayTun/Xray flows over HTTPS.
 
 Recommended public pattern:
 
