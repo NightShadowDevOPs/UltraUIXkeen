@@ -49,6 +49,7 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=subscription&format=mihomo`
 - `GET /cgi-bin/api.sh?cmd=subscription&format=b64`
 - `GET /cgi-bin/api.sh?cmd=subscription&format=plain`
+- `GET /cgi-bin/api.sh?cmd=subscription&format=json` *(preview groundwork for future HTTPS / Xray-style flows)*
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
@@ -135,3 +136,50 @@ Restore works with local archives from `/opt/zash-agent/var/backups` (created by
 
 
 The installer also creates `/opt/zash-agent/restore-cloud.sh` — it downloads the selected archive from `RCLONE_REMOTE:RCLONE_PATH` and then starts the usual restore flow.
+
+
+## HTTPS publication for subscriptions
+
+`cmd=subscription` works locally over HTTP, but for mobile clients and future V2RayTun/Xray flows it is better to publish it behind a normal HTTPS reverse proxy.
+
+Recommended public pattern:
+
+```text
+https://sub.example.com/cgi-bin/api.sh?cmd=subscription&format=b64
+```
+
+What to preserve in the proxy:
+- the `/cgi-bin/api.sh` path;
+- the original query string;
+- `X-Forwarded-Proto`, `X-Forwarded-Host` and optionally `X-Forwarded-Prefix`.
+
+Then `format=json` can include canonical public URLs in its response.
+
+### Caddy example
+
+```caddy
+sub.example.com {
+  reverse_proxy 192.168.0.1:9099 {
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    header_up X-Forwarded-Prefix ""
+  }
+}
+```
+
+### Nginx example
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name sub.example.com;
+
+    location /cgi-bin/api.sh {
+        proxy_pass http://192.168.0.1:9099/cgi-bin/api.sh;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Prefix "";
+    }
+}
+```

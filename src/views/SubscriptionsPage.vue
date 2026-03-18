@@ -13,7 +13,7 @@
               <span>{{ $t('subscriptionsDirectNote') }}</span>
             </div>
           </div>
-          <div class="grid gap-2 sm:grid-cols-2 lg:w-[28rem]">
+          <div class="grid gap-2 sm:grid-cols-2 lg:w-[32rem]">
             <label class="form-control">
               <div class="label py-1">
                 <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsName') }}</span>
@@ -29,6 +29,16 @@
                 <option value="available">{{ $t('subscriptionsModeAvailable') }}</option>
                 <option value="custom">{{ $t('subscriptionsModeCustom') }}</option>
               </select>
+            </label>
+            <label class="form-control sm:col-span-2">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedBase') }}</span>
+              </div>
+              <input
+                v-model.trim="publishedBaseUrl"
+                class="input input-bordered input-sm"
+                :placeholder="$t('subscriptionsPublishedBasePlaceholder')"
+              />
             </label>
           </div>
         </div>
@@ -124,6 +134,45 @@
         </div>
       </div>
 
+      <div class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div class="space-y-2">
+            <h3 class="text-lg font-semibold">{{ $t('subscriptionsHttpsTitle') }}</h3>
+            <p class="text-sm text-base-content/70">{{ $t('subscriptionsHttpsDesc') }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge" :class="publishedHttpsReady ? 'badge-success badge-outline' : 'badge-ghost'">
+              {{ publishedHttpsReady ? $t('subscriptionsHttpsReady') : $t('subscriptionsHttpsNotConfigured') }}
+            </span>
+            <span v-if="publishedBaseUrlNormalized && !publishedBaseUrlLooksHttps" class="badge badge-warning badge-outline">
+              {{ $t('subscriptionsHttpsNeedsTls') }}
+            </span>
+          </div>
+        </div>
+        <div class="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+          <div class="space-y-3">
+            <label class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedBase') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-20 text-xs" :value="publishedBaseUrlNormalized" readonly />
+            </label>
+            <div class="rounded-2xl bg-base-200/40 p-3 text-xs text-base-content/70">
+              <p>{{ $t('subscriptionsHttpsHint') }}</p>
+              <p class="mt-2">{{ $t('subscriptionsHttpsHint2') }}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 xl:flex-col xl:items-stretch">
+            <button class="btn btn-sm" :disabled="!publishedBaseUrlNormalized" @click="copyText(publishedBaseUrlNormalized)">
+              {{ $t('copyLink') }}
+            </button>
+            <button class="btn btn-sm btn-ghost" :disabled="!publishedBaseUrl" @click="clearPublishedBase">
+              {{ $t('clear') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="!agentReady" class="alert alert-warning shadow-sm">
         <span>{{ $t('subscriptionsAgentRequired') }}</span>
       </div>
@@ -141,13 +190,20 @@
           <div class="space-y-3">
             <label class="form-control">
               <div class="label py-1">
-                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLink') }}</span>
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalLink') }}</span>
               </div>
               <textarea class="textarea textarea-bordered min-h-28 text-xs" :value="mihomoUrl" readonly />
             </label>
+            <label v-if="publishedMihomoUrl" class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedMihomoUrl" readonly />
+            </label>
             <div class="flex flex-wrap gap-2">
-              <button class="btn btn-sm" :disabled="!mihomoUrl" @click="copyText(mihomoUrl)">{{ $t('copyLink') }}</button>
-              <a class="btn btn-sm btn-primary" :class="!mihomoUrl && 'btn-disabled'" :href="clashDeepLink || undefined">{{ $t('subscriptionsOpenInClash') }}</a>
+              <button class="btn btn-sm" :disabled="!mihomoUrl" @click="copyText(mihomoUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
+              <button class="btn btn-sm" :disabled="!effectiveMihomoUrl" @click="copyText(effectiveMihomoUrl)">{{ $t('subscriptionsCopyBestUrl') }}</button>
+              <a class="btn btn-sm btn-primary" :class="!clashDeepLink && 'btn-disabled'" :href="clashDeepLink || undefined">{{ $t('subscriptionsOpenInClash') }}</a>
             </div>
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
               <div class="space-y-2">
@@ -181,14 +237,37 @@
           <div class="space-y-3">
             <label class="form-control">
               <div class="label py-1">
-                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLink') }}</span>
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalLink') }}</span>
               </div>
               <textarea class="textarea textarea-bordered min-h-28 text-xs" :value="universalUrl" readonly />
             </label>
+            <label class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalJsonLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="jsonUrl" readonly />
+            </label>
+            <label v-if="publishedUniversalUrl" class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedUniversalUrl" readonly />
+            </label>
+            <label v-if="publishedJsonUrl" class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedJsonLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedJsonUrl" readonly />
+            </label>
+            <div class="rounded-2xl border border-warning/30 bg-warning/10 p-3 text-xs text-base-content/80">
+              <div class="font-semibold text-base-content">{{ $t('subscriptionsV2rayTunPendingTitle') }}</div>
+              <p class="mt-1 leading-5">{{ $t('subscriptionsV2rayTunPendingDesc') }}</p>
+              <p v-if="publishedHttpsReady" class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingHttpsReady') }}</p>
+            </div>
             <div class="flex flex-wrap gap-2">
-              <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('copyLink') }}</button>
-              <button class="btn btn-sm" :disabled="!v2rayTunImportUrl" @click="copyText(v2rayTunImportUrl)">{{ $t('subscriptionsCopyV2rayTunUrl') }}</button>
-              <a class="btn btn-sm" :class="!v2rayTunDeepLink && 'btn-disabled'" :href="v2rayTunDeepLink || undefined">V2rayTun</a>
+              <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
+              <button class="btn btn-sm" :disabled="!effectiveUniversalUrl" @click="copyText(effectiveUniversalUrl)">{{ $t('subscriptionsCopyBestUrl') }}</button>
+              <button class="btn btn-sm" :disabled="!effectiveJsonUrl" @click="copyText(effectiveJsonUrl)">{{ $t('subscriptionsCopyJsonUrl') }}</button>
               <a class="btn btn-sm" :class="!v2rayNgDeepLink && 'btn-disabled'" :href="v2rayNgDeepLink || undefined">v2rayNG</a>
               <a class="btn btn-sm" :class="!hiddifyDeepLink && 'btn-disabled'" :href="hiddifyDeepLink || undefined">Hiddify</a>
             </div>
@@ -200,7 +279,6 @@
                   </div>
                   <select v-model="universalQrMode" class="select select-bordered select-sm">
                     <option value="url">{{ $t('subscriptionsQrModeUrl') }}</option>
-                    <option value="v2raytun">V2rayTun</option>
                     <option value="v2rayng">v2rayNG</option>
                     <option value="hiddify">Hiddify</option>
                   </select>
@@ -287,10 +365,11 @@ const bundleName = useStorage('config/subscriptions-bundle-name-v1', 'Zash Aggre
 const selectionMode = useStorage<SelectionMode>('config/subscriptions-selection-mode-v1', 'all')
 const customProviderNames = useStorage<string[]>('config/subscriptions-custom-providers-v1', [])
 const mihomoQrMode = useStorage<'url' | 'clash'>('config/subscriptions-mihomo-qr-mode-v1', 'url')
-const universalQrMode = useStorage<'url' | 'v2raytun' | 'v2rayng' | 'hiddify'>(
+const universalQrMode = useStorage<'url' | 'v2rayng' | 'hiddify'>(
   'config/subscriptions-universal-qr-mode-v1',
   'url',
 )
+const publishedBaseUrl = useStorage('config/subscriptions-published-base-v1', '')
 const busy = ref(false)
 const providerQuickAvailableOnly = useStorage('config/subscriptions-provider-quick-available-only-v1', false)
 const providerQuickProtoFilter = useStorage('config/subscriptions-provider-quick-proto-filter-v1', 'all')
@@ -446,8 +525,24 @@ const agentReady = computed(() => !!agentBase.value)
 const safeBundleName = computed(() => String(bundleName.value || '').trim() || 'Zash Aggregated')
 const noProvidersSelected = computed(() => selectionMode.value === 'custom' && selectedProviderNames.value.length === 0)
 
-const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain' | 'v2raytun') => {
-  if (!agentBase.value || noProvidersSelected.value) return ''
+const normalizeSubscriptionBase = (value: string) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const withProto = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
+  try {
+    const url = new URL(withProto)
+    url.hash = ''
+    url.search = ''
+    url.pathname = url.pathname.replace(/\/+$/g, '')
+    return url.toString().replace(/\/+$/g, '')
+  } catch {
+    return raw.replace(/\/+$/g, '')
+  }
+}
+
+const buildSubscriptionUrlFromBase = (base: string, format: 'mihomo' | 'b64' | 'plain' | 'v2raytun' | 'json') => {
+  const normalizedBase = normalizeSubscriptionBase(base)
+  if (!normalizedBase || noProvidersSelected.value) return ''
   const params = new URLSearchParams({
     cmd: 'subscription',
     format,
@@ -458,19 +553,28 @@ const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain' | 'v2raytun') =
   if (selectedProviderNames.value.length && selectedProviderNames.value.length !== providerNames.value.length) {
     params.set('providers', selectedProviderNames.value.join(','))
   }
-  return `${agentBase.value}/cgi-bin/api.sh?${params.toString()}`
+  return `${normalizedBase}/cgi-bin/api.sh?${params.toString()}`
 }
+
+const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain' | 'v2raytun' | 'json') => buildSubscriptionUrlFromBase(agentBase.value, format)
 
 const mihomoUrl = computed(() => buildSubscriptionUrl('mihomo'))
 const universalUrl = computed(() => buildSubscriptionUrl('b64'))
-const v2rayTunImportUrl = computed(() => buildSubscriptionUrl('v2raytun'))
-const encodedMihomoUrl = computed(() => (mihomoUrl.value ? encodeURIComponent(mihomoUrl.value) : ''))
+const jsonUrl = computed(() => buildSubscriptionUrl('json'))
+const publishedBaseUrlNormalized = computed(() => normalizeSubscriptionBase(publishedBaseUrl.value))
+const publishedBaseUrlLooksHttps = computed(() => /^https:\/\//i.test(publishedBaseUrlNormalized.value))
+const publishedHttpsReady = computed(() => !!publishedBaseUrlNormalized.value && publishedBaseUrlLooksHttps.value)
+const publishedMihomoUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'mihomo'))
+const publishedUniversalUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'b64'))
+const publishedJsonUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'json'))
+const effectiveMihomoUrl = computed(() => publishedMihomoUrl.value || mihomoUrl.value)
+const effectiveUniversalUrl = computed(() => publishedUniversalUrl.value || universalUrl.value)
+const effectiveJsonUrl = computed(() => publishedJsonUrl.value || jsonUrl.value)
+const encodedMihomoUrl = computed(() => (effectiveMihomoUrl.value ? encodeURIComponent(effectiveMihomoUrl.value) : ''))
 const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
-const encodedUniversalUrl = computed(() => (universalUrl.value ? encodeURIComponent(universalUrl.value) : ''))
+const encodedUniversalUrl = computed(() => (effectiveUniversalUrl.value ? encodeURIComponent(effectiveUniversalUrl.value) : ''))
 const encodedBundleName = computed(() => encodeURIComponent(safeBundleName.value))
 
-const encodedV2rayTunImportUrl = computed(() => (v2rayTunImportUrl.value ? encodeURIComponent(v2rayTunImportUrl.value) : ''))
-const v2rayTunDeepLink = computed(() => (encodedV2rayTunImportUrl.value ? `v2raytun://import-sub?url=${encodedV2rayTunImportUrl.value}` : ''))
 const v2rayNgDeepLink = computed(() => (
   encodedUniversalUrl.value
     ? `v2rayng://install-config?url=${encodedUniversalUrl.value}&name=${encodedBundleName.value}`
@@ -482,17 +586,15 @@ const hiddifyDeepLink = computed(() => (
     : ''
 ))
 
-const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepLink.value : mihomoUrl.value))
+const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepLink.value : effectiveMihomoUrl.value))
 const universalQrText = computed(() => {
   switch (universalQrMode.value) {
-    case 'v2raytun':
-      return v2rayTunImportUrl.value
     case 'v2rayng':
       return v2rayNgDeepLink.value
     case 'hiddify':
       return hiddifyDeepLink.value
     default:
-      return universalUrl.value
+      return effectiveUniversalUrl.value
   }
 })
 
@@ -522,6 +624,10 @@ const handleProviderChipClick = (name: string) => {
   if (next.has(name)) next.delete(name)
   else next.add(name)
   customProviderNames.value = providerNames.value.filter((providerName) => next.has(providerName))
+}
+
+const clearPublishedBase = () => {
+  publishedBaseUrl.value = ''
 }
 
 const copyText = async (value: string) => {
@@ -578,6 +684,7 @@ const clearSelectedProviders = () => {
 }
 
 onMounted(() => {
+  if (!['url', 'v2rayng', 'hiddify'].includes(String(universalQrMode.value || ''))) universalQrMode.value = 'url'
   if (!providerNames.value.length) {
     fetchProxyProvidersOnly()
   }

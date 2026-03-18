@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.68"
+AGENT_VERSION="0.6.1"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -494,6 +494,178 @@ subscription_with_crlf() {
   awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
 }
 
+json_array_from_lines() {
+  awk '
+    BEGIN { printf "["; first = 1 }
+    {
+      line = $0
+      sub(/\r$/, "", line)
+      if (line ~ /^[[:space:]]*$/) next
+      gsub(/\\/, "\\\\", line)
+      gsub(/"/, "\\"", line)
+      if (!first) printf ","
+      first = 0
+      printf "\"%s\"", line
+    }
+    END { printf "]" }
+  '
+}
+
+
+urlencode() {
+  input="$1"
+  out=""
+  while [ -n "$input" ]; do
+    ch="${input%"${input#?}"}"
+    input="${input#?}"
+    case "$ch" in
+      [A-Za-z0-9.~_-])
+        out="${out}${ch}"
+        ;;
+      ' ')
+        out="${out}%20"
+        ;;
+      *)
+        enc="$(printf '%s' "$ch" | od -An -tx1 -v 2>/dev/null | tr -s ' ' '\n' | awk 'NF { printf "%%%s", toupper($1) }')"
+        out="${out}${enc}"
+        ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
+request_forwarded_value() {
+  raw="$1"
+  [ -n "$raw" ] || return 0
+  printf '%s' "$raw" | awk -F',' '{ gsub(/^[[:space:]]+|[[:space:]]+$/, "", $1); print $1 }'
+}
+
+request_public_scheme() {
+  proto="$(request_forwarded_value "$HTTP_X_FORWARDED_PROTO")"
+  proto="$(printf '%s' "$proto" | tr '[:upper:]' '[:lower:]')"
+  case "$proto" in
+    https|http)
+      printf '%s' "$proto"
+      return 0
+      ;;
+  esac
+  case "${HTTPS:-}" in
+    on|ON|1|true|TRUE)
+      printf 'https'
+      return 0
+      ;;
+  esac
+  if [ "${SERVER_PORT:-}" = '443' ]; then
+    printf 'https'
+  else
+    printf 'http'
+  fi
+}
+
+request_public_host() {
+  host="$(request_forwarded_value "$HTTP_X_FORWARDED_HOST")"
+  [ -n "$host" ] || host="$(request_forwarded_value "$HTTP_HOST")"
+  if [ -n "$host" ]; then
+    printf '%s' "$host"
+    return 0
+  fi
+  host="${SERVER_NAME:-}"
+  [ -n "$host" ] || return 0
+  scheme="$(request_public_scheme)"
+  port="${SERVER_PORT:-}"
+  case "$scheme:$port" in
+    http:80|https:443|'':*|*:)
+      printf '%s' "$host"
+      ;;
+    *)
+      printf '%s:%s' "$host" "$port"
+      ;;
+  esac
+}
+
+request_public_prefix() {
+  prefix="$(request_forwarded_value "$HTTP_X_FORWARDED_PREFIX")"
+  prefix="$(printf '%s' "$prefix" | sed 's#//*#/#g; s#/$##')"
+  case "$prefix" in
+    '') printf '' ;;
+    /*) printf '%s' "$prefix" ;;
+    *) printf '/%s' "$prefix" ;;
+  esac
+}
+
+request_public_api_path() {
+  script_path="${SCRIPT_NAME:-/cgi-bin/api.sh}"
+  case "$script_path" in
+    /*) ;;
+    *) script_path="/${script_path}" ;;
+  esac
+  printf '%s%s' "$(request_public_prefix)" "$script_path"
+}
+
+request_public_api_url() {
+  scheme="$(request_public_scheme)"
+  host="$(request_public_host)"
+  path="$(request_public_api_path)"
+  [ -n "$scheme" ] || return 0
+  [ -n "$host" ] || return 0
+  printf '%s://%s%s' "$scheme" "$host" "$path"
+}
+
+subscription_canonical_url() {
+  fmt="$1"
+  selected_csv="$2"
+  title="$3"
+  token="$4"
+  api_url="$(request_public_api_url)"
+  [ -n "$api_url" ] || return 0
+  qs="cmd=subscription&format=$(urlencode "$fmt")"
+  [ -n "$title" ] && qs="$qs&name=$(urlencode "$title")"
+  [ -n "$selected_csv" ] && qs="$qs&providers=$(urlencode "$selected_csv")"
+  [ -n "$token" ] && qs="$qs&token=$(urlencode "$token")"
+  printf '%s?%s' "$api_url" "$qs"
+}
+
+
+subscription_provider_names_json() {
+  provider_lines="$1"
+  tab="$(printf '\t' 2>/dev/null || echo ' ')"
+  while IFS="$tab" read -r pname raw_url; do
+    [ -n "$pname" ] || continue
+    printf '%s\n' "$pname"
+  done <<__PROVIDER_LINES__
+$provider_lines
+__PROVIDER_LINES__
+}
+
+subscription_json_manifest() {
+  provider_lines="$1"
+  title="$2"
+  selected_csv="$3"
+  token="$4"
+  [ -n "$title" ] || title='Zash Aggregated'
+  generated_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo '')"
+  links_tmp="/tmp/zash-sub-json-links.$$"
+  subscription_links_merged_text "$provider_lines" > "$links_tmp"
+  item_count="$(awk 'NF{c++} END{print c+0}' "$links_tmp" 2>/dev/null)"
+  provider_count="$(subscription_provider_names_json "$provider_lines" | awk 'NF{c++} END{print c+0}')"
+  providers_json="$(subscription_provider_names_json "$provider_lines" | json_array_from_lines)"
+  items_json="$(cat "$links_tmp" 2>/dev/null | json_array_from_lines)"
+  public_api_url="$(request_public_api_url)"
+  public_host="$(request_public_host)"
+  if [ -n "$public_host" ]; then
+    public_base="$(request_public_scheme)://$public_host$(request_public_prefix)"
+  else
+    public_base=""
+  fi
+  forwarded=false
+  [ -n "${HTTP_X_FORWARDED_PROTO:-}${HTTP_X_FORWARDED_HOST:-}${HTTP_X_FORWARDED_PREFIX:-}" ] && forwarded=true
+  mihomo_url="$(subscription_canonical_url 'mihomo' "$selected_csv" "$title" "$token")"
+  b64_url="$(subscription_canonical_url 'b64' "$selected_csv" "$title" "$token")"
+  plain_url="$(subscription_canonical_url 'plain' "$selected_csv" "$title" "$token")"
+  json_url="$(subscription_canonical_url 'json' "$selected_csv" "$title" "$token")"
+  rm -f "$links_tmp" 2>/dev/null || true
+  printf '{"ok":true,"format":"json","schema":"zash.subscription.v1","title":"%s","generatedAt":"%s","providerCount":%s,"itemCount":%s,"providers":%s,"items":%s,"request":{"publicBase":"%s","apiUrl":"%s","forwarded":%s},"urls":{"mihomo":"%s","b64":"%s","plain":"%s","json":"%s"},"notes":{"status":"preview","transport":"https-recommended","purpose":"xray-v2ray-groundwork"}}'     "$(jesc "$title")" "$(jesc "$generated_at")" "$provider_count" "$item_count" "$providers_json" "$items_json"     "$(jesc "$public_base")" "$(jesc "$public_api_url")" "$forwarded"     "$(jesc "$mihomo_url")" "$(jesc "$b64_url")" "$(jesc "$plain_url")" "$(jesc "$json_url")"
+}
 yaml_sq() {
   printf '%s' "$1" | sed "s/'/''/g"
 }
@@ -594,6 +766,9 @@ subscriptions_export_text() {
     v2raytun)
       extra_headers="$(subscription_v2raytun_headers "$title")"
       subscription_links_merged_text "$provider_lines" | subscription_with_crlf | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
+      ;;
+    json|links-json|manifest)
+      reply_ok "$(subscription_json_manifest "$provider_lines" "$title" "$selected_csv" "$token_q")"
       ;;
     b64|base64|'')
       subscription_links_merged_text "$provider_lines" | b64enc | reply_text 'text/plain; charset=utf-8' 'zash-aggregated-subscription.txt'
