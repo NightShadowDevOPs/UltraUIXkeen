@@ -46,6 +46,9 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=restore_start&file=latest&scope=all&env=0&source=local|cloud`
 - `GET /cgi-bin/api.sh?cmd=restore_status`
 - `GET /cgi-bin/api.sh?cmd=restore_log`
+- `GET /cgi-bin/api.sh?cmd=subscription&format=mihomo`
+- `GET /cgi-bin/api.sh?cmd=subscription&format=b64`
+- `GET /cgi-bin/api.sh?cmd=subscription&format=plain`
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 

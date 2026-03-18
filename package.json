@@ -1,6 +1,6 @@
 {
   "name": "mihomo-ultra-ui",
-  "version": "1.1.134",
+  "version": "1.1.135",
   "description": "UI Mihomo/Ultra — dashboard for Netcraze Ultra (Mihomo)",
   "license": "MIT",
   "type": "module",
@@ -40,6 +40,7 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "pretty-bytes": "^7.0.0",
     "reconnectingwebsocket": "^1.0.0",
+    "qrcode-generator": "^2.0.4",
     "sort-package-json": "^3.4.0",
     "subsetted-fonts": "^1.0.4",
     "tippy.js": "^6.3.7",

@@ -135,6 +135,7 @@ export const renderRoutes = computed(() => {
     ROUTE_NAME.overview,
     ROUTE_NAME.proxies,
     ROUTE_NAME.proxyProviders,
+    ROUTE_NAME.subscriptions,
     ROUTE_NAME.router,
     ROUTE_NAME.tasks,
     ROUTE_NAME.connections,

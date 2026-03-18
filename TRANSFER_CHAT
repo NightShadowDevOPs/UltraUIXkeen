@@ -3,16 +3,16 @@
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
 Репозиторий: messireL/ZashUIFork
 Линейка версий: 1.1.x
-Текущая версия архива: v1.1.134
-router-agent: 0.5.65
+Текущая версия архива: v1.1.135
+router-agent: 0.5.66
 
 Последний фикс в этом релизе:
-- SSL-кэш сертификатов провайдеров переведён на схему stale-while-refresh: ручной `ssl_cache_refresh` больше не очищает текущие даты перед пересборкой, а сохраняет старые значения до завершения фонового обновления
-- в `router-agent` добавлен фоновый refresh SSL-кэша по cron раз в 6 часов (по умолчанию) с настраиваемым интервалом через `SSL_CACHE_AUTO_REFRESH_SECS` в `agent.env`
-- во время refresh пустые/неуспевшие probe-значения теперь не затирают уже известные даты сертификатов; в API добавлено поле `sslCacheNextRefreshAtSec`, а в `docs/provider-ssl-checks.md` описаны проверка cron и мягкий refresh без очистки кэша
+- добавлена отдельная вкладка `Подписки` / `Subscriptions` для агрегированных клиентских ссылок; она умеет собирать bundle из всех, доступных или вручную выбранных proxy-providers и показывать URL + QR-коды
+- `router-agent` получил endpoint `cmd=subscription` с форматами `mihomo`, `b64` и `plain`: для Mihomo/Clash генерируется YAML с `Manual / Auto / Failover / Balance`, а для V2Ray/Xray-клиентов — склеенная подписка из provider URL
+- исправлен парсинг `proxy-providers` на стороне `router-agent`: refresh SSL-кэша и список `mihomo_providers` теперь используют более надёжный разбор `config.yaml`, чтобы не валиться в `No providers`; добавлен отдельный файл `docs/aggregated-subscriptions.md`
 
 Ключевые особенности:
-- отдельные пункты меню: Прокси и Прокси-провайдеры
+- отдельные пункты меню: Прокси, Прокси-провайдеры и Подписки
 - multi-cloud backup через rclone и router-agent
 - cloud remotes из одного rclone.config через RCLONE_REMOTES
 - cron backup на роутере работает через /opt/var/spool/cron/crontabs/root
@@ -24,6 +24,8 @@ router-agent: 0.5.65
 - в карточке роутера есть модель, прошивка, kernel, arch, Mihomo, XKeen, температура, load average 1/5/15m, свободная RAM и storage
 - активный раздел в левом меню подсвечен
 - SSL-проверка не должна скрывать список провайдеров; ошибки SSL показываются отдельно, а сами данные по сертификатам снова заполняются в agent
+
+- новая вкладка `Подписки` умеет отдавать клиентские агрегированные ссылки и QR-коды для Mihomo/Clash и V2Ray/Xray клиентов; сам клиент подключается напрямую к серверам провайдеров, а роутер только отдаёт подписку
 
 Что важно не ломать:
 - рабочую логику активности провайдеров
@@ -85,3 +87,5 @@ router-agent: 0.5.65
 - UI v1.1.133 / agent 0.5.64: для proxy providers добавлен явный статус `SSL обновляется…` во время пересборки SSL-кэша router-agent, чтобы после очистки кэша UI не выглядел сломанным; в `Tasks / Dev panel` появилась отдельная кнопка принудительного refresh SSL cache провайдеров, а в `docs/provider-ssl-checks.md` собраны команды проверки сертификатов с роутера, разбор panel/provider URL, диагностика `mihomo_providers` и ручной rebuild SSL-кэша.
 
 - UI v1.1.134 / agent 0.5.65: SSL-кэш provider certificates переведён на stale-while-refresh без очистки текущих значений при ручном `ssl_cache_refresh`; добавлен фоновый cron-refresh раз в 6 часов (по умолчанию, через `SSL_CACHE_AUTO_REFRESH_SECS`), а refresh-логика сохраняет предыдущие даты, если один из probe не успел или временно не ответил.
+
+- UI v1.1.135 / agent 0.5.66: добавлена отдельная вкладка `Подписки` для агрегированных клиентских ссылок и QR-кодов; `router-agent` получил endpoint `cmd=subscription` с форматами `mihomo` (YAML с Manual/Auto/Failover/Balance) и `b64/plain` для V2Ray/Xray-клиентов, а refresh SSL-кэша и `mihomo_providers` переведены на более надёжный парсинг `proxy-providers` из `config.yaml`, чтобы не проваливаться в `No providers`.
