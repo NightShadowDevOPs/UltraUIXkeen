@@ -462,16 +462,20 @@ const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain') => {
 
 const mihomoUrl = computed(() => buildSubscriptionUrl('mihomo'))
 const universalUrl = computed(() => buildSubscriptionUrl('b64'))
-const clashDeepLink = computed(() => (mihomoUrl.value ? `clash://install-config?url=${encodeURIComponent(mihomoUrl.value)}` : ''))
-const v2rayTunDeepLink = computed(() => (universalUrl.value ? `v2raytun://import/${universalUrl.value}` : ''))
+const encodedMihomoUrl = computed(() => (mihomoUrl.value ? encodeURIComponent(mihomoUrl.value) : ''))
+const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
+const encodedUniversalUrl = computed(() => (universalUrl.value ? encodeURIComponent(universalUrl.value) : ''))
+const encodedBundleName = computed(() => encodeURIComponent(safeBundleName.value))
+
+const v2rayTunDeepLink = computed(() => (encodedUniversalUrl.value ? `v2raytun://import/${encodedUniversalUrl.value}` : ''))
 const v2rayNgDeepLink = computed(() => (
-  universalUrl.value
-    ? `v2rayng://install-config?url=${encodeURIComponent(universalUrl.value)}&name=${encodeURIComponent(safeBundleName.value)}`
+  encodedUniversalUrl.value
+    ? `v2rayng://install-config?url=${encodedUniversalUrl.value}&name=${encodedBundleName.value}`
     : ''
 ))
 const hiddifyDeepLink = computed(() => (
-  universalUrl.value
-    ? `hiddify://install-sub?url=${encodeURIComponent(universalUrl.value)}#${encodeURIComponent(safeBundleName.value)}`
+  encodedUniversalUrl.value
+    ? `hiddify://import/${encodedUniversalUrl.value}#${encodedBundleName.value}`
     : ''
 ))
 
@@ -520,10 +524,31 @@ const handleProviderChipClick = (name: string) => {
 const copyText = async (value: string) => {
   if (!value) return
   try {
-    await navigator.clipboard.writeText(value)
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+    } else {
+      throw new Error('clipboard-unavailable')
+    }
     showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
   } catch {
-    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+    const textArea = document.createElement('textarea')
+    textArea.value = value
+    textArea.setAttribute('readonly', 'readonly')
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    textArea.style.pointerEvents = 'none'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    try {
+      const ok = document.execCommand('copy')
+      if (!ok) throw new Error('execCommand-copy-failed')
+      showNotification({ content: 'copySuccess', type: 'alert-success', timeout: 1400 })
+    } catch {
+      showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+    } finally {
+      document.body.removeChild(textArea)
+    }
   }
 }
 

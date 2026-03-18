@@ -105,3 +105,13 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=b64&token=YOUR_TO
 - `format=b64` works best when upstream provider URLs return normal V2Ray/Xray subscription payloads (Base64 or plain share links).
 - if an upstream provider returns only a panel page or another non-subscription format, its links may not appear in `format=b64`.
 - if `subscription` returns `{"ok":false,"error":"no-providers"}`, router-agent could not parse `proxy-providers` from the current Mihomo config.
+
+
+## Deep link notes
+
+- `Mihomo / Clash`: `clash://install-config?url=<encoded-subscription-url>`
+- `v2rayNG`: `v2rayng://install-config?url=<encoded-subscription-url>&name=<encoded-name>`
+- `V2rayTun`: `v2raytun://import/<encoded-subscription-url>`
+- `Hiddify`: `hiddify://import/<encoded-subscription-url>#<encoded-name>`
+
+The UI now URL-encodes subscription links before building deep links, because raw `http://...?...&...` values inside custom schemes can break import on some clients.
