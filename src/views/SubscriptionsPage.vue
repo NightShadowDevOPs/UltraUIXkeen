@@ -40,25 +40,42 @@
         </div>
         <div class="mt-2 text-xs text-base-content/60">{{ $t('subscriptionsProvidersHint') }}</div>
 
+        <div class="mt-4 rounded-2xl border border-base-300 bg-base-200/40 p-3">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-1">
+              <div class="text-sm font-semibold">{{ $t('subscriptionsProvidersInventoryTitle') }}</div>
+              <div class="text-xs text-base-content/60">{{ $t('subscriptionsProvidersCardsHint') }}</div>
+            </div>
+            <label class="label cursor-pointer justify-start gap-2 rounded-xl border border-base-300 bg-base-100 px-3 py-2 lg:self-start">
+              <span class="label-text text-xs">{{ $t('subscriptionsAvailableOnlyFilter') }}</span>
+              <input v-model="providerQuickAvailableOnly" type="checkbox" class="toggle toggle-xs" />
+            </label>
+          </div>
+
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              v-for="provider in inventoryProviders"
+              :key="provider.name"
+              type="button"
+              class="btn h-auto min-h-0 gap-2 rounded-2xl px-3 py-2 normal-case shadow-sm"
+              :class="providerChipClass(provider)"
+              @click="handleProviderChipClick(provider.name)"
+            >
+              <span class="max-w-[11rem] truncate font-medium">{{ provider.name }}</span>
+              <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
+              <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
+            </button>
+            <span v-if="!inventoryProviders.length" class="text-sm text-base-content/60">{{ $t('subscriptionsNoProvidersFiltered') }}</span>
+          </div>
+        </div>
+
         <div v-if="selectionMode === 'custom'" class="mt-4 rounded-2xl border border-base-300 bg-base-200/40 p-3">
           <div class="mb-3 flex flex-wrap items-center gap-2">
             <button class="btn btn-xs" @click="selectAllProviders">{{ $t('subscriptionsSelectAll') }}</button>
             <button class="btn btn-ghost btn-xs" @click="selectAvailableProviders">{{ $t('subscriptionsSelectAvailable') }}</button>
             <button class="btn btn-ghost btn-xs" @click="clearSelectedProviders">{{ $t('clear') }}</button>
           </div>
-          <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            <label
-              v-for="provider in providers"
-              :key="provider.name"
-              class="flex cursor-pointer items-center gap-3 rounded-xl border border-base-300 bg-base-100 px-3 py-2 text-sm"
-            >
-              <input v-model="customProviderNames" :value="provider.name" type="checkbox" class="checkbox checkbox-sm" />
-              <div class="min-w-0 flex-1">
-                <div class="truncate font-medium">{{ provider.name }}</div>
-                <div class="truncate text-xs text-base-content/60">{{ providerStatusLabel(provider) }}</div>
-              </div>
-            </label>
-          </div>
+          <div class="text-xs text-base-content/60">{{ $t('subscriptionsCustomSelectionHint') }}</div>
         </div>
       </div>
 
@@ -155,8 +172,16 @@
       <div class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
         <h3 class="mb-3 text-lg font-semibold">{{ $t('subscriptionsSelectedProvidersTitle') }}</h3>
         <div class="flex flex-wrap gap-2">
-          <span v-for="name in selectedProviderNames" :key="name" class="badge badge-neutral badge-outline">{{ name }}</span>
-          <span v-if="!selectedProviderNames.length" class="text-sm text-base-content/60">{{ $t('subscriptionsNoProviders') }}</span>
+          <span
+            v-for="provider in selectedProvidersMeta"
+            :key="provider.name"
+            class="inline-flex items-center gap-2 rounded-2xl border border-base-300 bg-base-200/40 px-3 py-2 text-sm"
+          >
+            <span class="font-medium">{{ provider.name }}</span>
+            <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
+            <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
+          </span>
+          <span v-if="!selectedProvidersMeta.length" class="text-sm text-base-content/60">{{ $t('subscriptionsNoProviders') }}</span>
         </div>
       </div>
     </div>
@@ -193,20 +218,35 @@ const universalQrMode = useStorage<'url' | 'v2raytun' | 'v2rayng' | 'hiddify'>(
   'url',
 )
 const busy = ref(false)
+const providerQuickAvailableOnly = useStorage('config/subscriptions-provider-quick-available-only-v1', false)
 
 const providers = computed(() => (proxyProviederList.value || []).filter((p: any) => String(p?.name || '') !== 'default'))
 const providerNames = computed(() => providers.value.map((p: any) => String(p.name || '')).filter(Boolean))
 
-const availableProviderNames = computed(() => {
-  return providers.value
-    .filter((provider: any) => {
-      const health = getProviderHealth(provider, agentProviderByName.value?.[provider.name], {
-        sslRefreshing: agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value,
-      })
-      return Array.isArray(provider?.proxies) && provider.proxies.length > 0 && health.status !== 'offline'
+const providerMetaList = computed(() => {
+  return providers.value.map((provider: any) => {
+    const health = getProviderHealth(provider, agentProviderByName.value?.[provider.name], {
+      sslRefreshing: agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value,
     })
-    .map((provider: any) => String(provider.name || ''))
+    const nodeCount = Array.isArray(provider?.proxies) ? provider.proxies.length : 0
+    const available = nodeCount > 0 && health.status !== 'offline'
+    return {
+      provider,
+      name: String(provider?.name || ''),
+      nodeCount,
+      available,
+      health,
+    }
+  })
 })
+
+const inventoryProviders = computed(() => {
+  return providerQuickAvailableOnly.value
+    ? providerMetaList.value.filter((provider) => provider.available)
+    : providerMetaList.value
+})
+
+const availableProviderNames = computed(() => providerMetaList.value.filter((provider) => provider.available).map((provider) => provider.name))
 
 const selectedProviderNames = computed(() => {
   if (selectionMode.value === 'custom') {
@@ -217,6 +257,11 @@ const selectedProviderNames = computed(() => {
     return availableProviderNames.value.length ? availableProviderNames.value : providerNames.value
   }
   return providerNames.value
+})
+
+const selectedProvidersMeta = computed(() => {
+  const wanted = new Set(selectedProviderNames.value)
+  return providerMetaList.value.filter((provider) => wanted.has(provider.name))
 })
 
 const agentBase = computed(() => String(agentUrl.value || '').trim().replace(/\/+$/g, ''))
@@ -268,11 +313,25 @@ const universalQrText = computed(() => {
   }
 })
 
-const providerStatusLabel = (provider: any) => {
-  const health = getProviderHealth(provider, agentProviderByName.value?.[provider.name], {
-    sslRefreshing: agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value,
-  })
-  return t(health.labelKey)
+const providerChipClass = (provider: { name: string; available: boolean; health: { status: string } }) => {
+  const selected = selectedProviderNames.value.includes(provider.name)
+  return [
+    selected ? 'btn-primary text-primary-content' : 'btn-ghost border-base-300 bg-base-100',
+    !provider.available && !selected ? 'opacity-80' : '',
+    provider.health.status === 'offline' && !selected ? 'border-error/30' : '',
+  ]
+}
+
+const handleProviderChipClick = (name: string) => {
+  if (!name) return
+  if (selectionMode.value !== 'custom') {
+    selectionMode.value = 'custom'
+    customProviderNames.value = [...selectedProviderNames.value]
+  }
+  const next = new Set(customProviderNames.value || [])
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  customProviderNames.value = providerNames.value.filter((providerName) => next.has(providerName))
 }
 
 const copyText = async (value: string) => {
