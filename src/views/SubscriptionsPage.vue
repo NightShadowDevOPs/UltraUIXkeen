@@ -46,24 +46,69 @@
               <div class="text-sm font-semibold">{{ $t('subscriptionsProvidersInventoryTitle') }}</div>
               <div class="text-xs text-base-content/60">{{ $t('subscriptionsProvidersCardsHint') }}</div>
             </div>
-            <label class="label cursor-pointer justify-start gap-2 rounded-xl border border-base-300 bg-base-100 px-3 py-2 lg:self-start">
-              <span class="label-text text-xs">{{ $t('subscriptionsAvailableOnlyFilter') }}</span>
-              <input v-model="providerQuickAvailableOnly" type="checkbox" class="toggle toggle-xs" />
-            </label>
+            <div class="flex flex-col gap-2 lg:items-end">
+              <div class="flex flex-wrap gap-2">
+                <label class="label cursor-pointer justify-start gap-2 rounded-xl border border-base-300 bg-base-100 px-3 py-2 lg:self-start">
+                  <span class="label-text text-xs">{{ $t('subscriptionsAvailableOnlyFilter') }}</span>
+                  <input v-model="providerQuickAvailableOnly" type="checkbox" class="toggle toggle-xs" />
+                </label>
+                <label class="form-control w-full min-w-[11rem] sm:w-48">
+                  <div class="label py-1">
+                    <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsProtocolFilter') }}</span>
+                  </div>
+                  <select v-model="providerQuickProtoFilter" class="select select-bordered select-sm bg-base-100">
+                    <option value="all">{{ $t('all') }}</option>
+                    <option v-for="proto in providerProtoOptions" :key="proto" :value="proto">{{ proto }}</option>
+                  </select>
+                </label>
+                <label class="form-control w-full min-w-[11rem] sm:w-48">
+                  <div class="label py-1">
+                    <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsCountryFilter') }}</span>
+                  </div>
+                  <select v-model="providerQuickCountryFilter" class="select select-bordered select-sm bg-base-100">
+                    <option value="all">{{ $t('all') }}</option>
+                    <option v-for="country in providerCountryOptions" :key="country" :value="country">{{ countryOptionLabel(country) }}</option>
+                  </select>
+                </label>
+              </div>
+              <div class="text-[11px] text-base-content/55">{{ $t('subscriptionsInventoryFilterHint') }}</div>
+            </div>
           </div>
 
-          <div class="mt-3 flex flex-wrap gap-2">
+          <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <button
               v-for="provider in inventoryProviders"
               :key="provider.name"
               type="button"
-              class="btn h-auto min-h-0 gap-2 rounded-2xl px-3 py-2 normal-case shadow-sm"
+              class="flex h-full min-h-[7.5rem] flex-col items-start gap-2 rounded-2xl border px-3 py-3 text-left shadow-sm transition-colors"
               :class="providerChipClass(provider)"
               @click="handleProviderChipClick(provider.name)"
             >
-              <span class="max-w-[11rem] truncate font-medium">{{ provider.name }}</span>
-              <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
-              <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
+              <div class="flex w-full flex-wrap items-center gap-2">
+                <span class="min-w-0 flex-1 truncate font-medium">{{ provider.name }}</span>
+                <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
+                <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
+              </div>
+              <div class="flex flex-wrap gap-1 text-[11px]">
+                <span
+                  v-for="proto in provider.topProtocols"
+                  :key="`${provider.name}-proto-${proto.label}`"
+                  class="badge badge-xs badge-outline border-primary/30 bg-primary/5"
+                >
+                  {{ proto.label }} · {{ proto.count }}
+                </span>
+                <span v-if="!provider.topProtocols.length" class="badge badge-xs badge-ghost">{{ $t('subscriptionsNoProtoHints') }}</span>
+              </div>
+              <div class="flex flex-wrap gap-1 text-[11px]">
+                <span
+                  v-for="country in provider.topCountries"
+                  :key="`${provider.name}-country-${country.code}`"
+                  class="badge badge-xs badge-outline border-secondary/30 bg-secondary/5"
+                >
+                  {{ country.flag || '🌐' }} {{ country.code }} · {{ country.count }}
+                </span>
+                <span v-if="!provider.topCountries.length" class="badge badge-xs badge-ghost">{{ $t('subscriptionsMixedCountries') }}</span>
+              </div>
             </button>
             <span v-if="!inventoryProviders.length" class="text-sm text-base-content/60">{{ $t('subscriptionsNoProvidersFiltered') }}</span>
           </div>
@@ -170,17 +215,42 @@
       </div>
 
       <div class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
-        <h3 class="mb-3 text-lg font-semibold">{{ $t('subscriptionsSelectedProvidersTitle') }}</h3>
-        <div class="flex flex-wrap gap-2">
-          <span
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-lg font-semibold">{{ $t('subscriptionsSelectedProvidersTitle') }}</h3>
+          <span class="text-xs text-base-content/60">{{ $t('subscriptionsSelectedProvidersHint') }}</span>
+        </div>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div
             v-for="provider in selectedProvidersMeta"
             :key="provider.name"
-            class="inline-flex items-center gap-2 rounded-2xl border border-base-300 bg-base-200/40 px-3 py-2 text-sm"
+            class="rounded-2xl border border-base-300 bg-base-200/40 px-3 py-3 text-sm"
           >
-            <span class="font-medium">{{ provider.name }}</span>
-            <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
-            <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
-          </span>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="min-w-0 flex-1 truncate font-medium">{{ provider.name }}</span>
+              <span class="badge badge-xs badge-neutral badge-outline">{{ provider.nodeCount }} {{ $t('subscriptionsNodesShort') }}</span>
+              <span class="badge badge-xs" :class="provider.health.badgeCls">{{ $t(provider.health.labelKey) }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1 text-[11px]">
+              <span
+                v-for="proto in provider.topProtocols"
+                :key="`${provider.name}-selected-proto-${proto.label}`"
+                class="badge badge-xs badge-outline border-primary/30 bg-primary/5"
+              >
+                {{ proto.label }} · {{ proto.count }}
+              </span>
+              <span v-if="!provider.topProtocols.length" class="badge badge-xs badge-ghost">{{ $t('subscriptionsNoProtoHints') }}</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1 text-[11px]">
+              <span
+                v-for="country in provider.topCountries"
+                :key="`${provider.name}-selected-country-${country.code}`"
+                class="badge badge-xs badge-outline border-secondary/30 bg-secondary/5"
+              >
+                {{ country.flag || '🌐' }} {{ country.code }} · {{ country.count }}
+              </span>
+              <span v-if="!provider.topCountries.length" class="badge badge-xs badge-ghost">{{ $t('subscriptionsMixedCountries') }}</span>
+            </div>
+          </div>
           <span v-if="!selectedProvidersMeta.length" class="text-sm text-base-content/60">{{ $t('subscriptionsNoProviders') }}</span>
         </div>
       </div>
@@ -191,6 +261,8 @@
 <script setup lang="ts">
 import QrCodeSvg from '@/components/common/QrCodeSvg.vue'
 import { ROUTE_NAME } from '@/constant'
+import { countryCodeToFlagEmoji, flagEmojiToCountryCode } from '@/helper/providerIcon'
+import { getProxyProtoLabel } from '@/helper/proxyProto'
 import { getProviderHealth } from '@/helper/providerHealth'
 import { showNotification } from '@/helper/notification'
 import { agentToken, agentUrl } from '@/store/agent'
@@ -200,6 +272,7 @@ import {
   agentProvidersSslRefreshing,
 } from '@/store/providerHealth'
 import { fetchProxyProvidersOnly, proxyProviederList } from '@/store/proxies'
+import { proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { useStorage } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -219,31 +292,134 @@ const universalQrMode = useStorage<'url' | 'v2raytun' | 'v2rayng' | 'hiddify'>(
 )
 const busy = ref(false)
 const providerQuickAvailableOnly = useStorage('config/subscriptions-provider-quick-available-only-v1', false)
+const providerQuickProtoFilter = useStorage('config/subscriptions-provider-quick-proto-filter-v1', 'all')
+const providerQuickCountryFilter = useStorage('config/subscriptions-provider-quick-country-filter-v1', 'all')
 
-const providers = computed(() => (proxyProviederList.value || []).filter((p: any) => String(p?.name || '') !== 'default'))
+const COUNTRY_HINTS: Record<string, string> = {
+  germany: 'DE', deutschland: 'DE', berlin: 'DE', frankfurt: 'DE',
+  finland: 'FI', helsinki: 'FI', suomi: 'FI',
+  sweden: 'SE', stockholm: 'SE', sverige: 'SE',
+  netherlands: 'NL', holland: 'NL', amsterdam: 'NL',
+  swiss: 'CH', switzerland: 'CH', zurich: 'CH',
+  russia: 'RU', russian: 'RU', moscow: 'RU', moskva: 'RU', spb: 'RU',
+  france: 'FR', paris: 'FR',
+  poland: 'PL', warsaw: 'PL',
+  czech: 'CZ', prague: 'CZ',
+  austria: 'AT', vienna: 'AT',
+  spain: 'ES', madrid: 'ES',
+  italy: 'IT', milan: 'IT', rome: 'IT',
+  norway: 'NO', oslo: 'NO',
+  japan: 'JP', tokyo: 'JP',
+  singapore: 'SG',
+  hongkong: 'HK', 'hong kong': 'HK',
+  turkey: 'TR', istanbul: 'TR',
+  ukraine: 'UA', kyiv: 'UA', kiev: 'UA',
+  britain: 'GB', england: 'GB', london: 'GB',
+  usa: 'US', america: 'US', 'united states': 'US',
+}
+const COUNTRY_CODE_ALLOW = new Set(Object.values(COUNTRY_HINTS).concat(['DE', 'FI', 'SE', 'NL', 'CH', 'RU', 'FR', 'PL', 'CZ', 'AT', 'ES', 'IT', 'NO', 'JP', 'SG', 'HK', 'TR', 'UA', 'GB', 'US']))
+const COUNTRY_CODE_STOP = new Set(['WG', 'SS', 'WS', 'TCP', 'UDP', 'TLS', 'MT', 'HY', 'VM', 'GR', 'IP', 'DNS', 'CDN'])
+
+const inferCountryCode = (input: any): string => {
+  const text = String(input || '').trim()
+  if (!text) return ''
+  const fromFlag = flagEmojiToCountryCode(text)
+  if (fromFlag) return fromFlag
+  const low = text.toLowerCase()
+  for (const [needle, code] of Object.entries(COUNTRY_HINTS)) {
+    if (low.includes(needle)) return code
+  }
+  const matches = text.match(/(?:^|[\s\[\](){}._\-])([A-Z]{2})(?=$|[\s\[\](){}._\-])/g) || []
+  for (const raw of matches) {
+    const code = raw.replace(/[^A-Z]/g, '')
+    if (!code || COUNTRY_CODE_STOP.has(code)) continue
+    if (COUNTRY_CODE_ALLOW.has(code)) return code
+  }
+  return ''
+}
+
+const summarizeProviderNodes = (provider: any) => {
+  const protocolCounts: Record<string, number> = {}
+  const countryCounts: Record<string, number> = {}
+  const nodes = Array.isArray(provider?.proxies) ? provider.proxies : []
+  for (const node of nodes) {
+    const proto = getProxyProtoLabel((node as any)?.type || '')
+    if (proto) protocolCounts[proto] = (protocolCounts[proto] || 0) + 1
+    const country = inferCountryCode((node as any)?.name || (node as any)?.server || '')
+    if (country) countryCounts[country] = (countryCounts[country] || 0) + 1
+  }
+  const topProtocols = Object.entries(protocolCounts)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label))
+    .slice(0, 4)
+  const topCountries = Object.entries(countryCounts)
+    .map(([code, count]) => ({ code, count, flag: countryCodeToFlagEmoji(code) }))
+    .sort((a, b) => (b.count - a.count) || a.code.localeCompare(b.code))
+    .slice(0, 4)
+  return { protocolCounts, countryCounts, topProtocols, topCountries }
+}
+
+const providers = computed(() => (proxyProviederList.value || []).filter((p: any) => Array.isArray((p as any)?.proxies) && String(p?.name || '') !== 'default'))
 const providerNames = computed(() => providers.value.map((p: any) => String(p.name || '')).filter(Boolean))
+
+const providerWarnDays = (providerName: string) => {
+  const key = String(providerName || '').trim()
+  const override = Number((proxyProviderSslWarnDaysMap.value || {})[key])
+  if (Number.isFinite(override)) return Math.max(0, Math.min(365, Math.trunc(override)))
+  const base = Number(sslNearExpiryDaysDefault.value)
+  return Number.isFinite(base) ? Math.max(0, Math.min(365, Math.trunc(base))) : 2
+}
 
 const providerMetaList = computed(() => {
   return providers.value.map((provider: any) => {
     const health = getProviderHealth(provider, agentProviderByName.value?.[provider.name], {
+      nearExpiryDays: providerWarnDays(String(provider?.name || '')),
       sslRefreshing: agentProvidersSslRefreshing.value || agentProvidersSslRefreshPending.value,
     })
     const nodeCount = Array.isArray(provider?.proxies) ? provider.proxies.length : 0
     const available = nodeCount > 0 && health.status !== 'offline'
+    const summary = summarizeProviderNodes(provider)
     return {
       provider,
       name: String(provider?.name || ''),
       nodeCount,
       available,
       health,
+      protocolCounts: summary.protocolCounts,
+      countryCounts: summary.countryCounts,
+      topProtocols: summary.topProtocols,
+      topCountries: summary.topCountries,
     }
   })
 })
 
+const providerProtoOptions = computed(() => {
+  const set = new Set<string>()
+  for (const provider of providerMetaList.value) {
+    for (const key of Object.keys(provider.protocolCounts || {})) if (key) set.add(key)
+  }
+  return [...set].sort((a, b) => a.localeCompare(b))
+})
+
+const providerCountryOptions = computed(() => {
+  const set = new Set<string>()
+  for (const provider of providerMetaList.value) {
+    for (const key of Object.keys(provider.countryCounts || {})) if (key) set.add(key)
+  }
+  return [...set].sort((a, b) => a.localeCompare(b))
+})
+
 const inventoryProviders = computed(() => {
-  return providerQuickAvailableOnly.value
-    ? providerMetaList.value.filter((provider) => provider.available)
-    : providerMetaList.value
+  const protoRaw = String(providerQuickProtoFilter.value || 'all').trim()
+  const countryRaw = String(providerQuickCountryFilter.value || 'all').trim().toUpperCase()
+  const proto = protoRaw !== 'all' && providerProtoOptions.value.includes(protoRaw) ? protoRaw : 'all'
+  const country = countryRaw !== 'all' && providerCountryOptions.value.includes(countryRaw) ? countryRaw : 'all'
+  return providerMetaList.value.filter((provider) => {
+    if (providerQuickAvailableOnly.value && !provider.available) return false
+    if (proto !== 'all' && !provider.protocolCounts?.[proto]) return false
+    if (country !== 'all' && !provider.countryCounts?.[country]) return false
+    return true
+  })
 })
 
 const availableProviderNames = computed(() => providerMetaList.value.filter((provider) => provider.available).map((provider) => provider.name))
@@ -313,10 +489,17 @@ const universalQrText = computed(() => {
   }
 })
 
+const countryOptionLabel = (code: string) => {
+  const cc = String(code || '').trim().toUpperCase()
+  if (!cc) return cc
+  const flag = countryCodeToFlagEmoji(cc)
+  return flag ? `${flag} ${cc}` : cc
+}
+
 const providerChipClass = (provider: { name: string; available: boolean; health: { status: string } }) => {
   const selected = selectedProviderNames.value.includes(provider.name)
   return [
-    selected ? 'btn-primary text-primary-content' : 'btn-ghost border-base-300 bg-base-100',
+    selected ? 'border-primary/45 bg-primary/10 text-base-content' : 'border-base-300 bg-base-100 hover:border-base-content/20',
     !provider.available && !selected ? 'opacity-80' : '',
     provider.health.status === 'offline' && !selected ? 'border-error/30' : '',
   ]

@@ -81,6 +81,14 @@ export const getIPv6ByName = (proxyName: string) => {
 
 let fetchTime = 0
 
+const isLikelyProxyProvider = (provider: any): provider is ProxyProvider => {
+  if (!provider || typeof provider !== 'object') return false
+  if (String(provider?.name || '').trim() === 'default') return false
+  // Proxy-providers expose a proxies array. Rule-providers do not.
+  // Some broken/partial payloads may still include an empty proxies list, and that is fine.
+  return Array.isArray((provider as any).proxies)
+}
+
 export const fetchProxies = async () => {
   const nowTime = Date.now()
 
@@ -96,9 +104,7 @@ export const fetchProxies = async () => {
 
   const sortIndex = proxyData.proxies[GLOBAL].all ?? []
   const allProviderProxies: Record<string, Proxy> = {}
-  const providers = Object.values(providerData.providers).filter(
-    (provider: any) => String(provider?.name || '') !== 'default',
-  )
+  const providers = Object.values(providerData.providers || {}).filter(isLikelyProxyProvider)
 
   for (const provider of providers) {
     for (const proxy of provider.proxies) {
@@ -201,9 +207,7 @@ export const fetchProxyProvidersOnly = async () => {
     return
   }
 
-  const providers = Object.values(providerData.providers).filter(
-    (provider: any) => String(provider?.name || '') !== 'default',
-  ) as any[]
+  const providers = Object.values(providerData.providers || {}).filter(isLikelyProxyProvider) as any[]
 
   // Mihomo/uhttpd can occasionally return an empty providers payload during short reload windows.
   // Do NOT clear the whole Providers page on a single empty response — keep the last known-good state.
@@ -278,7 +282,7 @@ export const fetchProxyProviderByNameOnly = async (providerName: string) => {
   const providerRes = await fetchProxyProviderAPI()
   const providerData = providerRes.data
 
-  const all = Object.values(providerData.providers || {}) as any[]
+  const all = Object.values(providerData.providers || {}).filter(isLikelyProxyProvider) as any[]
   const found = all.find((p: any) => String(p?.name || '') === providerName)
   if (!found) return
 
