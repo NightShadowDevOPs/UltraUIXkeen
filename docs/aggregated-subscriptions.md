@@ -111,7 +111,7 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=b64&token=YOUR_TO
 
 - `Mihomo / Clash`: `clash://install-config?url=<encoded-subscription-url>`
 - `v2rayNG`: `v2rayng://install-config?url=<encoded-subscription-url>&name=<encoded-name>`
-- `V2rayTun`: `v2raytun://import/<encoded-subscription-url>`
+- `V2rayTun`: `v2raytun://import-sub?url=<encoded-plain-subscription-url>`
 - `Hiddify`: `hiddify://import/<encoded-subscription-url>#<encoded-name>`
 
-The UI now URL-encodes subscription links before building deep links, because raw `http://...?...&...` values inside custom schemes can break import on some clients.
+The UI now URL-encodes subscription links before building deep links, because raw `http://...?...&...` values inside custom schemes can break import on some clients. For V2rayTun specifically, the UI uses the plain-text subscription endpoint plus the `v2raytun://import-sub?url=...` form for better compatibility, while the QR mode shows the direct plain subscription URL.

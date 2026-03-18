@@ -187,6 +187,7 @@
             </label>
             <div class="flex flex-wrap gap-2">
               <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('copyLink') }}</button>
+              <button class="btn btn-sm" :disabled="!v2rayTunImportUrl" @click="copyText(v2rayTunImportUrl)">{{ $t('subscriptionsCopyV2rayTunUrl') }}</button>
               <a class="btn btn-sm" :class="!v2rayTunDeepLink && 'btn-disabled'" :href="v2rayTunDeepLink || undefined">V2rayTun</a>
               <a class="btn btn-sm" :class="!v2rayNgDeepLink && 'btn-disabled'" :href="v2rayNgDeepLink || undefined">v2rayNG</a>
               <a class="btn btn-sm" :class="!hiddifyDeepLink && 'btn-disabled'" :href="hiddifyDeepLink || undefined">Hiddify</a>
@@ -462,12 +463,14 @@ const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain') => {
 
 const mihomoUrl = computed(() => buildSubscriptionUrl('mihomo'))
 const universalUrl = computed(() => buildSubscriptionUrl('b64'))
+const v2rayTunImportUrl = computed(() => buildSubscriptionUrl('plain'))
 const encodedMihomoUrl = computed(() => (mihomoUrl.value ? encodeURIComponent(mihomoUrl.value) : ''))
 const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
 const encodedUniversalUrl = computed(() => (universalUrl.value ? encodeURIComponent(universalUrl.value) : ''))
+const encodedV2rayTunImportUrl = computed(() => (v2rayTunImportUrl.value ? encodeURIComponent(v2rayTunImportUrl.value) : ''))
 const encodedBundleName = computed(() => encodeURIComponent(safeBundleName.value))
 
-const v2rayTunDeepLink = computed(() => (encodedUniversalUrl.value ? `v2raytun://import/${encodedUniversalUrl.value}` : ''))
+const v2rayTunDeepLink = computed(() => (encodedV2rayTunImportUrl.value ? `v2raytun://import-sub?url=${encodedV2rayTunImportUrl.value}` : ''))
 const v2rayNgDeepLink = computed(() => (
   encodedUniversalUrl.value
     ? `v2rayng://install-config?url=${encodedUniversalUrl.value}&name=${encodedBundleName.value}`
@@ -483,7 +486,7 @@ const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepL
 const universalQrText = computed(() => {
   switch (universalQrMode.value) {
     case 'v2raytun':
-      return v2rayTunDeepLink.value
+      return v2rayTunImportUrl.value
     case 'v2rayng':
       return v2rayNgDeepLink.value
     case 'hiddify':
