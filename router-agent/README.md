@@ -51,6 +51,8 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=subscription&format=plain`
 - `GET /cgi-bin/api.sh?cmd=subscription&format=json` *(preview groundwork for future HTTPS / Xray-style flows)*
 
+`format=mihomo` now emits an explicit top-level `proxy-groups:` section, so generated YAML keeps `Manual / Auto / Failover / Balance` in the correct Clash/Mihomo structure.
+
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
 ### status payload

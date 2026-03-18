@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.1"
+AGENT_VERSION="0.6.2"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -703,6 +703,7 @@ subscription_mihomo_yaml_text() {
   done <<__PROVIDER_LINES__
 $provider_lines
 __PROVIDER_LINES__
+  echo "proxy-groups:"
   for gname in Manual Auto Failover Balance; do
     echo "  - name: '$gname'"
     case "$gname" in

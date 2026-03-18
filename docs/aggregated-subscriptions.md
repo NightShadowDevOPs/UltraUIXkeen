@@ -20,6 +20,7 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=mihomo
 
 What it does:
 - generates `proxy-providers` from current Mihomo `proxy-providers` in `config.yaml`;
+- emits an explicit `proxy-groups:` section;
 - adds ready-made groups:
   - `Manual`
   - `Auto`
@@ -120,6 +121,7 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=b64&token=YOUR_TO
 ## Notes / limitations
 
 - `format=mihomo` does not proxy traffic through the router; it only builds a YAML config that points to provider URLs.
+- if a client times out on a local Mihomo/Clash import while the URL itself is reachable, first check that the generated YAML still contains a top-level `proxy-groups:` section.
 - `format=b64` works best when upstream provider URLs return normal V2Ray/Xray subscription payloads (Base64 or plain share links).
 - if an upstream provider returns only a panel page or another non-subscription format, its links may not appear in `format=b64`.
 - if `subscription` returns `{"ok":false,"error":"no-providers"}`, router-agent could not parse `proxy-providers` from the current Mihomo config.
