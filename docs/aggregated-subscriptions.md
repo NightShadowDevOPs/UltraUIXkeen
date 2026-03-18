@@ -111,7 +111,7 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=b64&token=YOUR_TO
 
 - `Mihomo / Clash`: `clash://install-config?url=<encoded-subscription-url>`
 - `v2rayNG`: `v2rayng://install-config?url=<encoded-subscription-url>&name=<encoded-name>`
-- `V2rayTun`: `v2raytun://import-sub?url=<encoded-plain-subscription-url>`
+- `V2rayTun`: `v2raytun://import-sub?url=<encoded-v2raytun-subscription-url>`
 - `Hiddify`: `hiddify://import/<encoded-subscription-url>#<encoded-name>`
 
 The UI now URL-encodes subscription links before building deep links, because raw `http://...?...&...` values inside custom schemes can break import on some clients. For V2rayTun specifically, the UI uses the plain-text subscription endpoint plus the `v2raytun://import-sub?url=...` form for better compatibility, while the QR mode shows the direct plain subscription URL.
@@ -119,4 +119,10 @@ The UI now URL-encodes subscription links before building deep links, because ra
 
 ## V2RayTun compatibility
 
-For V2RayTun, use the dedicated `format=v2raytun` subscription endpoint. It returns the same raw node list as `plain`, but adds V2RayTun-supported HTTP headers such as `profile-title`, `profile-update-interval`, and `update-always`. The UI uses the official deep link form `v2raytun://import/{subscription_link}` for buttons and QR-codes, while the copy action keeps a normal subscription URL for clipboard import.
+For V2RayTun 5.20.67, the most compatible flow in this project is:
+
+- button deep link: `v2raytun://import-sub?url=<encoded-v2raytun-subscription-url>`
+- copy/import URL: raw `format=v2raytun` subscription URL
+- QR for V2RayTun: raw `format=v2raytun` subscription URL (not a custom-scheme QR)
+
+The dedicated `format=v2raytun` endpoint returns the merged plain-text node list with V2RayTun-compatible headers (`profile-title`, `profile-update-interval`, `update-always`) and CRLF line endings for better compatibility with app imports.

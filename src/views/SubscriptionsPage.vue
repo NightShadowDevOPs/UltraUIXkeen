@@ -469,7 +469,8 @@ const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-
 const encodedUniversalUrl = computed(() => (universalUrl.value ? encodeURIComponent(universalUrl.value) : ''))
 const encodedBundleName = computed(() => encodeURIComponent(safeBundleName.value))
 
-const v2rayTunDeepLink = computed(() => (v2rayTunImportUrl.value ? `v2raytun://import/${v2rayTunImportUrl.value}` : ''))
+const encodedV2rayTunImportUrl = computed(() => (v2rayTunImportUrl.value ? encodeURIComponent(v2rayTunImportUrl.value) : ''))
+const v2rayTunDeepLink = computed(() => (encodedV2rayTunImportUrl.value ? `v2raytun://import-sub?url=${encodedV2rayTunImportUrl.value}` : ''))
 const v2rayNgDeepLink = computed(() => (
   encodedUniversalUrl.value
     ? `v2rayng://install-config?url=${encodedUniversalUrl.value}&name=${encodedBundleName.value}`
@@ -485,7 +486,7 @@ const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepL
 const universalQrText = computed(() => {
   switch (universalQrMode.value) {
     case 'v2raytun':
-      return v2rayTunDeepLink.value
+      return v2rayTunImportUrl.value
     case 'v2rayng':
       return v2rayNgDeepLink.value
     case 'hiddify':

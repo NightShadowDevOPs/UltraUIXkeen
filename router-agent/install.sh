@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.5.67"
+AGENT_VERSION="0.5.68"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -490,6 +490,10 @@ subscription_v2raytun_headers() {
   printf 'update-always: true\n'
 }
 
+subscription_with_crlf() {
+  awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
+}
+
 yaml_sq() {
   printf '%s' "$1" | sed "s/'/''/g"
 }
@@ -589,7 +593,7 @@ subscriptions_export_text() {
       ;;
     v2raytun)
       extra_headers="$(subscription_v2raytun_headers "$title")"
-      subscription_links_merged_text "$provider_lines" | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
+      subscription_links_merged_text "$provider_lines" | subscription_with_crlf | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
       ;;
     b64|base64|'')
       subscription_links_merged_text "$provider_lines" | b64enc | reply_text 'text/plain; charset=utf-8' 'zash-aggregated-subscription.txt'
