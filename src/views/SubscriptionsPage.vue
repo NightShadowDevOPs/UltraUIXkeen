@@ -178,6 +178,49 @@
         <span>{{ $t('subscriptionsAgentRequired') }}</span>
       </div>
 
+      <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
+        <div class="space-y-2">
+          <h3 class="text-lg font-semibold">{{ $t('subscriptionsUsageModesTitle') }}</h3>
+          <p class="text-sm text-base-content/70">{{ $t('subscriptionsUsageModesDesc') }}</p>
+        </div>
+        <div class="mt-4 grid gap-4 xl:grid-cols-2">
+          <div class="rounded-2xl border border-success/30 bg-success/5 p-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="text-sm font-semibold text-base-content">{{ $t('subscriptionsUsageImportTitle') }}</div>
+              <span class="badge badge-success badge-outline">{{ $t('subscriptionsUsageImportBadge') }}</span>
+            </div>
+            <p class="mt-2 text-sm leading-6 text-base-content/75">{{ $t('subscriptionsUsageImportDesc') }}</p>
+          </div>
+          <div class="rounded-2xl border border-warning/30 bg-warning/10 p-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="text-sm font-semibold text-base-content">{{ $t('subscriptionsUsageRefreshTitle') }}</div>
+              <span class="badge badge-warning badge-outline">{{ $t('subscriptionsUsageRefreshBadge') }}</span>
+            </div>
+            <p class="mt-2 text-sm leading-6 text-base-content/75">{{ $t('subscriptionsUsageRefreshDesc') }}</p>
+          </div>
+        </div>
+        <div class="mt-4 rounded-2xl border border-base-300 bg-base-200/40 p-4">
+          <div class="text-sm font-semibold text-base-content">{{ $t('subscriptionsUsageClientsTitle') }}</div>
+          <div class="mt-3 grid gap-3 lg:grid-cols-2">
+            <div class="rounded-2xl border border-base-300 bg-base-100 px-3 py-3 text-sm">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium">Mihomo / Clash</span>
+                <span class="badge badge-success badge-outline">{{ $t('subscriptionsUsageReadyBadge') }}</span>
+              </div>
+              <p class="mt-2 text-sm leading-6 text-base-content/75">{{ $t('subscriptionsUsageMihomoDesc') }}</p>
+            </div>
+            <div class="rounded-2xl border border-base-300 bg-base-100 px-3 py-3 text-sm">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium">V2Ray / Xray</span>
+                <span class="badge badge-info badge-outline">{{ $t('subscriptionsUsagePartialBadge') }}</span>
+              </div>
+              <p class="mt-2 text-sm leading-6 text-base-content/75">{{ $t('subscriptionsUsageUniversalDesc') }}</p>
+              <p class="mt-2 text-sm leading-6 text-warning-content/90">{{ $t('subscriptionsUsageV2RayTunDesc') }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="grid gap-4 xl:grid-cols-2">
         <section class="rounded-2xl border border-base-300 bg-base-100 p-4 shadow-sm">
           <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -189,6 +232,10 @@
           </div>
 
           <div class="space-y-3">
+            <div class="rounded-2xl border border-success/30 bg-success/5 p-3 text-xs text-base-content/80">
+              <div class="font-semibold text-base-content">{{ $t('subscriptionsImportReadyTitle') }}</div>
+              <p class="mt-1 leading-5">{{ $t('subscriptionsImportReadyMihomoDesc') }}</p>
+            </div>
             <div class="rounded-2xl border border-base-300 bg-base-200/40 p-3 text-xs text-base-content/75">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium text-base-content">{{ $t('subscriptionsCurrentSourceLabel') }}:</span>
@@ -245,6 +292,10 @@
           </div>
 
           <div class="space-y-3">
+            <div class="rounded-2xl border border-info/30 bg-info/10 p-3 text-xs text-base-content/80">
+              <div class="font-semibold text-base-content">{{ $t('subscriptionsImportReadyTitle') }}</div>
+              <p class="mt-1 leading-5">{{ $t('subscriptionsImportReadyUniversalDesc') }}</p>
+            </div>
             <div class="rounded-2xl border border-base-300 bg-base-200/40 p-3 text-xs text-base-content/75">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium text-base-content">{{ $t('subscriptionsCurrentSourceLabel') }}:</span>
