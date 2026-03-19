@@ -3,13 +3,14 @@
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
 Репозиторий: messireL/ZashUIFork
 Линейка версий: 1.2.x
-Текущая версия архива: v1.2.8
-router-agent: 0.6.4
+Текущая версия архива: v1.2.9
+router-agent: 0.6.5
 
 Последний фикс в этом релизе:
-- исправлена логика cloud upload в `backup.sh` / cron: если в `RCLONE_REMOTE` / `RCLONE_REMOTES` остались удалённые или устаревшие remotes, agent теперь умеет fallback на реальные remotes из `rclone.conf` и продолжает выгружать новые архивы в облако
-- в `backup.last.log` теперь явно пишется, когда agent увидел устаревшие remotes в env и переключился на remotes из `rclone.conf`
-- история облачных архивов / restore из прошлого релиза и новый upload fallback теперь работают в одной логике, без рассинхрона между “видим архивы” и “не можем загрузить новые”
+- на вкладке `Подписки` для V2RayTun снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; поток при этом честно оставлен в статусе экспериментального локального импорта, а не финальной внешней подписки
+- в `router-agent` формат `v2raytun` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед списком share-links, чтобы лучше попасть в документированный body-header flow V2RayTun
+- история с backup fallback из `v1.2.8` не тронута и остаётся рабочей
+
 
 Ключевые особенности:
 - отдельные пункты меню: Прокси, Прокси-провайдеры и Подписки
@@ -51,6 +52,7 @@ router-agent: 0.6.4
 - cat /opt/zash-agent/var/backup.last.json
 
 История последних релизов:
+- UI v1.2.9 / agent 0.6.5: для V2RayTun на вкладке `Подписки` снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; сам `router-agent` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед merged share-links, чтобы лучше совпасть с документированным body-header flow V2RayTun.
 - UI v1.2.8 / agent 0.6.4: исправлена логика cloud upload в `backup.sh` / cron — если `RCLONE_REMOTE`/`RCLONE_REMOTES` указывают на удалённые или устаревшие remotes, agent теперь автоматически падает обратно на реальные remotes из `rclone.conf` и продолжает выгружать новые архивы, а не только показывать старые в UI.
 - UI v1.2.6 / agent 0.6.2: исправлена генерация `format=mihomo` в `router-agent` — секция `proxy-groups:` теперь выводится явно перед группами `Manual / Auto / Failover / Balance`; это устраняет поломанный YAML, который мог приводить к неочевидным ошибкам или тайм-аутам при импорте в Clash-совместимые клиенты и Hiddify.
 - UI v1.2.7 / agent 0.6.3: исправлена логика облачной истории/restore бэкапов: если `RCLONE_REMOTE`/`RCLONE_REMOTES` указывают на удалённые или устаревшие remotes, agent теперь автоматически падает обратно на реальные remotes из `rclone.conf` и не прячет облачные архивы только из-за битых имён.

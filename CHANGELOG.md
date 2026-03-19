@@ -1,3 +1,8 @@
+## 1.2.9
+
+- router-agent 0.6.5: `format=v2raytun` now duplicates `profile-title`, `profile-update-interval` and `update-always` inside the response body with `#` prefixes in addition to normal HTTP headers, to better match documented V2RayTun body-header support
+- Subscriptions UI now exposes a dedicated local/published `format=v2raytun` URL plus `v2raytun://import/...` deeplink and QR mode for live LAN testing without pretending that external auto-update is solved
+
 ## 1.2.8
 
 - router-agent 0.6.4: cloud uploads in `backup.sh` / cron now fall back to real remotes from `rclone.conf` when `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale names

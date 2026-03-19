@@ -305,6 +305,9 @@
                 <span class="badge badge-outline" :class="effectiveJsonUsesPublished ? 'badge-success' : 'badge-neutral'">
                   JSON: {{ effectiveJsonUsesPublished ? $t('subscriptionsCurrentSourcePublished') : $t('subscriptionsCurrentSourceLocal') }}
                 </span>
+                <span class="badge badge-outline" :class="effectiveV2rayTunUsesPublished ? 'badge-success' : 'badge-neutral'">
+                  V2RayTun: {{ effectiveV2rayTunUsesPublished ? $t('subscriptionsCurrentSourcePublished') : $t('subscriptionsCurrentSourceLocal') }}
+                </span>
               </div>
               <p class="mt-2 leading-5">{{ $t('subscriptionsCurrentSourceHint') }}</p>
             </div>
@@ -320,6 +323,12 @@
               </div>
               <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="jsonUrl" readonly />
             </label>
+            <label class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsLocalV2rayTunLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="v2rayTunUrl" readonly />
+            </label>
             <label v-if="publishedUniversalUrl" class="form-control">
               <div class="label py-1">
                 <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedLink') }}</span>
@@ -332,18 +341,27 @@
               </div>
               <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedJsonUrl" readonly />
             </label>
+            <label v-if="publishedV2rayTunUrl" class="form-control">
+              <div class="label py-1">
+                <span class="label-text text-xs text-base-content/70">{{ $t('subscriptionsPublishedV2rayTunLink') }}</span>
+              </div>
+              <textarea class="textarea textarea-bordered min-h-24 text-xs" :value="publishedV2rayTunUrl" readonly />
+            </label>
             <div class="rounded-2xl border border-warning/30 bg-warning/10 p-3 text-xs text-base-content/80">
               <div class="font-semibold text-base-content">{{ $t('subscriptionsV2rayTunPendingTitle') }}</div>
               <p class="mt-1 leading-5">{{ $t('subscriptionsV2rayTunPendingDesc') }}</p>
               <p v-if="publishedHttpsReady" class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingHttpsReady') }}</p>
               <p v-else class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunPendingLocalOnly') }}</p>
+              <p class="mt-2 leading-5">{{ $t('subscriptionsV2rayTunExperimentalNote') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <button class="btn btn-sm" :disabled="!effectiveUniversalUrl" @click="copyText(effectiveUniversalUrl)">{{ $t('subscriptionsCopyCurrentUrl') }}</button>
               <button class="btn btn-sm" :disabled="!universalUrl" @click="copyText(universalUrl)">{{ $t('subscriptionsCopyLocalUrl') }}</button>
               <button class="btn btn-sm" :disabled="!effectiveJsonUrl" @click="copyText(effectiveJsonUrl)">{{ $t('subscriptionsCopyCurrentJsonUrl') }}</button>
+              <button class="btn btn-sm" :disabled="!effectiveV2rayTunUrl" @click="copyText(effectiveV2rayTunUrl)">{{ $t('subscriptionsCopyCurrentV2rayTunUrl') }}</button>
               <a class="btn btn-sm" :class="!v2rayNgDeepLink && 'btn-disabled'" :href="v2rayNgDeepLink || undefined">v2rayNG</a>
               <a class="btn btn-sm" :class="!hiddifyDeepLink && 'btn-disabled'" :href="hiddifyDeepLink || undefined">Hiddify</a>
+              <a class="btn btn-sm btn-secondary" :class="!v2rayTunDeepLink && 'btn-disabled'" :href="v2rayTunDeepLink || undefined">{{ $t('subscriptionsOpenInV2rayTun') }}</a>
             </div>
             <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
               <div class="space-y-2">
@@ -355,6 +373,7 @@
                     <option value="url">{{ $t('subscriptionsQrModeUrl') }}</option>
                     <option value="v2rayng">v2rayNG</option>
                     <option value="hiddify">Hiddify</option>
+                    <option value="v2raytun">{{ $t('subscriptionsQrModeV2rayTun') }}</option>
                   </select>
                 </label>
                 <div class="rounded-2xl bg-base-200/40 p-3 text-xs text-base-content/70">
@@ -439,7 +458,7 @@ const bundleName = useStorage('config/subscriptions-bundle-name-v1', 'Zash Aggre
 const selectionMode = useStorage<SelectionMode>('config/subscriptions-selection-mode-v1', 'all')
 const customProviderNames = useStorage<string[]>('config/subscriptions-custom-providers-v1', [])
 const mihomoQrMode = useStorage<'url' | 'clash'>('config/subscriptions-mihomo-qr-mode-v1', 'url')
-const universalQrMode = useStorage<'url' | 'v2rayng' | 'hiddify'>(
+const universalQrMode = useStorage<'url' | 'v2rayng' | 'hiddify' | 'v2raytun'>(
   'config/subscriptions-universal-qr-mode-v1',
   'url',
 )
@@ -636,18 +655,22 @@ const buildSubscriptionUrl = (format: 'mihomo' | 'b64' | 'plain' | 'v2raytun' | 
 const mihomoUrl = computed(() => buildSubscriptionUrl('mihomo'))
 const universalUrl = computed(() => buildSubscriptionUrl('b64'))
 const jsonUrl = computed(() => buildSubscriptionUrl('json'))
+const v2rayTunUrl = computed(() => buildSubscriptionUrl('v2raytun'))
 const publishedBaseUrlNormalized = computed(() => normalizeSubscriptionBase(publishedBaseUrl.value))
 const publishedBaseUrlLooksHttps = computed(() => /^https:\/\//i.test(publishedBaseUrlNormalized.value))
 const publishedHttpsReady = computed(() => !!publishedBaseUrlNormalized.value && publishedBaseUrlLooksHttps.value)
 const publishedMihomoUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'mihomo'))
 const publishedUniversalUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'b64'))
 const publishedJsonUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'json'))
+const publishedV2rayTunUrl = computed(() => buildSubscriptionUrlFromBase(publishedBaseUrlNormalized.value, 'v2raytun'))
 const effectiveMihomoUrl = computed(() => publishedMihomoUrl.value || mihomoUrl.value)
 const effectiveUniversalUrl = computed(() => publishedUniversalUrl.value || universalUrl.value)
 const effectiveJsonUrl = computed(() => publishedJsonUrl.value || jsonUrl.value)
+const effectiveV2rayTunUrl = computed(() => publishedV2rayTunUrl.value || v2rayTunUrl.value)
 const effectiveMihomoUsesPublished = computed(() => !!publishedMihomoUrl.value)
 const effectiveUniversalUsesPublished = computed(() => !!publishedUniversalUrl.value)
 const effectiveJsonUsesPublished = computed(() => !!publishedJsonUrl.value)
+const effectiveV2rayTunUsesPublished = computed(() => !!publishedV2rayTunUrl.value)
 const encodedMihomoUrl = computed(() => (effectiveMihomoUrl.value ? encodeURIComponent(effectiveMihomoUrl.value) : ''))
 const clashDeepLink = computed(() => (encodedMihomoUrl.value ? `clash://install-config?url=${encodedMihomoUrl.value}` : ''))
 const encodedUniversalUrl = computed(() => (effectiveUniversalUrl.value ? encodeURIComponent(effectiveUniversalUrl.value) : ''))
@@ -663,6 +686,11 @@ const hiddifyDeepLink = computed(() => (
     ? `hiddify://import/${encodedUniversalUrl.value}#${encodedBundleName.value}`
     : ''
 ))
+const v2rayTunDeepLink = computed(() => (
+  effectiveV2rayTunUrl.value
+    ? `v2raytun://import/${effectiveV2rayTunUrl.value}`
+    : ''
+))
 
 const mihomoQrText = computed(() => (mihomoQrMode.value === 'clash' ? clashDeepLink.value : effectiveMihomoUrl.value))
 const universalQrText = computed(() => {
@@ -671,6 +699,8 @@ const universalQrText = computed(() => {
       return v2rayNgDeepLink.value
     case 'hiddify':
       return hiddifyDeepLink.value
+    case 'v2raytun':
+      return v2rayTunDeepLink.value
     default:
       return effectiveUniversalUrl.value
   }
@@ -766,7 +796,7 @@ const clearSelectedProviders = () => {
 }
 
 onMounted(() => {
-  if (!['url', 'v2rayng', 'hiddify'].includes(String(universalQrMode.value || ''))) universalQrMode.value = 'url'
+  if (!['url', 'v2rayng', 'hiddify', 'v2raytun'].includes(String(universalQrMode.value || ''))) universalQrMode.value = 'url'
   if (!providerNames.value.length) {
     fetchProxyProvidersOnly()
   }

@@ -58,7 +58,26 @@ Good for:
 - Hiddify
 - other apps that import a subscription URL or share-link list
 
-### 3) JSON preview endpoint (groundwork)
+### 3) V2RayTun experimental local import
+
+Endpoint:
+
+```text
+http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=v2raytun
+```
+
+What it does right now:
+- merges and deduplicates upstream share links like the plain/base64 export;
+- keeps V2RayTun metadata in normal HTTP headers (`profile-title`, `profile-update-interval`, `update-always`);
+- duplicates the same metadata inside the body as `#profile-title`, `#profile-update-interval`, `#update-always`, because V2RayTun documents support for body headers too;
+- is now exposed again in the UI as a separate local/published URL plus a `v2raytun://import/...` deeplink and QR mode for live LAN testing.
+
+What it is **not** yet:
+- not a claim that outside-home auto-update is solved;
+- not a replacement for the future normal HTTPS endpoint;
+- not yet promoted from experimental local import to finished V2RayTun support.
+
+### 4) JSON preview endpoint (groundwork)
 
 Endpoint:
 
@@ -132,16 +151,17 @@ http://<router-ip>:9099/cgi-bin/api.sh?cmd=subscription&format=b64&token=YOUR_TO
 - `Mihomo / Clash`: `clash://install-config?url=<encoded-subscription-url>`
 - `v2rayNG`: `v2rayng://install-config?url=<encoded-subscription-url>&name=<encoded-name>`
 - `Hiddify`: `hiddify://import/<encoded-subscription-url>#<encoded-name>`
+- `V2RayTun`: `v2raytun://import/<subscription-link>`
 
-The UI still URL-encodes subscription links before building deep links. This remains useful for Mihomo / Clash, v2rayNG and Hiddify.
+The UI still URL-encodes subscription links before building deep links for Mihomo / Clash, v2rayNG and Hiddify. For V2RayTun the new deeplink follows the documented `v2raytun://import/{subscription_link}` pattern and uses the dedicated `format=v2raytun` URL.
 
 ## V2RayTun compatibility status
 
 Current project status for V2RayTun 5.20.67:
 
 - **not marked as ready** on the current local HTTP `router-agent` URL;
-- deep link and QR shortcuts are intentionally removed from the main UI flow to avoid false readiness;
-- legacy `format=v2raytun` output may still exist for diagnostics, but it is **not** treated as solved import support;
+- the main UI now exposes a clearly marked experimental local `format=v2raytun` URL, deeplink and QR mode for live LAN testing;
+- `format=v2raytun` still is **not** treated as solved import support; it is now exposed again only as an experimental local import path;
 - the next real step is a normal **HTTPS subscription endpoint**, then a more specific **JSON-based client flow** if needed.
 
 

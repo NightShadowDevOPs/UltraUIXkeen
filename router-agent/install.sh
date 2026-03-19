@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.4"
+AGENT_VERSION="0.6.5"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -490,6 +490,22 @@ subscription_v2raytun_headers() {
   printf 'update-always: true\n'
 }
 
+subscription_v2raytun_body_headers() {
+  title="$1"
+  [ -n "$title" ] || title='Zash Aggregated'
+  title_b64="$(printf '%s' "$title" | b64enc | tr -d '\r\n')"
+  printf '#profile-title: base64:%s\n' "$title_b64"
+  printf '#profile-update-interval: 6\n'
+  printf '#update-always: true\n'
+}
+
+subscription_v2raytun_text() {
+  provider_lines="$1"
+  title="$2"
+  subscription_v2raytun_body_headers "$title"
+  subscription_links_merged_text "$provider_lines"
+}
+
 subscription_with_crlf() {
   awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
 }
@@ -766,7 +782,7 @@ subscriptions_export_text() {
       ;;
     v2raytun)
       extra_headers="$(subscription_v2raytun_headers "$title")"
-      subscription_links_merged_text "$provider_lines" | subscription_with_crlf | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
+      subscription_v2raytun_text "$provider_lines" "$title" | subscription_with_crlf | reply_text_with_headers 'text/plain; charset=utf-8' '' "$extra_headers"
       ;;
     json|links-json|manifest)
       reply_ok "$(subscription_json_manifest "$provider_lines" "$title" "$selected_csv" "$token_q")"
