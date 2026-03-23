@@ -6,7 +6,7 @@ import { useStorage } from '@vueuse/core'
  * does not provide traffic shaping.
  */
 
-export const agentEnabled = useStorage<boolean>('config/agent-enabled', false)
+export const agentEnabled = useStorage<boolean>('config/agent-enabled', true)
 
 /**
  * Default tries same host as the UI, on port 9099.
@@ -24,7 +24,7 @@ export const agentToken = useStorage<string>('config/agent-token', '')
  * If enabled, bandwidth limits (Mbps) are enforced by the agent (tc/iptables),
  * NOT by disconnecting connections.
  */
-export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', false)
+export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', true)
 
 /**
  * One-time LAN bootstrap for fresh browsers / new PCs.

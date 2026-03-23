@@ -1,3 +1,9 @@
+## v1.2.26
+
+- fixed Traffic QoS Apply/Clear state by resolving effective row IPs from saved mappings plus live connections instead of relying on stale row.ips only
+- fixed shared limits/QoS visibility on fresh browsers by enabling router-agent and bandwidth shaping by default in local storage-backed config
+- expanded user IP resolution used by limits/shaper logic so saved per-PC limits can reattach to active connections even before manual remapping
+
 ## v1.2.25
 
 - fixed Traffic QoS Apply/Clear state by resolving row IPs through saved user mappings (`getIpsForUser`) instead of only the current traffic buckets

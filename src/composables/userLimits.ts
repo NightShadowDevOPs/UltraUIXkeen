@@ -404,15 +404,29 @@ const ipsForUserLabel = (userLabel: string) => {
   const wantLc = want.toLowerCase()
 
   const normIp = (k: string) => (k || '').trim().split('/')[0]
+  const addIp = (val: string) => {
+    const ip = normIp(val)
+    if (!ip) return
+    out.push(ip)
+  }
 
   for (const it of sourceIPLabelList.value) {
     const label = String(it.label || it.key || '').trim()
     const key = normIp(String(it.key || '').trim())
     if (!key) continue
-    if (label === want || label.toLowerCase() === wantLc) out.push(key)
-    if (key === want) out.push(key)
+    if (label === want || label.toLowerCase() === wantLc) addIp(key)
+    if (key === want) addIp(key)
   }
-  if (!out.length && looksLikeIP(want)) out.push(normIp(want))
+
+  for (const c of activeConnections.value || []) {
+    const ip = normIp(String((c as any)?.metadata?.sourceIP || '').trim())
+    if (!ip) continue
+    const display = String(getIPLabelFromMap(ip) || ip).trim()
+    if (!display) continue
+    if (display === want || display.toLowerCase() === wantLc || ip === want) addIp(ip)
+  }
+
+  if (!out.length && looksLikeIP(want)) addIp(want)
   return Array.from(new Set(out)).filter(Boolean)
 }
 

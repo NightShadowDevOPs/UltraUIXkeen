@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length || !row.currentQos"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row) || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -836,6 +836,25 @@ const ensureQosDrafts = () => {
   qosDraftByUser.value = next
 }
 
+
+const effectiveIpsForRow = (row: Row) => {
+  const out = new Set<string>()
+  for (const ip of row.ips || []) if (looksLikeIP(ip)) out.add(ip)
+  for (const ip of getIpsForUser(row.user) || []) if (looksLikeIP(ip)) out.add(ip)
+
+  const want = normalizeUserName(row.user)
+  for (const c of activeConnections.value || []) {
+    const ip = String((c as any)?.metadata?.sourceIP || '').trim()
+    if (!looksLikeIP(ip)) continue
+    const display = String(getIPLabelFromMap(ip) || ip).trim()
+    if (normalizeUserName(display) === want || normalizeUserName(ip) === want) out.add(ip)
+  }
+
+  return Array.from(out).sort((a, b) => a.localeCompare(b))
+}
+
+const rowHasEffectiveIps = (row: Row) => effectiveIpsForRow(row).length > 0
+
 const refreshQosStatus = async () => {
   if (!agentEnabled.value) return
   const res = await agentQosStatusAPI()
@@ -1152,9 +1171,18 @@ const rows = computed<Row[]>(() => {
       ul += t?.ul || 0
     }
 
+    const liveIps = (activeConnections.value || [])
+      .map((c) => String((c as any)?.metadata?.sourceIP || '').trim())
+      .filter((ip) => {
+        if (!looksLikeIP(ip)) return false
+        const display = (getIPLabelFromMap(ip) || ip).toString()
+        return normalizeUserName(display) === norm || normalizeUserName(ip) === norm
+      })
+
     const resolvedIps = Array.from(new Set([
       ...Array.from(keysSet).filter((k) => looksLikeIP(k)),
       ...(getIpsForUser(user) || []),
+      ...liveIps,
     ].filter((k) => looksLikeIP(k))))
     resolvedIps.sort((a, b) => a.localeCompare(b))
     const keys = resolvedIps.join(', ')
@@ -1195,17 +1223,18 @@ watch(rows, () => {
 }, { deep: true, immediate: true })
 
 const applyUserQos = async (row: Row) => {
-  if (!agentEnabled.value || !row.ips.length) return
+  const ips = effectiveIpsForRow(row)
+  if (!agentEnabled.value || !ips.length) return
   const profile = qosDraftByUser.value[row.user] || 'normal'
   applyingQosUser.value = row.user
   try {
-    const results = await Promise.all(row.ips.map((ip) => agentSetHostQosAPI({ ip, profile })))
+    const results = await Promise.all(ips.map((ip) => agentSetHostQosAPI({ ip, profile })))
     const failed = results.find((it) => !it.ok)
     if (failed) {
       showNotification({ content: failed.error || 'QoS apply failed', type: 'alert-error', timeout: 2200 })
       return
     }
-    for (const ip of row.ips) setRouterHostQosAppliedProfile(ip, profile)
+    for (const ip of ips) setRouterHostQosAppliedProfile(ip, profile)
     await refreshQosStatus()
     showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
   } finally {
@@ -1214,16 +1243,17 @@ const applyUserQos = async (row: Row) => {
 }
 
 const clearUserQos = async (row: Row) => {
-  if (!agentEnabled.value || !row.ips.length) return
+  const ips = effectiveIpsForRow(row)
+  if (!agentEnabled.value || !ips.length) return
   applyingQosUser.value = row.user
   try {
-    const results = await Promise.all(row.ips.map((ip) => agentRemoveHostQosAPI(ip)))
+    const results = await Promise.all(ips.map((ip) => agentRemoveHostQosAPI(ip)))
     const failed = results.find((it) => !it.ok)
     if (failed) {
       showNotification({ content: failed.error || 'QoS clear failed', type: 'alert-error', timeout: 2200 })
       return
     }
-    for (const ip of row.ips) setRouterHostQosAppliedProfile(ip)
+    for (const ip of ips) setRouterHostQosAppliedProfile(ip)
     await refreshQosStatus()
     showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
   } finally {
