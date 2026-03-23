@@ -1,3 +1,9 @@
+## v1.2.25
+
+- fixed Traffic QoS Apply/Clear state by resolving row IPs through saved user mappings (`getIpsForUser`) instead of only the current traffic buckets
+- fixed stale LAN browser profiles where `agentEnabled` / `agentEnforceBandwidth` could stay false even after bootstrap was already marked as done
+- Traffic rows with saved limits or applied QoS are no longer cut off by Top N when they currently have little or zero traffic
+
 ## v1.2.19
 
 - added a dedicated left-menu Traffic section and moved traffic/QoS work there

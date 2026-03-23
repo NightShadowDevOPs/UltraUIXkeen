@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user || !row.currentQos"
+                      :disabled="!agentEnabled || applyingQosUser === row.user || !row.ips.length || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -1152,13 +1152,16 @@ const rows = computed<Row[]>(() => {
       ul += t?.ul || 0
     }
 
-    const ipKeys = Array.from(keysSet).filter((k) => looksLikeIP(k))
-    ipKeys.sort((a, b) => a.localeCompare(b))
-    const keys = ipKeys.join(', ')
+    const resolvedIps = Array.from(new Set([
+      ...Array.from(keysSet).filter((k) => looksLikeIP(k)),
+      ...(getIpsForUser(user) || []),
+    ].filter((k) => looksLikeIP(k))))
+    resolvedIps.sort((a, b) => a.localeCompare(b))
+    const keys = resolvedIps.join(', ')
 
-    const currentQos = resolveRowQos(ipKeys)
+    const currentQos = resolveRowQos(resolvedIps)
 
-    return { user, keys, dl, ul, ips: ipKeys, currentQos }
+    return { user, keys, dl, ul, ips: resolvedIps, currentQos }
   })
 
   const sorted = list.sort((a, b) => {
@@ -1172,7 +1175,18 @@ const rows = computed<Row[]>(() => {
     return dir * (at - bt)
   })
 
-  if (topN.value > 0) return sorted.slice(0, topN.value)
+  if (topN.value > 0) {
+    const pinnedUsers = new Set(Object.keys(userLimits.value || {}).filter(Boolean))
+    const sliced = sorted.slice(0, topN.value)
+    const keep = new Set(sliced.map((row) => row.user))
+    for (const row of sorted) {
+      if (keep.has(row.user)) continue
+      if (!pinnedUsers.has(row.user) && !row.currentQos) continue
+      sliced.push(row)
+      keep.add(row.user)
+    }
+    return sliced
+  }
   return sorted
 })
 

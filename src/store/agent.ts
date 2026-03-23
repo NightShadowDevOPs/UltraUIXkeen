@@ -32,7 +32,7 @@ export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-b
  * Older builds stored both switches only in localStorage, so on another PC the UI
  * started with agent disabled even when the router-agent was already installed and working.
  */
-const agentLanBootstrapDone = useStorage<boolean>('config/agent-lan-bootstrap-done-v1', false)
+const agentLanBootstrapDone = useStorage<boolean>('config/agent-lan-bootstrap-done-v2', false)
 
 const normalizeAgentUrl = (value: string) => String(value || '').trim().replace(/\/+$/g, '')
 
@@ -58,13 +58,17 @@ const isLikelyLanAgentUrl = (value: string) => {
 
 export const bootstrapRouterAgentForLan = () => {
   if (typeof window === 'undefined') return
-  if (agentLanBootstrapDone.value) return
 
   const url = normalizeAgentUrl(agentUrl.value)
   if (!url) {
     agentLanBootstrapDone.value = true
     return
   }
+
+  // Self-heal stale browser profiles: earlier builds could already mark bootstrap
+  // as done while both switches stayed false in localStorage.
+  const shouldHealLanFlags = isLikelyLanAgentUrl(url) && (!agentEnabled.value || !agentEnforceBandwidth.value)
+  if (agentLanBootstrapDone.value && !shouldHealLanFlags) return
 
   if (isLikelyLanAgentUrl(url)) {
     agentEnabled.value = true
