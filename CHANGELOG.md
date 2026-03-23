@@ -1,3 +1,9 @@
+## v1.2.23
+
+- fixed Traffic QoS actions so Apply/Clear are no longer blocked by stale browser-local router-agent toggles; the UI now re-enables router-agent defaults on startup and when QoS/shaper actions are used
+- fixed shared labels/limits visibility across PCs by accepting Source IP label scopes whose backend UUIDs exist only on another browser profile, so rows can bind saved names, limits and QoS again
+- hard bandwidth limits now auto-reenable router shaping on re-apply/mac refresh flows too, so the shaper actually cuts traffic instead of only storing the value in the dialog
+
 ## v1.2.22
 
 - fixed Traffic page row binding so saved limits and saved QoS are visible even without current traffic buckets

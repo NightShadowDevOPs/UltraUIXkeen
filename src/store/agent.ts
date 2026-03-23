@@ -14,6 +14,8 @@ if (!agentEnabledBootstrapV1.value) {
   agentEnabled.value = true
   agentEnabledBootstrapV1.value = true
 }
+const agentEnabledBootstrapV2 = useStorage<boolean>('config/agent-enabled-bootstrap-v2', false)
+
 
 /**
  * Default tries same host as the UI, on port 9099.
@@ -37,6 +39,20 @@ if (!agentEnforceBandwidthBootstrapV1.value) {
   // If the user sets a bandwidth cap, enforce it via the agent by default.
   agentEnforceBandwidth.value = true
   agentEnforceBandwidthBootstrapV1.value = true
+}
+const agentEnforceBandwidthBootstrapV2 = useStorage<boolean>('config/agent-enforce-bandwidth-bootstrap-v2', false)
+
+export const ensureAgentDefaults = () => {
+  // One-shot migration for browser profiles that already went through older
+  // releases but still kept router-agent features disabled locally.
+  if (!agentEnabledBootstrapV2.value) {
+    agentEnabled.value = true
+    agentEnabledBootstrapV2.value = true
+  }
+  if (!agentEnforceBandwidthBootstrapV2.value) {
+    agentEnforceBandwidth.value = true
+    agentEnforceBandwidthBootstrapV2.value = true
+  }
 }
 
 /**

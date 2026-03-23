@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                      :disabled="!row.ips.length || applyingQosUser === row.user"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                      :disabled="!row.ips.length || applyingQosUser === row.user"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user || !row.currentQos"
+                      :disabled="!row.ips.length || applyingQosUser === row.user || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -631,7 +631,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="!agentEnabled"
+                  :disabled="macLoading"
                   @click="refreshMac"
                   :title="$t('rebindMac')"
                 >
@@ -641,7 +641,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="!agentEnabled"
+                  :disabled="macApplyLoading"
                   @click="refreshMacAndApply"
                   :title="$t('rebindMacApply')"
                 >
@@ -837,7 +837,6 @@ const ensureQosDrafts = () => {
 }
 
 const refreshQosStatus = async () => {
-  if (!agentEnabled.value) return
   const res = await agentQosStatusAPI()
   qosStatus.value = res.ok ? res : { ok: false, supported: false, items: [], error: res.error }
   if (res.ok) syncAppliedQosProfiles()
@@ -1251,7 +1250,8 @@ watch(rows, () => {
 }, { deep: true, immediate: true })
 
 const applyUserQos = async (row: Row) => {
-  if (!agentEnabled.value || !row.ips.length) return
+  if (!row.ips.length) return
+  if (!agentEnabled.value) agentEnabled.value = true
   const profile = qosDraftByUser.value[row.user] || 'normal'
   applyingQosUser.value = row.user
   try {
@@ -1270,7 +1270,8 @@ const applyUserQos = async (row: Row) => {
 }
 
 const clearUserQos = async (row: Row) => {
-  if (!agentEnabled.value || !row.ips.length) return
+  if (!row.ips.length) return
+  if (!agentEnabled.value) agentEnabled.value = true
   applyingQosUser.value = row.user
   try {
     const results = await Promise.all(row.ips.map((ip) => agentRemoveHostQosAPI(ip)))
@@ -1648,6 +1649,8 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 const applyingShaperUser = ref<string | null>(null)
 const reapplyShaper = async (user: string) => {
   if (!user) return
+  if (!agentEnabled.value) agentEnabled.value = true
+  if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
   applyingShaperUser.value = user
   try {
     await reapplyAgentShapingForUser(user)
@@ -1702,7 +1705,7 @@ const openLimits = (user: string) => {
 const refreshMac = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) return
+  if (!agentEnabled.value) agentEnabled.value = true
 
   const ips = getIpsForUser(user)
   if (!ips.length) return
@@ -1775,7 +1778,7 @@ const refreshMac = async () => {
 const refreshMacAndApply = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) return
+  if (!agentEnabled.value) agentEnabled.value = true
 
   macApplyLoading.value = true
   try {
