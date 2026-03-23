@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :disabled="applyingQosUser === row.user"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :disabled="applyingQosUser === row.user"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row) || !row.currentQos"
+                      :disabled="applyingQosUser === row.user || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -897,6 +897,20 @@ const effectiveIpsForRow = (row: Row) => {
 
 const rowHasEffectiveIps = (row: Row) => effectiveIpsForRow(row).length > 0
 
+const resolveIpsForQosAction = async (row: Row) => {
+  let ips = effectiveIpsForRow(row)
+  if (ips.length) return ips
+
+  await ensureAgentReady()
+  await usersDbPullNow()
+  await refreshAgentRuntime()
+  ips = effectiveIpsForRow(row)
+  if (ips.length) return ips
+
+  await refreshQosStatus()
+  return effectiveIpsForRow(row)
+}
+
 const refreshQosStatus = async () => {
   const ready = await ensureAgentReady()
   if (!ready) return
@@ -1267,8 +1281,11 @@ watch(rows, () => {
 
 const applyUserQos = async (row: Row) => {
   const ready = await ensureAgentReady()
-  const ips = effectiveIpsForRow(row)
-  if (!ready || !ips.length) return
+  const ips = await resolveIpsForQosAction(row)
+  if (!ready || !ips.length) {
+    showNotification({ content: 'Не найден IP для применения QoS', type: 'alert-warning', timeout: 2200 })
+    return
+  }
   const profile = qosDraftByUser.value[row.user] || 'normal'
   applyingQosUser.value = row.user
   try {
@@ -1288,8 +1305,11 @@ const applyUserQos = async (row: Row) => {
 
 const clearUserQos = async (row: Row) => {
   const ready = await ensureAgentReady()
-  const ips = effectiveIpsForRow(row)
-  if (!ready || !ips.length) return
+  const ips = await resolveIpsForQosAction(row)
+  if (!ready || !ips.length) {
+    showNotification({ content: 'Не найден IP для очистки QoS', type: 'alert-warning', timeout: 2200 })
+    return
+  }
   applyingQosUser.value = row.user
   try {
     const results = await Promise.all(ips.map((ip) => agentRemoveHostQosAPI(ip)))
@@ -1308,9 +1328,11 @@ const clearUserQos = async (row: Row) => {
 
 onMounted(() => {
   bootstrapRouterAgentForLan()
-  void ensureAgentReady()
-  void usersDbPullNow()
-  void refreshQosStatus()
+  void (async () => {
+    await ensureAgentReady()
+    await usersDbPullNow()
+    await refreshQosStatus()
+  })()
   qosTimer = window.setInterval(() => {
     void refreshQosStatus()
   }, 12000)
