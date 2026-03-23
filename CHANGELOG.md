@@ -1,3 +1,8 @@
+## UltraUIXkeen v1.2.15
+
+- added compact QoS level indicators in the live devices list and in the Host QoS table
+- device rows now load router-agent `qos_status` in the background so applied priorities stay visible outside the QoS card
+
 # Project changelog
 
 ## 1.2.14

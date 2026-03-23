@@ -228,6 +228,24 @@
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="truncate font-medium">{{ item.label }}</span>
+                    <span
+                      v-if="item.qosProfile"
+                      class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+                      :class="qosProfilePillClass(item.qosProfile)"
+                      :title="item.qosMeta ? `${qosProfileLabel(item.qosProfile)} · prio ${item.qosMeta.priority ?? '—'} · ↓ ${item.qosMeta.downMinMbit || 0} / ↑ ${item.qosMeta.upMinMbit || 0} Mbit` : qosProfileLabel(item.qosProfile)"
+                    >
+                      <span class="opacity-80">QoS</span>
+                      <span class="inline-flex items-end gap-0.5" aria-hidden="true">
+                        <span
+                          v-for="bar in qosIndicatorBars(item.qosProfile)"
+                          :key="`${item.ip}-qos-${bar.key}`"
+                          class="w-1 rounded-full"
+                          :class="bar.active ? qosProfileBarClass(item.qosProfile) : 'bg-base-content/10'"
+                          :style="{ height: `${bar.height}px` }"
+                        />
+                      </span>
+                      <span class="hidden md:inline">{{ qosProfileShortLabel(item.qosProfile) }}</span>
+                    </span>
                     <span v-if="hostSiteBadge(item)" class="badge badge-outline badge-xs" :style="hostSiteBadgeStyle(item)">{{ hostSiteBadge(item) }}</span>
                     <span class="badge badge-ghost badge-xs">{{ isHostDetailsExpanded(item.ip) ? $t('collapse') : $t('details') }}</span>
                   </div>
@@ -390,7 +408,7 @@
 </template>
 
 <script setup lang="ts">
-import { agentHostRemoteTargetsAPI, agentHostTrafficLiveAPI, agentLanHostsAPI, agentTrafficLiveAPI, type AgentHostRemoteTargetItem, type AgentHostTrafficLiveItem, type AgentTrafficLiveIface } from '@/api/agent'
+import { agentHostRemoteTargetsAPI, agentHostTrafficLiveAPI, agentLanHostsAPI, agentQosStatusAPI, agentTrafficLiveAPI, type AgentHostRemoteTargetItem, type AgentHostTrafficLiveItem, type AgentQosProfile, type AgentQosStatusItem, type AgentTrafficLiveIface } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
@@ -454,6 +472,8 @@ type HostTrafficStat = {
   targets: string[]
   targetStats: HostTargetStat[]
   source?: string
+  qosProfile?: AgentQosProfile
+  qosMeta?: AgentQosStatusItem
 }
 type HostTrafficState = HostTrafficStat & {
   displayDown: number
@@ -674,6 +694,7 @@ const currentExtraStats = computed(() => {
 })
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
+const hostQosByIp = ref<Record<string, AgentQosStatusItem>>({})
 const hostHistoryState = ref<Record<string, HostHistoryPoint[]>>({})
 const hostScopeFilter = ref<HostScopeFilter>('all')
 const hostSortBy = ref<HostSortMode>('traffic')
@@ -685,6 +706,7 @@ const hostTimelineWindowSeconds = Math.round(hostTimelineLimit * 1.5)
 const hostRemoteTargetsRefreshMs = 3000
 let hostTrafficTimer: number | null = null
 let hostTrafficAgentTimer: number | null = null
+let hostQosTimer: number | null = null
 let hostRemoteTargetsTimer: number | null = null
 const hostGroupCollapseStorageKey = 'router-traffic-host-groups-collapsed-v2'
 const hostGroupAutoCollapseStorageKey = 'router-traffic-host-groups-autocollapse-v1'
@@ -854,6 +876,64 @@ const hostSiteBadgeStyle = (item: Pick<HostTrafficStat, 'source'>) => {
     borderColor: meta.color,
     color: meta.color,
   }
+}
+
+const qosLevel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return 6
+  if (profile === 'high') return 5
+  if (profile === 'elevated') return 4
+  if (profile === 'low') return 2
+  if (profile === 'background') return 1
+  return profile === 'normal' ? 3 : 0
+}
+
+const qosProfileShortLabel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return 'C6'
+  if (profile === 'high') return 'H5'
+  if (profile === 'elevated') return 'E4'
+  if (profile === 'normal') return 'N3'
+  if (profile === 'low') return 'L2'
+  if (profile === 'background') return 'B1'
+  return ''
+}
+
+const qosProfileLabel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return t('hostQosCritical')
+  if (profile === 'high') return t('hostQosHigh')
+  if (profile === 'elevated') return t('hostQosElevated')
+  if (profile === 'low') return t('hostQosLow')
+  if (profile === 'background') return t('hostQosBackground')
+  if (profile === 'normal') return t('hostQosNormal')
+  return ''
+}
+
+const qosProfilePillClass = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return 'border-error/30 bg-error/10 text-error'
+  if (profile === 'high') return 'border-success/30 bg-success/10 text-success'
+  if (profile === 'elevated') return 'border-accent/30 bg-accent/10 text-accent'
+  if (profile === 'low') return 'border-warning/30 bg-warning/10 text-warning'
+  if (profile === 'background') return 'border-base-content/10 bg-base-200/50 text-base-content/70'
+  if (profile === 'normal') return 'border-info/30 bg-info/10 text-info'
+  return 'border-base-content/10 bg-base-200/40 text-base-content/60'
+}
+
+const qosProfileBarClass = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return 'bg-error'
+  if (profile === 'high') return 'bg-success'
+  if (profile === 'elevated') return 'bg-accent'
+  if (profile === 'low') return 'bg-warning'
+  if (profile === 'background') return 'bg-base-content/45'
+  if (profile === 'normal') return 'bg-info'
+  return 'bg-base-content/15'
+}
+
+const qosIndicatorBars = (profile?: AgentQosProfile) => {
+  const active = qosLevel(profile)
+  return [5, 7, 9, 11, 13, 15].map((height, index) => ({
+    key: String(index),
+    height,
+    active: index < active,
+  }))
 }
 
 const collectHostSnapshot = (): HostTrafficStat[] => {
@@ -1153,6 +1233,8 @@ const stableTrafficHosts = computed<HostTrafficStat[]>(() => {
       targets: item.targets,
       targetStats: item.targetStats,
       source: item.source,
+      qosProfile: item.qosProfile,
+      qosMeta: item.qosMeta,
     }))
 })
 
@@ -1458,27 +1540,34 @@ const refreshLanHosts = async () => {
   refreshHostTraffic()
 }
 
-const refreshAgentHostTraffic = async () => {
+const refreshHostQos = async () => {
   if (!agentEnabled.value) {
-    agentHostTrafficByIp.value = {}
-    hostRemoteTargetsByIp.value = {}
+    hostQosByIp.value = {}
     refreshHostTraffic()
     return
   }
-  const res = await agentHostTrafficLiveAPI()
+  const res = await agentQosStatusAPI()
   if (!res?.ok || !Array.isArray(res.items)) {
-    agentHostTrafficByIp.value = {}
+    hostQosByIp.value = {}
     refreshHostTraffic()
     return
   }
-  const next: Record<string, AgentHostTrafficSnapshot> = {}
-  for (const raw of res.items) {
-    const item = normalizeAgentHostTrafficItem(raw)
-    if (!item) continue
-    next[item.ip] = item
+  const next: Record<string, AgentQosStatusItem> = {}
+  for (const item of res.items) {
+    const ip = String(item?.ip || '').trim()
+    if (!ip || !item?.profile) continue
+    next[ip] = item
   }
-  agentHostTrafficByIp.value = next
+  hostQosByIp.value = next
   refreshHostTraffic()
+}
+
+const scheduleHostQosRefresh = () => {
+  if (hostQosTimer !== null) window.clearTimeout(hostQosTimer)
+  hostQosTimer = window.setTimeout(async () => {
+    await refreshHostQos()
+    scheduleHostQosRefresh()
+  }, 10000)
 }
 
 const scheduleHostRefresh = () => {
@@ -1936,6 +2025,8 @@ onMounted(() => {
   scheduleHostRefresh()
   refreshAgentHostTraffic()
   scheduleAgentHostTrafficRefresh()
+  refreshHostQos()
+  scheduleHostQosRefresh()
   refreshHostTraffic()
   scheduleHostTrafficRefresh()
   scheduleHostRemoteTargetsRefresh()
@@ -1957,6 +2048,10 @@ onBeforeUnmount(() => {
   if (hostTrafficAgentTimer !== null) {
     window.clearTimeout(hostTrafficAgentTimer)
     hostTrafficAgentTimer = null
+  }
+  if (hostQosTimer !== null) {
+    window.clearTimeout(hostQosTimer)
+    hostQosTimer = null
   }
   if (hostRemoteTargetsTimer !== null) {
     window.clearTimeout(hostRemoteTargetsTimer)

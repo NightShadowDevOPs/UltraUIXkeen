@@ -76,15 +76,36 @@
                 <div class="flex flex-col gap-0.5">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
-                    <span v-if="row.currentProfile" class="badge badge-xs" :class="profileBadgeClass(row.currentProfile)">{{ profileLabel(row.currentProfile) }}</span>
+                    <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium" :class="profilePillClass(row.currentProfile)">
+                      <span class="opacity-80">QoS</span>
+                      <span class="inline-flex items-end gap-0.5" aria-hidden="true">
+                        <span
+                          v-for="bar in qosIndicatorBars(row.currentProfile)"
+                          :key="`${row.ip}-title-${bar.key}`"
+                          class="w-1 rounded-full"
+                          :class="bar.active ? profileBarClass(row.currentProfile) : 'bg-base-content/10'"
+                          :style="{ height: `${bar.height}px` }"
+                        />
+                      </span>
+                    </span>
                   </div>
                   <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
                   <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
                 </div>
               </td>
               <td>
-                <span v-if="row.currentProfile" class="badge badge-sm" :class="profileBadgeClass(row.currentProfile)">
-                  {{ profileLabel(row.currentProfile) }}
+                <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium" :class="profilePillClass(row.currentProfile)">
+                  <span class="opacity-80">QoS</span>
+                  <span class="inline-flex items-end gap-0.5" aria-hidden="true">
+                    <span
+                      v-for="bar in qosIndicatorBars(row.currentProfile)"
+                      :key="`${row.ip}-current-${bar.key}`"
+                      class="w-1 rounded-full"
+                      :class="bar.active ? profileBarClass(row.currentProfile) : 'bg-base-content/10'"
+                      :style="{ height: `${bar.height}px` }"
+                    />
+                  </span>
+                  <span>{{ profileLabel(row.currentProfile) }}</span>
                 </span>
                 <span v-else class="text-xs opacity-60">{{ $t('hostQosNotSet') }}</span>
                 <div v-if="row.qosMeta" class="mt-1 flex flex-col gap-0.5 text-[11px] opacity-60">
@@ -261,6 +282,15 @@ const profileLabel = (profile?: AgentQosProfile) => {
   return t('hostQosNormal')
 }
 
+const qosLevel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return 6
+  if (profile === 'high') return 5
+  if (profile === 'elevated') return 4
+  if (profile === 'low') return 2
+  if (profile === 'background') return 1
+  return 3
+}
+
 const profileBadgeClass = (profile: AgentQosProfile) => {
   if (profile === 'critical') return 'badge-error'
   if (profile === 'high') return 'badge-success'
@@ -268,6 +298,33 @@ const profileBadgeClass = (profile: AgentQosProfile) => {
   if (profile === 'low') return 'badge-warning'
   if (profile === 'background') return 'badge-ghost'
   return 'badge-info'
+}
+
+const profilePillClass = (profile: AgentQosProfile) => {
+  if (profile === 'critical') return 'border-error/30 bg-error/10 text-error'
+  if (profile === 'high') return 'border-success/30 bg-success/10 text-success'
+  if (profile === 'elevated') return 'border-accent/30 bg-accent/10 text-accent'
+  if (profile === 'low') return 'border-warning/30 bg-warning/10 text-warning'
+  if (profile === 'background') return 'border-base-content/10 bg-base-200/50 text-base-content/70'
+  return 'border-info/30 bg-info/10 text-info'
+}
+
+const profileBarClass = (profile: AgentQosProfile) => {
+  if (profile === 'critical') return 'bg-error'
+  if (profile === 'high') return 'bg-success'
+  if (profile === 'elevated') return 'bg-accent'
+  if (profile === 'low') return 'bg-warning'
+  if (profile === 'background') return 'bg-base-content/45'
+  return 'bg-info'
+}
+
+const qosIndicatorBars = (profile?: AgentQosProfile) => {
+  const active = qosLevel(profile)
+  return [6, 8, 10, 12, 14, 16].map((height, index) => ({
+    key: String(index),
+    height,
+    active: index < active,
+  }))
 }
 
 const profileSummary = (profile: AgentQosProfile) => {
