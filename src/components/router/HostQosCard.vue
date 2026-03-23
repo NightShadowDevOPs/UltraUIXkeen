@@ -10,9 +10,9 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
-        <span v-if="qos.defaults?.high">{{ $t('hostQosHigh') }}: {{ profileSummary('high') }}</span>
-        <span v-if="qos.defaults?.normal">{{ $t('hostQosNormal') }}: {{ profileSummary('normal') }}</span>
-        <span v-if="qos.defaults?.low">{{ $t('hostQosLow') }}: {{ profileSummary('low') }}</span>
+        <span v-for="profile in profileOrder" :key="`legend-${profile}`" v-if="qos.defaults?.[profile]" class="badge badge-ghost">
+          {{ profileLabel(profile) }}: {{ profileSummary(profile) }}
+        </span>
         <span class="badge badge-ghost">{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</span>
         <span class="badge badge-ghost">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</span>
         <button type="button" class="btn btn-sm btn-ghost" @click="expanded = !expanded">
@@ -74,7 +74,10 @@
             <tr v-for="row in filteredRows" :key="row.ip">
               <td class="min-w-[240px]">
                 <div class="flex flex-col gap-0.5">
-                  <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
+                    <span v-if="row.currentProfile" class="badge badge-xs" :class="profileBadgeClass(row.currentProfile)">{{ profileLabel(row.currentProfile) }}</span>
+                  </div>
                   <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
                   <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
                 </div>
@@ -84,8 +87,9 @@
                   {{ profileLabel(row.currentProfile) }}
                 </span>
                 <span v-else class="text-xs opacity-60">{{ $t('hostQosNotSet') }}</span>
-                <div v-if="row.qosMeta" class="mt-1 text-[11px] opacity-60">
-                  {{ $t('hostQosGuarantee', { up: row.qosMeta.upMinMbit || 0, down: row.qosMeta.downMinMbit || 0 }) }}
+                <div v-if="row.qosMeta" class="mt-1 flex flex-col gap-0.5 text-[11px] opacity-60">
+                  <span>{{ $t('hostQosQueuePriority', { priority: row.qosMeta.priority ?? '—' }) }}</span>
+                  <span>{{ $t('hostQosGuarantee', { up: row.qosMeta.upMinMbit || 0, down: row.qosMeta.downMinMbit || 0 }) }}</span>
                 </div>
               </td>
               <td>
@@ -95,11 +99,18 @@
                 </div>
               </td>
               <td>
-                <select v-model="draftProfiles[row.ip]" class="select select-sm min-w-[150px]">
-                  <option value="high">{{ $t('hostQosHigh') }}</option>
-                  <option value="normal">{{ $t('hostQosNormal') }}</option>
-                  <option value="low">{{ $t('hostQosLow') }}</option>
-                </select>
+                <div class="flex flex-col gap-1">
+                  <select v-model="draftProfiles[row.ip]" class="select select-sm min-w-[170px]">
+                    <option v-for="profile in profileOrder" :key="`${row.ip}-${profile}`" :value="profile">{{ profileLabel(profile) }}</option>
+                  </select>
+                  <span class="text-[11px] opacity-60">{{ profileSummary(draftProfiles[row.ip] || 'normal') }}</span>
+                  <span
+                    v-if="draftProfiles[row.ip] && draftProfiles[row.ip] !== (row.currentProfile || 'normal')"
+                    class="text-[11px] opacity-70"
+                  >
+                    {{ $t('hostQosWillApply', { profile: profileLabel(draftProfiles[row.ip]) }) }}
+                  </span>
+                </div>
               </td>
               <td>
                 <div class="flex justify-end gap-2">
@@ -153,6 +164,8 @@ import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal', 'low', 'background']
 
 type Row = AgentLanHost & AgentHostTrafficLiveItem & {
   currentProfile?: AgentQosProfile
@@ -240,14 +253,20 @@ const formatRate = (bps?: number) => {
 }
 
 const profileLabel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return t('hostQosCritical')
   if (profile === 'high') return t('hostQosHigh')
+  if (profile === 'elevated') return t('hostQosElevated')
   if (profile === 'low') return t('hostQosLow')
+  if (profile === 'background') return t('hostQosBackground')
   return t('hostQosNormal')
 }
 
 const profileBadgeClass = (profile: AgentQosProfile) => {
+  if (profile === 'critical') return 'badge-error'
   if (profile === 'high') return 'badge-success'
+  if (profile === 'elevated') return 'badge-accent'
   if (profile === 'low') return 'badge-warning'
+  if (profile === 'background') return 'badge-ghost'
   return 'badge-info'
 }
 

@@ -3,14 +3,14 @@
 Проект: UltraUIXkeen (форк Zashboard UI)
 Репозиторий: NightShadowDevOPs/UltraUIXkeen
 Линейка версий: 1.2.x
-Текущая версия архива: v1.2.13
-router-agent: 0.6.7
+Текущая версия архива: v1.2.14
+router-agent: 0.6.8
 
 Последний фикс в этом релизе:
 - блок `Host QoS priority` теперь по умолчанию свёрнут (`collapsed`) и не занимает пол-экрана на странице роутера
 - в списке QoS имена хостов теперь берутся не только из DHCP/ARP, но и из присвоенных Source IP labels, поэтому в таблице снова видны пользовательские названия устройств
 - общая `users_db` синхронизация через router-agent теперь включает и `лимиты по каналам / bandwidth limits` для хостов, поэтому эти лимиты становятся общими между ПК, а не привязанными к одному localStorage браузера
-- router-agent в этом релизе не менялся и остаётся на 0.6.7
+- router-agent в этом релизе обновлён до 0.6.8
 
 
 
@@ -57,7 +57,7 @@ router-agent: 0.6.7
 - cat /opt/zash-agent/var/backup.last.json
 
 История последних релизов:
-- UI v1.2.13 / agent 0.6.7: блок Host QoS priority сделан сворачиваемым по умолчанию; в QoS-списке имена хостов теперь берутся из присвоенных Source IP labels; общая users_db синхронизация через router-agent расширена и теперь включает user bandwidth limits, чтобы лимиты по каналам и хостам были видны на разных ПК, а не жили только в localStorage одного браузера.
+- UI v1.2.14 / agent 0.6.8: блок Host QoS priority сделан сворачиваемым по умолчанию; в QoS-списке имена хостов теперь берутся из присвоенных Source IP labels; общая users_db синхронизация через router-agent расширена и теперь включает user bandwidth limits, чтобы лимиты по каналам и хостам были видны на разных ПК, а не жили только в localStorage одного браузера.
 - UI v1.2.11 / agent 0.6.6: проект переведён на новый основной GitHub-репозиторий `NightShadowDevOPs/UltraUIXkeen`; ссылки на rolling release, latest release API, install/update URL router-agent и GitHub-ссылки в UI/docs теперь указывают на новый аккаунт, чтобы обновления и релизы шли уже без хвостов `messireL/ZashUIFork`.
 - UI v1.2.9 / agent 0.6.5: для V2RayTun на вкладке `Подписки` снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; сам `router-agent` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед merged share-links, чтобы лучше совпасть с документированным body-header flow V2RayTun.
 - UI v1.2.8 / agent 0.6.4: исправлена логика cloud upload в `backup.sh` / cron — если `RCLONE_REMOTE`/`RCLONE_REMOTES` указывают на удалённые или устаревшие remotes, agent теперь автоматически падает обратно на реальные remotes из `rclone.conf` и продолжает выгружать новые архивы, а не только показывать старые в UI.
@@ -69,3 +69,5 @@ router-agent: 0.6.7
 - UI v1.2.0 / agent 0.6.0: старт блока HTTPS subscriptions groundwork; на вкладке `Подписки` убрана ложная готовность V2RayTun и добавлено честное предупреждение про необходимость нормального HTTPS endpoint, а в `router-agent` появился подготовительный `format=json` endpoint с JSON manifest (providers + merged share links) как каркас под будущий HTTPS / Xray-поток.
 - UI v1.2.1 / agent 0.6.1: добавлен сценарий `Published HTTPS base` на вкладке `Подписки`; клиентские URL/QR/deeplink теперь можно строить от опубликованного HTTPS endpoint, а `format=json` научился возвращать канонические публичные ссылки через `X-Forwarded-*`.
 - UI v1.2.2 / agent 0.6.1: сценарий `Published HTTPS base` убран из основного UX-потока и спрятан в расширенные настройки публикации; для обычного LAN-режима UI теперь честно показывает, что ничего дополнительно заполнять не нужно.
+
+- v1.2.14 / agent 0.6.8: Host QoS expanded from 3 to 6 profiles; QoS list now shows applied profile badges and queue priority in-row.

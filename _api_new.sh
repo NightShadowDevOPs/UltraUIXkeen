@@ -1469,16 +1469,22 @@ qos_minor_for_ip() {
 
 qos_profile_pct() {
   case "$1" in
+    critical) echo "$QOS_CRITICAL_PCT" ;;
     high) echo "$QOS_HIGH_PCT" ;;
+    elevated) echo "$QOS_ELEVATED_PCT" ;;
     low) echo "$QOS_LOW_PCT" ;;
+    background) echo "$QOS_BACKGROUND_PCT" ;;
     *) echo "$QOS_NORMAL_PCT" ;;
   esac
 }
 
 qos_profile_prio() {
   case "$1" in
+    critical) echo "$QOS_CRITICAL_PRIO" ;;
     high) echo "$QOS_HIGH_PRIO" ;;
+    elevated) echo "$QOS_ELEVATED_PRIO" ;;
     low) echo "$QOS_LOW_PRIO" ;;
+    background) echo "$QOS_BACKGROUND_PRIO" ;;
     *) echo "$QOS_NORMAL_PRIO" ;;
   esac
 }
@@ -1544,7 +1550,7 @@ apply_qos_only() {
 set_host_qos() {
   ip="$1"; profile="$2"
   case "$profile" in
-    high|normal|low) ;;
+    critical|high|elevated|normal|low|background) ;;
     off|none|disabled|remove|clear|"") remove_host_qos "$ip"; return ;;
     *) reply_ok '{"ok":false,"error":"bad-profile"}'; return ;;
   esac
@@ -1589,7 +1595,7 @@ rehydrate_qos_hosts() {
   [ -f "$QOS_HOSTS_FILE" ] || return 0
   while read -r ip profile; do
     [ -n "$ip" ] || continue
-    case "$profile" in high|normal|low) apply_qos_only "$ip" "$profile" >/dev/null 2>&1 || true ;; esac
+    case "$profile" in critical|high|elevated|normal|low|background) apply_qos_only "$ip" "$profile" >/dev/null 2>&1 || true ;; esac
   done < "$QOS_HOSTS_FILE"
   return 0
 }
@@ -1603,12 +1609,12 @@ qos_status() {
   echo "Cache-Control: no-store"
   echo
 
-  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"defaults":{"high":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE"     "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO"
+  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
   first=1
   if [ -f "$QOS_HOSTS_FILE" ]; then
     while read -r ip profile; do
       [ -n "$ip" ] || continue
-      case "$profile" in high|normal|low) ;; *) continue ;; esac
+      case "$profile" in critical|high|elevated|normal|low|background) ;; *) continue ;; esac
       pct="$(qos_profile_pct "$profile")"
       prio="$(qos_profile_prio "$profile")"
       up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
@@ -1789,7 +1795,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.6.7","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.6.8","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \

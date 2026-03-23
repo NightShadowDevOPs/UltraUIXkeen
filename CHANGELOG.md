@@ -1,37 +1,36 @@
-## 1.2.13
+# Project changelog
 
-- Host QoS card is collapsed by default and now shows assigned host labels in the router list when they exist.
-- Shared router users DB now syncs host/user bandwidth limits between PCs, so per-host channel limits are no longer stuck in one browser profile.
+## 1.2.14
+- expanded Host QoS priorities from 3 to 6 levels: critical, high, elevated, normal, low, background
+- QoS list now shows applied profile badges and queue priority directly in each host row
+- router-agent 0.6.8 exposes all 6 QoS defaults/profiles and supports them for `qos_set` / `qos_status`
+
+## 1.2.13
+- Host QoS card is collapsed by default and now shows assigned host labels in the router list when they exist
+- shared router users DB now syncs host/user bandwidth limits between PCs, so per-host channel limits are no longer stuck in one browser profile
 
 ## 1.2.12
-
-- added Host QoS priority groundwork on Router page: LAN hosts can now get High / Normal / Low priority profiles with live rates and apply/clear actions
-- router-agent 0.6.7 adds persistent host QoS profiles via `tc` HTB class priority + minimum guaranteed share (`qos_status`, `qos_set`, `qos_remove`)
+- added Host QoS priority groundwork on Router page: LAN hosts can get priority profiles with live rates and apply/clear actions
+- router-agent adds persistent host QoS profiles via `tc` HTB class priority + minimum guaranteed share (`qos_status`, `qos_set`, `qos_remove`)
 - QoS priority is best-effort and intentionally yields to hard per-IP shaping rules when both target the same IP
 
 ## 1.2.11
-
 - fixed router-agent reported version so the router no longer keeps showing the previous release after install/update
-- finished repository rebrand in README/UI text from “UI Mihomo/Ultra” to “UltraUIXkeen” while keeping the upstream Zashboard note only in the dedicated upstream section
+- finished repository rebrand in README/UI text from “UI Mihomo/Ultra” to “UltraUIXkeen” while keeping upstream references only in dedicated sections
 
 ## 1.2.10
-
 - switched project release/update/install links from `messireL/ZashUIFork` to `NightShadowDevOPs/UltraUIXkeen` across UI, docs and router-agent helper scripts
-- updated chat transfer docs to treat `NightShadowDevOPs/UltraUIXkeen` as the primary repository and recorded host-priority QoS as the next network-control feature built on top of the existing tc/iptables shaping groundwork
+- updated chat transfer docs to treat `NightShadowDevOPs/UltraUIXkeen` as the primary repository
 
 ## 1.2.9
-
-- router-agent 0.6.5: `format=v2raytun` now duplicates `profile-title`, `profile-update-interval` and `update-always` inside the response body with `#` prefixes in addition to normal HTTP headers, to better match documented V2RayTun body-header support
-- Subscriptions UI now exposes a dedicated local/published `format=v2raytun` URL plus `v2raytun://import/...` deeplink and QR mode for live LAN testing without pretending that external auto-update is solved
+- router-agent `format=v2raytun` now duplicates profile metadata inside the response body with `#` prefixes in addition to HTTP headers
+- Subscriptions UI now exposes a dedicated `format=v2raytun` URL plus deeplink and QR mode for live LAN testing
 
 ## 1.2.8
-
-- router-agent 0.6.4: cloud uploads in `backup.sh` / cron now fall back to real remotes from `rclone.conf` when `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale names
+- cloud uploads in `backup.sh` / cron now fall back to real remotes from `rclone.conf` when configured remotes are stale
 - backup log now explicitly notes stale-remote fallback to help debug broken `rclone` env settings
 
-# Changelog
-
-# Changelog
+# Upstream Zashboard changelog
 
 ## [1.102.0](https://github.com/Zephyruso/zashboard/compare/v1.101.1...v1.102.0) (2025-08-15)
 

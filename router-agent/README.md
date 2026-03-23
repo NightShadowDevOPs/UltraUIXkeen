@@ -222,3 +222,25 @@ server {
     }
 }
 ```
+
+
+## Host QoS profiles
+
+Router-agent now supports six host QoS profiles via `qos_set`: `critical`, `high`, `elevated`, `normal`, `low`, `background`.
+
+Optional `agent.env` overrides:
+
+```bash
+QOS_CRITICAL_PCT="35"
+QOS_HIGH_PCT="25"
+QOS_ELEVATED_PCT="16"
+QOS_NORMAL_PCT="10"
+QOS_LOW_PCT="5"
+QOS_BACKGROUND_PCT="2"
+QOS_CRITICAL_PRIO="0"
+QOS_HIGH_PRIO="1"
+QOS_ELEVATED_PRIO="2"
+QOS_NORMAL_PRIO="3"
+QOS_LOW_PRIO="5"
+QOS_BACKGROUND_PRIO="7"
+```

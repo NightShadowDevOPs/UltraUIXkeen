@@ -296,7 +296,7 @@ export const agentHostRemoteTargetsAPI = async (ip: string): Promise<AgentHostRe
 }
 
 
-export type AgentQosProfile = 'high' | 'normal' | 'low'
+export type AgentQosProfile = 'critical' | 'high' | 'elevated' | 'normal' | 'low' | 'background'
 
 export type AgentQosStatusItem = {
   ip: string
