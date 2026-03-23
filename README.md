@@ -27,7 +27,7 @@ secret: ""          # если используешь — укажи здесь 
 external-ui: ui
 
 # UI будет скачиваться из GitHub Release
-external-ui-url: https://github.com/messireL/ZashUIFork/releases/download/rolling/dist.zip
+external-ui-url: https://github.com/NightShadowDevOPs/UltraUIXkeen/releases/download/rolling/dist.zip
 ```
 
 Перезапусти Mihomo.
@@ -47,7 +47,7 @@ Router-agent нужен для функций, которых нет в Mihomo A
 На роутере (Busybox wget не умеет https → используем `/opt/bin/wget`):
 
 ```sh
-/opt/bin/wget -O- "https://raw.githubusercontent.com/messireL/ZashUIFork/main/router-agent/install.sh" | sh
+/opt/bin/wget -O- "https://raw.githubusercontent.com/NightShadowDevOPs/UltraUIXkeen/main/router-agent/install.sh" | sh
 /opt/etc/init.d/S99zash-agent restart
 ```
 

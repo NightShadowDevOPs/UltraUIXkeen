@@ -380,7 +380,7 @@ async function fetchWithLocalCache<T>(url: string, version: string): Promise<T> 
 
 export const fetchIsUIUpdateAvailable = async () => {
   const { tag_name } = await fetchWithLocalCache<{ tag_name: string }>(
-    'https://api.github.com/repos/messireL/ZashUIFork/releases/latest',
+    'https://api.github.com/repos/NightShadowDevOPs/UltraUIXkeen/releases/latest',
     zashboardVersion.value,
   )
 

@@ -11,7 +11,7 @@
           <span class="bg-secondary h-2 w-2 rounded-full"></span>
         </span>
         <a
-          href="https://github.com/messireL/ZashUIFork"
+          href="https://github.com/NightShadowDevOPs/UltraUIXkeen"
           target="_blank"
         >
           <span> UI Mihomo/Ultra </span>

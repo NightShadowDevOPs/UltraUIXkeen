@@ -1,3 +1,8 @@
+## 1.2.10
+
+- switched project release/update/install links from `messireL/ZashUIFork` to `NightShadowDevOPs/UltraUIXkeen` across UI, docs and router-agent helper scripts
+- updated chat transfer docs to treat `NightShadowDevOPs/UltraUIXkeen` as the primary repository and recorded host-priority QoS as the next network-control feature built on top of the existing tc/iptables shaping groundwork
+
 ## 1.2.9
 
 - router-agent 0.6.5: `format=v2raytun` now duplicates `profile-title`, `profile-update-interval` and `update-always` inside the response body with `#` prefixes in addition to normal HTTP headers, to better match documented V2RayTun body-header support

@@ -293,7 +293,7 @@ remote_agent_version() {
     fi
   fi
 
-  url="https://raw.githubusercontent.com/messireL/ZashUIFork/main/router-agent/install.sh"
+  url="https://raw.githubusercontent.com/NightShadowDevOPs/UltraUIXkeen/main/router-agent/install.sh"
   wb="/opt/bin/wget"
   [ -x "$wb" ] || wb="wget"
   v=""

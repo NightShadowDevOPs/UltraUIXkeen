@@ -1,15 +1,15 @@
 # UI Mihomo/Ultra — перенос в новый чат
 
 Проект: UI Mihomo/Ultra (форк Zashboard UI)
-Репозиторий: messireL/ZashUIFork
+Репозиторий: NightShadowDevOPs/UltraUIXkeen
 Линейка версий: 1.2.x
-Текущая версия архива: v1.2.9
+Текущая версия архива: v1.2.10
 router-agent: 0.6.5
 
 Последний фикс в этом релизе:
-- на вкладке `Подписки` для V2RayTun снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; поток при этом честно оставлен в статусе экспериментального локального импорта, а не финальной внешней подписки
-- в `router-agent` формат `v2raytun` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед списком share-links, чтобы лучше попасть в документированный body-header flow V2RayTun
-- история с backup fallback из `v1.2.8` не тронута и остаётся рабочей
+- проект переведён на новый основной репозиторий `NightShadowDevOPs/UltraUIXkeen`: ссылки на GitHub Releases, `router-agent/install.sh`, проверку latest release и ссылки в настройках UI теперь указывают на новый аккаунт, а не на старый `messireL/ZashUIFork`
+- файл переноса и документация обновлены под новый репозиторий, чтобы следующий релиз уже не тянул старые URL из прошлого аккаунта
+- функциональность `format=v2raytun` и backup fallback из `v1.2.9` / `v1.2.8` не тронута и остаётся рабочей
 
 
 Ключевые особенности:
@@ -40,6 +40,7 @@ router-agent: 0.6.5
 - продолжить проверку и доводку подсчёта трафика Сегодня у прокси-провайдеров, в первую очередь на длинных сессиях и пограничных кейсах
 - при желании позже показать в UI отдельный статус/ошибки SSL probe по недоступным провайдерам
 - следующий большой шаг по подпискам: проверить реальный HTTPS endpoint снаружи и решить, нужен ли отдельный JSON schema/endpoint под V2RayTun/Xray поверх текущего groundwork; параллельно можно дополировать тексты и статусные подсказки на вкладке Подписки после живой проверки импорта в клиентах
+- добавить QoS/priority для хостов поверх уже существующего tc/iptables shaping в router-agent: профили приоритета (high/normal/low), приоритезация по IP/MAC и безопасный UI без поломки текущих лимитов канала
 
 Настройки backup:
 - RCLONE_CONFIG="/opt/etc/rclone.config"
@@ -52,6 +53,7 @@ router-agent: 0.6.5
 - cat /opt/zash-agent/var/backup.last.json
 
 История последних релизов:
+- UI v1.2.10 / agent 0.6.5: проект переведён на новый основной GitHub-репозиторий `NightShadowDevOPs/UltraUIXkeen`; ссылки на rolling release, latest release API, install/update URL router-agent и GitHub-ссылки в UI/docs теперь указывают на новый аккаунт, чтобы обновления и релизы шли уже без хвостов `messireL/ZashUIFork`.
 - UI v1.2.9 / agent 0.6.5: для V2RayTun на вкладке `Подписки` снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; сам `router-agent` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед merged share-links, чтобы лучше совпасть с документированным body-header flow V2RayTun.
 - UI v1.2.8 / agent 0.6.4: исправлена логика cloud upload в `backup.sh` / cron — если `RCLONE_REMOTE`/`RCLONE_REMOTES` указывают на удалённые или устаревшие remotes, agent теперь автоматически падает обратно на реальные remotes из `rclone.conf` и продолжает выгружать новые архивы, а не только показывать старые в UI.
 - UI v1.2.6 / agent 0.6.2: исправлена генерация `format=mihomo` в `router-agent` — секция `proxy-groups:` теперь выводится явно перед группами `Manual / Auto / Failover / Balance`; это устраняет поломанный YAML, который мог приводить к неочевидным ошибкам или тайм-аутам при импорте в Clash-совместимые клиенты и Hiddify.

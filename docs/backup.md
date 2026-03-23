@@ -61,7 +61,7 @@
 Установка/обновление агента:
 
 ```sh
-/opt/bin/wget -O- "https://raw.githubusercontent.com/messireL/ZashUIFork/main/router-agent/install.sh" | sh
+/opt/bin/wget -O- "https://raw.githubusercontent.com/NightShadowDevOPs/UltraUIXkeen/main/router-agent/install.sh" | sh
 /opt/etc/init.d/S99zash-agent restart
 ```
 
@@ -181,7 +181,7 @@ BACKUP_TMP_DIR="/opt/zash-agent/var/backups"
 BACKUP_KEEP_DAYS="30"
 
 # (опционально) положить внутрь архива текущий UI dist.zip
-UI_ZIP_URL="https://github.com/messireL/ZashUIFork/releases/download/rolling/dist.zip"
+UI_ZIP_URL="https://github.com/NightShadowDevOPs/UltraUIXkeen/releases/download/rolling/dist.zip"
 
 # облако через rclone
 RCLONE_CONFIG="/opt/etc/rclone.config"   # опционально, если нужен явный путь к конфигу
