@@ -1,6 +1,6 @@
 # Aggregated subscriptions
 
-UI Mihomo/Ultra can build one client-facing subscription from multiple proxy providers.
+UltraUIXkeen can build one client-facing subscription from multiple proxy providers.
 
 Important:
 - the router **only serves the subscription URL**;

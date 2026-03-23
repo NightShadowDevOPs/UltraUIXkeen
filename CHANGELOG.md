@@ -1,3 +1,8 @@
+## 1.2.11
+
+- fixed router-agent reported version so the router no longer keeps showing the previous release after install/update
+- finished repository rebrand in README/UI text from “UI Mihomo/Ultra” to “UltraUIXkeen” while keeping the upstream Zashboard note only in the dedicated upstream section
+
 ## 1.2.10
 
 - switched project release/update/install links from `messireL/ZashUIFork` to `NightShadowDevOPs/UltraUIXkeen` across UI, docs and router-agent helper scripts

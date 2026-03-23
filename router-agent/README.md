@@ -1,11 +1,11 @@
-# router-agent (helper for UI Mihomo/Ultra)
+# router-agent (helper for UltraUIXkeen)
 
 This is an **optional** helper agent that runs on the router and enables "adult" features that are not available via Mihomo API:
 
 - Per-client **bandwidth shaping** (Mbps) via `tc` (recommended)
 - Fallback policing via `iptables` (optional)
 
-Дашборд **UI Mihomo/Ultra** может вызывать этот агент для применения/удаления shaping‑правил по IP.
+Дашборд **UltraUIXkeen** может вызывать этот агент для применения/удаления shaping‑правил по IP.
 
 ## Install (Entware)
 
@@ -158,7 +158,7 @@ What to preserve in the proxy:
 
 Then `format=json` can include canonical public URLs in its response.
 
-For live V2RayTun LAN testing the agent also keeps `format=v2raytun`. In `0.6.5` it sends `profile-title`, `profile-update-interval` and `update-always` both as normal HTTP headers and as `#`-prefixed body headers before the merged share-link list, because V2RayTun documents support for body headers too. Treat this as an experimental local import flow, not as a final published-subscription claim.
+For live V2RayTun LAN testing the agent also keeps `format=v2raytun`. In `0.6.6` it sends `profile-title`, `profile-update-interval` and `update-always` both as normal HTTP headers and as `#`-prefixed body headers before the merged share-link list, because V2RayTun documents support for body headers too. Treat this as an experimental local import flow, not as a final published-subscription claim.
 
 ### Caddy example
 

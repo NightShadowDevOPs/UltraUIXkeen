@@ -1,8 +1,8 @@
-# UI Mihomo/Ultra
+# UltraUIXkeen
 
-Форк **Zashboard UI** под роутеры **Netcraze Ultra** (Entware + ядро **Mihomo**).
+**UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
-Цель репозитория — дать удобный веб‑интерфейс для Mihomo на Ultra и добавить «взрослые» функции через **router-agent** (то, чего нет в стандартном Clash/Mihomo API).
+Цель репозитория — дать удобный веб‑интерфейс для Mihomo на Ultra, обновления через GitHub Releases и расширенные функции через **router-agent** (то, чего нет в стандартном Clash/Mihomo API).
 
 > ⚠️ В этом форке целевое окружение — **только Mihomo** (Ultra). Sing-box и прочие ядра здесь не поддерживаются.
 
@@ -65,7 +65,7 @@ Router-agent нужен для функций, которых нет в Mihomo A
 
 ---
 
-## Что добавлено в форке (по сравнению с upstream)
+## Что умеет UltraUIXkeen
 
 Фокус — удобство на **Ultra/Mihomo**:
 
@@ -120,7 +120,7 @@ pnpm build
 
 ## Upstream
 
-Основа: **Zephyruso/zashboard**. Этот репозиторий — форк с адаптацией под **Netcraze Ultra + Mihomo**.
+Основа: **Zephyruso/zashboard**. UltraUIXkeen остаётся форком с адаптацией под **Netcraze Ultra + Mihomo**.
 
 
 - На вкладке `Подписки` отдельно разведены режимы `Разовый импорт дома` и `Обновляемая подписка`, чтобы было видно, когда сохранённый клиентом локально конфиг можно использовать вне дома и когда для обновления всё ещё нужен доступ к `router-agent`.

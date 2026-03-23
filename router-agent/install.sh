@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.5"
+AGENT_VERSION="0.6.6"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 

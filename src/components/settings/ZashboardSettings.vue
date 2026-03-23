@@ -14,7 +14,7 @@
           href="https://github.com/NightShadowDevOPs/UltraUIXkeen"
           target="_blank"
         >
-          <span> UI Mihomo/Ultra </span>
+          <span> UltraUIXkeen </span>
           <span class="text-sm font-normal">
             {{ zashboardVersion }}
           </span>

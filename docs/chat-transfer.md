@@ -1,13 +1,13 @@
-# UI Mihomo/Ultra — перенос в новый чат
+# UltraUIXkeen — перенос в новый чат
 
-Проект: UI Mihomo/Ultra (форк Zashboard UI)
+Проект: UltraUIXkeen (форк Zashboard UI)
 Репозиторий: NightShadowDevOPs/UltraUIXkeen
 Линейка версий: 1.2.x
-Текущая версия архива: v1.2.10
-router-agent: 0.6.5
+Текущая версия архива: v1.2.11
+router-agent: 0.6.6
 
 Последний фикс в этом релизе:
-- проект переведён на новый основной репозиторий `NightShadowDevOPs/UltraUIXkeen`: ссылки на GitHub Releases, `router-agent/install.sh`, проверку latest release и ссылки в настройках UI теперь указывают на новый аккаунт, а не на старый `messireL/ZashUIFork`
+- проект переведён на новый основной репозиторий `NightShadowDevOPs/UltraUIXkeen`: ссылки на GitHub Releases, `router-agent/install.sh`, проверку latest release и ссылки в настройках UI указывают на новый аккаунт, README и UI-тексты приведены к брендингу UltraUIXkeen, а reported version router-agent обновлена до 0.6.6
 - файл переноса и документация обновлены под новый репозиторий, чтобы следующий релиз уже не тянул старые URL из прошлого аккаунта
 - функциональность `format=v2raytun` и backup fallback из `v1.2.9` / `v1.2.8` не тронута и остаётся рабочей
 
@@ -53,7 +53,7 @@ router-agent: 0.6.5
 - cat /opt/zash-agent/var/backup.last.json
 
 История последних релизов:
-- UI v1.2.10 / agent 0.6.5: проект переведён на новый основной GitHub-репозиторий `NightShadowDevOPs/UltraUIXkeen`; ссылки на rolling release, latest release API, install/update URL router-agent и GitHub-ссылки в UI/docs теперь указывают на новый аккаунт, чтобы обновления и релизы шли уже без хвостов `messireL/ZashUIFork`.
+- UI v1.2.11 / agent 0.6.6: проект переведён на новый основной GitHub-репозиторий `NightShadowDevOPs/UltraUIXkeen`; ссылки на rolling release, latest release API, install/update URL router-agent и GitHub-ссылки в UI/docs теперь указывают на новый аккаунт, чтобы обновления и релизы шли уже без хвостов `messireL/ZashUIFork`.
 - UI v1.2.9 / agent 0.6.5: для V2RayTun на вкладке `Подписки` снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; сам `router-agent` теперь дублирует `profile-title`, `profile-update-interval` и `update-always` не только в HTTP headers, но и внутри body как `#...`-заголовки перед merged share-links, чтобы лучше совпасть с документированным body-header flow V2RayTun.
 - UI v1.2.8 / agent 0.6.4: исправлена логика cloud upload в `backup.sh` / cron — если `RCLONE_REMOTE`/`RCLONE_REMOTES` указывают на удалённые или устаревшие remotes, agent теперь автоматически падает обратно на реальные remotes из `rclone.conf` и продолжает выгружать новые архивы, а не только показывать старые в UI.
 - UI v1.2.6 / agent 0.6.2: исправлена генерация `format=mihomo` в `router-agent` — секция `proxy-groups:` теперь выводится явно перед группами `Manual / Auto / Failover / Balance`; это устраняет поломанный YAML, который мог приводить к неочевидным ошибкам или тайм-аутам при импорте в Clash-совместимые клиенты и Hiddify.
