@@ -413,6 +413,7 @@ import { agentHostRemoteTargetsAPI, agentHostTrafficLiveAPI, agentLanHostsAPI, a
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
+import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles } from '@/store/routerHostQos'
 import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme } from '@/store/settings'
@@ -696,7 +697,7 @@ const currentExtraStats = computed(() => {
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
 const hostQosByIp = ref<Record<string, AgentQosStatusItem>>({})
-const storedHostQosProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-applied-v1', {})
+const storedHostQosProfiles = routerHostQosAppliedProfiles
 const hostHistoryState = ref<Record<string, HostHistoryPoint[]>>({})
 const hostScopeFilter = ref<HostScopeFilter>('all')
 const hostSortBy = ref<HostSortMode>('traffic')
@@ -1579,7 +1580,7 @@ const refreshHostQos = async () => {
     next[ip] = item
   }
   hostQosByIp.value = next
-  storedHostQosProfiles.value = Object.fromEntries(Object.entries(next).map(([ip, item]) => [ip, item.profile]))
+  mergeRouterHostQosAppliedProfiles(Object.fromEntries(Object.entries(next).map(([ip, item]) => [ip, item.profile])))
   refreshHostTraffic()
 }
 

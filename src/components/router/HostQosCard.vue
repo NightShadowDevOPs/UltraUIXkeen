@@ -184,7 +184,8 @@ import {
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
-import { useStorage } from '@vueuse/core'
+import { activeConnections } from '@/store/connections'
+import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -204,10 +205,10 @@ const status = ref<{ ok: boolean; hostQos?: boolean }>({ ok: false })
 const qos = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
 const hosts = ref<AgentLanHost[]>([])
 const traffic = ref<AgentHostTrafficLiveItem[]>([])
-const draftProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-drafts-v2', {})
-const appliedProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-applied-v1', {})
+const draftProfiles = routerHostQosDraftProfiles
+const appliedProfiles = routerHostQosAppliedProfiles
 const busyIp = ref('')
-const expanded = useStorage('config/router-host-qos-expanded-v1', false)
+const expanded = routerHostQosExpanded
 let timer: number | undefined
 
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
@@ -221,10 +222,16 @@ const rows = computed<Row[]>(() => {
   for (const host of hosts.value) hostMap.set(host.ip, host)
   const trafficMap = new Map<string, AgentHostTrafficLiveItem>()
   for (const item of traffic.value) trafficMap.set(item.ip, item)
+  const activeConnectionIps = (activeConnections.value || [])
+    .map((conn) => String(conn?.metadata?.sourceIP || '').trim())
+    .filter(Boolean)
+
   const ips = new Set<string>([
     ...Array.from(hostMap.keys()),
     ...Array.from(trafficMap.keys()),
     ...Object.keys(qosMap.value),
+    ...Object.keys(appliedProfiles.value),
+    ...activeConnectionIps,
   ])
   return Array.from(ips)
     .map((ip) => {
@@ -267,7 +274,7 @@ const syncAppliedProfiles = () => {
   for (const item of qos.value.items || []) {
     if (item?.ip && item?.profile) next[item.ip] = item.profile
   }
-  appliedProfiles.value = next
+  mergeRouterHostQosAppliedProfiles(next)
 }
 
 const ensureDrafts = () => {
@@ -388,7 +395,7 @@ const applyRow = async (ip: string) => {
       error.value = res.error || t('hostQosApplyFailed')
       return
     }
-    appliedProfiles.value = { ...appliedProfiles.value, [ip]: profile }
+    setRouterHostQosAppliedProfile(ip, profile)
     draftProfiles.value = { ...draftProfiles.value, [ip]: profile }
     await refreshAll()
   } finally {
@@ -405,15 +412,22 @@ const clearRow = async (ip: string) => {
       error.value = res.error || t('hostQosApplyFailed')
       return
     }
-    const nextApplied = { ...appliedProfiles.value }
-    delete nextApplied[ip]
-    appliedProfiles.value = nextApplied
+    setRouterHostQosAppliedProfile(ip)
     draftProfiles.value = { ...draftProfiles.value, [ip]: 'normal' }
     await refreshAll()
   } finally {
     busyIp.value = ''
   }
 }
+
+
+watch(rows, () => {
+  ensureDrafts()
+}, { deep: true })
+
+watch(appliedProfiles, () => {
+  ensureDrafts()
+}, { deep: true })
 
 const restartPolling = () => {
   if (timer) window.clearInterval(timer)

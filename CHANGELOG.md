@@ -1,3 +1,9 @@
+## UltraUIXkeen v1.2.17
+
+- fixed Host QoS state sync by moving applied/draft QoS profiles into a shared store used by both the QoS card and the live device list
+- Host QoS list now also includes source IPs from active Mihomo connections and already-applied QoS entries, so more devices from the live device list appear in QoS
+- live device QoS icons now survive full page reloads by merging router `qos_status` into the persisted QoS cache instead of wiping it on partial/empty status refreshes
+
 ## UltraUIXkeen v1.2.16
 
 - fixed Host QoS UI state so selected/applied profiles persist across menu navigation on the same PC
