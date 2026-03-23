@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div class="card !bg-base-100/92 supports-[backdrop-filter]:!bg-base-100/72 backdrop-blur-md shadow-lg">
     <div class="card-title px-4 pt-4 flex items-center justify-between gap-2">
       <span>{{ $t('userTraffic') }}</span>
       <div class="flex items-center gap-2">
@@ -61,9 +61,9 @@
           {{ $t('noBlockedUsers') }}
         </div>
 
-        <div v-else class="mt-2 overflow-x-auto">
+        <div v-else class="mt-2 overflow-x-auto rounded-xl border border-base-content/10 bg-base-100/90 supports-[backdrop-filter]:bg-base-100/72 backdrop-blur-md shadow-sm">
           <table class="table table-sm">
-            <thead>
+            <thead class="bg-base-200/85 supports-[backdrop-filter]:bg-base-200/70 backdrop-blur-sm">
               <tr>
                 <th>{{ $t('user') }}</th>
                 <th class="max-md:hidden">IP</th>
@@ -73,7 +73,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="b in blockedList" :key="b.user">
+              <tr v-for="b in blockedList" :key="b.user" class="bg-base-100/88 hover:bg-base-100/96">
                 <td class="font-medium">
                   <div class="flex items-center gap-2">
                     <LockClosedIcon class="h-4 w-4 text-error" />
@@ -197,9 +197,9 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto rounded-xl border border-base-content/10 bg-base-100/90 supports-[backdrop-filter]:bg-base-100/72 backdrop-blur-md shadow-sm">
         <table class="table table-sm">
-          <thead>
+          <thead class="bg-base-200/85 supports-[backdrop-filter]:bg-base-200/70 backdrop-blur-sm">
             <tr>
               <th style="width: 38px">
                 <input
@@ -237,7 +237,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.user">
+            <tr v-for="row in rows" :key="row.user" class="bg-base-100/88 hover:bg-base-100/96">
               <td>
                 <input
                   type="checkbox"
@@ -371,10 +371,10 @@
                       class="badge badge-sm"
                       :class="profileBadgeClass(row.currentQos)"
                     >
-                      {{ profileIcon(row.currentQos) }} {{ profileLabel(row.currentQos) }}
+                      {{ profileLabel(row.currentQos) }}
                     </span>
                     <span v-else-if="row.currentQos === 'mixed'" class="badge badge-sm badge-warning">
-                      ≋ {{ $t('hostQosMixed') }}
+                      {{ $t('hostQosMixed') }}
                     </span>
                     <span v-else class="text-xs opacity-50">{{ $t('hostQosNone') }}</span>
                   </div>
