@@ -13,6 +13,7 @@ import PoliciesPage from '@/views/PoliciesPage.vue'
 import ProxiesRoutePage from '@/views/ProxiesRoutePage.vue'
 import ProxyProvidersRoutePage from '@/views/ProxyProvidersRoutePage.vue'
 import SubscriptionsPage from '@/views/SubscriptionsPage.vue'
+import TrafficPage from '@/views/TrafficPage.vue'
 import RulesPage from '@/views/RulesPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 import UsersPage from '@/views/UsersPage.vue'
@@ -41,6 +42,11 @@ const childrenRouter = [
     path: 'overview',
     name: ROUTE_NAME.overview,
     component: OverviewPage,
+  },
+  {
+    path: 'traffic',
+    name: ROUTE_NAME.traffic,
+    component: TrafficPage,
   },
   {
     path: 'router',

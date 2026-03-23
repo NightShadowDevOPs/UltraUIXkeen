@@ -10,6 +10,7 @@ import {
   WrenchScrewdriverIcon,
   ClipboardDocumentListIcon,
   LinkIcon,
+  ChartBarSquareIcon,
 } from '@heroicons/vue/24/outline'
 
 export const IS_APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
@@ -131,6 +132,7 @@ export enum ROUTE_NAME {
   proxies = 'proxies',
   proxyProviders = 'proxyProviders',
   subscriptions = 'subscriptions',
+  traffic = 'traffic',
   connections = 'connections',
   logs = 'logs',
   rules = 'rules',
@@ -147,6 +149,7 @@ export const ROUTE_ICON_MAP = {
   [ROUTE_NAME.proxies]: GlobeAltIcon,
   [ROUTE_NAME.proxyProviders]: GlobeAltIcon,
   [ROUTE_NAME.subscriptions]: LinkIcon,
+  [ROUTE_NAME.traffic]: ChartBarSquareIcon,
   [ROUTE_NAME.connections]: ArrowsRightLeftIcon,
   [ROUTE_NAME.rules]: SwatchIcon,
   [ROUTE_NAME.logs]: DocumentTextIcon,

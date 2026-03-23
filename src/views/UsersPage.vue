@@ -254,15 +254,22 @@
       </div>
     </div>
 
-    <UserTrafficStats />
-    <HostQosCard />
+    <div class="card">
+      <div class="card-body gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="font-semibold">{{ t('traffic') }}</div>
+            <div class="text-sm opacity-70">{{ t('trafficMovedToTrafficSectionTip') }}</div>
+          </div>
+          <button type="button" class="btn btn-sm" @click="goTraffic">{{ t('open') }} · {{ t('traffic') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 
 <script setup lang="ts">
-import UserTrafficStats from '@/components/users/UserTrafficStats.vue'
-import HostQosCard from '@/components/router/HostQosCard.vue'
 import SourceIPInput from '@/components/settings/SourceIPInput.vue'
 import CollapseCard from '@/components/common/CollapseCard.vue'
 import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
@@ -279,9 +286,12 @@ import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpDownIcon, CloudIcon, LockC
 import { v4 as uuid } from 'uuid'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Draggable from 'vuedraggable'
+import { useRouter } from 'vue-router'
 import { getUserLimitState } from '@/composables/userLimits'
 
 const t = i18n.global.t
+const router = useRouter()
+const goTraffic = () => router.push({ name: ROUTE_NAME.traffic })
 
 const newLabelForIP = ref<Omit<SourceIPLabel, 'id'>>({
   key: '',

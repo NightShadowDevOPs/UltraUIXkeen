@@ -6,10 +6,10 @@
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div class="font-semibold">{{ t('hostQosTitle') }}</div>
-          <div class="text-sm opacity-70">{{ t('hostQosMovedToUsersTip') }}</div>
+          <div class="text-sm opacity-70">{{ t('hostQosMovedToTrafficTip') }}</div>
         </div>
         <button type="button" class="btn btn-sm" @click="goUsersTraffic">
-          {{ t('open') }} · {{ t('userTraffic') }}
+          {{ t('open') }} · {{ t('traffic') }}
         </button>
       </div>
     </div>
@@ -43,6 +43,6 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const t = i18n.global.t
 const goUsersTraffic = () => {
-  router.push({ name: ROUTE_NAME.users })
+  router.push({ name: ROUTE_NAME.traffic })
 }
 </script>

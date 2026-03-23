@@ -24,6 +24,9 @@
     </div>
 
     <div class="card-body gap-3">
+      <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-75">
+        {{ $t('hostQosBulkHint') }}
+      </div>
       <div v-if="preset === 'custom'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm">
           <span class="opacity-70">{{ $t('from') }}</span>
@@ -229,6 +232,7 @@
               </th>
               <th class="text-right max-lg:hidden">{{ $t('trafficLimit') }}</th>
               <th class="text-right max-lg:hidden">{{ $t('bandwidthLimit') }}</th>
+              <th class="text-right min-w-[220px]">{{ $t('hostQosColumn') }}</th>
               <th class="text-right">{{ $t('actions') }}</th>
             </tr>
           </thead>
@@ -285,6 +289,19 @@
                         />
                       </span>
                     </div>
+                    <span
+                      v-if="row.currentQos && row.currentQos !== 'mixed'"
+                      class="badge badge-xs"
+                      :class="profileBadgeClass(row.currentQos)"
+                    >
+                      {{ profileIcon(row.currentQos) }} {{ profileLabel(row.currentQos) }}
+                    </span>
+                    <span
+                      v-else-if="row.currentQos === 'mixed'"
+                      class="badge badge-xs badge-warning"
+                    >
+                      ≋ {{ $t('hostQosMixed') }}
+                    </span>
                   </template>
                 </div>
               </td>
@@ -344,6 +361,54 @@
                 <template v-else>
                   <span class="opacity-50">—</span>
                 </template>
+              </td>
+
+              <td class="text-right">
+                <div class="flex flex-col items-end gap-1">
+                  <div class="flex items-center justify-end gap-2">
+                    <span
+                      v-if="row.currentQos && row.currentQos !== 'mixed'"
+                      class="badge badge-sm"
+                      :class="profileBadgeClass(row.currentQos)"
+                    >
+                      {{ profileIcon(row.currentQos) }} {{ profileLabel(row.currentQos) }}
+                    </span>
+                    <span v-else-if="row.currentQos === 'mixed'" class="badge badge-sm badge-warning">
+                      ≋ {{ $t('hostQosMixed') }}
+                    </span>
+                    <span v-else class="text-xs opacity-50">{{ $t('hostQosNone') }}</span>
+                  </div>
+                  <div class="flex items-center justify-end gap-1">
+                    <select
+                      class="select select-xs w-[128px]"
+                      v-model="qosDraftByUser[row.user]"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                    >
+                      <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
+                        {{ profileLabel(profile) }}
+                      </option>
+                    </select>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
+                      @click.stop.prevent="applyUserQos(row)"
+                      :title="$t('hostQosApply')"
+                    >
+                      <span v-if="applyingQosUser === row.user" class="loading loading-spinner loading-xs"></span>
+                      <span v-else>{{ $t('apply') }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user || !row.currentQos"
+                      @click.stop.prevent="clearUserQos(row)"
+                      :title="$t('hostQosClear')"
+                    >
+                      {{ $t('clear') }}
+                    </button>
+                  </div>
+                </div>
               </td>
 
               <td class="text-right relative z-30 pointer-events-auto">
@@ -442,7 +507,7 @@
             </tr>
 
             <tr v-if="!rows.length">
-              <td colspan="8" class="text-center opacity-60">{{ $t('noContent') }}</td>
+              <td colspan="10" class="text-center opacity-60">{{ $t('noContent') }}</td>
             </tr>
           </tbody>
         </table>
@@ -666,11 +731,13 @@
 
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
+import { agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { activeConnections } from '@/store/connections'
 import { sourceIPLabelList } from '@/store/settings'
+import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, userLimits, type UserLimitPeriod } from '@/store/userLimits'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { agentEnabled, agentEnforceBandwidth, agentShaperStatus } from '@/store/agent'
@@ -694,7 +761,7 @@ import {
   userTrafficStoreSize,
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { v4 as uuidv4 } from 'uuid'
@@ -713,10 +780,16 @@ import {
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 
-type Row = { user: string; keys: string; dl: number; ul: number }
+type RowQosState = AgentQosProfile | 'mixed' | undefined
+type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState }
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
+const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal', 'low', 'background']
+const qosStatus = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
+const qosDraftByUser = ref<Record<string, AgentQosProfile>>({})
+const applyingQosUser = ref('')
+let qosTimer: number | undefined
 
 const router = useRouter()
 const { t } = useI18n()
@@ -727,6 +800,73 @@ const selectedMap = ref<Record<string, boolean>>({})
 const selectedList = computed(() => Object.keys(selectedMap.value || {}).filter((u) => selectedMap.value[u]))
 const clearSelection = () => {
   selectedMap.value = {}
+}
+
+const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
+  const out: Record<string, AgentQosStatusItem> = {}
+  for (const item of qosStatus.value.items || []) {
+    if (item?.ip) out[item.ip] = item
+  }
+  return out
+})
+
+const syncAppliedQosProfiles = () => {
+  const next: Record<string, AgentQosProfile> = {}
+  for (const item of qosStatus.value.items || []) {
+    if (item?.ip && item?.profile) next[item.ip] = item.profile
+  }
+  mergeRouterHostQosAppliedProfiles(next)
+}
+
+const resolveRowQos = (ips: string[]): RowQosState => {
+  const profiles = Array.from(new Set(ips
+    .map((ip) => qosMap.value[ip]?.profile || routerHostQosAppliedProfiles.value[ip])
+    .filter(Boolean))) as AgentQosProfile[]
+  if (!profiles.length) return undefined
+  if (profiles.length === 1) return profiles[0]
+  return 'mixed'
+}
+
+const ensureQosDrafts = () => {
+  const next = { ...qosDraftByUser.value }
+  for (const row of rows.value || []) {
+    if (!next[row.user]) next[row.user] = row.currentQos && row.currentQos !== 'mixed' ? row.currentQos : 'normal'
+  }
+  qosDraftByUser.value = next
+}
+
+const refreshQosStatus = async () => {
+  if (!agentEnabled.value) return
+  const res = await agentQosStatusAPI()
+  qosStatus.value = res.ok ? res : { ok: false, supported: false, items: [], error: res.error }
+  if (res.ok) syncAppliedQosProfiles()
+}
+
+const profileLabel = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return t('hostQosCritical')
+  if (profile === 'high') return t('hostQosHigh')
+  if (profile === 'elevated') return t('hostQosElevated')
+  if (profile === 'low') return t('hostQosLow')
+  if (profile === 'background') return t('hostQosBackground')
+  return t('hostQosNormal')
+}
+
+const profileIcon = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return '⏫'
+  if (profile === 'high') return '⬆'
+  if (profile === 'elevated') return '↗'
+  if (profile === 'low') return '↘'
+  if (profile === 'background') return '⬇'
+  return '•'
+}
+
+const profileBadgeClass = (profile: AgentQosProfile) => {
+  if (profile === 'critical') return 'badge-error'
+  if (profile === 'high') return 'badge-success'
+  if (profile === 'elevated') return 'badge-accent'
+  if (profile === 'low') return 'badge-warning'
+  if (profile === 'background') return 'badge-ghost'
+  return 'badge-info'
 }
 
 const limitProfiles = computed(() => userLimitProfiles.value || [])
@@ -1015,7 +1155,9 @@ const rows = computed<Row[]>(() => {
     ipKeys.sort((a, b) => a.localeCompare(b))
     const keys = ipKeys.join(', ')
 
-    return { user, keys, dl, ul }
+    const currentQos = resolveRowQos(ipKeys)
+
+    return { user, keys, dl, ul, ips: ipKeys, currentQos }
   })
 
   const sorted = list.sort((a, b) => {
@@ -1031,6 +1173,58 @@ const rows = computed<Row[]>(() => {
 
   if (topN.value > 0) return sorted.slice(0, topN.value)
   return sorted
+})
+
+watch(rows, () => {
+  ensureQosDrafts()
+}, { deep: true, immediate: true })
+
+const applyUserQos = async (row: Row) => {
+  if (!agentEnabled.value || !row.ips.length) return
+  const profile = qosDraftByUser.value[row.user] || 'normal'
+  applyingQosUser.value = row.user
+  try {
+    const results = await Promise.all(row.ips.map((ip) => agentSetHostQosAPI({ ip, profile })))
+    const failed = results.find((it) => !it.ok)
+    if (failed) {
+      showNotification({ content: failed.error || 'QoS apply failed', type: 'alert-error', timeout: 2200 })
+      return
+    }
+    for (const ip of row.ips) setRouterHostQosAppliedProfile(ip, profile)
+    await refreshQosStatus()
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+  } finally {
+    applyingQosUser.value = ''
+  }
+}
+
+const clearUserQos = async (row: Row) => {
+  if (!agentEnabled.value || !row.ips.length) return
+  applyingQosUser.value = row.user
+  try {
+    const results = await Promise.all(row.ips.map((ip) => agentRemoveHostQosAPI(ip)))
+    const failed = results.find((it) => !it.ok)
+    if (failed) {
+      showNotification({ content: failed.error || 'QoS clear failed', type: 'alert-error', timeout: 2200 })
+      return
+    }
+    for (const ip of row.ips) setRouterHostQosAppliedProfile(ip)
+    await refreshQosStatus()
+    showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
+  } finally {
+    applyingQosUser.value = ''
+  }
+}
+
+onMounted(() => {
+  void refreshQosStatus()
+  qosTimer = window.setInterval(() => {
+    void refreshQosStatus()
+  }, 12000)
+})
+
+onBeforeUnmount(() => {
+  if (qosTimer) window.clearInterval(qosTimer)
 })
 
 const speed = (bps: number) => `${prettyBytesHelper(bps || 0)}/s`

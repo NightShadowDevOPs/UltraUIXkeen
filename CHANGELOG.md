@@ -1,3 +1,9 @@
+## v1.2.19
+
+- added a dedicated left-menu Traffic section and moved traffic/QoS work there
+- Users page now keeps only source IP mapping, with a shortcut to Traffic
+- integrated per-user/per-device QoS controls into the traffic table so traffic, limits and QoS live in one place
+
 ## v1.2.18
 
 - moved Host QoS management from Router to Users → Traffic by users
