@@ -1,0 +1,309 @@
+<template>
+  <div class="card gap-3 p-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="font-semibold">{{ $t('hostQosTitle') }}</div>
+        <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
+        <span v-else-if="status.ok && (qos.supported || status.hostQos)" class="badge badge-success">{{ $t('online') }}</span>
+        <span v-else-if="status.ok && !(qos.supported || status.hostQos)" class="badge badge-warning">no-tc</span>
+        <span v-else class="badge badge-error">{{ $t('offline') }}</span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
+        <span v-if="qos.defaults?.high">{{ $t('hostQosHigh') }}: {{ profileSummary('high') }}</span>
+        <span v-if="qos.defaults?.normal">{{ $t('hostQosNormal') }}: {{ profileSummary('normal') }}</span>
+        <span v-if="qos.defaults?.low">{{ $t('hostQosLow') }}: {{ profileSummary('low') }}</span>
+        <button type="button" class="btn btn-sm" @click="refreshAll" :disabled="loading">
+          <span v-if="loading" class="loading loading-spinner loading-xs"></span>
+          <span v-else>{{ $t('refresh') }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="!agentEnabled" class="text-sm opacity-70">
+      {{ $t('agentDisabledTip') }}
+    </div>
+    <div v-else-if="!status.ok" class="text-sm opacity-70">
+      {{ $t('agentOfflineTip') }}
+    </div>
+    <div v-else-if="!(qos.supported || status.hostQos)" class="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
+      {{ $t('hostQosNoTcTip') }}
+    </div>
+    <template v-else>
+      <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
+        <div>{{ $t('hostQosIntro') }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ $t('hostQosShapeOverrideTip') }}</div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs opacity-60">{{ $t('search') }}</span>
+          <input v-model.trim="query" class="input input-sm w-full" :placeholder="$t('hostQosSearchPlaceholder')" />
+        </label>
+        <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-xs opacity-70">
+          <div>{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
+          <div>{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
+          <div>{{ $t('hostQosLineRates', { wan: qos.wanRateMbit || '—', lan: qos.lanRateMbit || '—' }) }}</div>
+        </div>
+      </div>
+
+      <div v-if="error" class="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+        {{ error }}
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-base-content/10 bg-base-100/50">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>{{ $t('host') }}</th>
+              <th>{{ $t('current') }}</th>
+              <th>{{ $t('hostQosLiveRate') }}</th>
+              <th>{{ $t('hostQosSetProfile') }}</th>
+              <th class="text-right">{{ $t('actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in filteredRows" :key="row.ip">
+              <td class="min-w-[240px]">
+                <div class="flex flex-col gap-0.5">
+                  <span class="font-medium">{{ row.hostname || row.ip }}</span>
+                  <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
+                  <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
+                </div>
+              </td>
+              <td>
+                <span v-if="row.currentProfile" class="badge badge-sm" :class="profileBadgeClass(row.currentProfile)">
+                  {{ profileLabel(row.currentProfile) }}
+                </span>
+                <span v-else class="text-xs opacity-60">{{ $t('hostQosNotSet') }}</span>
+                <div v-if="row.qosMeta" class="mt-1 text-[11px] opacity-60">
+                  {{ $t('hostQosGuarantee', { up: row.qosMeta.upMinMbit || 0, down: row.qosMeta.downMinMbit || 0 }) }}
+                </div>
+              </td>
+              <td>
+                <div class="flex flex-col gap-0.5 text-[11px] sm:text-xs">
+                  <span>↓ {{ formatRate(row.totalDownBps) }}</span>
+                  <span>↑ {{ formatRate(row.totalUpBps) }}</span>
+                </div>
+              </td>
+              <td>
+                <select v-model="draftProfiles[row.ip]" class="select select-sm min-w-[150px]">
+                  <option value="high">{{ $t('hostQosHigh') }}</option>
+                  <option value="normal">{{ $t('hostQosNormal') }}</option>
+                  <option value="low">{{ $t('hostQosLow') }}</option>
+                </select>
+              </td>
+              <td>
+                <div class="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-xs"
+                    @click="applyRow(row.ip)"
+                    :disabled="busyIp === row.ip || !draftProfiles[row.ip]"
+                  >
+                    <span v-if="busyIp === row.ip" class="loading loading-spinner loading-xs"></span>
+                    <span v-else>{{ $t('apply') }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    @click="clearRow(row.ip)"
+                    :disabled="busyIp === row.ip || !row.currentProfile"
+                  >
+                    {{ $t('clear') }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!filteredRows.length">
+              <td colspan="5" class="py-6 text-center text-sm opacity-60">{{ $t('hostQosNoHosts') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import {
+  agentHostTrafficLiveAPI,
+  agentLanHostsAPI,
+  agentQosStatusAPI,
+  agentRemoveHostQosAPI,
+  agentSetHostQosAPI,
+  agentStatusAPI,
+  type AgentHostTrafficLiveItem,
+  type AgentLanHost,
+  type AgentQosProfile,
+  type AgentQosStatus,
+  type AgentQosStatusItem,
+} from '@/api/agent'
+import { prettyBytesHelper } from '@/helper/utils'
+import { agentEnabled } from '@/store/agent'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+type Row = AgentLanHost & AgentHostTrafficLiveItem & {
+  currentProfile?: AgentQosProfile
+  qosMeta?: AgentQosStatusItem
+}
+
+const { t } = useI18n()
+const loading = ref(false)
+const error = ref('')
+const query = ref('')
+const status = ref<{ ok: boolean; hostQos?: boolean }>({ ok: false })
+const qos = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
+const hosts = ref<AgentLanHost[]>([])
+const traffic = ref<AgentHostTrafficLiveItem[]>([])
+const draftProfiles = ref<Record<string, AgentQosProfile>>({})
+const busyIp = ref('')
+let timer: number | undefined
+
+const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
+  const out: Record<string, AgentQosStatusItem> = {}
+  for (const item of qos.value.items || []) out[item.ip] = item
+  return out
+})
+
+const rows = computed<Row[]>(() => {
+  const hostMap = new Map<string, AgentLanHost>()
+  for (const host of hosts.value) hostMap.set(host.ip, host)
+  const trafficMap = new Map<string, AgentHostTrafficLiveItem>()
+  for (const item of traffic.value) trafficMap.set(item.ip, item)
+  const ips = new Set<string>([
+    ...Array.from(hostMap.keys()),
+    ...Array.from(trafficMap.keys()),
+    ...Object.keys(qosMap.value),
+  ])
+  return Array.from(ips)
+    .map((ip) => {
+      const host = hostMap.get(ip) || ({ ip } as AgentLanHost)
+      const live = trafficMap.get(ip) || ({ ip } as AgentHostTrafficLiveItem)
+      const meta = qosMap.value[ip]
+      return {
+        ...host,
+        ...live,
+        ip,
+        currentProfile: meta?.profile,
+        qosMeta: meta,
+      }
+    })
+    .sort((a, b) => {
+      const an = String(a.hostname || a.ip).toLowerCase()
+      const bn = String(b.hostname || b.ip).toLowerCase()
+      return an.localeCompare(bn)
+    })
+})
+
+const filteredRows = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!q) return rows.value
+  return rows.value.filter((row) => {
+    return [row.hostname, row.ip, row.mac, row.currentProfile]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(q))
+  })
+})
+
+const appliedCount = computed(() => (qos.value.items || []).length)
+
+const ensureDrafts = () => {
+  const next = { ...draftProfiles.value }
+  for (const row of rows.value) {
+    if (!next[row.ip]) next[row.ip] = row.currentProfile || 'normal'
+  }
+  draftProfiles.value = next
+}
+
+const formatRate = (bps?: number) => {
+  const n = Number(bps || 0)
+  if (!Number.isFinite(n) || n <= 0) return '0 B/s'
+  return `${prettyBytesHelper(n)}/s`
+}
+
+const profileLabel = (profile?: AgentQosProfile) => {
+  if (profile === 'high') return t('hostQosHigh')
+  if (profile === 'low') return t('hostQosLow')
+  return t('hostQosNormal')
+}
+
+const profileBadgeClass = (profile: AgentQosProfile) => {
+  if (profile === 'high') return 'badge-success'
+  if (profile === 'low') return 'badge-warning'
+  return 'badge-info'
+}
+
+const profileSummary = (profile: AgentQosProfile) => {
+  const item = qos.value.defaults?.[profile]
+  if (!item) return '—'
+  return `${item.pct || 0}% · prio ${item.priority ?? '—'}`
+}
+
+const refreshAll = async () => {
+  if (!agentEnabled.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    const [st, q, h, tr] = await Promise.all([
+      agentStatusAPI(),
+      agentQosStatusAPI(),
+      agentLanHostsAPI(),
+      agentHostTrafficLiveAPI(),
+    ])
+    status.value = { ok: !!st.ok, hostQos: !!st.hostQos }
+    qos.value = q.ok ? q : { ok: false, supported: false, items: [], error: q.error }
+    hosts.value = h.ok && h.items ? h.items : []
+    traffic.value = tr.ok && tr.items ? tr.items : []
+    ensureDrafts()
+    if (!st.ok) error.value = st.error || t('agentOfflineTip')
+    else if (!q.ok) error.value = q.error || t('hostQosStatusFailed')
+  } finally {
+    loading.value = false
+  }
+}
+
+const applyRow = async (ip: string) => {
+  const profile = draftProfiles.value[ip]
+  if (!profile) return
+  busyIp.value = ip
+  error.value = ''
+  try {
+    const res = await agentSetHostQosAPI({ ip, profile })
+    if (!res.ok) {
+      error.value = res.error || t('hostQosApplyFailed')
+      return
+    }
+    await refreshAll()
+  } finally {
+    busyIp.value = ''
+  }
+}
+
+const clearRow = async (ip: string) => {
+  busyIp.value = ip
+  error.value = ''
+  try {
+    const res = await agentRemoveHostQosAPI(ip)
+    if (!res.ok) {
+      error.value = res.error || t('hostQosApplyFailed')
+      return
+    }
+    await refreshAll()
+  } finally {
+    busyIp.value = ''
+  }
+}
+
+onMounted(async () => {
+  await refreshAll()
+  timer = window.setInterval(() => {
+    void refreshAll()
+  }, 8000)
+})
+
+onBeforeUnmount(() => {
+  if (timer) window.clearInterval(timer)
+})
+</script>

@@ -1162,8 +1162,12 @@ ensure_block_chain() {
 ensure_iptables_chains() {
   iptables -t mangle -nL ZASH_UP >/dev/null 2>&1 || iptables -t mangle -N ZASH_UP
   iptables -t mangle -nL ZASH_DOWN >/dev/null 2>&1 || iptables -t mangle -N ZASH_DOWN
+  iptables -t mangle -nL ZASH_QOS_UP >/dev/null 2>&1 || iptables -t mangle -N ZASH_QOS_UP
+  iptables -t mangle -nL ZASH_QOS_DOWN >/dev/null 2>&1 || iptables -t mangle -N ZASH_QOS_DOWN
   iptables -t mangle -C FORWARD -j ZASH_UP >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_UP
   iptables -t mangle -C FORWARD -j ZASH_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_DOWN
+  iptables -t mangle -C FORWARD -j ZASH_QOS_UP >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_QOS_UP
+  iptables -t mangle -C FORWARD -j ZASH_QOS_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_QOS_DOWN
 }
 
 ensure_tc_base() {
@@ -1458,6 +1462,165 @@ minor_for_ip() {
   echo $(( (n % 4095) + 10 ))
 }
 
+qos_minor_for_ip() {
+  n="$(ip_to_int "$1")"
+  echo $(( (n % 4095) + 5000 ))
+}
+
+qos_profile_pct() {
+  case "$1" in
+    high) echo "$QOS_HIGH_PCT" ;;
+    low) echo "$QOS_LOW_PCT" ;;
+    *) echo "$QOS_NORMAL_PCT" ;;
+  esac
+}
+
+qos_profile_prio() {
+  case "$1" in
+    high) echo "$QOS_HIGH_PRIO" ;;
+    low) echo "$QOS_LOW_PRIO" ;;
+    *) echo "$QOS_NORMAL_PRIO" ;;
+  esac
+}
+
+qos_min_rate() {
+  total="$1"; pct="$2"
+  echo "$total" | grep -qE '^[0-9]+$' || total=1
+  echo "$pct" | grep -qE '^[0-9]+$' || pct=1
+  [ "$total" -lt 1 ] && total=1
+  [ "$pct" -lt 1 ] && pct=1
+  rate=$(( (total * pct + 99) / 100 ))
+  [ "$rate" -lt 1 ] && rate=1
+  [ "$rate" -gt "$total" ] && rate="$total"
+  echo "$rate"
+}
+
+persist_qos_host() {
+  ip_="$1"; profile_="$2"
+  mkdir -p "$(dirname "$QOS_HOSTS_FILE")" >/dev/null 2>&1 || true
+  tmp="${QOS_HOSTS_FILE}.tmp"
+  [ -f "$QOS_HOSTS_FILE" ] && grep -v "^${ip_}[[:space:]]" "$QOS_HOSTS_FILE" > "$tmp" 2>/dev/null || true
+  echo "${ip_} ${profile_}" >> "$tmp"
+  mv "$tmp" "$QOS_HOSTS_FILE" 2>/dev/null || true
+}
+
+remove_persist_qos_host() {
+  ip_="$1"
+  [ -f "$QOS_HOSTS_FILE" ] || return 0
+  tmp="${QOS_HOSTS_FILE}.tmp"
+  grep -v "^${ip_}[[:space:]]" "$QOS_HOSTS_FILE" > "$tmp" 2>/dev/null || true
+  mv "$tmp" "$QOS_HOSTS_FILE" 2>/dev/null || true
+}
+
+apply_qos_only() {
+  ip="$1"; profile="$2"
+  [ $have_tc -eq 1 ] || return 1
+  ensure_iptables_chains
+  ensure_tc_base
+
+  minor="$(qos_minor_for_ip "$ip")"
+  mark_up=$((24576 + minor))
+  mark_down=$((32768 + minor))
+  pct="$(qos_profile_pct "$profile")"
+  prio="$(qos_profile_prio "$profile")"
+  up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
+  down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+
+  iptables -t mangle -C ZASH_QOS_UP -s "$ip" -o "$WAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_QOS_UP -s "$ip" -o "$WAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_up/0xffff"
+
+  iptables -t mangle -C ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff"
+
+  tc class show dev "$WAN_IF" 2>/dev/null | grep -q "1:${minor}" &&     tc class change dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up_min}mbit" ceil "${WAN_RATE}mbit" prio "$prio" 2>/dev/null ||     tc class add dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up_min}mbit" ceil "${WAN_RATE}mbit" prio "$prio" 2>/dev/null || true
+
+  tc filter show dev "$WAN_IF" parent 1: 2>/dev/null | grep -q "handle $mark_up" ||     tc filter add dev "$WAN_IF" parent 1: protocol ip prio 10 handle "$mark_up" fw flowid "1:${minor}" 2>/dev/null || true
+
+  tc class show dev "$LAN_IF" 2>/dev/null | grep -q "2:${minor}" &&     tc class change dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null ||     tc class add dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null || true
+
+  tc filter show dev "$LAN_IF" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||     tc filter add dev "$LAN_IF" parent 2: protocol ip prio 10 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+
+  return 0
+}
+
+set_host_qos() {
+  ip="$1"; profile="$2"
+  case "$profile" in
+    high|normal|low) ;;
+    off|none|disabled|remove|clear|"") remove_host_qos "$ip"; return ;;
+    *) reply_ok '{"ok":false,"error":"bad-profile"}'; return ;;
+  esac
+
+  if [ $have_tc -ne 1 ]; then
+    reply_ok '{"ok":false,"error":"no-tc"}'
+    return
+  fi
+
+  apply_qos_only "$ip" "$profile" || { reply_ok '{"ok":false,"error":"apply-failed"}'; return; }
+  persist_qos_host "$ip" "$profile"
+
+  pct="$(qos_profile_pct "$profile")"
+  prio="$(qos_profile_prio "$profile")"
+  up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
+  down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+  reply_ok "$(printf '{"ok":true,"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min")"
+}
+
+remove_host_qos() {
+  ip="$1"
+  minor="$(qos_minor_for_ip "$ip")"
+  mark_up=$((24576 + minor))
+  mark_down=$((32768 + minor))
+
+  iptables -t mangle -D ZASH_QOS_UP -s "$ip" -o "$WAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 || true
+  iptables -t mangle -D ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 || true
+
+  if [ $have_tc -eq 1 ]; then
+    tc filter del dev "$WAN_IF" parent 1: protocol ip prio 10 handle "$mark_up" fw 2>/dev/null || true
+    tc class del dev "$WAN_IF" classid "1:${minor}" 2>/dev/null || true
+    tc filter del dev "$LAN_IF" parent 2: protocol ip prio 10 handle "$mark_down" fw 2>/dev/null || true
+    tc class del dev "$LAN_IF" classid "2:${minor}" 2>/dev/null || true
+  fi
+
+  remove_persist_qos_host "$ip"
+  reply_ok '{"ok":true}'
+}
+
+rehydrate_qos_hosts() {
+  [ $have_tc -eq 1 ] || return 0
+  [ -f "$QOS_HOSTS_FILE" ] || return 0
+  while read -r ip profile; do
+    [ -n "$ip" ] || continue
+    case "$profile" in high|normal|low) apply_qos_only "$ip" "$profile" >/dev/null 2>&1 || true ;; esac
+  done < "$QOS_HOSTS_FILE"
+  return 0
+}
+
+qos_status() {
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"defaults":{"high":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE"     "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO"
+  first=1
+  if [ -f "$QOS_HOSTS_FILE" ]; then
+    while read -r ip profile; do
+      [ -n "$ip" ] || continue
+      case "$profile" in high|normal|low) ;; *) continue ;; esac
+      pct="$(qos_profile_pct "$profile")"
+      prio="$(qos_profile_prio "$profile")"
+      up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
+      down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+      [ "$first" -eq 0 ] && printf ','
+      first=0
+      printf '{"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min"
+    done < "$QOS_HOSTS_FILE"
+  fi
+  printf ']}'
+}
+
 apply_tc_only() {
   ip="$1"; up="$2"; down="$3"
   [ $have_tc -eq 1 ] || return 1
@@ -1559,6 +1722,7 @@ rehydrate() {
     [ -n "$down" ] || down="$up"
     apply_tc_only "$ip" "$up" "$down" && count=$((count + 1))
   done < "$STATE_FILE"
+  rehydrate_qos_hosts >/dev/null 2>&1 || true
   rehydrate_blocks >/dev/null 2>&1 || true
   reply_ok "$(printf '{"ok":true,"count":%s}' "$count")"
 }
@@ -1625,7 +1789,7 @@ status() {
 
   server_ver="$(remote_agent_version 2>/dev/null || true)"
 
-  reply_ok "$(printf '{"ok":true,"version":"0.6.6","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
+  reply_ok "$(printf '{"ok":true,"version":"0.6.7","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memUsedPct":%s}' \
     "$server_ver" "$WAN_IF" "$LAN_IF" \
     $( [ $have_tc -eq 1 ] && echo true || echo false ) \
     $( [ $have_iptables -eq 1 ] && echo true || echo false ) \

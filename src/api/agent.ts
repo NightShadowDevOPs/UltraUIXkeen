@@ -51,6 +51,7 @@ type AgentStatus = {
   tc?: boolean
   iptables?: boolean
   hashlimit?: boolean
+  hostQos?: boolean
   // optional system metrics (agent >= 0.4)
   cpuPct?: number
   load1?: string
@@ -294,12 +295,73 @@ export const agentHostRemoteTargetsAPI = async (ip: string): Promise<AgentHostRe
   }
 }
 
+
+export type AgentQosProfile = 'high' | 'normal' | 'low'
+
+export type AgentQosStatusItem = {
+  ip: string
+  profile: AgentQosProfile
+  priority?: number
+  upMinMbit?: number
+  downMinMbit?: number
+}
+
+export type AgentQosStatus = {
+  ok: boolean
+  supported?: boolean
+  wanRateMbit?: number
+  lanRateMbit?: number
+  defaults?: Partial<Record<AgentQosProfile, { pct?: number; priority?: number }>>
+  items?: AgentQosStatusItem[]
+  error?: string
+}
+
 export const agentIpToMacAPI = async (ip: string): Promise<{ ok: boolean; mac?: string; error?: string }> => {
   try {
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'ip2mac', ip },
     })
     return (data || { ok: true }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+
+export const agentQosStatusAPI = async (): Promise<AgentQosStatus> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'qos_status' },
+      timeout: 5000,
+    })
+    return (data || { ok: false }) as AgentQosStatus
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentSetHostQosAPI = async (args: {
+  ip: string
+  profile: AgentQosProfile
+}): Promise<{ ok: boolean; error?: string; priority?: number; upMinMbit?: number; downMinMbit?: number }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'qos_set', ip: args.ip, profile: args.profile },
+      timeout: 6000,
+    })
+    return (data || { ok: false }) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'failed' }
+  }
+}
+
+export const agentRemoveHostQosAPI = async (ip: string): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'qos_remove', ip },
+      timeout: 6000,
+    })
+    return (data || { ok: false }) as any
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }

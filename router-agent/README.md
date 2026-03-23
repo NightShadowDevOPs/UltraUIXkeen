@@ -3,6 +3,7 @@
 This is an **optional** helper agent that runs on the router and enables "adult" features that are not available via Mihomo API:
 
 - Per-client **bandwidth shaping** (Mbps) via `tc` (recommended)
+- Per-host **QoS priority** (High / Normal / Low) via `tc` HTB class priority + guaranteed minimum share
 - Fallback policing via `iptables` (optional)
 
 Дашборд **UltraUIXkeen** может вызывать этот агент для применения/удаления shaping‑правил по IP.
@@ -35,6 +36,9 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=shape&ip=192.168.1.2&up=10&down=30`
 - `GET /cgi-bin/api.sh?cmd=unshape&ip=192.168.1.2`
 - `GET /cgi-bin/api.sh?cmd=neighbors`
+- `GET /cgi-bin/api.sh?cmd=qos_status`
+- `GET /cgi-bin/api.sh?cmd=qos_set&ip=192.168.1.2&profile=high|normal|low`
+- `GET /cgi-bin/api.sh?cmd=qos_remove&ip=192.168.1.2`
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_cloud_status`
@@ -52,6 +56,8 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=subscription&format=json` *(preview groundwork for future HTTPS / Xray-style flows)*
 
 `format=mihomo` now emits an explicit top-level `proxy-groups:` section, so generated YAML keeps `Manual / Auto / Failover / Balance` in the correct Clash/Mihomo structure.
+
+Host QoS priority is best-effort: it helps under congestion, but if the same IP also has a hard shaping rule (`cmd=shape`), the hard shaping rule wins.
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
 
@@ -141,6 +147,34 @@ The installer also creates `/opt/zash-agent/restore-cloud.sh` — it downloads t
 If `RCLONE_REMOTE` / `RCLONE_REMOTES` still contain stale remote names, the agent now falls back to actual remotes discovered in `rclone.conf` — not only for cloud history and restore, but also for new uploads triggered by `backup.sh` / cron.
 
 
+
+## Host QoS priority (groundwork)
+
+The router page can now apply per-host QoS priority profiles:
+
+- `high`
+- `normal`
+- `low`
+
+Under the hood the agent uses `tc` HTB classes with:
+
+- different class `prio` values;
+- a guaranteed minimum share derived from `WAN_RATE` / `LAN_RATE`;
+- full `ceil` at the line rate, so this is priority, not a hard per-host cap.
+
+Optional tuning in `/opt/zash-agent/agent.env`:
+
+```sh
+QOS_HIGH_PCT="25"
+QOS_NORMAL_PCT="10"
+QOS_LOW_PCT="3"
+QOS_HIGH_PRIO="0"
+QOS_NORMAL_PRIO="3"
+QOS_LOW_PRIO="6"
+```
+
+Nothing must be changed manually for the default profiles to work. If the same IP also has a hard shaping rule (`cmd=shape`), that shaping rule intentionally wins over QoS priority.
+
 ## HTTPS publication for subscriptions
 
 `cmd=subscription` works locally over HTTP and that is enough for a normal router-only LAN setup. Publish it behind a normal HTTPS reverse proxy only when you really need external/public client access or want to test future V2RayTun/Xray flows over HTTPS.
@@ -158,7 +192,7 @@ What to preserve in the proxy:
 
 Then `format=json` can include canonical public URLs in its response.
 
-For live V2RayTun LAN testing the agent also keeps `format=v2raytun`. In `0.6.6` it sends `profile-title`, `profile-update-interval` and `update-always` both as normal HTTP headers and as `#`-prefixed body headers before the merged share-link list, because V2RayTun documents support for body headers too. Treat this as an experimental local import flow, not as a final published-subscription claim.
+For live V2RayTun LAN testing the agent also keeps `format=v2raytun`. Current builds send `profile-title`, `profile-update-interval` and `update-always` both as normal HTTP headers and as `#`-prefixed body headers before the merged share-link list, because V2RayTun documents support for body headers too. Treat this as an experimental local import flow, not as a final published-subscription claim.
 
 ### Caddy example
 

@@ -2,6 +2,7 @@
   <div class="flex h-full flex-col gap-2 overflow-x-hidden overflow-y-auto p-2">
     <AgentCard />
     <SystemCard />
+    <HostQosCard />
     <NetcrazeTrafficCard />
     <ChartsCard title-key="router" />
     <NetworkCard v-if="showIPAndConnectionInfo" />
@@ -18,6 +19,7 @@
 <script setup lang="ts">
 import AgentCard from '@/components/router/AgentCard.vue'
 import SystemCard from '@/components/router/SystemCard.vue'
+import HostQosCard from '@/components/router/HostQosCard.vue'
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import ChartsCard from '@/components/overview/ChartsCard.vue'
 import NetcrazeTrafficCard from '@/components/overview/NetcrazeTrafficCard.vue'

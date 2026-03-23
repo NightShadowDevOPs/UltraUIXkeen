@@ -1,3 +1,9 @@
+## 1.2.12
+
+- added Host QoS priority groundwork on Router page: LAN hosts can now get High / Normal / Low priority profiles with live rates and apply/clear actions
+- router-agent 0.6.7 adds persistent host QoS profiles via `tc` HTB class priority + minimum guaranteed share (`qos_status`, `qos_set`, `qos_remove`)
+- QoS priority is best-effort and intentionally yields to hard per-IP shaping rules when both target the same IP
+
 ## 1.2.11
 
 - fixed router-agent reported version so the router no longer keeps showing the previous release after install/update
