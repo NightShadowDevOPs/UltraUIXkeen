@@ -7,6 +7,7 @@ import { debounce, isEqual } from 'lodash'
 import { computed, ref, watch } from 'vue'
 import { agentEnabled } from './agent'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault } from './settings'
+import { userLimits, type UserLimit, type UserLimitsStore } from './userLimits'
 
 /**
  * Shared users database stored on the router via router-agent.
@@ -81,6 +82,7 @@ type UsersDbPayload = {
   providerIcons: Record<string, string>
   sslNearExpiryDaysDefault: number
   providerSslWarnDaysMap: Record<string, number>
+  userLimits: UserLimitsStore
 }
 
 export type UsersDbDiff = {
@@ -270,13 +272,70 @@ const sanitizeNumMap = (raw: any): Record<string, number> => {
   return out
 }
 
+const sanitizeUserLimit = (raw: any): UserLimit => {
+  const out: UserLimit = {}
+  if (!raw || typeof raw !== 'object') return out
+
+  const mac = String((raw as any).mac || '').trim().toLowerCase()
+  if (mac) out.mac = mac
+  if (typeof (raw as any).enabled === 'boolean') out.enabled = !!(raw as any).enabled
+  if (typeof (raw as any).disabled === 'boolean') out.disabled = !!(raw as any).disabled
+
+  const trafficLimitBytes = Number((raw as any).trafficLimitBytes)
+  if (Number.isFinite(trafficLimitBytes) && trafficLimitBytes >= 0) out.trafficLimitBytes = Math.trunc(trafficLimitBytes)
+
+  const trafficLimitUnit = String((raw as any).trafficLimitUnit || '').trim()
+  if (trafficLimitUnit === 'MB' || trafficLimitUnit === 'GB') out.trafficLimitUnit = trafficLimitUnit as 'MB' | 'GB'
+
+  const trafficPeriod = String((raw as any).trafficPeriod || '').trim()
+  if (trafficPeriod === '1d' || trafficPeriod === '30d' || trafficPeriod === 'month') out.trafficPeriod = trafficPeriod as any
+
+  const resetAt = Number((raw as any).resetAt)
+  if (Number.isFinite(resetAt) && resetAt > 0) out.resetAt = Math.trunc(resetAt)
+
+  const resetHourKey = String((raw as any).resetHourKey || '').trim()
+  if (resetHourKey) out.resetHourKey = resetHourKey
+
+  const resetHourDl = Number((raw as any).resetHourDl)
+  if (Number.isFinite(resetHourDl) && resetHourDl >= 0) out.resetHourDl = Math.trunc(resetHourDl)
+
+  const resetHourUl = Number((raw as any).resetHourUl)
+  if (Number.isFinite(resetHourUl) && resetHourUl >= 0) out.resetHourUl = Math.trunc(resetHourUl)
+
+  const bandwidthLimitBps = Number((raw as any).bandwidthLimitBps)
+  if (Number.isFinite(bandwidthLimitBps) && bandwidthLimitBps >= 0) out.bandwidthLimitBps = Math.trunc(bandwidthLimitBps)
+
+  return out
+}
+
+const sanitizeUserLimits = (raw: any): UserLimitsStore => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: UserLimitsStore = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    out[kk] = sanitizeUserLimit(v)
+  }
+  return out
+}
+
+const mergeUserLimits = (remote: UserLimitsStore, local: UserLimitsStore): UserLimitsStore => {
+  const out: UserLimitsStore = { ...(remote || {}) }
+  for (const [k, v] of Object.entries(local || {})) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    out[kk] = sanitizeUserLimit(v)
+  }
+  return sanitizeUserLimits(out)
+}
+
 const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
   const labels = sortLabels(sanitizeLabels(p?.labels || []))
   const urls = sanitizeUrlMap(p?.providerPanelUrls || {})
   const icons = sanitizeIconMap((p as any)?.providerIcons || (p as any)?.proxyProviderIcons || (p as any)?.proxyProviderIconMap || {})
   const sslNear = sanitizeInt((p as any)?.sslNearExpiryDaysDefault, 2, 0, 365)
   const warnMap = sanitizeNumMap((p as any)?.providerSslWarnDaysMap)
-  return { labels, providerPanelUrls: urls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap }
+  return { labels, providerPanelUrls: urls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap, userLimits: sanitizeUserLimits((p as any)?.userLimits) }
 }
 
 const labelSig = (x: any) => {
@@ -430,6 +489,7 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
         providerIcons: {},
         sslNearExpiryDaysDefault: 2,
         providerSslWarnDaysMap: {},
+        userLimits: {},
       }
 
     if (v && typeof v === 'object') {
@@ -477,22 +537,24 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
         providerIcons: icons,
         sslNearExpiryDaysDefault: sslNear,
         providerSslWarnDaysMap: warnMap,
+        userLimits: sanitizeUserLimits(v.userLimits),
       }
     }
   } catch {
     // ignore
   }
-  return { labels: [], providerPanelUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {} }
+  return { labels: [], providerPanelUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {}, userLimits: {} }
 }
 
 const buildPayloadForWrite = (p: UsersDbPayload) => {
   return {
-    version: 2,
+    version: 3,
     labels: p.labels || [],
     providerPanelUrls: p.providerPanelUrls || {},
     providerIcons: (p as any).providerIcons || {},
     sslNearExpiryDaysDefault: p.sslNearExpiryDaysDefault,
     providerSslWarnDaysMap: p.providerSslWarnDaysMap || {},
+    userLimits: sanitizeUserLimits((p as any).userLimits || {}),
   }
 }
 
@@ -549,6 +611,8 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     warnMap[kk] = Math.max(0, Math.min(365, Math.trunc(n)))
   }
 
+  const limits = mergeUserLimits(rN.userLimits || {}, lN.userLimits || {})
+
   // Local preference for the global threshold.
   const sslNear = sanitizeInt(lN.sslNearExpiryDaysDefault, rN.sslNearExpiryDaysDefault || 2, 0, 365)
 
@@ -558,6 +622,7 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     providerIcons: icons,
     sslNearExpiryDaysDefault: sslNear,
     providerSslWarnDaysMap: warnMap,
+    userLimits: limits,
   })
 }
 
@@ -569,7 +634,8 @@ const payloadEqual = (a: UsersDbPayload, b: UsersDbPayload) => {
     isEqual(an.providerPanelUrls || {}, bn.providerPanelUrls || {}) &&
     isEqual((an as any).providerIcons || {}, (bn as any).providerIcons || {}) &&
     an.sslNearExpiryDaysDefault === bn.sslNearExpiryDaysDefault &&
-    isEqual(an.providerSslWarnDaysMap || {}, bn.providerSslWarnDaysMap || {})
+    isEqual(an.providerSslWarnDaysMap || {}, bn.providerSslWarnDaysMap || {}) &&
+    isEqual(an.userLimits || {}, bn.userLimits || {})
   )
 }
 
@@ -580,6 +646,7 @@ const setLocalFromPayload = (p: UsersDbPayload) => {
   proxyProviderIconMap.value = ((n as any).providerIcons || {}) as any
   sslNearExpiryDaysDefault.value = n.sslNearExpiryDaysDefault
   proxyProviderSslWarnDaysMap.value = (n.providerSslWarnDaysMap || {}) as any
+  userLimits.value = (n.userLimits || {}) as any
 }
 
 const getLocalPayload = (): UsersDbPayload => {
@@ -589,6 +656,7 @@ const getLocalPayload = (): UsersDbPayload => {
     providerIcons: (proxyProviderIconMap.value || {}) as any,
     sslNearExpiryDaysDefault: sslNearExpiryDaysDefault.value,
     providerSslWarnDaysMap: (proxyProviderSslWarnDaysMap.value || {}) as any,
+    userLimits: (userLimits.value || {}) as any,
   })
 }
 
@@ -686,12 +754,14 @@ export const usersDbPullNow = async () => {
         remotePayload.labels.length === 0 &&
         Object.keys(remotePayload.providerPanelUrls || {}).length === 0 &&
         Object.keys(remotePayload.providerSslWarnDaysMap || {}).length === 0 &&
+        Object.keys(remotePayload.userLimits || {}).length === 0 &&
         Number(remotePayload.sslNearExpiryDaysDefault) === 2
 
       const localHasData =
         localPayload.labels.length > 0 ||
         Object.keys(localPayload.providerPanelUrls || {}).length > 0 ||
         Object.keys(localPayload.providerSslWarnDaysMap || {}).length > 0 ||
+        Object.keys(localPayload.userLimits || {}).length > 0 ||
         Number(localPayload.sslNearExpiryDaysDefault) !== 2
 
       if (remoteRev == 0 && remoteEmpty && localHasData) {
@@ -983,6 +1053,7 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
     providerIcons: sanitizeIconMap(mergedIcons),
     sslNearExpiryDaysDefault: mergedSslNear,
     providerSslWarnDaysMap: sanitizeNumMap(mergedWarn),
+    userLimits: mergeUserLimits(rN.userLimits || {}, lN.userLimits || {}),
   })
 }
 
@@ -1057,7 +1128,7 @@ export const initUsersDbSync = () => {
   )
 
   watch(
-    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap],
+    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap, userLimits],
     () => {
       if (suppressPushCount > 0) {
         suppressPushCount -= 1

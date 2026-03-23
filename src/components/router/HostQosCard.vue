@@ -13,6 +13,11 @@
         <span v-if="qos.defaults?.high">{{ $t('hostQosHigh') }}: {{ profileSummary('high') }}</span>
         <span v-if="qos.defaults?.normal">{{ $t('hostQosNormal') }}: {{ profileSummary('normal') }}</span>
         <span v-if="qos.defaults?.low">{{ $t('hostQosLow') }}: {{ profileSummary('low') }}</span>
+        <span class="badge badge-ghost">{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</span>
+        <span class="badge badge-ghost">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</span>
+        <button type="button" class="btn btn-sm btn-ghost" @click="expanded = !expanded">
+          {{ expanded ? $t('collapse') : $t('expand') }}
+        </button>
         <button type="button" class="btn btn-sm" @click="refreshAll" :disabled="loading">
           <span v-if="loading" class="loading loading-spinner loading-xs"></span>
           <span v-else>{{ $t('refresh') }}</span>
@@ -28,6 +33,9 @@
     </div>
     <div v-else-if="!(qos.supported || status.hostQos)" class="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm">
       {{ $t('hostQosNoTcTip') }}
+    </div>
+    <div v-else-if="!expanded" class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-80">
+      {{ $t('hostQosIntro') }}
     </div>
     <template v-else>
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
@@ -66,7 +74,7 @@
             <tr v-for="row in filteredRows" :key="row.ip">
               <td class="min-w-[240px]">
                 <div class="flex flex-col gap-0.5">
-                  <span class="font-medium">{{ row.hostname || row.ip }}</span>
+                  <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
                   <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
                   <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
                 </div>
@@ -139,14 +147,17 @@ import {
   type AgentQosStatus,
   type AgentQosStatusItem,
 } from '@/api/agent'
+import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 type Row = AgentLanHost & AgentHostTrafficLiveItem & {
   currentProfile?: AgentQosProfile
   qosMeta?: AgentQosStatusItem
+  displayName?: string
 }
 
 const { t } = useI18n()
@@ -159,6 +170,7 @@ const hosts = ref<AgentLanHost[]>([])
 const traffic = ref<AgentHostTrafficLiveItem[]>([])
 const draftProfiles = ref<Record<string, AgentQosProfile>>({})
 const busyIp = ref('')
+const expanded = useStorage('config/router-host-qos-expanded-v1', false)
 let timer: number | undefined
 
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
@@ -182,17 +194,21 @@ const rows = computed<Row[]>(() => {
       const host = hostMap.get(ip) || ({ ip } as AgentLanHost)
       const live = trafficMap.get(ip) || ({ ip } as AgentHostTrafficLiveItem)
       const meta = qosMap.value[ip]
+      const mappedLabel = getIPLabelFromMap(ip)
+      const displayName = mappedLabel && mappedLabel !== ip ? mappedLabel : host.hostname || live.hostname || ip
       return {
         ...host,
         ...live,
         ip,
+        displayName,
+        hostname: host.hostname || live.hostname || '',
         currentProfile: meta?.profile,
         qosMeta: meta,
       }
     })
     .sort((a, b) => {
-      const an = String(a.hostname || a.ip).toLowerCase()
-      const bn = String(b.hostname || b.ip).toLowerCase()
+      const an = String(a.displayName || a.hostname || a.ip).toLowerCase()
+      const bn = String(b.displayName || b.hostname || b.ip).toLowerCase()
       return an.localeCompare(bn)
     })
 })
@@ -201,7 +217,7 @@ const filteredRows = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return rows.value
   return rows.value.filter((row) => {
-    return [row.hostname, row.ip, row.mac, row.currentProfile]
+    return [row.displayName, row.hostname, row.ip, row.mac, row.currentProfile]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q))
   })
@@ -296,11 +312,23 @@ const clearRow = async (ip: string) => {
   }
 }
 
-onMounted(async () => {
-  await refreshAll()
+const restartPolling = () => {
+  if (timer) window.clearInterval(timer)
+  timer = undefined
+  if (!expanded.value) return
   timer = window.setInterval(() => {
     void refreshAll()
   }, 8000)
+}
+
+watch(expanded, async (value) => {
+  restartPolling()
+  if (value) await refreshAll()
+})
+
+onMounted(async () => {
+  await refreshAll()
+  restartPolling()
 })
 
 onBeforeUnmount(() => {

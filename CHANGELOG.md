@@ -1,3 +1,8 @@
+## 1.2.13
+
+- Host QoS card is collapsed by default and now shows assigned host labels in the router list when they exist.
+- Shared router users DB now syncs host/user bandwidth limits between PCs, so per-host channel limits are no longer stuck in one browser profile.
+
 ## 1.2.12
 
 - added Host QoS priority groundwork on Router page: LAN hosts can now get High / Normal / Low priority profiles with live rates and apply/clear actions
