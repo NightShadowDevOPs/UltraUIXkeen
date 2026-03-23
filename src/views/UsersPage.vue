@@ -255,12 +255,14 @@
     </div>
 
     <UserTrafficStats />
+    <HostQosCard />
   </div>
 </template>
 
 
 <script setup lang="ts">
 import UserTrafficStats from '@/components/users/UserTrafficStats.vue'
+import HostQosCard from '@/components/router/HostQosCard.vue'
 import SourceIPInput from '@/components/settings/SourceIPInput.vue'
 import CollapseCard from '@/components/common/CollapseCard.vue'
 import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'

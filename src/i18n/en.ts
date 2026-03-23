@@ -199,6 +199,7 @@ agentRestoreConfirm: 'Restore from backup? This will overwrite files on the rout
   routerInfo: 'Router info',
   routerInfoTip: 'Best-effort data from router-agent and the router itself.',
   hostQosTitle: 'Host QoS priority',
+  hostQosMovedToUsersTip: 'Manage host priorities in Users → Traffic by users.',
   hostQosIntro: 'Set per-host priority on the router. Higher priority gets a better queue priority and a larger guaranteed minimum share when the line is busy.',
   hostQosShapeOverrideTip: 'If the same IP also has a hard bandwidth limit, that shaping rule wins over QoS priority.',
   hostQosNoTcTip: 'tc is not available on the router agent, so host QoS priority cannot be applied.',

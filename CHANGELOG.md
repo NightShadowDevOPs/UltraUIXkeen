@@ -1,3 +1,8 @@
+## v1.2.18
+
+- moved Host QoS management from Router to Users → Traffic by users
+- added Router shortcut card pointing to the new QoS location
+
 ## UltraUIXkeen v1.2.17
 
 - fixed Host QoS state sync by moving applied/draft QoS profiles into a shared store used by both the QoS card and the live device list
