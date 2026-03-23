@@ -250,7 +250,7 @@
               <td class="font-medium">
                 <div class="flex items-center gap-2">
                   <LockClosedIcon
-                    v-if="limitStates[row.user]?.blocked"
+                    v-if="rowLimitState(row)?.blocked"
                     class="h-4 w-4 text-error"
                     :title="$t('userBlockedTip')"
                   />
@@ -265,26 +265,26 @@
                     <span class="truncate inline-block max-w-[240px]" :title="row.user">{{ row.user }}</span>
                     <div class="flex items-center gap-1">
                       <span
-                        v-if="limitStates[row.user]?.trafficLimitBytes"
+                        v-if="rowLimitState(row)?.trafficLimitBytes"
                         class="inline-flex pointer-events-auto"
-                        :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
+                        :title="trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled)"
                       >
                         <CircleStackIcon
                           class="h-4 w-4"
-                          :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                          :class="rowLimitState(row).enabled ? 'text-info' : 'opacity-40'"
+                          @mouseenter="showTip($event, trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled))"
                           @mouseleave="hideTip"
                         />
                       </span>
                       <span
-                        v-if="limitStates[row.user]?.bandwidthLimitBps"
+                        v-if="rowLimitState(row)?.bandwidthLimitBps"
                         class="inline-flex pointer-events-auto"
-                        :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
+                        :title="bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled)"
                       >
                         <BoltIcon
                           class="h-4 w-4"
-                          :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
-                          @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
+                          :class="rowLimitState(row).enabled ? 'text-warning' : 'opacity-40'"
+                          @mouseenter="showTip($event, bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled))"
                           @mouseleave="hideTip"
                         />
                       </span>
@@ -313,32 +313,32 @@
               <td class="text-right font-mono">{{ format(row.dl + row.ul) }}</td>
 
               <td class="text-right font-mono max-lg:hidden">
-                <template v-if="limitStates[row.user]?.trafficLimitBytes">
+                <template v-if="rowLimitState(row)?.trafficLimitBytes">
                   <div
                     class="whitespace-nowrap"
-                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
+                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
                   >
-                    {{ format(limitStates[row.user].usageBytes) }} /
-                    {{ format(limitStates[row.user].trafficLimitBytes) }}
+                    {{ format(rowLimitState(row).usageBytes) }} /
+                    {{ format(rowLimitState(row).trafficLimitBytes) }}
                   </div>
                   <div
                     class="text-xs opacity-60 flex items-center justify-end gap-1"
-                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
+                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
                   >
-                    <span>{{ limitStates[row.user].periodLabel }} · {{ limitStates[row.user].percent }}%</span>
+                    <span>{{ rowLimitState(row).periodLabel }} · {{ rowLimitState(row).percent }}%</span>
                     <CircleStackIcon
                       class="h-4 w-4"
-                      :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                      :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
-                      @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                      :class="rowLimitState(row).enabled ? 'text-info' : 'opacity-40'"
+                      :title="trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled)"
+                      @mouseenter="showTip($event, trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled))"
                       @mouseleave="hideTip"
                     />
                     <BoltIcon
-                      v-if="limitStates[row.user].bandwidthLimitBps"
+                      v-if="rowLimitState(row).bandwidthLimitBps"
                       class="h-4 w-4"
-                      :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
-                      :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
-                      @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
+                      :class="rowLimitState(row).enabled ? 'text-warning' : 'opacity-40'"
+                      :title="bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled)"
+                      @mouseenter="showTip($event, bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled))"
                       @mouseleave="hideTip"
                     />
                   </div>
@@ -349,13 +349,13 @@
               </td>
 
               <td class="text-right font-mono max-lg:hidden">
-                <template v-if="limitStates[row.user]?.bandwidthLimitBps">
+                <template v-if="rowLimitState(row)?.bandwidthLimitBps">
                   <div
                     class="whitespace-nowrap"
-                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
+                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
                   >
-                    {{ speed(limitStates[row.user].speedBps) }} /
-                    {{ speed(limitStates[row.user].bandwidthLimitBps) }}
+                    {{ speed(rowLimitState(row).speedBps) }} /
+                    {{ speed(rowLimitState(row).bandwidthLimitBps) }}
                   </div>
                 </template>
                 <template v-else>
@@ -439,36 +439,36 @@
                     </button>
                   </template>
                   <template v-else>
-                    <template v-if="shaperBadge[row.user]">
+                    <template v-if="rowShaperBadge(row)">
                       <span
                         class="inline-flex items-center justify-center px-1"
-                        :title="shaperBadge[row.user].title"
+                        :title="rowShaperBadge(row).title"
                       >
                         <component
-                          :is="shaperBadge[row.user].icon"
+                          :is="rowShaperBadge(row).icon"
                           class="h-4 w-4"
-                          :class="shaperBadge[row.user].cls"
+                          :class="rowShaperBadge(row).cls"
                         />
                       </span>
                       <button
-                        v-if="shaperBadge[row.user].showReapply"
+                        v-if="rowShaperBadge(row).showReapply"
                         type="button"
                         class="btn btn-ghost btn-circle btn-xs relative z-20"
-                        :disabled="applyingShaperUser === row.user"
-                        @click.stop.prevent="reapplyShaper(row.user)"
+                        :disabled="isApplyingShaperForRow(row)"
+                        @click.stop.prevent="reapplyShaperForRow(row)"
                         @pointerdown.stop.prevent
                         @mousedown.stop.prevent
                         @touchstart.stop.prevent
                         :title="$t('reapply')"
                       >
-                        <span v-if="applyingShaperUser === row.user" class="loading loading-spinner loading-xs"></span>
+                        <span v-if="isApplyingShaperForRow(row)" class="loading loading-spinner loading-xs"></span>
                         <ArrowPathIcon v-else class="h-4 w-4" />
                       </button>
                     </template>
                     <button
                       type="button"
                       class="btn btn-ghost btn-circle btn-xs relative z-20"
-                      @click.stop.prevent="openLimits(row.user)"
+                      @click.stop.prevent="openLimitsForRow(row)"
                       @pointerdown.stop.prevent
                       @mousedown.stop.prevent
                       @touchstart.stop.prevent
@@ -781,7 +781,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 type RowQosState = AgentQosProfile | 'mixed' | undefined
-type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState }
+type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState; limitUser: string; pinned?: boolean }
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
@@ -954,6 +954,43 @@ const hasMapping = (user: string) => {
   return sourceIPLabelList.value.some((it) => (it.label || it.key) === u || it.key === u)
 }
 
+const hasMeaningfulLimit = (user: string) => {
+  const l = getUserLimit(user)
+  return !!(
+    l.enabled ||
+    l.disabled ||
+    l.mac ||
+    (l.trafficLimitBytes || 0) > 0 ||
+    (l.bandwidthLimitBps || 0) > 0
+  )
+}
+
+const resolveLimitUserForRow = (user: string, ips: string[], norm: string) => {
+  if (hasMeaningfulLimit(user)) return user
+
+  for (const ip of ips || []) {
+    if (hasMeaningfulLimit(ip)) return ip
+  }
+
+  for (const ip of ips || []) {
+    const mapped = (getIPLabelFromMap(ip) || '').toString().trim()
+    if (mapped && hasMeaningfulLimit(mapped)) return mapped
+  }
+
+  const matches = Object.keys(userLimits.value || {}).filter((key) => normalizeUserName(key) === norm)
+  if (matches.length) return matches[0]
+
+  return user
+}
+
+const rowLimitUser = (row: Row) => row.limitUser || row.user
+const rowLimitState = (row: Row) => limitStates.value[rowLimitUser(row)]
+const rowLimit = (row: Row) => getUserLimit(rowLimitUser(row))
+const openLimitsForRow = (row: Row) => openLimits(rowLimitUser(row))
+const reapplyShaperForRow = (row: Row) => reapplyShaper(rowLimitUser(row))
+const rowShaperBadge = (row: Row) => shaperBadge.value[rowLimitUser(row)]
+const isApplyingShaperForRow = (row: Row) => applyingShaperUser.value === rowLimitUser(row)
+
 const startEdit = (user: string) => {
   editingUser.value = user
   const mapped = sourceIPLabelList.value.find((it) => it.key === user) || null
@@ -1124,6 +1161,14 @@ const rows = computed<Row[]>(() => {
   // Also include users with saved limits (after applying profiles)
   for (const u of Object.keys(userLimits.value || {})) addUser(all, u)
 
+  // Saved QoS on the router must also keep the row visible even without current traffic.
+  for (const item of qosStatus.value.items || []) {
+    const ip = String(item?.ip || '').trim()
+    if (!ip) continue
+    const u = (getIPLabelFromMap(ip) || ip || '').toString()
+    addUser(all, u)
+  }
+
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
     const ip = String((c as any)?.metadata?.sourceIP || '').trim()
@@ -1154,6 +1199,15 @@ const rows = computed<Row[]>(() => {
       if (normalizeUserName(label) === norm) keysSet.add(ip)
     }
 
+    // Saved QoS on the router is another source of truth for host IPs and must
+    // be visible even when the device is currently idle or missing from buckets.
+    for (const item of qosStatus.value.items || []) {
+      const ip = String(item?.ip || '').trim()
+      if (!ip) continue
+      const label = (getIPLabelFromMap(ip) || ip || '').toString().trim()
+      if (normalizeUserName(label) === norm || ip === user) keysSet.add(ip)
+    }
+
     // Legacy buckets stored under a label/synthetic key.
     for (const lk of legacyKeysByNorm.get(norm) || []) keysSet.add(lk)
 
@@ -1170,8 +1224,10 @@ const rows = computed<Row[]>(() => {
     const keys = ipKeys.join(', ')
 
     const currentQos = resolveRowQos(ipKeys)
+    const limitUser = resolveLimitUserForRow(user, ipKeys, norm)
+    const pinned = !!currentQos || hasMeaningfulLimit(limitUser)
 
-    return { user, keys, dl, ul, ips: ipKeys, currentQos }
+    return { user, keys, dl, ul, ips: ipKeys, currentQos, limitUser, pinned }
   })
 
   const sorted = list.sort((a, b) => {
@@ -1185,7 +1241,7 @@ const rows = computed<Row[]>(() => {
     return dir * (at - bt)
   })
 
-  if (topN.value > 0) return sorted.slice(0, topN.value)
+  if (topN.value > 0) return sorted.filter((row, index) => index < topN.value || !!row.pinned)
   return sorted
 })
 
@@ -1333,7 +1389,8 @@ const limitStates = computed(() => {
   // Build windows per user appearing in the table.
   const windows = new Map<string, { startHourTs: number; endTs: number; users: string[] }>()
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const owner = rowLimitUser(row)
+    const l = rowLimit(row)
     const hasTraffic = (l.trafficLimitBytes || 0) > 0
     const hasBw = (l.bandwidthLimitBps || 0) > 0
     if (!hasTraffic && !hasBw && !l.disabled) continue
@@ -1341,7 +1398,7 @@ const limitStates = computed(() => {
     const w = windowForLimit(l)
     const key = `${l.trafficPeriod}:${w.startHourTs}`
     const item = windows.get(key) || { startHourTs: w.startHourTs, endTs: w.endTs, users: [] }
-    item.users.push(row.user)
+    item.users.push(rowLimitUser(row))
     windows.set(key, item)
   }
 
@@ -1351,12 +1408,14 @@ const limitStates = computed(() => {
   }
 
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const l = rowLimit(row)
     const w = windowForLimit(l)
     const key = `${l.trafficPeriod}:${w.startHourTs}`
     const agg = aggByKey.get(key)
-    const keys = new Set<string>([row.user])
-    for (const ip of getIpsForUser(row.user) || []) keys.add(ip)
+    const owner = rowLimitUser(row)
+    const keys = new Set<string>([owner, row.user])
+    for (const ip of row.ips || []) keys.add(ip)
+    for (const ip of getIpsForUser(owner) || []) keys.add(ip)
 
     let dl = 0
     let ul = 0
@@ -1372,7 +1431,7 @@ const limitStates = computed(() => {
     const usage = dl + ul
     const tl = l.trafficLimitBytes || 0
 
-    const sp = speedByUser.value[row.user] || 0
+    const sp = speedByUser.value[owner] || speedByUser.value[row.user] || 0
     const bl = l.bandwidthLimitBps || 0
 
     const trafficExceeded = l.enabled && tl > 0 && usage >= tl
@@ -1385,7 +1444,7 @@ const limitStates = computed(() => {
 
     const pct = tl > 0 ? Math.min(999, Math.floor((usage / tl) * 100)) : 0
 
-    out[row.user] = {
+    out[owner] = {
       enabled: !!l.enabled,
       usageBytes: usage,
       trafficLimitBytes: tl,
@@ -1528,15 +1587,16 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   const st = agentShaperStatus.value || {}
 
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const owner = rowLimitUser(row)
+    const l = rowLimit(row)
     if (!l.enabled || !l.bandwidthLimitBps || l.bandwidthLimitBps <= 0) {
-      out[row.user] = null
+      out[owner] = null
       continue
     }
 
-    const ips = getIpsForUser(row.user)
+    const ips = Array.from(new Set([...(row.ips || []), ...getIpsForUser(rowLimitUser(row))]))
     if (!ips.length) {
-      out[row.user] = {
+      out[owner] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: `${row.user}: no IPs`,
@@ -1551,28 +1611,28 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 
     if (hasFail) {
       const firstErr = ips.map((ip) => st[ip]).find((x) => x && !x.ok)?.error
-      out[row.user] = {
+      out[owner] = {
         icon: XMarkIcon,
         cls: 'text-error',
         title: `${t('shaperFailed')}${firstErr ? `: ${firstErr}` : ''}`,
         showReapply: true,
       }
     } else if (allOk) {
-      out[row.user] = {
+      out[owner] = {
         icon: CheckCircleIcon,
         cls: 'text-success',
         title: t('shaperApplied'),
         showReapply: true,
       }
     } else if (!statuses.length) {
-      out[row.user] = {
+      out[owner] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: t('shaperUnknown'),
         showReapply: true,
       }
     } else {
-      out[row.user] = {
+      out[owner] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: t('shaperUnknown'),
