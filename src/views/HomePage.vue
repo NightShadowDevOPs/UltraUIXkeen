@@ -109,6 +109,8 @@ import { initSatistic } from '@/store/overview'
 import { fetchProxies, fetchProxyProvidersOnly, proxiesTabShow } from '@/store/proxies'
 import { fetchRules, rulesTabShow } from '@/store/rules'
 import { activeBackend, activeUuid, backendList } from '@/store/setup'
+import { agentStatusAPI } from '@/api/agent'
+import { agentEnabled, agentEnforceBandwidth, bootstrapRouterAgentForLan } from '@/store/agent'
 import type { Backend } from '@/types'
 import { useDocumentVisibility, useElementSize } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
@@ -130,6 +132,19 @@ const styleForSafeArea = {
 
 const router = useRouter()
 const { swiperRef } = useSwipeRouter()
+
+const ensureRouterAgentOnline = async () => {
+  bootstrapRouterAgentForLan()
+  try {
+    const st = await agentStatusAPI()
+    if (!st?.ok) return false
+    if (!agentEnabled.value) agentEnabled.value = true
+    if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
+    return true
+  } catch {
+    return false
+  }
+}
 
 // Global search keyboard shortcut (Ctrl+K / Cmd+K)
 const globalSearchKeydown = (e: KeyboardEvent) => {
@@ -171,6 +186,7 @@ watch(
     initUserLimitsEnforcer()
     initLogs()
     initSatistic()
+    void ensureRouterAgentOnline()
   },
   {
     immediate: true,

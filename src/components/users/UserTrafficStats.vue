@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row)"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!agentEnabled || applyingQosUser === row.user || !rowHasEffectiveIps(row) || !row.currentQos"
+                      :disabled="!agentRuntimeReady || applyingQosUser === row.user || !rowHasEffectiveIps(row) || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -631,7 +631,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="!agentEnabled"
+                  :disabled="!agentRuntimeReady"
                   @click="refreshMac"
                   :title="$t('rebindMac')"
                 >
@@ -641,7 +641,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="!agentEnabled"
+                  :disabled="!agentRuntimeReady"
                   @click="refreshMacAndApply"
                   :title="$t('rebindMacApply')"
                 >
@@ -731,7 +731,7 @@
 
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
-import { agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
+import { agentLanHostsAPI, agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, agentStatusAPI, type AgentLanHost, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
@@ -803,6 +803,40 @@ const clearSelection = () => {
   selectedMap.value = {}
 }
 
+const agentRuntimeReady = ref(false)
+const agentLanHosts = ref<AgentLanHost[]>([])
+
+const refreshAgentRuntime = async () => {
+  try {
+    const st = await agentStatusAPI()
+    const ok = !!st?.ok
+    agentRuntimeReady.value = ok
+    if (!ok) {
+      agentLanHosts.value = []
+      return false
+    }
+
+    if (!agentEnabled.value) agentEnabled.value = true
+    if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
+
+    const hosts = await agentLanHostsAPI().catch(() => ({ ok: false, items: [] as AgentLanHost[] }))
+    agentLanHosts.value = hosts?.ok && Array.isArray(hosts.items) ? hosts.items : []
+    return true
+  } catch {
+    agentRuntimeReady.value = false
+    agentLanHosts.value = []
+    return false
+  }
+}
+
+const ensureAgentReady = async () => {
+  bootstrapRouterAgentForLan()
+  if (agentRuntimeReady.value && agentEnabled.value) return true
+  const ok = await refreshAgentRuntime()
+  if (ok) await usersDbPullNow()
+  return ok
+}
+
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
   const out: Record<string, AgentQosStatusItem> = {}
   for (const item of qosStatus.value.items || []) {
@@ -850,13 +884,22 @@ const effectiveIpsForRow = (row: Row) => {
     if (normalizeUserName(display) === want || normalizeUserName(ip) === want) out.add(ip)
   }
 
+  for (const host of agentLanHosts.value || []) {
+    const ip = String((host as any)?.ip || '').trim()
+    if (!looksLikeIP(ip)) continue
+    const display = String(getIPLabelFromMap(ip) || (host as any)?.hostname || ip).trim()
+    const hostname = String((host as any)?.hostname || '').trim()
+    if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) out.add(ip)
+  }
+
   return Array.from(out).sort((a, b) => a.localeCompare(b))
 }
 
 const rowHasEffectiveIps = (row: Row) => effectiveIpsForRow(row).length > 0
 
 const refreshQosStatus = async () => {
-  if (!agentEnabled.value) return
+  const ready = await ensureAgentReady()
+  if (!ready) return
   const res = await agentQosStatusAPI()
   qosStatus.value = res.ok ? res : { ok: false, supported: false, items: [], error: res.error }
   if (res.ok) syncAppliedQosProfiles()
@@ -1223,8 +1266,9 @@ watch(rows, () => {
 }, { deep: true, immediate: true })
 
 const applyUserQos = async (row: Row) => {
+  const ready = await ensureAgentReady()
   const ips = effectiveIpsForRow(row)
-  if (!agentEnabled.value || !ips.length) return
+  if (!ready || !ips.length) return
   const profile = qosDraftByUser.value[row.user] || 'normal'
   applyingQosUser.value = row.user
   try {
@@ -1243,8 +1287,9 @@ const applyUserQos = async (row: Row) => {
 }
 
 const clearUserQos = async (row: Row) => {
+  const ready = await ensureAgentReady()
   const ips = effectiveIpsForRow(row)
-  if (!agentEnabled.value || !ips.length) return
+  if (!ready || !ips.length) return
   applyingQosUser.value = row.user
   try {
     const results = await Promise.all(ips.map((ip) => agentRemoveHostQosAPI(ip)))
@@ -1263,6 +1308,7 @@ const clearUserQos = async (row: Row) => {
 
 onMounted(() => {
   bootstrapRouterAgentForLan()
+  void ensureAgentReady()
   void usersDbPullNow()
   void refreshQosStatus()
   qosTimer = window.setInterval(() => {
@@ -1620,6 +1666,7 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 const applyingShaperUser = ref<string | null>(null)
 const reapplyShaper = async (user: string) => {
   if (!user) return
+  await ensureAgentReady()
   applyingShaperUser.value = user
   try {
     await reapplyAgentShapingForUser(user)
@@ -1674,7 +1721,8 @@ const openLimits = (user: string) => {
 const refreshMac = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) return
+  const ready = await ensureAgentReady()
+  if (!ready) return
 
   const ips = getIpsForUser(user)
   if (!ips.length) return
@@ -1747,7 +1795,8 @@ const refreshMac = async () => {
 const refreshMacAndApply = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) return
+  const ready = await ensureAgentReady()
+  if (!ready) return
 
   macApplyLoading.value = true
   try {
@@ -1803,6 +1852,7 @@ const saveLimits = async () => {
 
   // Apply right away so that manual block/limits feel instant.
   try {
+    await ensureAgentReady()
     await applyUserEnforcementNow()
   } catch {
     // ignore
@@ -1815,6 +1865,7 @@ const clearLimits = async () => {
   clearUserLimit(user)
   limitsDialogOpen.value = false
   try {
+    await ensureAgentReady()
     await applyUserEnforcementNow()
   } catch {
     // ignore
@@ -1826,6 +1877,7 @@ const resetCounter = async () => {
   if (!user) return
   setResetBaselineNow(user)
   try {
+    await ensureAgentReady()
     await applyUserEnforcementNow()
   } catch {
     // ignore

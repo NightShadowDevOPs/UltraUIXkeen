@@ -1,4 +1,4 @@
-## v1.2.27
+## v1.2.28
 
 - fixed Source IP label scope handling for synced data from another PC/browser: foreign backend UUID scopes no longer hide labels, QoS rows and saved limits on this device
 - fixed Traffic/QoS rows that became orphaned when synced mappings were scoped to backend UUIDs unknown on the current browser
