@@ -6,7 +6,14 @@ import { useStorage } from '@vueuse/core'
  * does not provide traffic shaping.
  */
 
-export const agentEnabled = useStorage<boolean>('config/agent-enabled', false)
+export const agentEnabled = useStorage<boolean>('config/agent-enabled', true)
+const agentEnabledBootstrapV1 = useStorage<boolean>('config/agent-enabled-bootstrap-v1', false)
+if (!agentEnabledBootstrapV1.value) {
+  // Router-agent-backed features (shared limits/QoS/backups) are expected to work
+  // on every browser profile without a separate local enable step.
+  agentEnabled.value = true
+  agentEnabledBootstrapV1.value = true
+}
 
 /**
  * Default tries same host as the UI, on port 9099.
@@ -24,7 +31,13 @@ export const agentToken = useStorage<string>('config/agent-token', '')
  * If enabled, bandwidth limits (Mbps) are enforced by the agent (tc/iptables),
  * NOT by disconnecting connections.
  */
-export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', false)
+export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', true)
+const agentEnforceBandwidthBootstrapV1 = useStorage<boolean>('config/agent-enforce-bandwidth-bootstrap-v1', false)
+if (!agentEnforceBandwidthBootstrapV1.value) {
+  // If the user sets a bandwidth cap, enforce it via the agent by default.
+  agentEnforceBandwidth.value = true
+  agentEnforceBandwidthBootstrapV1.value = true
+}
 
 /**
  * Remember which IPs were shaped by the UI, so we can clean up removed limits.

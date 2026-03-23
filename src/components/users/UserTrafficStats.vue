@@ -741,6 +741,7 @@ import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, setRou
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, userLimits, type UserLimitPeriod } from '@/store/userLimits'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { agentEnabled, agentEnforceBandwidth, agentShaperStatus } from '@/store/agent'
+import { usersDbPullNow, usersDbSyncEnabled } from '@/store/usersDbSync'
 import {
   clearUserLimit,
   getIpsForUser,
@@ -1825,6 +1826,12 @@ const saveLimits = async () => {
     trafficLimitUnit: trafficLimitBytes ? draftTrafficUnit.value : undefined,
     bandwidthLimitBps: bandwidthLimitBps || undefined,
   })
+
+  if (bandwidthLimitBps > 0) {
+    // The user explicitly asked for shaping; don't require a separate hidden toggle.
+    if (!agentEnabled.value) agentEnabled.value = true
+    if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
+  }
 
   limitsDialogOpen.value = false
 

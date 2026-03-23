@@ -1,4 +1,4 @@
-## v1.2.21
+## v1.2.22
 
 - fixed Traffic page row binding so saved limits and saved QoS are visible even without current traffic buckets
 - Traffic rows now also resolve host IPs from router `qos_status`, so QoS made from another PC or earlier in the day can still show up in the same table
