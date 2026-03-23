@@ -1134,11 +1134,25 @@ const rows = computed<Row[]>(() => {
   const list: Row[] = Array.from(all.entries()).map(([norm, user]) => {
     const keysSet = new Set<string>()
 
-    // IP keys from mapping.
+    // IP keys from explicit Source IP mapping.
     for (const ip of normToIps.get(norm) || []) keysSet.add(ip)
+
+    // User-limits/QoS flows already use this resolver, so reuse it here too.
+    // It handles exact IP keys and label -> IP mappings more reliably than the
+    // traffic-history-only merge below.
+    for (const ip of getIpsForUser(user) || []) keysSet.add(ip)
 
     // If the displayed user is an IP itself, include it.
     if (looksLikeIP(user)) keysSet.add(user)
+
+    // Live connections can reveal the current DHCP IP even when the hourly
+    // traffic bucket was previously stored under a legacy label.
+    for (const c of activeConnections.value || []) {
+      const ip = String((c as any)?.metadata?.sourceIP || '').trim()
+      if (!ip) continue
+      const label = (getIPLabelFromMap(ip) || ip || '').toString().trim()
+      if (normalizeUserName(label) === norm) keysSet.add(ip)
+    }
 
     // Legacy buckets stored under a label/synthetic key.
     for (const lk of legacyKeysByNorm.get(norm) || []) keysSet.add(lk)

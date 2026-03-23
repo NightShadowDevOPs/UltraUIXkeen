@@ -1,3 +1,8 @@
+## v1.2.20
+
+- fixed Traffic page QoS rows so Apply/Clear can resolve IPs again from Source IP mappings and live connections
+- this restores active QoS actions for devices/users whose traffic rows were built from labels or legacy buckets instead of a direct IP key
+
 ## v1.2.19
 
 - added a dedicated left-menu Traffic section and moved traffic/QoS work there
