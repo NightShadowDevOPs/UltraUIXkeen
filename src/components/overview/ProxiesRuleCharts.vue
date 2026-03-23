@@ -523,6 +523,7 @@
 import { backgroundImage } from '@/helper/indexeddb'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
+import { isSourceIpScopeVisible } from '@/helper/sourceip'
 import { cleanupExpiredPendingPageFocus, setPendingPageFocus } from '@/helper/navFocus'
 import { ROUTE_NAME } from '@/constant'
 import { activeConnections } from '@/store/connections'
@@ -537,7 +538,6 @@ import {
   sourceIPLabelList,
   theme,
 } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
 import type { Connection } from '@/types'
 import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, BookmarkIcon, CheckIcon, FunnelIcon, LockClosedIcon, LockOpenIcon, NoSymbolIcon, PencilIcon, PlusIcon, PresentationChartLineIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useElementSize, useStorage } from '@vueuse/core'
@@ -654,11 +654,9 @@ const shortLabel = (name: string) => {
 }
 
 const labelForIp = (ip: string) => {
-  const backendId = activeBackend.value?.uuid
   const item = sourceIPLabelList.value.find((x) => {
     if (x.key !== ip) return false
-    if (!x.scope?.length) return true
-    return backendId ? x.scope.includes(backendId) : false
+    return isSourceIpScopeVisible(x.scope as string[] | undefined)
   })
   return item?.label || ''
 }

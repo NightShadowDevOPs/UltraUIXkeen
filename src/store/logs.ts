@@ -7,6 +7,7 @@ import { throttle } from 'lodash'
 import { ref, watch } from 'vue'
 import { logRetentionLimit, sourceIPLabelList } from './settings'
 import { activeBackend } from './setup'
+import { isSourceIpScopeVisible } from '@/helper/sourceip'
 
 export const logs = ref<LogWithSeq[]>([])
 export const logFilter = ref('')
@@ -26,7 +27,7 @@ const ipSourceMatchs: [RegExp, string][] = []
 const restructMatchs = () => {
   ipSourceMatchs.length = 0
   for (const { key, label, scope } of sourceIPLabelList.value) {
-    if (scope && !scope.includes(activeBackend.value?.uuid as string)) continue
+    if (!isSourceIpScopeVisible(scope as string[] | undefined)) continue
     if (key.startsWith('/')) continue
     const regex = new RegExp(key + ':', 'ig')
 

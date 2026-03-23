@@ -42,6 +42,7 @@
 import { backgroundImage } from '@/helper/indexeddb'
 import { prettyBytesHelper } from '@/helper/utils'
 import type { Connection } from '@/types'
+import { isSourceIpScopeVisible } from '@/helper/sourceip'
 import { activeConnections } from '@/store/connections'
 import { proxyProviederList } from '@/store/proxies'
 import {
@@ -58,7 +59,6 @@ import {
   sourceIPLabelList,
   theme,
 } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
 import { ArrowsPointingInIcon, ArrowsPointingOutIcon } from '@heroicons/vue/24/outline'
 import { useElementSize } from '@vueuse/core'
 import { SankeyChart } from 'echarts/charts'
@@ -101,11 +101,9 @@ const labelFontSize = computed(() => {
 })
 
 const labelForIp = (ip: string) => {
-  const backendId = activeBackend.value?.uuid
   const item = sourceIPLabelList.value.find((x) => {
     if (x.key !== ip) return false
-    if (!x.scope?.length) return true
-    return backendId ? x.scope.includes(backendId) : false
+    return isSourceIpScopeVisible(x.scope as string[] | undefined)
   })
   return item?.label || ''
 }

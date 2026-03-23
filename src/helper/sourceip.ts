@@ -1,5 +1,5 @@
 import { sourceIPLabelList } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
+import { activeBackend, backendList } from '@/store/setup'
 import * as ipaddr from 'ipaddr.js'
 import { watch } from 'vue'
 
@@ -13,6 +13,28 @@ const sourceIPCIDRList: {
   key: string
 }[] = []
 
+
+export const isSourceIpScopeVisible = (scope?: string[]) => {
+  if (!scope?.length) return true
+
+  const normalizedScope = scope.map((item) => String(item || '').trim()).filter(Boolean)
+  if (!normalizedScope.length) return true
+
+  const currentBackendId = String(activeBackend.value?.uuid || '').trim()
+  if (currentBackendId && normalizedScope.includes(currentBackendId)) return true
+
+  const localBackendIds = new Set(
+    (backendList.value || [])
+      .map((backend) => String((backend as any)?.uuid || '').trim())
+      .filter(Boolean),
+  )
+
+  if (!localBackendIds.size) return true
+
+  const hasAnyLocalScope = normalizedScope.some((id) => localBackendIds.has(id))
+  return !hasAnyLocalScope
+}
+
 const preprocessSourceIPList = () => {
   ipLabelCache.clear()
   sourceIPMap.clear()
@@ -20,7 +42,7 @@ const preprocessSourceIPList = () => {
   sourceIPCIDRList.length = 0
 
   for (const { key, label, scope } of sourceIPLabelList.value) {
-    if (scope && !scope.includes(activeBackend.value?.uuid as string)) continue
+    if (!isSourceIpScopeVisible(scope as string[] | undefined)) continue
 
     // Regex: /.../
     if (key.startsWith('/')) {
@@ -141,7 +163,7 @@ export const getIPKeyFromLabel = (label: string) => {
     const lb = (it.label || '').trim()
     if (lb !== l) continue
 
-    if (it.scope?.length && backendId && !it.scope.includes(backendId)) continue
+    if (!isSourceIpScopeVisible(it.scope as string[] | undefined)) continue
 
     const k = (it.key || '').trim()
     if (!k) continue

@@ -70,10 +70,10 @@
 </template>
 
 <script setup lang="ts">
+import { isSourceIpScopeVisible } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { connections, sourceIPFilter } from '@/store/connections'
 import { sourceIPLabelList } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
 import { computed, ref } from 'vue'
 import TextInput from '../common/TextInput.vue'
 
@@ -88,11 +88,9 @@ type StatItem = {
 const search = ref('')
 
 const labelFor = (ip: string) => {
-  const backendId = activeBackend.value?.uuid
   const exact = sourceIPLabelList.value.find((x) => {
     if (x.key !== ip) return false
-    if (!x.scope?.length) return true
-    return backendId ? x.scope.includes(backendId) : false
+    return isSourceIpScopeVisible(x.scope as string[] | undefined)
   })
   return exact?.label || ''
 }
