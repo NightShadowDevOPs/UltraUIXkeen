@@ -6,16 +6,7 @@ import { useStorage } from '@vueuse/core'
  * does not provide traffic shaping.
  */
 
-export const agentEnabled = useStorage<boolean>('config/agent-enabled', true)
-const agentEnabledBootstrapV1 = useStorage<boolean>('config/agent-enabled-bootstrap-v1', false)
-if (!agentEnabledBootstrapV1.value) {
-  // Router-agent-backed features (shared limits/QoS/backups) are expected to work
-  // on every browser profile without a separate local enable step.
-  agentEnabled.value = true
-  agentEnabledBootstrapV1.value = true
-}
-const agentEnabledBootstrapV2 = useStorage<boolean>('config/agent-enabled-bootstrap-v2', false)
-
+export const agentEnabled = useStorage<boolean>('config/agent-enabled', false)
 
 /**
  * Default tries same host as the UI, on port 9099.
@@ -33,27 +24,57 @@ export const agentToken = useStorage<string>('config/agent-token', '')
  * If enabled, bandwidth limits (Mbps) are enforced by the agent (tc/iptables),
  * NOT by disconnecting connections.
  */
-export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', true)
-const agentEnforceBandwidthBootstrapV1 = useStorage<boolean>('config/agent-enforce-bandwidth-bootstrap-v1', false)
-if (!agentEnforceBandwidthBootstrapV1.value) {
-  // If the user sets a bandwidth cap, enforce it via the agent by default.
-  agentEnforceBandwidth.value = true
-  agentEnforceBandwidthBootstrapV1.value = true
-}
-const agentEnforceBandwidthBootstrapV2 = useStorage<boolean>('config/agent-enforce-bandwidth-bootstrap-v2', false)
+export const agentEnforceBandwidth = useStorage<boolean>('config/agent-enforce-bandwidth', false)
 
-export const ensureAgentDefaults = () => {
-  // One-shot migration for browser profiles that already went through older
-  // releases but still kept router-agent features disabled locally.
-  if (!agentEnabledBootstrapV2.value) {
-    agentEnabled.value = true
-    agentEnabledBootstrapV2.value = true
-  }
-  if (!agentEnforceBandwidthBootstrapV2.value) {
-    agentEnforceBandwidth.value = true
-    agentEnforceBandwidthBootstrapV2.value = true
+/**
+ * One-time LAN bootstrap for fresh browsers / new PCs.
+ * The project relies on router-agent for shared users DB, QoS and shaping.
+ * Older builds stored both switches only in localStorage, so on another PC the UI
+ * started with agent disabled even when the router-agent was already installed and working.
+ */
+const agentLanBootstrapDone = useStorage<boolean>('config/agent-lan-bootstrap-done-v1', false)
+
+const normalizeAgentUrl = (value: string) => String(value || '').trim().replace(/\/+$/g, '')
+
+const isLikelyLanAgentUrl = (value: string) => {
+  const raw = normalizeAgentUrl(value)
+  if (!raw) return false
+  try {
+    const url = new URL(raw)
+    if (url.port && url.port !== '9099') return false
+    const host = (url.hostname || '').trim().toLowerCase()
+    if (!host) return false
+    const currentHost = typeof window !== 'undefined' ? String(window.location.hostname || '').trim().toLowerCase() : ''
+    if (currentHost && host === currentHost) return true
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true
+    if (/^192\.168\./.test(host)) return true
+    if (/^10\./.test(host)) return true
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return true
+    return false
+  } catch {
+    return false
   }
 }
+
+export const bootstrapRouterAgentForLan = () => {
+  if (typeof window === 'undefined') return
+  if (agentLanBootstrapDone.value) return
+
+  const url = normalizeAgentUrl(agentUrl.value)
+  if (!url) {
+    agentLanBootstrapDone.value = true
+    return
+  }
+
+  if (isLikelyLanAgentUrl(url)) {
+    agentEnabled.value = true
+    agentEnforceBandwidth.value = true
+  }
+
+  agentLanBootstrapDone.value = true
+}
+
+bootstrapRouterAgentForLan()
 
 /**
  * Remember which IPs were shaped by the UI, so we can clean up removed limits.

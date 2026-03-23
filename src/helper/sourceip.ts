@@ -1,5 +1,5 @@
 import { sourceIPLabelList } from '@/store/settings'
-import { activeBackend, backendList } from '@/store/setup'
+import { activeBackend } from '@/store/setup'
 import * as ipaddr from 'ipaddr.js'
 import { watch } from 'vue'
 
@@ -13,21 +13,6 @@ const sourceIPCIDRList: {
   key: string
 }[] = []
 
-const isScopeVisible = (scope?: string[]) => {
-  if (!scope?.length) return true
-
-  const activeUuid = String(activeBackend.value?.uuid || '').trim()
-  if (activeUuid && scope.includes(activeUuid)) return true
-
-  const localBackendIds = new Set((backendList.value || []).map((b) => String(b?.uuid || '').trim()).filter(Boolean))
-  // Labels synced from another browser/PC may carry backend UUIDs that do not
-  // exist locally. Treat those scopes as visible instead of hiding the mapping.
-  const hasAnyLocalMatch = scope.some((id) => localBackendIds.has(String(id || '').trim()))
-  if (!hasAnyLocalMatch) return true
-
-  return false
-}
-
 const preprocessSourceIPList = () => {
   ipLabelCache.clear()
   sourceIPMap.clear()
@@ -35,7 +20,7 @@ const preprocessSourceIPList = () => {
   sourceIPCIDRList.length = 0
 
   for (const { key, label, scope } of sourceIPLabelList.value) {
-    if (!isScopeVisible(scope)) continue
+    if (scope && !scope.includes(activeBackend.value?.uuid as string)) continue
 
     // Regex: /.../
     if (key.startsWith('/')) {
@@ -150,11 +135,13 @@ export const getIPKeyFromLabel = (label: string) => {
   const l = (label || '').trim()
   if (!l) return ''
 
+  const backendId = activeBackend.value?.uuid as string | undefined
+
   for (const it of sourceIPLabelList.value || []) {
     const lb = (it.label || '').trim()
     if (lb !== l) continue
 
-    if (!isScopeVisible(it.scope)) continue
+    if (it.scope?.length && backendId && !it.scope.includes(backendId)) continue
 
     const k = (it.key || '').trim()
     if (!k) continue

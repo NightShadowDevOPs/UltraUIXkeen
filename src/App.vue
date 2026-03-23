@@ -16,8 +16,8 @@ import {
   theme,
 } from './store/settings'
 import { initUsersDbSync } from './store/usersDbSync'
+import { bootstrapRouterAgentForLan } from './store/agent'
 import { initProviderTrafficSync } from './store/providerActivity'
-import { ensureAgentDefaults } from './store/agent'
 
 const app = ref<HTMLElement>()
 const toast = ref<HTMLElement>()
@@ -75,7 +75,7 @@ watch(
 )
 
 onMounted(() => {
-  ensureAgentDefaults()
+  bootstrapRouterAgentForLan()
   initUsersDbSync()
   initProviderTrafficSync()
   if (autoImportSettings.value) {

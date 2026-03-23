@@ -250,7 +250,7 @@
               <td class="font-medium">
                 <div class="flex items-center gap-2">
                   <LockClosedIcon
-                    v-if="rowLimitState(row)?.blocked"
+                    v-if="limitStates[row.user]?.blocked"
                     class="h-4 w-4 text-error"
                     :title="$t('userBlockedTip')"
                   />
@@ -265,26 +265,26 @@
                     <span class="truncate inline-block max-w-[240px]" :title="row.user">{{ row.user }}</span>
                     <div class="flex items-center gap-1">
                       <span
-                        v-if="rowLimitState(row)?.trafficLimitBytes"
+                        v-if="limitStates[row.user]?.trafficLimitBytes"
                         class="inline-flex pointer-events-auto"
-                        :title="trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled)"
+                        :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
                       >
                         <CircleStackIcon
                           class="h-4 w-4"
-                          :class="rowLimitState(row).enabled ? 'text-info' : 'opacity-40'"
-                          @mouseenter="showTip($event, trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled))"
+                          :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
                           @mouseleave="hideTip"
                         />
                       </span>
                       <span
-                        v-if="rowLimitState(row)?.bandwidthLimitBps"
+                        v-if="limitStates[row.user]?.bandwidthLimitBps"
                         class="inline-flex pointer-events-auto"
-                        :title="bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled)"
+                        :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
                       >
                         <BoltIcon
                           class="h-4 w-4"
-                          :class="rowLimitState(row).enabled ? 'text-warning' : 'opacity-40'"
-                          @mouseenter="showTip($event, bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled))"
+                          :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                          @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
                           @mouseleave="hideTip"
                         />
                       </span>
@@ -313,32 +313,32 @@
               <td class="text-right font-mono">{{ format(row.dl + row.ul) }}</td>
 
               <td class="text-right font-mono max-lg:hidden">
-                <template v-if="rowLimitState(row)?.trafficLimitBytes">
+                <template v-if="limitStates[row.user]?.trafficLimitBytes">
                   <div
                     class="whitespace-nowrap"
-                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
+                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
                   >
-                    {{ format(rowLimitState(row).usageBytes) }} /
-                    {{ format(rowLimitState(row).trafficLimitBytes) }}
+                    {{ format(limitStates[row.user].usageBytes) }} /
+                    {{ format(limitStates[row.user].trafficLimitBytes) }}
                   </div>
                   <div
                     class="text-xs opacity-60 flex items-center justify-end gap-1"
-                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
+                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
                   >
-                    <span>{{ rowLimitState(row).periodLabel }} · {{ rowLimitState(row).percent }}%</span>
+                    <span>{{ limitStates[row.user].periodLabel }} · {{ limitStates[row.user].percent }}%</span>
                     <CircleStackIcon
                       class="h-4 w-4"
-                      :class="rowLimitState(row).enabled ? 'text-info' : 'opacity-40'"
-                      :title="trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled)"
-                      @mouseenter="showTip($event, trafficIconTitle(rowLimitState(row).trafficLimitBytes, rowLimit(row).trafficPeriod, rowLimitState(row).enabled))"
+                      :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                      :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
+                      @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
                       @mouseleave="hideTip"
                     />
                     <BoltIcon
-                      v-if="rowLimitState(row).bandwidthLimitBps"
+                      v-if="limitStates[row.user].bandwidthLimitBps"
                       class="h-4 w-4"
-                      :class="rowLimitState(row).enabled ? 'text-warning' : 'opacity-40'"
-                      :title="bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled)"
-                      @mouseenter="showTip($event, bandwidthIconTitle(rowLimitState(row).bandwidthLimitBps, rowLimitState(row).enabled))"
+                      :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                      :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
+                      @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
                       @mouseleave="hideTip"
                     />
                   </div>
@@ -349,13 +349,13 @@
               </td>
 
               <td class="text-right font-mono max-lg:hidden">
-                <template v-if="rowLimitState(row)?.bandwidthLimitBps">
+                <template v-if="limitStates[row.user]?.bandwidthLimitBps">
                   <div
                     class="whitespace-nowrap"
-                    :class="rowLimitState(row).enabled ? '' : 'opacity-40'"
+                    :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
                   >
-                    {{ speed(rowLimitState(row).speedBps) }} /
-                    {{ speed(rowLimitState(row).bandwidthLimitBps) }}
+                    {{ speed(limitStates[row.user].speedBps) }} /
+                    {{ speed(limitStates[row.user].bandwidthLimitBps) }}
                   </div>
                 </template>
                 <template v-else>
@@ -382,7 +382,7 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="!row.ips.length || applyingQosUser === row.user"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -391,7 +391,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!row.ips.length || applyingQosUser === row.user"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user"
                       @click.stop.prevent="applyUserQos(row)"
                       :title="$t('hostQosApply')"
                     >
@@ -401,7 +401,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="!row.ips.length || applyingQosUser === row.user || !row.currentQos"
+                      :disabled="!agentEnabled || !row.ips.length || applyingQosUser === row.user || !row.currentQos"
                       @click.stop.prevent="clearUserQos(row)"
                       :title="$t('hostQosClear')"
                     >
@@ -439,36 +439,36 @@
                     </button>
                   </template>
                   <template v-else>
-                    <template v-if="rowShaperBadge(row)">
+                    <template v-if="shaperBadge[row.user]">
                       <span
                         class="inline-flex items-center justify-center px-1"
-                        :title="rowShaperBadge(row).title"
+                        :title="shaperBadge[row.user].title"
                       >
                         <component
-                          :is="rowShaperBadge(row).icon"
+                          :is="shaperBadge[row.user].icon"
                           class="h-4 w-4"
-                          :class="rowShaperBadge(row).cls"
+                          :class="shaperBadge[row.user].cls"
                         />
                       </span>
                       <button
-                        v-if="rowShaperBadge(row).showReapply"
+                        v-if="shaperBadge[row.user].showReapply"
                         type="button"
                         class="btn btn-ghost btn-circle btn-xs relative z-20"
-                        :disabled="isApplyingShaperForRow(row)"
-                        @click.stop.prevent="reapplyShaperForRow(row)"
+                        :disabled="applyingShaperUser === row.user"
+                        @click.stop.prevent="reapplyShaper(row.user)"
                         @pointerdown.stop.prevent
                         @mousedown.stop.prevent
                         @touchstart.stop.prevent
                         :title="$t('reapply')"
                       >
-                        <span v-if="isApplyingShaperForRow(row)" class="loading loading-spinner loading-xs"></span>
+                        <span v-if="applyingShaperUser === row.user" class="loading loading-spinner loading-xs"></span>
                         <ArrowPathIcon v-else class="h-4 w-4" />
                       </button>
                     </template>
                     <button
                       type="button"
                       class="btn btn-ghost btn-circle btn-xs relative z-20"
-                      @click.stop.prevent="openLimitsForRow(row)"
+                      @click.stop.prevent="openLimits(row.user)"
                       @pointerdown.stop.prevent
                       @mousedown.stop.prevent
                       @touchstart.stop.prevent
@@ -631,7 +631,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="macLoading"
+                  :disabled="!agentEnabled"
                   @click="refreshMac"
                   :title="$t('rebindMac')"
                 >
@@ -641,7 +641,7 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-xs"
-                  :disabled="macApplyLoading"
+                  :disabled="!agentEnabled"
                   @click="refreshMacAndApply"
                   :title="$t('rebindMacApply')"
                 >
@@ -740,8 +740,7 @@ import { sourceIPLabelList } from '@/store/settings'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, userLimits, type UserLimitPeriod } from '@/store/userLimits'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
-import { agentEnabled, agentEnforceBandwidth, agentShaperStatus } from '@/store/agent'
-import { usersDbPullNow, usersDbSyncEnabled } from '@/store/usersDbSync'
+import { agentEnabled, agentEnforceBandwidth, agentShaperStatus, bootstrapRouterAgentForLan } from '@/store/agent'
 import {
   clearUserLimit,
   getIpsForUser,
@@ -763,6 +762,7 @@ import {
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { usersDbPullNow } from '@/store/usersDbSync'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { v4 as uuidv4 } from 'uuid'
@@ -782,7 +782,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 type RowQosState = AgentQosProfile | 'mixed' | undefined
-type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState; limitUser: string; pinned?: boolean }
+type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState }
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
@@ -837,6 +837,7 @@ const ensureQosDrafts = () => {
 }
 
 const refreshQosStatus = async () => {
+  if (!agentEnabled.value) return
   const res = await agentQosStatusAPI()
   qosStatus.value = res.ok ? res : { ok: false, supported: false, items: [], error: res.error }
   if (res.ok) syncAppliedQosProfiles()
@@ -953,43 +954,6 @@ const hasMapping = (user: string) => {
   if (!u) return false
   return sourceIPLabelList.value.some((it) => (it.label || it.key) === u || it.key === u)
 }
-
-const hasMeaningfulLimit = (user: string) => {
-  const l = getUserLimit(user)
-  return !!(
-    l.enabled ||
-    l.disabled ||
-    l.mac ||
-    (l.trafficLimitBytes || 0) > 0 ||
-    (l.bandwidthLimitBps || 0) > 0
-  )
-}
-
-const resolveLimitUserForRow = (user: string, ips: string[], norm: string) => {
-  if (hasMeaningfulLimit(user)) return user
-
-  for (const ip of ips || []) {
-    if (hasMeaningfulLimit(ip)) return ip
-  }
-
-  for (const ip of ips || []) {
-    const mapped = (getIPLabelFromMap(ip) || '').toString().trim()
-    if (mapped && hasMeaningfulLimit(mapped)) return mapped
-  }
-
-  const matches = Object.keys(userLimits.value || {}).filter((key) => normalizeUserName(key) === norm)
-  if (matches.length) return matches[0]
-
-  return user
-}
-
-const rowLimitUser = (row: Row) => row.limitUser || row.user
-const rowLimitState = (row: Row) => limitStates.value[rowLimitUser(row)]
-const rowLimit = (row: Row) => getUserLimit(rowLimitUser(row))
-const openLimitsForRow = (row: Row) => openLimits(rowLimitUser(row))
-const reapplyShaperForRow = (row: Row) => reapplyShaper(rowLimitUser(row))
-const rowShaperBadge = (row: Row) => shaperBadge.value[rowLimitUser(row)]
-const isApplyingShaperForRow = (row: Row) => applyingShaperUser.value === rowLimitUser(row)
 
 const startEdit = (user: string) => {
   editingUser.value = user
@@ -1161,14 +1125,6 @@ const rows = computed<Row[]>(() => {
   // Also include users with saved limits (after applying profiles)
   for (const u of Object.keys(userLimits.value || {})) addUser(all, u)
 
-  // Saved QoS on the router must also keep the row visible even without current traffic.
-  for (const item of qosStatus.value.items || []) {
-    const ip = String(item?.ip || '').trim()
-    if (!ip) continue
-    const u = (getIPLabelFromMap(ip) || ip || '').toString()
-    addUser(all, u)
-  }
-
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
     const ip = String((c as any)?.metadata?.sourceIP || '').trim()
@@ -1179,34 +1135,11 @@ const rows = computed<Row[]>(() => {
   const list: Row[] = Array.from(all.entries()).map(([norm, user]) => {
     const keysSet = new Set<string>()
 
-    // IP keys from explicit Source IP mapping.
+    // IP keys from mapping.
     for (const ip of normToIps.get(norm) || []) keysSet.add(ip)
-
-    // User-limits/QoS flows already use this resolver, so reuse it here too.
-    // It handles exact IP keys and label -> IP mappings more reliably than the
-    // traffic-history-only merge below.
-    for (const ip of getIpsForUser(user) || []) keysSet.add(ip)
 
     // If the displayed user is an IP itself, include it.
     if (looksLikeIP(user)) keysSet.add(user)
-
-    // Live connections can reveal the current DHCP IP even when the hourly
-    // traffic bucket was previously stored under a legacy label.
-    for (const c of activeConnections.value || []) {
-      const ip = String((c as any)?.metadata?.sourceIP || '').trim()
-      if (!ip) continue
-      const label = (getIPLabelFromMap(ip) || ip || '').toString().trim()
-      if (normalizeUserName(label) === norm) keysSet.add(ip)
-    }
-
-    // Saved QoS on the router is another source of truth for host IPs and must
-    // be visible even when the device is currently idle or missing from buckets.
-    for (const item of qosStatus.value.items || []) {
-      const ip = String(item?.ip || '').trim()
-      if (!ip) continue
-      const label = (getIPLabelFromMap(ip) || ip || '').toString().trim()
-      if (normalizeUserName(label) === norm || ip === user) keysSet.add(ip)
-    }
 
     // Legacy buckets stored under a label/synthetic key.
     for (const lk of legacyKeysByNorm.get(norm) || []) keysSet.add(lk)
@@ -1224,10 +1157,8 @@ const rows = computed<Row[]>(() => {
     const keys = ipKeys.join(', ')
 
     const currentQos = resolveRowQos(ipKeys)
-    const limitUser = resolveLimitUserForRow(user, ipKeys, norm)
-    const pinned = !!currentQos || hasMeaningfulLimit(limitUser)
 
-    return { user, keys, dl, ul, ips: ipKeys, currentQos, limitUser, pinned }
+    return { user, keys, dl, ul, ips: ipKeys, currentQos }
   })
 
   const sorted = list.sort((a, b) => {
@@ -1241,7 +1172,7 @@ const rows = computed<Row[]>(() => {
     return dir * (at - bt)
   })
 
-  if (topN.value > 0) return sorted.filter((row, index) => index < topN.value || !!row.pinned)
+  if (topN.value > 0) return sorted.slice(0, topN.value)
   return sorted
 })
 
@@ -1250,8 +1181,7 @@ watch(rows, () => {
 }, { deep: true, immediate: true })
 
 const applyUserQos = async (row: Row) => {
-  if (!row.ips.length) return
-  if (!agentEnabled.value) agentEnabled.value = true
+  if (!agentEnabled.value || !row.ips.length) return
   const profile = qosDraftByUser.value[row.user] || 'normal'
   applyingQosUser.value = row.user
   try {
@@ -1270,8 +1200,7 @@ const applyUserQos = async (row: Row) => {
 }
 
 const clearUserQos = async (row: Row) => {
-  if (!row.ips.length) return
-  if (!agentEnabled.value) agentEnabled.value = true
+  if (!agentEnabled.value || !row.ips.length) return
   applyingQosUser.value = row.user
   try {
     const results = await Promise.all(row.ips.map((ip) => agentRemoveHostQosAPI(ip)))
@@ -1289,6 +1218,8 @@ const clearUserQos = async (row: Row) => {
 }
 
 onMounted(() => {
+  bootstrapRouterAgentForLan()
+  void usersDbPullNow()
   void refreshQosStatus()
   qosTimer = window.setInterval(() => {
     void refreshQosStatus()
@@ -1391,8 +1322,7 @@ const limitStates = computed(() => {
   // Build windows per user appearing in the table.
   const windows = new Map<string, { startHourTs: number; endTs: number; users: string[] }>()
   for (const row of rows.value) {
-    const owner = rowLimitUser(row)
-    const l = rowLimit(row)
+    const l = getUserLimit(row.user)
     const hasTraffic = (l.trafficLimitBytes || 0) > 0
     const hasBw = (l.bandwidthLimitBps || 0) > 0
     if (!hasTraffic && !hasBw && !l.disabled) continue
@@ -1400,7 +1330,7 @@ const limitStates = computed(() => {
     const w = windowForLimit(l)
     const key = `${l.trafficPeriod}:${w.startHourTs}`
     const item = windows.get(key) || { startHourTs: w.startHourTs, endTs: w.endTs, users: [] }
-    item.users.push(rowLimitUser(row))
+    item.users.push(row.user)
     windows.set(key, item)
   }
 
@@ -1410,14 +1340,12 @@ const limitStates = computed(() => {
   }
 
   for (const row of rows.value) {
-    const l = rowLimit(row)
+    const l = getUserLimit(row.user)
     const w = windowForLimit(l)
     const key = `${l.trafficPeriod}:${w.startHourTs}`
     const agg = aggByKey.get(key)
-    const owner = rowLimitUser(row)
-    const keys = new Set<string>([owner, row.user])
-    for (const ip of row.ips || []) keys.add(ip)
-    for (const ip of getIpsForUser(owner) || []) keys.add(ip)
+    const keys = new Set<string>([row.user])
+    for (const ip of getIpsForUser(row.user) || []) keys.add(ip)
 
     let dl = 0
     let ul = 0
@@ -1433,7 +1361,7 @@ const limitStates = computed(() => {
     const usage = dl + ul
     const tl = l.trafficLimitBytes || 0
 
-    const sp = speedByUser.value[owner] || speedByUser.value[row.user] || 0
+    const sp = speedByUser.value[row.user] || 0
     const bl = l.bandwidthLimitBps || 0
 
     const trafficExceeded = l.enabled && tl > 0 && usage >= tl
@@ -1446,7 +1374,7 @@ const limitStates = computed(() => {
 
     const pct = tl > 0 ? Math.min(999, Math.floor((usage / tl) * 100)) : 0
 
-    out[owner] = {
+    out[row.user] = {
       enabled: !!l.enabled,
       usageBytes: usage,
       trafficLimitBytes: tl,
@@ -1589,16 +1517,15 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   const st = agentShaperStatus.value || {}
 
   for (const row of rows.value) {
-    const owner = rowLimitUser(row)
-    const l = rowLimit(row)
+    const l = getUserLimit(row.user)
     if (!l.enabled || !l.bandwidthLimitBps || l.bandwidthLimitBps <= 0) {
-      out[owner] = null
+      out[row.user] = null
       continue
     }
 
-    const ips = Array.from(new Set([...(row.ips || []), ...getIpsForUser(rowLimitUser(row))]))
+    const ips = getIpsForUser(row.user)
     if (!ips.length) {
-      out[owner] = {
+      out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: `${row.user}: no IPs`,
@@ -1613,28 +1540,28 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 
     if (hasFail) {
       const firstErr = ips.map((ip) => st[ip]).find((x) => x && !x.ok)?.error
-      out[owner] = {
+      out[row.user] = {
         icon: XMarkIcon,
         cls: 'text-error',
         title: `${t('shaperFailed')}${firstErr ? `: ${firstErr}` : ''}`,
         showReapply: true,
       }
     } else if (allOk) {
-      out[owner] = {
+      out[row.user] = {
         icon: CheckCircleIcon,
         cls: 'text-success',
         title: t('shaperApplied'),
         showReapply: true,
       }
     } else if (!statuses.length) {
-      out[owner] = {
+      out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: t('shaperUnknown'),
         showReapply: true,
       }
     } else {
-      out[owner] = {
+      out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
         title: t('shaperUnknown'),
@@ -1649,8 +1576,6 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 const applyingShaperUser = ref<string | null>(null)
 const reapplyShaper = async (user: string) => {
   if (!user) return
-  if (!agentEnabled.value) agentEnabled.value = true
-  if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
   applyingShaperUser.value = user
   try {
     await reapplyAgentShapingForUser(user)
@@ -1705,7 +1630,7 @@ const openLimits = (user: string) => {
 const refreshMac = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) agentEnabled.value = true
+  if (!agentEnabled.value) return
 
   const ips = getIpsForUser(user)
   if (!ips.length) return
@@ -1778,7 +1703,7 @@ const refreshMac = async () => {
 const refreshMacAndApply = async () => {
   const user = limitsUser.value
   if (!user) return
-  if (!agentEnabled.value) agentEnabled.value = true
+  if (!agentEnabled.value) return
 
   macApplyLoading.value = true
   try {
@@ -1829,12 +1754,6 @@ const saveLimits = async () => {
     trafficLimitUnit: trafficLimitBytes ? draftTrafficUnit.value : undefined,
     bandwidthLimitBps: bandwidthLimitBps || undefined,
   })
-
-  if (bandwidthLimitBps > 0) {
-    // The user explicitly asked for shaping; don't require a separate hidden toggle.
-    if (!agentEnabled.value) agentEnabled.value = true
-    if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
-  }
 
   limitsDialogOpen.value = false
 
