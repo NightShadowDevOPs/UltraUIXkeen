@@ -1,3 +1,8 @@
+## UltraUIXkeen v1.2.16
+
+- fixed Host QoS UI state so selected/applied profiles persist across menu navigation on the same PC
+- live device list now really merges `qos_status` into active host rows and shows visible QoS icons, not just hidden metadata
+
 ## UltraUIXkeen v1.2.15
 
 - added compact QoS level indicators in the live devices list and in the Host QoS table

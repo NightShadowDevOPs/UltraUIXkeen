@@ -234,6 +234,7 @@
                       :class="qosProfilePillClass(item.qosProfile)"
                       :title="item.qosMeta ? `${qosProfileLabel(item.qosProfile)} · prio ${item.qosMeta.priority ?? '—'} · ↓ ${item.qosMeta.downMinMbit || 0} / ↑ ${item.qosMeta.upMinMbit || 0} Mbit` : qosProfileLabel(item.qosProfile)"
                     >
+                      <span aria-hidden="true">{{ qosProfileIcon(item.qosProfile) }}</span>
                       <span class="opacity-80">QoS</span>
                       <span class="inline-flex items-end gap-0.5" aria-hidden="true">
                         <span
@@ -415,7 +416,7 @@ import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme } from '@/store/settings'
-import { useElementSize } from '@vueuse/core'
+import { useElementSize, useStorage } from '@vueuse/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -695,6 +696,7 @@ const currentExtraStats = computed(() => {
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
 const hostQosByIp = ref<Record<string, AgentQosStatusItem>>({})
+const storedHostQosProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-applied-v1', {})
 const hostHistoryState = ref<Record<string, HostHistoryPoint[]>>({})
 const hostScopeFilter = ref<HostScopeFilter>('all')
 const hostSortBy = ref<HostSortMode>('traffic')
@@ -897,6 +899,16 @@ const qosProfileShortLabel = (profile?: AgentQosProfile) => {
   return ''
 }
 
+const qosProfileIcon = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return '⏫'
+  if (profile === 'high') return '⬆'
+  if (profile === 'elevated') return '↗'
+  if (profile === 'low') return '↘'
+  if (profile === 'background') return '⬇'
+  if (profile === 'normal') return '•'
+  return ''
+}
+
 const qosProfileLabel = (profile?: AgentQosProfile) => {
   if (profile === 'critical') return t('hostQosCritical')
   if (profile === 'high') return t('hostQosHigh')
@@ -961,9 +973,13 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
       targets: [],
       targetStats: [],
       source: undefined,
+      qosProfile: hostQosByIp.value[ip]?.profile || storedHostQosProfiles.value[ip],
+      qosMeta: hostQosByIp.value[ip],
     }
 
     current.label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || current.label || ip
+    current.qosProfile = hostQosByIp.value[ip]?.profile || storedHostQosProfiles.value[ip]
+    current.qosMeta = hostQosByIp.value[ip]
     current.mihomoDown += mihomoDown
     current.mihomoUp += mihomoUp
     current.down += mihomoDown
@@ -995,8 +1011,12 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
       targets: [],
       targetStats: [],
       source: item.source,
+      qosProfile: hostQosByIp.value[ip]?.profile || storedHostQosProfiles.value[ip],
+      qosMeta: hostQosByIp.value[ip],
     }
     current.label = getIPLabelFromMap(ip) || lanHostNames.value[ip] || item.hostname || item.mac || current.label || ip
+    current.qosProfile = hostQosByIp.value[ip]?.profile || storedHostQosProfiles.value[ip]
+    current.qosMeta = hostQosByIp.value[ip]
     current.source = current.source || item.source
     current.bypassDown += item.bypassDown
     current.bypassUp += item.bypassUp
@@ -1559,6 +1579,7 @@ const refreshHostQos = async () => {
     next[ip] = item
   }
   hostQosByIp.value = next
+  storedHostQosProfiles.value = Object.fromEntries(Object.entries(next).map(([ip, item]) => [ip, item.profile]))
   refreshHostTraffic()
 }
 

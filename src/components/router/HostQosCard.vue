@@ -77,6 +77,7 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
                     <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium" :class="profilePillClass(row.currentProfile)">
+                      <span aria-hidden="true">{{ profileIcon(row.currentProfile) }}</span>
                       <span class="opacity-80">QoS</span>
                       <span class="inline-flex items-end gap-0.5" aria-hidden="true">
                         <span
@@ -95,6 +96,7 @@
               </td>
               <td>
                 <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium" :class="profilePillClass(row.currentProfile)">
+                  <span aria-hidden="true">{{ profileIcon(row.currentProfile) }}</span>
                   <span class="opacity-80">QoS</span>
                   <span class="inline-flex items-end gap-0.5" aria-hidden="true">
                     <span
@@ -202,7 +204,8 @@ const status = ref<{ ok: boolean; hostQos?: boolean }>({ ok: false })
 const qos = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
 const hosts = ref<AgentLanHost[]>([])
 const traffic = ref<AgentHostTrafficLiveItem[]>([])
-const draftProfiles = ref<Record<string, AgentQosProfile>>({})
+const draftProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-drafts-v2', {})
+const appliedProfiles = useStorage<Record<string, AgentQosProfile>>('config/router-host-qos-applied-v1', {})
 const busyIp = ref('')
 const expanded = useStorage('config/router-host-qos-expanded-v1', false)
 let timer: number | undefined
@@ -236,7 +239,7 @@ const rows = computed<Row[]>(() => {
         ip,
         displayName,
         hostname: host.hostname || live.hostname || '',
-        currentProfile: meta?.profile,
+        currentProfile: meta?.profile || appliedProfiles.value[ip],
         qosMeta: meta,
       }
     })
@@ -259,10 +262,18 @@ const filteredRows = computed(() => {
 
 const appliedCount = computed(() => (qos.value.items || []).length)
 
+const syncAppliedProfiles = () => {
+  const next: Record<string, AgentQosProfile> = {}
+  for (const item of qos.value.items || []) {
+    if (item?.ip && item?.profile) next[item.ip] = item.profile
+  }
+  appliedProfiles.value = next
+}
+
 const ensureDrafts = () => {
   const next = { ...draftProfiles.value }
   for (const row of rows.value) {
-    if (!next[row.ip]) next[row.ip] = row.currentProfile || 'normal'
+    if (!next[row.ip]) next[row.ip] = row.currentProfile || appliedProfiles.value[row.ip] || 'normal'
   }
   draftProfiles.value = next
 }
@@ -280,6 +291,15 @@ const profileLabel = (profile?: AgentQosProfile) => {
   if (profile === 'low') return t('hostQosLow')
   if (profile === 'background') return t('hostQosBackground')
   return t('hostQosNormal')
+}
+
+const profileIcon = (profile?: AgentQosProfile) => {
+  if (profile === 'critical') return '⏫'
+  if (profile === 'high') return '⬆'
+  if (profile === 'elevated') return '↗'
+  if (profile === 'low') return '↘'
+  if (profile === 'background') return '⬇'
+  return '•'
 }
 
 const qosLevel = (profile?: AgentQosProfile) => {
@@ -346,6 +366,7 @@ const refreshAll = async () => {
     ])
     status.value = { ok: !!st.ok, hostQos: !!st.hostQos }
     qos.value = q.ok ? q : { ok: false, supported: false, items: [], error: q.error }
+    if (q.ok) syncAppliedProfiles()
     hosts.value = h.ok && h.items ? h.items : []
     traffic.value = tr.ok && tr.items ? tr.items : []
     ensureDrafts()
@@ -367,6 +388,8 @@ const applyRow = async (ip: string) => {
       error.value = res.error || t('hostQosApplyFailed')
       return
     }
+    appliedProfiles.value = { ...appliedProfiles.value, [ip]: profile }
+    draftProfiles.value = { ...draftProfiles.value, [ip]: profile }
     await refreshAll()
   } finally {
     busyIp.value = ''
@@ -382,6 +405,10 @@ const clearRow = async (ip: string) => {
       error.value = res.error || t('hostQosApplyFailed')
       return
     }
+    const nextApplied = { ...appliedProfiles.value }
+    delete nextApplied[ip]
+    appliedProfiles.value = nextApplied
+    draftProfiles.value = { ...draftProfiles.value, [ip]: 'normal' }
     await refreshAll()
   } finally {
     busyIp.value = ''
