@@ -10,7 +10,7 @@ import {
   agentUnblockIpAPI,
   agentUnblockMacAPI,
 } from '@/api/agent'
-import { getIPLabelFromMap } from '@/helper/sourceip'
+import { getExactIPLabelFromMap, getIPLabelFromMap } from '@/helper/sourceip'
 import { activeConnections } from '@/store/connections'
 import { sourceIPLabelList } from '@/store/settings'
 import {
@@ -398,10 +398,36 @@ const toCidr = (ipOrCidr: string) => {
   return `${v}/32`
 }
 
+const normalizeUserName = (value: string) => (value || '').toString().trim().replace(/\s+/g, ' ').toLowerCase()
+const isPatternSourceKey = (key: string) => {
+  const raw = String(key || '').trim()
+  return !!raw && (raw.startsWith('/') || raw.includes('/'))
+}
+const isSyntheticGroupUserLabel = (userLabel: string) => {
+  const want = normalizeUserName(userLabel)
+  if (!want || looksLikeIP(want)) return false
+
+  let hasGrouped = false
+  let hasExact = false
+  for (const it of sourceIPLabelList.value || []) {
+    const rawKey = String(it.key || '').trim()
+    if (!rawKey) continue
+    const label = String(it.label || it.key || '').trim()
+    if (normalizeUserName(label) != want) continue
+    if (isPatternSourceKey(rawKey)) hasGrouped = true
+    else hasExact = true
+    if (hasGrouped && hasExact) break
+  }
+
+  return hasGrouped && !hasExact
+}
+
 const ipsForUserLabel = (userLabel: string) => {
   const out: string[] = []
   const want = (userLabel || '').trim()
   const wantLc = want.toLowerCase()
+
+  if (isSyntheticGroupUserLabel(want)) return out
 
   const normIp = (k: string) => (k || '').trim().split('/')[0]
   const addIp = (val: string) => {
@@ -411,8 +437,10 @@ const ipsForUserLabel = (userLabel: string) => {
   }
 
   for (const it of sourceIPLabelList.value) {
+    const rawKey = String(it.key || '').trim()
+    if (!rawKey || isPatternSourceKey(rawKey)) continue
     const label = String(it.label || it.key || '').trim()
-    const key = normIp(String(it.key || '').trim())
+    const key = normIp(rawKey)
     if (!key) continue
     if (label === want || label.toLowerCase() === wantLc) addIp(key)
     if (key === want) addIp(key)
@@ -421,7 +449,7 @@ const ipsForUserLabel = (userLabel: string) => {
   for (const c of activeConnections.value || []) {
     const ip = normIp(String((c as any)?.metadata?.sourceIP || '').trim())
     if (!ip) continue
-    const display = String(getIPLabelFromMap(ip) || ip).trim()
+    const display = String(getExactIPLabelFromMap(ip) || ip).trim()
     if (!display) continue
     if (display === want || display.toLowerCase() === wantLc || ip === want) addIp(ip)
   }

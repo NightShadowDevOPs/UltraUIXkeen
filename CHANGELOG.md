@@ -1,3 +1,19 @@
+## v1.2.35
+
+- Traffic: exclude grouped Source IP labels like `dhcp` from host-level rows, QoS, and limit-owner resolution so lease-pool pseudo users no longer mirror per-host actions.
+
+## v1.2.33
+
+- Traffic host rows now ignore grouped Source IP labels from CIDR/regex rules (for example a shared `dhcp` pool label) so device QoS/limits no longer bleed into synthetic pool rows
+- exact host labels are now resolved separately from generic Source IP mapping when building Traffic rows and host-level limit/QoS targets
+- saved Traffic rows from grouped labels are skipped so the table focuses on real devices instead of lease-pool aggregates
+
+## v1.2.32
+
+- stabilized Traffic row binding around saved MAC limits so QoS and shaping can follow DHCP IP changes
+- deduplicated Traffic rows when a saved host name and a live IP resolve to the same device via MAC
+- limit/shaper state in Traffic now resolves through effective IPs of the row and its saved limit owner, not only through the current label mapping
+
 ## v1.2.28
 
 - fixed Source IP label scope handling for synced data from another PC/browser: foreign backend UUID scopes no longer hide labels, QoS rows and saved limits on this device
