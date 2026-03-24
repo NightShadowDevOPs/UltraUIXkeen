@@ -1,10 +1,11 @@
-<<<<<<< HEAD
+## v1.2.36
+
+- Rebuilt the v1.2.35 release under a new version after a failed push; no code changes, only version/transfer metadata refresh.
+
 ## v1.2.35
 
 - Traffic: exclude grouped Source IP labels like `dhcp` from host-level rows, QoS, and limit-owner resolution so lease-pool pseudo users no longer mirror per-host actions.
 
-=======
->>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
 ## v1.2.33
 
 - Traffic host rows now ignore grouped Source IP labels from CIDR/regex rules (for example a shared `dhcp` pool label) so device QoS/limits no longer bleed into synthetic pool rows

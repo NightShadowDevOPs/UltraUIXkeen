@@ -438,11 +438,7 @@ const ipsForUserLabel = (userLabel: string) => {
 
   for (const it of sourceIPLabelList.value) {
     const rawKey = String(it.key || '').trim()
-<<<<<<< HEAD
     if (!rawKey || isPatternSourceKey(rawKey)) continue
-=======
-    if (!rawKey || rawKey.startsWith('/') || rawKey.includes('/')) continue
->>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
     const label = String(it.label || it.key || '').trim()
     const key = normIp(rawKey)
     if (!key) continue
