@@ -722,7 +722,7 @@
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import { agentLanHostsAPI, agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, agentStatusAPI, type AgentLanHost, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
-import { getIPLabelFromMap } from '@/helper/sourceip'
+import { getExactIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { activeConnections } from '@/store/connections'
@@ -892,7 +892,7 @@ const resolveMacsForIdentity = (user: string, ips: string[], limitOwner = '') =>
   for (const host of agentLanHosts.value || []) {
     const ip = String((host as any)?.ip || '').trim()
     const hostname = String((host as any)?.hostname || '').trim()
-    const display = String(getIPLabelFromMap(ip) || hostname || ip).trim()
+    const display = String(getExactHostLabel(ip, hostname) || ip).trim()
     if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) {
       add(String((host as any)?.mac || ''))
     }
@@ -922,14 +922,14 @@ const ipsForLimitOwner = (user: string, knownIps: string[] = [], knownMacs: stri
   for (const c of activeConnections.value || []) {
     const ip = String((c as any)?.metadata?.sourceIP || '').trim()
     if (!looksLikeIP(ip)) continue
-    const display = String(getIPLabelFromMap(ip) || ip).trim()
+    const display = String(getExactHostLabel(ip) || ip).trim()
     if (normalizeUserName(display) === want || normalizeUserName(ip) === want) addIp(ip)
   }
 
   for (const host of agentLanHosts.value || []) {
     const ip = String((host as any)?.ip || '').trim()
     const hostname = String((host as any)?.hostname || '').trim()
-    const display = String(getIPLabelFromMap(ip) || hostname || ip).trim()
+    const display = String(getExactHostLabel(ip, hostname) || ip).trim()
     if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) addIp(ip)
   }
 
@@ -1141,6 +1141,48 @@ const normalizeUserName = (s: string) => {
 }
 
 
+const isPatternSourceKey = (key: string) => {
+  const raw = String(key || '').trim()
+  if (!raw) return false
+  return raw.startsWith('/') || raw.includes('/')
+}
+
+const getExactHostLabel = (ip: string, hostname = '') => {
+  const exact = String(getExactIPLabelFromMap(ip) || '').trim()
+  if (exact) return exact
+  const host = String(hostname || '').trim()
+  return host || ip
+}
+
+const hasExactHostMappingForUser = (user: string) => {
+  const want = normalizeUserName(user)
+  if (!want) return false
+  return sourceIPLabelList.value.some((it) => {
+    const key = String(it.key || '').trim()
+    if (!key || isPatternSourceKey(key)) return false
+    const label = String(it.label || it.key || '').trim()
+    return normalizeUserName(label) === want
+  })
+}
+
+const hasGroupedSourceMappingForUser = (user: string) => {
+  const want = normalizeUserName(user)
+  if (!want) return false
+  return sourceIPLabelList.value.some((it) => {
+    const key = String(it.key || '').trim()
+    if (!key || !isPatternSourceKey(key)) return false
+    const label = String(it.label || '').trim()
+    return normalizeUserName(label) === want
+  })
+}
+
+const isSyntheticTrafficGroupUser = (user: string) => {
+  const value = String(user || '').trim()
+  if (!value || looksLikeIP(value)) return false
+  if (!hasGroupedSourceMappingForUser(value)) return false
+  return !hasExactHostMappingForUser(value)
+}
+
 const hasMapping = (user: string) => {
   const u = (user || '').trim()
   if (!u) return false
@@ -1233,7 +1275,7 @@ const knownKeysByUser = computed(() => {
   for (const item of sourceIPLabelList.value || []) {
     const display = String((item as any)?.label || (item as any)?.key || '').trim()
     const ip = String((item as any)?.key || '').trim()
-    if (!display || !ip) continue
+    if (!display || !ip || isPatternSourceKey(ip)) continue
     const norm = normalizeUserName(display)
     const keys = map.get(norm) || []
     if (!keys.includes(ip)) keys.push(ip)
@@ -1249,7 +1291,7 @@ const canonicalUserByNorm = computed(() => {
     const ip = String((item as any)?.key || '').trim()
     const label = String((item as any)?.label || '').trim()
     const display = (label || ip).trim()
-    if (!display) continue
+    if (!display || isPatternSourceKey(ip)) continue
     const norm = normalizeUserName(display)
     const prev = map.get(norm)
     if (!prev) map.set(norm, display)
@@ -1289,7 +1331,7 @@ const rows = computed<Row[]>(() => {
 
   const addUser = (map: Map<string, string>, raw: string) => {
     const disp = canonicalFor(raw)
-    if (!disp) return
+    if (!disp || isSyntheticTrafficGroupUser(disp)) return
     const norm = normalizeUserName(disp)
     if (!map.has(norm)) map.set(norm, disp)
   }
@@ -1305,7 +1347,7 @@ const rows = computed<Row[]>(() => {
   const displayUserForKey = (k: string) => {
     const key = String(k || '').trim()
     if (!key) return ''
-    if (looksLikeIP(key)) return (getIPLabelFromMap(key) || key).toString()
+    if (looksLikeIP(key)) return getExactHostLabel(key)
     return key
   }
 
@@ -1315,12 +1357,15 @@ const rows = computed<Row[]>(() => {
   }
 
   // Also include users with saved limits (after applying profiles)
-  for (const u of Object.keys(userLimits.value || {})) addUser(all, u)
+  for (const u of Object.keys(userLimits.value || {})) {
+    if (isSyntheticTrafficGroupUser(u)) continue
+    addUser(all, u)
+  }
 
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
     const ip = String((c as any)?.metadata?.sourceIP || '').trim()
-    const u = (getIPLabelFromMap(ip) || ip || '').toString()
+    const u = getExactHostLabel(ip)
     addUser(all, u)
   }
 
@@ -1330,7 +1375,7 @@ const rows = computed<Row[]>(() => {
   for (const item of qosStatus.value.items || []) {
     const ip = String(item?.ip || '').trim()
     if (!looksLikeIP(ip)) continue
-    const u = (getIPLabelFromMap(ip) || ip || '').toString()
+    const u = getExactHostLabel(ip)
     addUser(all, u)
   }
 
@@ -1358,7 +1403,7 @@ const rows = computed<Row[]>(() => {
       .map((c) => String((c as any)?.metadata?.sourceIP || '').trim())
       .filter((ip) => {
         if (!looksLikeIP(ip)) return false
-        const display = (getIPLabelFromMap(ip) || ip).toString()
+        const display = getExactHostLabel(ip)
         return normalizeUserName(display) === norm || normalizeUserName(ip) === norm
       })
 

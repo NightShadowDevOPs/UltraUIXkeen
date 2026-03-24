@@ -112,6 +112,18 @@ const getCIDRLabel = (ip: string) => {
   return ''
 }
 
+
+export const getExactIPLabelFromMap = (ip: string) => {
+  if (!ip) return ip === '' ? 'Inner' : ''
+
+  if (sourceIPMap.has(ip)) {
+    const label = sourceIPMap.get(ip)!
+    return (label || '').trim() ? label : ip
+  }
+
+  return ''
+}
+
 export const getIPLabelFromMap = (ip: string) => {
   if (!ip) return ip === '' ? 'Inner' : ''
 

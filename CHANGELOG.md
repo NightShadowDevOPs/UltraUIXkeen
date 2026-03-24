@@ -1,3 +1,9 @@
+## v1.2.33
+
+- Traffic host rows now ignore grouped Source IP labels from CIDR/regex rules (for example a shared `dhcp` pool label) so device QoS/limits no longer bleed into synthetic pool rows
+- exact host labels are now resolved separately from generic Source IP mapping when building Traffic rows and host-level limit/QoS targets
+- saved Traffic rows from grouped labels are skipped so the table focuses on real devices instead of lease-pool aggregates
+
 ## v1.2.32
 
 - stabilized Traffic row binding around saved MAC limits so QoS and shaping can follow DHCP IP changes
