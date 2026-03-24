@@ -947,7 +947,10 @@ const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) =>
 
   for (const candidate of Object.keys(userLimits.value || {})) {
     if (!candidate || candidate === user) continue
+<<<<<<< HEAD
     if (!shouldIncludeTrafficUser(candidate)) continue
+=======
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
     if (!hasPersistedLimit(candidate)) continue
 
     if (!byName && normalizeUserName(candidate) === want) byName = candidate
@@ -1177,6 +1180,7 @@ const hasGroupedSourceMappingForUser = (user: string) => {
   })
 }
 
+<<<<<<< HEAD
 const hasLanHostIdentityForUser = (user: string) => {
   const want = normalizeUserName(user)
   if (!want) return false
@@ -1211,10 +1215,16 @@ const isSyntheticTrafficGroupUser = (user: string) => {
   const value = String(user || '').trim()
   if (!value || looksLikeIP(value)) return false
   if (isReservedPseudoTrafficUser(value) && !isHostResolvableTrafficUser(value)) return true
+=======
+const isSyntheticTrafficGroupUser = (user: string) => {
+  const value = String(user || '').trim()
+  if (!value || looksLikeIP(value)) return false
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
   if (!hasGroupedSourceMappingForUser(value)) return false
   return !hasExactHostMappingForUser(value)
 }
 
+<<<<<<< HEAD
 const shouldIncludeTrafficUser = (user: string) => {
   const value = String(user || '').trim()
   if (!value) return false
@@ -1224,6 +1234,8 @@ const shouldIncludeTrafficUser = (user: string) => {
   return isHostResolvableTrafficUser(value)
 }
 
+=======
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
 const hasMapping = (user: string) => {
   const u = (user || '').trim()
   if (!u) return false
@@ -1372,7 +1384,11 @@ const rows = computed<Row[]>(() => {
 
   const addUser = (map: Map<string, string>, raw: string) => {
     const disp = canonicalFor(raw)
+<<<<<<< HEAD
     if (!disp || !shouldIncludeTrafficUser(disp)) return
+=======
+    if (!disp || isSyntheticTrafficGroupUser(disp)) return
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
     const norm = normalizeUserName(disp)
     if (!map.has(norm)) map.set(norm, disp)
   }
@@ -1399,7 +1415,11 @@ const rows = computed<Row[]>(() => {
 
   // Also include users with saved limits (after applying profiles)
   for (const u of Object.keys(userLimits.value || {})) {
+<<<<<<< HEAD
     if (!shouldIncludeTrafficUser(u)) continue
+=======
+    if (isSyntheticTrafficGroupUser(u)) continue
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
     addUser(all, u)
   }
 
@@ -1490,6 +1510,7 @@ const rows = computed<Row[]>(() => {
     current.ips = Array.from(new Set([...(current.ips || []), ...(row.ips || [])].filter((ip) => looksLikeIP(ip)))).sort((a, b) => a.localeCompare(b))
     current.macs = Array.from(new Set([...(current.macs || []), ...(row.macs || [])].map((value) => normalizeMac(value)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
     current.currentQos = mergeQosState(current.currentQos, row.currentQos)
+<<<<<<< HEAD
     if (!isSyntheticTrafficGroupUser(row.user)) {
       if (looksLikeIP(current.user) && !looksLikeIP(row.user)) current.user = row.user
       else if (current.user === current.limitOwner && row.user !== row.limitOwner && !looksLikeIP(row.user)) current.user = row.user
@@ -1497,6 +1518,13 @@ const rows = computed<Row[]>(() => {
     current.keys = current.ips.length ? current.ips.join(', ') : current.macs.join(', ')
     return acc
   }, new Map<string, Row>()).values()).filter((row) => shouldIncludeTrafficUser(row.user) && shouldIncludeTrafficUser(row.limitOwner || ''))
+=======
+    if (looksLikeIP(current.user) && !looksLikeIP(row.user)) current.user = row.user
+    else if (current.user === current.limitOwner && row.user !== row.limitOwner && !looksLikeIP(row.user)) current.user = row.user
+    current.keys = current.ips.length ? current.ips.join(', ') : current.macs.join(', ')
+    return acc
+  }, new Map<string, Row>()).values())
+>>>>>>> ecaf7ed4724491fee21cba488cfd6ee0479f4099
 
   const sorted = list.sort((a, b) => {
     const dir = sortDir.value === 'asc' ? 1 : -1
