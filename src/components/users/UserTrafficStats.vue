@@ -730,7 +730,7 @@ import { sourceIPLabelList } from '@/store/settings'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
 import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, userLimits, type UserLimitPeriod } from '@/store/userLimits'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
-import { agentEnabled, agentEnforceBandwidth, agentShaperStatus, bootstrapRouterAgentForLan } from '@/store/agent'
+import { agentEnabled, agentEnforceBandwidth, agentShaperStatus, bootstrapRouterAgentForLan, managedAgentShapers } from '@/store/agent'
 import {
   clearUserLimit,
   getIpsForUser,
@@ -1196,10 +1196,12 @@ const hasSavedMacIdentityForUser = (user: string) => {
   return !!normalizeMac(getUserLimit(user).mac || '')
 }
 
+const reservedPseudoTrafficLabels = new Set(['dhcp', 'arp', 'dnsmasq'])
+
 const isReservedPseudoTrafficUser = (user: string) => {
   const want = normalizeUserName(user)
   if (!want) return false
-  return want === 'dhcp' || want === 'arp'
+  return reservedPseudoTrafficLabels.has(want)
 }
 
 const isHostResolvableTrafficUser = (user: string) => {
@@ -1227,6 +1229,33 @@ const shouldIncludeTrafficUser = (user: string) => {
   if (looksLikeIP(value)) return true
   if (isSyntheticTrafficGroupUser(value)) return false
   return isHostResolvableTrafficUser(value)
+}
+
+const primaryIdentityForRow = (row: Row) => {
+  if (row.limitOwner && hasPersistedLimit(row.limitOwner) && !isReservedPseudoTrafficUser(row.limitOwner)) {
+    return `owner:${normalizeUserName(row.limitOwner)}`
+  }
+  const firstMac = (row.macs || []).map((value) => normalizeMac(value)).find(Boolean)
+  if (firstMac) return `mac:${firstMac}`
+  const firstIp = (row.ips || []).find((ip) => looksLikeIP(ip))
+  if (firstIp) return `ip:${firstIp}`
+  return `user:${normalizeUserName(row.user)}`
+}
+
+const pickBestDisplayForRow = (row: Row) => {
+  const candidates = [row.user, row.limitOwner, ...(row.ips || [])]
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim()
+    if (!value) continue
+    if (isReservedPseudoTrafficUser(value)) continue
+    if (looksLikeIP(value)) {
+      const label = getExactHostLabel(value)
+      if (label && !isReservedPseudoTrafficUser(label)) return label
+      return value
+    }
+    return value
+  }
+  return row.user
 }
 
 const hasMapping = (user: string) => {
@@ -1483,7 +1512,7 @@ const rows = computed<Row[]>(() => {
   }
 
   const list = Array.from(rawList.reduce((acc, row) => {
-    const key = row.limitOwner && hasPersistedLimit(row.limitOwner) ? `limit:${row.limitOwner}` : `user:${row.user}`
+    const key = primaryIdentityForRow(row)
     const current = acc.get(key)
     if (!current) {
       acc.set(key, { ...row, ips: [...row.ips], macs: [...row.macs] })
@@ -1499,9 +1528,13 @@ const rows = computed<Row[]>(() => {
       if (looksLikeIP(current.user) && !looksLikeIP(row.user)) current.user = row.user
       else if (current.user === current.limitOwner && row.user !== row.limitOwner && !looksLikeIP(row.user)) current.user = row.user
     }
+    current.user = pickBestDisplayForRow(current)
     current.keys = current.ips.length ? current.ips.join(', ') : current.macs.join(', ')
     return acc
-  }, new Map<string, Row>()).values()).filter((row) => shouldIncludeTrafficUser(row.user) && shouldIncludeTrafficUser(row.limitOwner || ''))
+  }, new Map<string, Row>()).values()).map((row) => ({
+    ...row,
+    user: pickBestDisplayForRow(row),
+  })).filter((row) => shouldIncludeTrafficUser(row.user) && shouldIncludeTrafficUser(row.limitOwner || ''))
 
   const sorted = list.sort((a, b) => {
     const dir = sortDir.value === 'asc' ? 1 : -1
@@ -1883,6 +1916,7 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   if (!viaAgent) return out
 
   const st = agentShaperStatus.value || {}
+  const managed = managedAgentShapers.value || {}
 
   for (const row of rows.value) {
     const l = rowLimit(row)
@@ -1902,9 +1936,15 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
       continue
     }
 
+    const expectedMbps = +(((l.bandwidthLimitBps * 8) / 1_000_000)).toFixed(2)
     const statuses = ips.map((ip) => st[ip]).filter(Boolean)
     const hasFail = ips.some((ip) => st[ip] && st[ip].ok === false)
     const allOk = ips.every((ip) => st[ip] && st[ip].ok === true)
+    const managedMismatch = ips.some((ip) => {
+      const shaped = managed[ip]
+      if (!shaped) return true
+      return Math.abs((shaped.upMbps || 0) - expectedMbps) > 0.05 || Math.abs((shaped.downMbps || 0) - expectedMbps) > 0.05
+    })
 
     if (hasFail) {
       const firstErr = ips.map((ip) => st[ip]).find((x) => x && !x.ok)?.error
@@ -1914,18 +1954,18 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
         title: `${t('shaperFailed')}${firstErr ? `: ${firstErr}` : ''}`,
         showReapply: true,
       }
-    } else if (allOk) {
+    } else if (allOk && !managedMismatch) {
       out[row.user] = {
         icon: CheckCircleIcon,
         cls: 'text-success',
-        title: t('shaperApplied'),
+        title: `${t('shaperApplied')} · ${expectedMbps} Mbps`,
         showReapply: true,
       }
-    } else if (!statuses.length) {
+    } else if (!statuses.length || managedMismatch) {
       out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
-        title: t('shaperUnknown'),
+        title: managedMismatch ? `${t('shaperUnknown')} · UI/agent mismatch` : t('shaperUnknown'),
         showReapply: true,
       }
     } else {

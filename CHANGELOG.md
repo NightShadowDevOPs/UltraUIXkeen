@@ -1,3 +1,10 @@
+## v1.2.38
+
+- hardening for Traffic/QoS identity handling: reserved pseudo labels now use a central allow/block path (`dhcp`, `arp`, `dnsmasq`) so service aliases stop leaking into host-level rows
+- Traffic rows now deduplicate by stable identity with stronger priority (`saved limit owner -> MAC -> IP -> user`) to reduce split rows after DHCP/IP changes
+- host display fallback now prefers a real hostname/IP over pseudo labels when a row is rebuilt from mixed saved/live state
+- shaper badge now checks actual managed agent shaping values against the UI limit and shows mismatch/reapply state instead of blindly trusting stale green status
+
 ## v1.2.37
 
 - Traffic: treat reserved pseudo labels like `dhcp`/`arp` as non-host identities even when they exist as exact mappings, so device rows fall back to IP/hostname and lease-pool pseudo users no longer mirror per-device QoS/limits.
