@@ -183,11 +183,21 @@ export const getUserUsageBytes = (user: string, limit?: UserLimitResolved) => {
 }
 
 export const getUserCurrentSpeedBps = (user: string) => {
+  if (isReservedPseudoUserLabel(user)) return 0
+
+  const ips = new Set<string>(ipsForUserLabel(user))
+  if (looksLikeIP(user)) ips.add(String(user || '').trim())
+
   let bps = 0
   for (const c of activeConnections.value) {
-    const ip = c?.metadata?.sourceIP || ''
-    const u = getIPLabelFromMap(ip)
-    if (u !== user) continue
+    const ip = String(c?.metadata?.sourceIP || '').trim()
+    if (!ip) continue
+    if (!ips.size) {
+      const u = getIPLabelFromMap(ip)
+      if (u !== user) continue
+    } else if (!ips.has(ip)) {
+      continue
+    }
     bps += (c.downloadSpeed || 0) + (c.uploadSpeed || 0)
   }
   return bps
@@ -403,9 +413,14 @@ const isPatternSourceKey = (key: string) => {
   const raw = String(key || '').trim()
   return !!raw && (raw.startsWith('/') || raw.includes('/'))
 }
+const isReservedPseudoUserLabel = (userLabel: string) => {
+  const want = normalizeUserName(userLabel)
+  return want === 'dhcp' || want === 'arp'
+}
 const isSyntheticGroupUserLabel = (userLabel: string) => {
   const want = normalizeUserName(userLabel)
   if (!want || looksLikeIP(want)) return false
+  if (isReservedPseudoUserLabel(want)) return true
 
   let hasGrouped = false
   let hasExact = false
@@ -427,7 +442,7 @@ const ipsForUserLabel = (userLabel: string) => {
   const want = (userLabel || '').trim()
   const wantLc = want.toLowerCase()
 
-  if (isSyntheticGroupUserLabel(want)) return out
+  if (isReservedPseudoUserLabel(want) || isSyntheticGroupUserLabel(want)) return out
 
   const normIp = (k: string) => (k || '').trim().split('/')[0]
   const addIp = (val: string) => {

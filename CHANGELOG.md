@@ -1,3 +1,7 @@
+## v1.2.37
+
+- Traffic: treat reserved pseudo labels like `dhcp`/`arp` as non-host identities even when they exist as exact mappings, so device rows fall back to IP/hostname and lease-pool pseudo users no longer mirror per-device QoS/limits.
+
 ## v1.2.36
 
 - Rebuilt the v1.2.35 release under a new version after a failed push; no code changes, only version/transfer metadata refresh.

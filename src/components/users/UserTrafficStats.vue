@@ -850,6 +850,7 @@ const normalizeMac = (value: string) => {
 }
 
 const hasPersistedLimit = (user: string) => {
+  if (isReservedPseudoTrafficUser(user)) return false
   const l = getUserLimit(user)
   return !!(l.enabled || l.disabled || (l.trafficLimitBytes || 0) > 0 || (l.bandwidthLimitBps || 0) > 0 || normalizeMac(l.mac || ''))
 }
@@ -902,6 +903,7 @@ const resolveMacsForIdentity = (user: string, ips: string[], limitOwner = '') =>
 }
 
 const ipsForLimitOwner = (user: string, knownIps: string[] = [], knownMacs: string[] = []) => {
+  if (isReservedPseudoTrafficUser(user)) return []
   const out = new Set<string>()
   const addIp = (value: string) => {
     const ip = String(value || '').trim()
@@ -937,6 +939,7 @@ const ipsForLimitOwner = (user: string, knownIps: string[] = [], knownMacs: stri
 }
 
 const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) => {
+  if (isReservedPseudoTrafficUser(user)) return user
   if (hasPersistedLimit(user)) return user
 
   const want = normalizeUserName(user)
@@ -947,6 +950,7 @@ const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) =>
 
   for (const candidate of Object.keys(userLimits.value || {})) {
     if (!candidate || candidate === user) continue
+    if (isReservedPseudoTrafficUser(candidate)) continue
     if (!shouldIncludeTrafficUser(candidate)) continue
     if (!hasPersistedLimit(candidate)) continue
 
@@ -1150,14 +1154,15 @@ const isPatternSourceKey = (key: string) => {
 
 const getExactHostLabel = (ip: string, hostname = '') => {
   const exact = String(getExactIPLabelFromMap(ip) || '').trim()
-  if (exact) return exact
+  if (exact && !isReservedPseudoTrafficUser(exact)) return exact
   const host = String(hostname || '').trim()
-  return host || ip
+  if (host && !isReservedPseudoTrafficUser(host)) return host
+  return ip
 }
 
 const hasExactHostMappingForUser = (user: string) => {
   const want = normalizeUserName(user)
-  if (!want) return false
+  if (!want || isReservedPseudoTrafficUser(user)) return false
   return sourceIPLabelList.value.some((it) => {
     const key = String(it.key || '').trim()
     if (!key || isPatternSourceKey(key)) return false
@@ -1168,7 +1173,7 @@ const hasExactHostMappingForUser = (user: string) => {
 
 const hasGroupedSourceMappingForUser = (user: string) => {
   const want = normalizeUserName(user)
-  if (!want) return false
+  if (!want || isReservedPseudoTrafficUser(user)) return false
   return sourceIPLabelList.value.some((it) => {
     const key = String(it.key || '').trim()
     if (!key || !isPatternSourceKey(key)) return false
@@ -1179,7 +1184,7 @@ const hasGroupedSourceMappingForUser = (user: string) => {
 
 const hasLanHostIdentityForUser = (user: string) => {
   const want = normalizeUserName(user)
-  if (!want) return false
+  if (!want || isReservedPseudoTrafficUser(user)) return false
   return (agentLanHosts.value || []).some((host) => {
     const hostname = String((host as any)?.hostname || '').trim()
     return !!hostname && normalizeUserName(hostname) === want
@@ -1187,7 +1192,7 @@ const hasLanHostIdentityForUser = (user: string) => {
 }
 
 const hasSavedMacIdentityForUser = (user: string) => {
-  if (!user) return false
+  if (!user || isReservedPseudoTrafficUser(user)) return false
   return !!normalizeMac(getUserLimit(user).mac || '')
 }
 
@@ -1218,9 +1223,9 @@ const isSyntheticTrafficGroupUser = (user: string) => {
 const shouldIncludeTrafficUser = (user: string) => {
   const value = String(user || '').trim()
   if (!value) return false
+  if (isReservedPseudoTrafficUser(value)) return false
   if (looksLikeIP(value)) return true
   if (isSyntheticTrafficGroupUser(value)) return false
-  if (isReservedPseudoTrafficUser(value) && !isHostResolvableTrafficUser(value)) return false
   return isHostResolvableTrafficUser(value)
 }
 
