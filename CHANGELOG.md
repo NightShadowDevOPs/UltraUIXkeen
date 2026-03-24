@@ -1,3 +1,9 @@
+## v1.2.32
+
+- stabilized Traffic row binding around saved MAC limits so QoS and shaping can follow DHCP IP changes
+- deduplicated Traffic rows when a saved host name and a live IP resolve to the same device via MAC
+- limit/shaper state in Traffic now resolves through effective IPs of the row and its saved limit owner, not only through the current label mapping
+
 ## v1.2.28
 
 - fixed Source IP label scope handling for synced data from another PC/browser: foreign backend UUID scopes no longer hide labels, QoS rows and saved limits on this device

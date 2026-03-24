@@ -267,12 +267,12 @@
                       <span
                         v-if="limitStates[row.user]?.trafficLimitBytes"
                         class="inline-flex pointer-events-auto"
-                        :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
+                        :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled)"
                       >
                         <CircleStackIcon
                           class="h-4 w-4"
                           :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled))"
                           @mouseleave="hideTip"
                         />
                       </span>
@@ -329,8 +329,8 @@
                     <CircleStackIcon
                       class="h-4 w-4"
                       :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                      :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled)"
-                      @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, getUserLimit(row.user).trafficPeriod, limitStates[row.user].enabled))"
+                      :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled)"
+                      @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled))"
                       @mouseleave="hideTip"
                     />
                     <BoltIcon
@@ -442,7 +442,7 @@
                         type="button"
                         class="btn btn-ghost btn-circle btn-xs relative z-20"
                         :disabled="applyingShaperUser === row.user"
-                        @click.stop.prevent="reapplyShaper(row.user)"
+                        @click.stop.prevent="reapplyShaper(row)"
                         @pointerdown.stop.prevent
                         @mousedown.stop.prevent
                         @touchstart.stop.prevent
@@ -455,7 +455,7 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-circle btn-xs relative z-20"
-                      @click.stop.prevent="openLimits(row.user)"
+                      @click.stop.prevent="openLimits(rowLimitOwner(row), row.user)"
                       @pointerdown.stop.prevent
                       @mousedown.stop.prevent
                       @touchstart.stop.prevent
@@ -586,7 +586,10 @@
       <DialogWrapper v-model="limitsDialogOpen">
         <div class="flex items-center justify-between gap-2 mb-2">
           <div class="text-base font-semibold">{{ $t('limits') }}</div>
-          <div class="text-sm opacity-70 truncate max-w-[60%]" :title="limitsUser">{{ limitsUser }}</div>
+          <div class="flex flex-col items-end max-w-[60%]">
+            <div class="text-sm opacity-70 truncate" :title="limitsUserDisplay || limitsUser">{{ limitsUserDisplay || limitsUser }}</div>
+            <div v-if="limitsUserDisplay && limitsUserDisplay !== limitsUser" class="text-[11px] opacity-50 truncate" :title="limitsUser">{{ limitsUser }}</div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 gap-3">
@@ -769,7 +772,16 @@ import {
 } from '@heroicons/vue/24/outline'
 
 type RowQosState = AgentQosProfile | 'mixed' | undefined
-type Row = { user: string; keys: string; dl: number; ul: number; ips: string[]; currentQos?: RowQosState }
+type Row = {
+  user: string
+  keys: string
+  dl: number
+  ul: number
+  ips: string[]
+  macs: string[]
+  limitOwner: string
+  currentQos?: RowQosState
+}
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
@@ -832,6 +844,137 @@ const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
   return out
 })
 
+const normalizeMac = (value: string) => {
+  const v = String(value || '').trim().toLowerCase().replace(/-/g, ':')
+  return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(v) ? v : ''
+}
+
+const hasPersistedLimit = (user: string) => {
+  const l = getUserLimit(user)
+  return !!(l.enabled || l.disabled || (l.trafficLimitBytes || 0) > 0 || (l.bandwidthLimitBps || 0) > 0 || normalizeMac(l.mac || ''))
+}
+
+const lanHostMacByIp = computed<Record<string, string>>(() => {
+  const out: Record<string, string> = {}
+  for (const host of agentLanHosts.value || []) {
+    const ip = String((host as any)?.ip || '').trim()
+    const mac = normalizeMac(String((host as any)?.mac || ''))
+    if (!looksLikeIP(ip) || !mac) continue
+    out[ip] = mac
+  }
+  return out
+})
+
+const lanHostIpsByMac = computed<Record<string, string[]>>(() => {
+  const out: Record<string, string[]> = {}
+  for (const host of agentLanHosts.value || []) {
+    const ip = String((host as any)?.ip || '').trim()
+    const mac = normalizeMac(String((host as any)?.mac || ''))
+    if (!looksLikeIP(ip) || !mac) continue
+    ;(out[mac] ||= []).push(ip)
+  }
+  for (const mac of Object.keys(out)) out[mac] = Array.from(new Set(out[mac])).sort((a, b) => a.localeCompare(b))
+  return out
+})
+
+const resolveMacsForIdentity = (user: string, ips: string[], limitOwner = '') => {
+  const out = new Set<string>()
+  const add = (value: string) => {
+    const mac = normalizeMac(value)
+    if (mac) out.add(mac)
+  }
+
+  add(getUserLimit(user).mac || '')
+  if (limitOwner && limitOwner !== user) add(getUserLimit(limitOwner).mac || '')
+  for (const ip of ips || []) add(lanHostMacByIp.value[ip] || '')
+
+  const want = normalizeUserName(user)
+  for (const host of agentLanHosts.value || []) {
+    const ip = String((host as any)?.ip || '').trim()
+    const hostname = String((host as any)?.hostname || '').trim()
+    const display = String(getIPLabelFromMap(ip) || hostname || ip).trim()
+    if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) {
+      add(String((host as any)?.mac || ''))
+    }
+  }
+
+  return Array.from(out).sort((a, b) => a.localeCompare(b))
+}
+
+const ipsForLimitOwner = (user: string, knownIps: string[] = [], knownMacs: string[] = []) => {
+  const out = new Set<string>()
+  const addIp = (value: string) => {
+    const ip = String(value || '').trim()
+    if (looksLikeIP(ip)) out.add(ip)
+  }
+
+  for (const ip of knownIps || []) addIp(ip)
+  for (const ip of getIpsForUser(user) || []) addIp(ip)
+
+  const macs = new Set<string>((knownMacs || []).map((value) => normalizeMac(value)).filter(Boolean))
+  const savedMac = normalizeMac(getUserLimit(user).mac || '')
+  if (savedMac) macs.add(savedMac)
+  for (const mac of macs) {
+    for (const ip of lanHostIpsByMac.value[mac] || []) addIp(ip)
+  }
+
+  const want = normalizeUserName(user)
+  for (const c of activeConnections.value || []) {
+    const ip = String((c as any)?.metadata?.sourceIP || '').trim()
+    if (!looksLikeIP(ip)) continue
+    const display = String(getIPLabelFromMap(ip) || ip).trim()
+    if (normalizeUserName(display) === want || normalizeUserName(ip) === want) addIp(ip)
+  }
+
+  for (const host of agentLanHosts.value || []) {
+    const ip = String((host as any)?.ip || '').trim()
+    const hostname = String((host as any)?.hostname || '').trim()
+    const display = String(getIPLabelFromMap(ip) || hostname || ip).trim()
+    if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) addIp(ip)
+  }
+
+  return Array.from(out).sort((a, b) => a.localeCompare(b))
+}
+
+const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) => {
+  if (hasPersistedLimit(user)) return user
+
+  const want = normalizeUserName(user)
+  const ipSet = new Set((ips || []).filter((ip) => looksLikeIP(ip)))
+  const macSet = new Set((macs || []).map((value) => normalizeMac(value)).filter(Boolean))
+  let byName = ''
+  let byIp = ''
+
+  for (const candidate of Object.keys(userLimits.value || {})) {
+    if (!candidate || candidate === user) continue
+    if (!hasPersistedLimit(candidate)) continue
+
+    if (!byName && normalizeUserName(candidate) === want) byName = candidate
+
+    const candidateMac = normalizeMac(getUserLimit(candidate).mac || '')
+    if (candidateMac && macSet.has(candidateMac)) return candidate
+
+    const candidateIps = new Set<string>()
+    if (looksLikeIP(candidate)) candidateIps.add(candidate)
+    for (const ip of getIpsForUser(candidate) || []) if (looksLikeIP(ip)) candidateIps.add(ip)
+    if (candidateMac) {
+      for (const ip of lanHostIpsByMac.value[candidateMac] || []) if (looksLikeIP(ip)) candidateIps.add(ip)
+    }
+    for (const ip of candidateIps) {
+      if (ipSet.has(ip)) {
+        byIp = candidate
+        break
+      }
+    }
+    if (byIp) break
+  }
+
+  return byIp || byName || user
+}
+
+const rowLimitOwner = (row: Row) => row.limitOwner || row.user
+const rowLimit = (row: Row) => getUserLimit(rowLimitOwner(row))
+
 const syncAppliedQosProfiles = () => {
   const next: Record<string, AgentQosProfile> = {}
   for (const item of qosStatus.value.items || []) {
@@ -860,25 +1003,11 @@ const ensureQosDrafts = () => {
 
 const effectiveIpsForRow = (row: Row) => {
   const out = new Set<string>()
-  for (const ip of row.ips || []) if (looksLikeIP(ip)) out.add(ip)
-  for (const ip of getIpsForUser(row.user) || []) if (looksLikeIP(ip)) out.add(ip)
-
-  const want = normalizeUserName(row.user)
-  for (const c of activeConnections.value || []) {
-    const ip = String((c as any)?.metadata?.sourceIP || '').trim()
-    if (!looksLikeIP(ip)) continue
-    const display = String(getIPLabelFromMap(ip) || ip).trim()
-    if (normalizeUserName(display) === want || normalizeUserName(ip) === want) out.add(ip)
+  for (const ip of ipsForLimitOwner(row.user, row.ips, row.macs)) out.add(ip)
+  const owner = rowLimitOwner(row)
+  if (owner && owner !== row.user) {
+    for (const ip of ipsForLimitOwner(owner, row.ips, row.macs)) out.add(ip)
   }
-
-  for (const host of agentLanHosts.value || []) {
-    const ip = String((host as any)?.ip || '').trim()
-    if (!looksLikeIP(ip)) continue
-    const display = String(getIPLabelFromMap(ip) || (host as any)?.hostname || ip).trim()
-    const hostname = String((host as any)?.hostname || '').trim()
-    if (normalizeUserName(display) === want || normalizeUserName(ip) === want || normalizeUserName(hostname) === want) out.add(ip)
-  }
-
   return Array.from(out).sort((a, b) => a.localeCompare(b))
 }
 
@@ -1205,7 +1334,7 @@ const rows = computed<Row[]>(() => {
     addUser(all, u)
   }
 
-  const list: Row[] = Array.from(all.entries()).map(([norm, user]) => {
+  const rawList: Row[] = Array.from(all.entries()).map(([norm, user]) => {
     const keysSet = new Set<string>()
 
     // IP keys from mapping.
@@ -1233,18 +1362,53 @@ const rows = computed<Row[]>(() => {
         return normalizeUserName(display) === norm || normalizeUserName(ip) === norm
       })
 
-    const resolvedIps = Array.from(new Set([
+    const baseIps = Array.from(new Set([
       ...Array.from(keysSet).filter((k) => looksLikeIP(k)),
       ...(getIpsForUser(user) || []),
       ...liveIps,
-    ].filter((k) => looksLikeIP(k))))
-    resolvedIps.sort((a, b) => a.localeCompare(b))
-    const keys = resolvedIps.join(', ')
+    ].filter((k) => looksLikeIP(k)))).sort((a, b) => a.localeCompare(b))
 
+    const baseMacs = resolveMacsForIdentity(user, baseIps)
+    const limitOwner = resolveLimitOwnerForRow(user, baseIps, baseMacs)
+    const resolvedMacs = resolveMacsForIdentity(user, baseIps, limitOwner)
+
+    const resolvedIps = Array.from(new Set([
+      ...baseIps,
+      ...ipsForLimitOwner(user, baseIps, resolvedMacs),
+      ...(limitOwner !== user ? ipsForLimitOwner(limitOwner, baseIps, resolvedMacs) : []),
+    ].filter((k) => looksLikeIP(k)))).sort((a, b) => a.localeCompare(b))
+
+    const keys = resolvedIps.length ? resolvedIps.join(', ') : resolvedMacs.join(', ')
     const currentQos = resolveRowQos(resolvedIps)
 
-    return { user, keys, dl, ul, ips: resolvedIps, currentQos }
+    return { user, keys, dl, ul, ips: resolvedIps, macs: resolvedMacs, limitOwner, currentQos }
   })
+
+  const mergeQosState = (left: RowQosState, right: RowQosState): RowQosState => {
+    const values = Array.from(new Set([left, right].filter(Boolean))) as RowQosState[]
+    if (!values.length) return undefined
+    if (values.includes('mixed')) return 'mixed'
+    return values.length === 1 ? values[0] : 'mixed'
+  }
+
+  const list = Array.from(rawList.reduce((acc, row) => {
+    const key = row.limitOwner && hasPersistedLimit(row.limitOwner) ? `limit:${row.limitOwner}` : `user:${row.user}`
+    const current = acc.get(key)
+    if (!current) {
+      acc.set(key, { ...row, ips: [...row.ips], macs: [...row.macs] })
+      return acc
+    }
+
+    current.dl += row.dl
+    current.ul += row.ul
+    current.ips = Array.from(new Set([...(current.ips || []), ...(row.ips || [])].filter((ip) => looksLikeIP(ip)))).sort((a, b) => a.localeCompare(b))
+    current.macs = Array.from(new Set([...(current.macs || []), ...(row.macs || [])].map((value) => normalizeMac(value)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    current.currentQos = mergeQosState(current.currentQos, row.currentQos)
+    if (looksLikeIP(current.user) && !looksLikeIP(row.user)) current.user = row.user
+    else if (current.user === current.limitOwner && row.user !== row.limitOwner && !looksLikeIP(row.user)) current.user = row.user
+    current.keys = current.ips.length ? current.ips.join(', ') : current.macs.join(', ')
+    return acc
+  }, new Map<string, Row>()).values())
 
   const sorted = list.sort((a, b) => {
     const dir = sortDir.value === 'asc' ? 1 : -1
@@ -1263,7 +1427,7 @@ const rows = computed<Row[]>(() => {
     const keep = new Set(sliced.map((row) => row.user))
     for (const row of sorted) {
       if (keep.has(row.user)) continue
-      if (!pinnedUsers.has(row.user) && !row.currentQos) continue
+      if (!pinnedUsers.has(row.user) && !pinnedUsers.has(row.limitOwner) && !row.currentQos) continue
       sliced.push(row)
       keep.add(row.user)
     }
@@ -1404,11 +1568,12 @@ const periodLabel = (p: UserLimitPeriod) => {
   return '30d'
 }
 
-const speedByUser = computed(() => {
+const speedByIp = computed(() => {
   const map: Record<string, number> = {}
-  for (const c of activeConnections.value) {
-    const user = getIPLabelFromMap(c?.metadata?.sourceIP || '')
-    map[user] = (map[user] || 0) + (c.downloadSpeed || 0) + (c.uploadSpeed || 0)
+  for (const c of activeConnections.value || []) {
+    const ip = String((c as any)?.metadata?.sourceIP || '').trim()
+    if (!looksLikeIP(ip)) continue
+    map[ip] = (map[ip] || 0) + Number((c as any)?.downloadSpeed || 0) + Number((c as any)?.uploadSpeed || 0)
   }
   return map
 })
@@ -1431,7 +1596,7 @@ const limitStates = computed(() => {
   // Build windows per user appearing in the table.
   const windows = new Map<string, { startHourTs: number; endTs: number; users: string[] }>()
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const l = rowLimit(row)
     const hasTraffic = (l.trafficLimitBytes || 0) > 0
     const hasBw = (l.bandwidthLimitBps || 0) > 0
     if (!hasTraffic && !hasBw && !l.disabled) continue
@@ -1449,12 +1614,12 @@ const limitStates = computed(() => {
   }
 
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const l = rowLimit(row)
     const w = windowForLimit(l)
     const key = `${l.trafficPeriod}:${w.startHourTs}`
     const agg = aggByKey.get(key)
-    const keys = new Set<string>([row.user])
-    for (const ip of getIpsForUser(row.user) || []) keys.add(ip)
+    const keys = new Set<string>([rowLimitOwner(row), row.user])
+    for (const ip of effectiveIpsForRow(row)) keys.add(ip)
 
     let dl = 0
     let ul = 0
@@ -1470,7 +1635,7 @@ const limitStates = computed(() => {
     const usage = dl + ul
     const tl = l.trafficLimitBytes || 0
 
-    const sp = speedByUser.value[row.user] || 0
+    const sp = effectiveIpsForRow(row).reduce((sum, ip) => sum + (speedByIp.value[ip] || 0), 0)
     const bl = l.bandwidthLimitBps || 0
 
     const trafficExceeded = l.enabled && tl > 0 && usage >= tl
@@ -1503,7 +1668,7 @@ const blockedActionBusy = ref(false)
 const setResetBaselineNow = (user: string, extra: Record<string, any> = {}) => {
   const now = Date.now()
   const keys = new Set<string>([user])
-  for (const ip of getIpsForUser(user) || []) keys.add(ip)
+  for (const ip of ipsForLimitOwner(user)) keys.add(ip)
 
   let dl = 0
   let ul = 0
@@ -1626,13 +1791,13 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   const st = agentShaperStatus.value || {}
 
   for (const row of rows.value) {
-    const l = getUserLimit(row.user)
+    const l = rowLimit(row)
     if (!l.enabled || !l.bandwidthLimitBps || l.bandwidthLimitBps <= 0) {
       out[row.user] = null
       continue
     }
 
-    const ips = getIpsForUser(row.user)
+    const ips = effectiveIpsForRow(row)
     if (!ips.length) {
       out[row.user] = {
         icon: QuestionMarkCircleIcon,
@@ -1683,10 +1848,11 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
 })
 
 const applyingShaperUser = ref<string | null>(null)
-const reapplyShaper = async (user: string) => {
+const reapplyShaper = async (row: Row) => {
+  const user = rowLimitOwner(row)
   if (!user) return
   await ensureAgentReady()
-  applyingShaperUser.value = user
+  applyingShaperUser.value = row.user
   try {
     await reapplyAgentShapingForUser(user)
   } finally {
@@ -1697,6 +1863,7 @@ const reapplyShaper = async (user: string) => {
 // --- Limits dialog ---
 const limitsDialogOpen = ref(false)
 const limitsUser = ref('')
+const limitsUserDisplay = ref('')
 
 const draftEnabled = ref(false)
 const draftDisabled = ref(false)
@@ -1722,8 +1889,9 @@ const bpsFromMbps = (mbps: number) => {
   return Math.round((n * 1_000_000) / 8)
 }
 
-const openLimits = (user: string) => {
+const openLimits = (user: string, displayUser = user) => {
   limitsUser.value = user
+  limitsUserDisplay.value = displayUser
   const l = getUserLimit(user)
   draftEnabled.value = l.enabled
   draftDisabled.value = l.disabled
@@ -1743,7 +1911,7 @@ const refreshMac = async () => {
   const ready = await ensureAgentReady()
   if (!ready) return
 
-  const ips = getIpsForUser(user)
+  const ips = ipsForLimitOwner(user)
   if (!ips.length) return
 
   macLoading.value = true
