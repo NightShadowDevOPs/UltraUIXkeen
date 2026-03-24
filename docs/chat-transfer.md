@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.40
-- router-agent: 0.6.8
+- UI: v1.2.41
+- router-agent: 0.6.9
 
 Правила по проекту:
 - всегда давать архив релиза, commit message и отдельный блок команд для роутера
@@ -29,6 +29,8 @@
 - router-agent в этом релизе не менялся
 - host QoS в разделе «Трафик» временно отключён UI-hotfix
   до исправления runtime-логики в router-agent: при включении QoS на хостах подтверждён обрыв сетевых соединений; отключение QoS в Трафике восстанавливает сеть
+
+- v1.2.41 — router-agent QoS hotfix: host QoS переведён в safe mode `wan-only`, чтобы не вешать downlink shaping на LAN bridge (`br0`) и не ронять соединения; при rehydrate/install очищается legacy downlink QoS-хвост, UI в «Трафике» снова включает QoS с пометкой Safe QoS: только uplink/WAN; router-agent обновлён до 0.6.9
 
 - в v1.2.32 раздел «Трафик» получил MAC-aware привязку строк: сохранённые лимиты/QoS и шейпер теперь лучше переживают смену DHCP-IP
 - в v1.2.32 строки в «Трафике» дедуплицируются по saved limit owner/MAC, чтобы один и тот же ПК не появлялся и как старое имя, и как новый IP

@@ -1,3 +1,10 @@
+## v1.2.41
+
+- router-agent QoS hotfix: host QoS now runs in safe `wan-only` mode by default, so host priority is applied only on WAN egress instead of also attaching downlink shaping to the LAN bridge (`br0`)
+- router-agent rehydrate/install path now clears legacy host-QoS downlink rules/classes before restoring saved profiles, so old broken LAN-side QoS state does not survive the update
+- Traffic host QoS controls are re-enabled with a clear safe-mode hint (`Safe QoS: только uplink/WAN`)
+- router-agent version bumped to 0.6.9 and synced in install/status metadata
+
 ## v1.2.40
 
 - emergency safety hotfix: temporarily disabled host QoS controls in Traffic because the current router-agent QoS runtime can drop network connectivity after enable/apply

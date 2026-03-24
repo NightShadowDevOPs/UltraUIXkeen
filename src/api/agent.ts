@@ -311,6 +311,8 @@ export type AgentQosStatus = {
   supported?: boolean
   wanRateMbit?: number
   lanRateMbit?: number
+  qosMode?: string
+  qosDownlinkEnabled?: boolean
   defaults?: Partial<Record<AgentQosProfile, { pct?: number; priority?: number }>>
   items?: AgentQosStatusItem[]
   error?: string

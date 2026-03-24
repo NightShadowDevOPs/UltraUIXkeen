@@ -7,6 +7,7 @@
         <span v-else-if="status.ok && (qos.supported || status.hostQos)" class="badge badge-success">{{ $t('online') }}</span>
         <span v-else-if="status.ok && !(qos.supported || status.hostQos)" class="badge badge-warning">no-tc</span>
         <span v-else class="badge badge-error">{{ $t('offline') }}</span>
+        <span v-if="qos.qosMode === 'wan-only'" class="badge badge-info">safe qos</span>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
@@ -41,6 +42,7 @@
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
         <div>{{ $t('hostQosIntro') }}</div>
         <div class="mt-1 text-xs opacity-70">{{ $t('hostQosShapeOverrideTip') }}</div>
+        <div v-if="qos.qosMode === 'wan-only'" class="mt-1 text-xs text-info/80">Safe mode: uplink/WAN only</div>
       </div>
 
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
@@ -52,6 +54,7 @@
           <div>{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
           <div>{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
           <div>{{ $t('hostQosLineRates', { wan: qos.wanRateMbit || '—', lan: qos.lanRateMbit || '—' }) }}</div>
+          <div v-if="qos.qosMode === 'wan-only'">Safe mode: uplink/WAN only</div>
         </div>
       </div>
 

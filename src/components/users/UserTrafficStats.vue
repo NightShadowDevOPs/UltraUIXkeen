@@ -369,8 +369,8 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      disabled
-                      title="Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения"
+                      :disabled="applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :title="rowHasEffectiveIps(row) ? (qosStatus.qosMode === 'wan-only' ? 'Safe QoS: только uplink/WAN' : '') : 'Не найден IP для применения QoS'"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -379,22 +379,24 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      disabled
-                      :title="'Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения'"
+                      :disabled="applyingQosUser === row.user || !rowHasEffectiveIps(row)"
+                      :title="rowHasEffectiveIps(row) ? (qosStatus.qosMode === 'wan-only' ? 'Safe QoS: только uplink/WAN' : '') : 'Не найден IP для применения QoS'"
+                      @click="applyUserQos(row)"
                     >
                       {{ $t('apply') }}
                     </button>
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      disabled
-                      :title="'Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения'"
+                      :disabled="applyingQosUser === row.user || !row.currentQos"
+                      :title="qosStatus.qosMode === 'wan-only' ? 'Очистить Safe QoS (uplink/WAN)' : ''"
+                      @click="clearUserQos(row)"
                     >
                       {{ $t('clear') }}
                     </button>
                   </div>
-                  <div class="text-[11px] opacity-65 whitespace-nowrap text-right text-warning">
-                    Host QoS временно отключён
+                  <div v-if="qosStatus.qosMode === 'wan-only'" class="text-[11px] opacity-65 whitespace-nowrap text-right text-info">
+                    Safe QoS: только uplink/WAN
                   </div>
                   <div
                     v-if="rowRuntimeSummary(row)"

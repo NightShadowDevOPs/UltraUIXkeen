@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.8"
+AGENT_VERSION="0.6.9"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -93,6 +93,11 @@ QOS_BACKGROUND_PRIO="7"
 # Root class rates (mbit). Keep high unless you want a global cap.
 WAN_RATE="1000"
 LAN_RATE="1000"
+
+# Host QoS safe mode:
+# wan-only = apply host QoS only on WAN egress (safer default)
+# wan-lan  = legacy mode with WAN + LAN shaping
+QOS_MODE="wan-only"
 EOF
   echo "[zash-agent] created $AGENT_DIR/agent.env (edit if needed)"
 else
@@ -146,6 +151,7 @@ QOS_ELEVATED_PRIO="${QOS_ELEVATED_PRIO:-2}"
 QOS_NORMAL_PRIO="${QOS_NORMAL_PRIO:-3}"
 QOS_LOW_PRIO="${QOS_LOW_PRIO:-5}"
 QOS_BACKGROUND_PRIO="${QOS_BACKGROUND_PRIO:-7}"
+QOS_MODE="${QOS_MODE:-wan-only}"
 UI_ZIP_URL="${UI_ZIP_URL:-}"
 SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.tsv}"
 SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
@@ -2953,6 +2959,37 @@ qos_min_rate() {
   echo "$rate"
 }
 
+qos_downlink_enabled() {
+  case "$QOS_MODE" in
+    wan-lan|full|legacy) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+cleanup_qos_downlink_for_ip() {
+  ip_="$1"
+  [ -n "$ip_" ] || return 0
+  minor_="$(qos_minor_for_ip "$ip_")"
+  mark_down_=$((32768 + minor_))
+  iptables -t mangle -D ZASH_QOS_DOWN -d "$ip_" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down_/0xffff" >/dev/null 2>&1 || true
+  if [ $have_tc -eq 1 ]; then
+    tc filter del dev "$LAN_IF" parent 2: protocol ip prio 10 handle "$mark_down_" fw 2>/dev/null || true
+    tc class del dev "$LAN_IF" classid "2:${minor_}" 2>/dev/null || true
+  fi
+}
+
+cleanup_all_qos_downlink() {
+  [ $have_tc -eq 1 ] || return 0
+  iptables -t mangle -F ZASH_QOS_DOWN >/dev/null 2>&1 || true
+  if [ -f "$QOS_HOSTS_FILE" ]; then
+    while read -r ip_ _rest; do
+      [ -n "$ip_" ] || continue
+      cleanup_qos_downlink_for_ip "$ip_"
+    done < "$QOS_HOSTS_FILE"
+  fi
+  return 0
+}
+
 persist_qos_host() {
   ip_="$1"; profile_="$2"
   mkdir -p "$(dirname "$QOS_HOSTS_FILE")" >/dev/null 2>&1 || true
@@ -2982,19 +3019,26 @@ apply_qos_only() {
   pct="$(qos_profile_pct "$profile")"
   prio="$(qos_profile_prio "$profile")"
   up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
-  down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+  down_min=0
+  if qos_downlink_enabled; then
+    down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+  fi
+
+  cleanup_qos_downlink_for_ip "$ip"
 
   iptables -t mangle -C ZASH_QOS_UP -s "$ip" -o "$WAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_QOS_UP -s "$ip" -o "$WAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_up/0xffff"
-
-  iptables -t mangle -C ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff"
 
   tc class show dev "$WAN_IF" 2>/dev/null | grep -q "1:${minor}" &&     tc class change dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up_min}mbit" ceil "${WAN_RATE}mbit" prio "$prio" 2>/dev/null ||     tc class add dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up_min}mbit" ceil "${WAN_RATE}mbit" prio "$prio" 2>/dev/null || true
 
   tc filter show dev "$WAN_IF" parent 1: 2>/dev/null | grep -q "handle $mark_up" ||     tc filter add dev "$WAN_IF" parent 1: protocol ip prio 10 handle "$mark_up" fw flowid "1:${minor}" 2>/dev/null || true
 
-  tc class show dev "$LAN_IF" 2>/dev/null | grep -q "2:${minor}" &&     tc class change dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null ||     tc class add dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null || true
+  if qos_downlink_enabled; then
+    iptables -t mangle -C ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||       iptables -t mangle -A ZASH_QOS_DOWN -d "$ip" -o "$LAN_IF" -m mark --mark 0x0/0xffff -j MARK --set-xmark "$mark_down/0xffff"
 
-  tc filter show dev "$LAN_IF" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||     tc filter add dev "$LAN_IF" parent 2: protocol ip prio 10 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+    tc class show dev "$LAN_IF" 2>/dev/null | grep -q "2:${minor}" &&       tc class change dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null ||       tc class add dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down_min}mbit" ceil "${LAN_RATE}mbit" prio "$prio" 2>/dev/null || true
+
+    tc filter show dev "$LAN_IF" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||       tc filter add dev "$LAN_IF" parent 2: protocol ip prio 10 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+  fi
 
   return 0
 }
@@ -3018,8 +3062,11 @@ set_host_qos() {
   pct="$(qos_profile_pct "$profile")"
   prio="$(qos_profile_prio "$profile")"
   up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
-  down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
-  reply_ok "$(printf '{"ok":true,"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min")"
+  down_min=0
+  if qos_downlink_enabled; then
+    down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+  fi
+  reply_ok "$(printf '{"ok":true,"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s,"mode":"%s"}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min" "$(jesc "$QOS_MODE")")"
 }
 
 remove_host_qos() {
@@ -3044,6 +3091,8 @@ remove_host_qos() {
 
 rehydrate_qos_hosts() {
   [ $have_tc -eq 1 ] || return 0
+  ensure_iptables_chains
+  cleanup_all_qos_downlink >/dev/null 2>&1 || true
   [ -f "$QOS_HOSTS_FILE" ] || return 0
   while read -r ip profile; do
     [ -n "$ip" ] || continue
@@ -3061,7 +3110,7 @@ qos_status() {
   echo "Cache-Control: no-store"
   echo
 
-  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
+  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
   first=1
   if [ -f "$QOS_HOSTS_FILE" ]; then
     while read -r ip profile; do
@@ -3070,7 +3119,10 @@ qos_status() {
       pct="$(qos_profile_pct "$profile")"
       prio="$(qos_profile_prio "$profile")"
       up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
-      down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+      down_min=0
+      if qos_downlink_enabled; then
+        down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
+      fi
       [ "$first" -eq 0 ] && printf ','
       first=0
       printf '{"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min"
