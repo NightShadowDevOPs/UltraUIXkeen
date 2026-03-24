@@ -1,3 +1,10 @@
+## v1.2.39
+
+- Traffic now shows a compact per-row runtime summary for QoS/shaper state so you can see the effective router-side status without opening Router first
+- added manual runtime refresh per Traffic row to re-pull agent/users-db/QoS state directly from the Traffic page
+- shaper reapply button is now shown only for failed/unknown/mismatch states, while healthy applied rows stay clean
+- shaper badge tooltips now include resolved row IPs to make runtime diagnostics less guessy
+
 ## v1.2.38
 
 - hardening for Traffic/QoS identity handling: reserved pseudo labels now use a central allow/block path (`dhcp`, `arp`, `dnsmasq`) so service aliases stop leaking into host-level rows

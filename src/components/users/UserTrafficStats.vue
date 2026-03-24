@@ -395,6 +395,13 @@
                       {{ $t('clear') }}
                     </button>
                   </div>
+                  <div
+                    v-if="rowRuntimeSummary(row)"
+                    class="text-[11px] opacity-65 whitespace-nowrap text-right"
+                    :title="rowRuntimeTitle(row)"
+                  >
+                    {{ rowRuntimeSummary(row) }}
+                  </div>
                 </div>
               </td>
 
@@ -452,6 +459,20 @@
                         <ArrowPathIcon v-else class="h-4 w-4" />
                       </button>
                     </template>
+                    <button
+                      v-if="row.currentQos || limitStates[row.user]?.bandwidthLimitBps"
+                      type="button"
+                      class="btn btn-ghost btn-circle btn-xs relative z-20"
+                      :disabled="refreshingRuntimeUser === row.user"
+                      @click.stop.prevent="refreshRowRuntime(row)"
+                      @pointerdown.stop.prevent
+                      @mousedown.stop.prevent
+                      @touchstart.stop.prevent
+                      :title="$t('refresh')"
+                    >
+                      <span v-if="refreshingRuntimeUser === row.user" class="loading loading-spinner loading-xs"></span>
+                      <ArrowPathIcon v-else class="h-4 w-4 opacity-70" />
+                    </button>
                     <button
                       type="button"
                       class="btn btn-ghost btn-circle btn-xs relative z-20"
@@ -1908,7 +1929,7 @@ const disableLimitsQuick = async (user: string) => {
 }
 
 
-type ShaperBadge = { icon: any; cls: string; title: string; showReapply: boolean }
+type ShaperBadge = { icon: any; cls: string; title: string; showReapply: boolean; summary: string }
 
 const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   const out: Record<string, ShaperBadge | null> = {}
@@ -1932,6 +1953,7 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
         cls: 'text-base-content/60',
         title: `${row.user}: no IPs`,
         showReapply: true,
+        summary: t('shaperUnknown'),
       }
       continue
     }
@@ -1945,35 +1967,40 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
       if (!shaped) return true
       return Math.abs((shaped.upMbps || 0) - expectedMbps) > 0.05 || Math.abs((shaped.downMbps || 0) - expectedMbps) > 0.05
     })
+    const ipSuffix = ips.length ? ` · ${ips.join(', ')}` : ''
 
     if (hasFail) {
       const firstErr = ips.map((ip) => st[ip]).find((x) => x && !x.ok)?.error
       out[row.user] = {
         icon: XMarkIcon,
         cls: 'text-error',
-        title: `${t('shaperFailed')}${firstErr ? `: ${firstErr}` : ''}`,
+        title: `${t('shaperFailed')}${firstErr ? `: ${firstErr}` : ''}${ipSuffix}`,
         showReapply: true,
+        summary: t('shaperFailed'),
       }
     } else if (allOk && !managedMismatch) {
       out[row.user] = {
         icon: CheckCircleIcon,
         cls: 'text-success',
-        title: `${t('shaperApplied')} · ${expectedMbps} Mbps`,
-        showReapply: true,
+        title: `${t('shaperApplied')} · ${expectedMbps} Mbps${ipSuffix}`,
+        showReapply: false,
+        summary: t('shaperApplied'),
       }
     } else if (!statuses.length || managedMismatch) {
       out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
-        title: managedMismatch ? `${t('shaperUnknown')} · UI/agent mismatch` : t('shaperUnknown'),
+        title: `${managedMismatch ? `${t('shaperUnknown')} · UI/agent mismatch` : t('shaperUnknown')}${ipSuffix}`,
         showReapply: true,
+        summary: t('shaperUnknown'),
       }
     } else {
       out[row.user] = {
         icon: QuestionMarkCircleIcon,
         cls: 'text-base-content/60',
-        title: t('shaperUnknown'),
+        title: `${t('shaperUnknown')}${ipSuffix}`,
         showReapply: true,
+        summary: t('shaperUnknown'),
       }
     }
   }
@@ -1981,7 +2008,45 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   return out
 })
 
+const rowRuntimeSummary = (row: Row) => {
+  const parts: string[] = []
+  if (row.currentQos === 'mixed') parts.push(`QoS: ${t('hostQosMixed')}`)
+  else if (row.currentQos) parts.push(`QoS: ${profileLabel(row.currentQos)}`)
+  else if (qosDraftByUser.value[row.user] && qosDraftByUser.value[row.user] !== 'normal') parts.push(`QoS: ${t('hostQosNone')}`)
+
+  const badge = shaperBadge.value[row.user]
+  if (badge?.summary) parts.push(badge.summary)
+  return parts.join(' · ')
+}
+
+const rowRuntimeTitle = (row: Row) => {
+  const parts: string[] = []
+  const ips = effectiveIpsForRow(row)
+  if (row.currentQos === 'mixed') parts.push(`QoS: ${t('hostQosMixed')}`)
+  else if (row.currentQos) parts.push(`QoS: ${profileLabel(row.currentQos)}`)
+  else parts.push(`QoS: ${t('hostQosNone')}`)
+  if (ips.length) parts.push(`IP: ${ips.join(', ')}`)
+  if (row.macs?.length) parts.push(`MAC: ${row.macs.join(', ')}`)
+  const badge = shaperBadge.value[row.user]
+  if (badge?.title) parts.push(badge.title)
+  return parts.join('\n')
+}
+
 const applyingShaperUser = ref<string | null>(null)
+const refreshingRuntimeUser = ref<string | null>(null)
+
+const refreshRowRuntime = async (row: Row) => {
+  refreshingRuntimeUser.value = row.user
+  try {
+    await ensureAgentReady()
+    await usersDbPullNow()
+    await refreshAgentRuntime()
+    await refreshQosStatus()
+  } finally {
+    refreshingRuntimeUser.value = null
+  }
+}
+
 const reapplyShaper = async (row: Row) => {
   const user = rowLimitOwner(row)
   if (!user) return
@@ -1989,6 +2054,8 @@ const reapplyShaper = async (row: Row) => {
   applyingShaperUser.value = row.user
   try {
     await reapplyAgentShapingForUser(user)
+    await refreshAgentRuntime()
+    await refreshQosStatus()
   } finally {
     applyingShaperUser.value = null
   }
