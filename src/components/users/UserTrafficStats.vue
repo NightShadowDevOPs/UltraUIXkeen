@@ -1,5 +1,5 @@
 <template>
-  <div class="card !bg-base-100/92 supports-[backdrop-filter]:!bg-base-100/72 backdrop-blur-md shadow-lg">
+  <div class="card">
     <div class="card-title px-4 pt-4 flex items-center justify-between gap-2">
       <span>{{ $t('userTraffic') }}</span>
       <div class="flex items-center gap-2">
@@ -61,9 +61,9 @@
           {{ $t('noBlockedUsers') }}
         </div>
 
-        <div v-else class="mt-2 overflow-x-auto rounded-xl border border-base-content/10 bg-base-100/90 supports-[backdrop-filter]:bg-base-100/72 backdrop-blur-md shadow-sm">
+        <div v-else class="mt-2 overflow-x-auto">
           <table class="table table-sm">
-            <thead class="bg-base-200/85 supports-[backdrop-filter]:bg-base-200/70 backdrop-blur-sm">
+            <thead>
               <tr>
                 <th>{{ $t('user') }}</th>
                 <th class="max-md:hidden">IP</th>
@@ -73,7 +73,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="b in blockedList" :key="b.user" class="bg-base-100/88 hover:bg-base-100/96">
+              <tr v-for="b in blockedList" :key="b.user">
                 <td class="font-medium">
                   <div class="flex items-center gap-2">
                     <LockClosedIcon class="h-4 w-4 text-error" />
@@ -197,9 +197,9 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto rounded-xl border border-base-content/10 bg-base-100/90 supports-[backdrop-filter]:bg-base-100/72 backdrop-blur-md shadow-sm">
+      <div class="overflow-x-auto">
         <table class="table table-sm">
-          <thead class="bg-base-200/85 supports-[backdrop-filter]:bg-base-200/70 backdrop-blur-sm">
+          <thead>
             <tr>
               <th style="width: 38px">
                 <input
@@ -237,7 +237,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.user" class="bg-base-100/88 hover:bg-base-100/96">
+            <tr v-for="row in rows" :key="row.user">
               <td>
                 <input
                   type="checkbox"
@@ -365,19 +365,6 @@
 
               <td class="text-right">
                 <div class="flex flex-col items-end gap-1">
-                  <div class="flex items-center justify-end gap-2">
-                    <span
-                      v-if="row.currentQos && row.currentQos !== 'mixed'"
-                      class="badge badge-sm"
-                      :class="profileBadgeClass(row.currentQos)"
-                    >
-                      {{ profileLabel(row.currentQos) }}
-                    </span>
-                    <span v-else-if="row.currentQos === 'mixed'" class="badge badge-sm badge-warning">
-                      {{ $t('hostQosMixed') }}
-                    </span>
-                    <span v-else class="text-xs opacity-50">{{ $t('hostQosNone') }}</span>
-                  </div>
                   <div class="flex items-center justify-end gap-1">
                     <select
                       class="select select-xs w-[128px]"
@@ -1204,6 +1191,16 @@ const rows = computed<Row[]>(() => {
   // Fallback: ensure active users are still visible even if traffic history is empty
   for (const c of activeConnections.value || []) {
     const ip = String((c as any)?.metadata?.sourceIP || '').trim()
+    const u = (getIPLabelFromMap(ip) || ip || '').toString()
+    addUser(all, u)
+  }
+
+  // Also include users that have QoS applied on the router, even if they are idle
+  // and browser local storage was cleared. This keeps the row visible and lets the
+  // UI restore QoS state from agent qos_status instead of depending on cached pins.
+  for (const item of qosStatus.value.items || []) {
+    const ip = String(item?.ip || '').trim()
+    if (!looksLikeIP(ip)) continue
     const u = (getIPLabelFromMap(ip) || ip || '').toString()
     addUser(all, u)
   }
