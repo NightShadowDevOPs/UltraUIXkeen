@@ -1,3 +1,8 @@
+## v1.2.40
+
+- emergency safety hotfix: temporarily disabled host QoS controls in Traffic because the current router-agent QoS runtime can drop network connectivity after enable/apply
+- Traffic now shows a clear warning that host QoS is temporarily disabled while the runtime path is being reworked on the agent side
+
 ## v1.2.39
 
 - Traffic now shows a compact per-row runtime summary for QoS/shaper state so you can see the effective router-side status without opening Router first

@@ -369,7 +369,8 @@
                     <select
                       class="select select-xs w-[128px]"
                       v-model="qosDraftByUser[row.user]"
-                      :disabled="applyingQosUser === row.user"
+                      disabled
+                      title="Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения"
                     >
                       <option v-for="profile in profileOrder" :key="`qos-${row.user}-${profile}`" :value="profile">
                         {{ profileLabel(profile) }}
@@ -378,22 +379,22 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="applyingQosUser === row.user"
-                      @click.stop.prevent="applyUserQos(row)"
-                      :title="$t('hostQosApply')"
+                      disabled
+                      :title="'Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения'"
                     >
-                      <span v-if="applyingQosUser === row.user" class="loading loading-spinner loading-xs"></span>
-                      <span v-else>{{ $t('apply') }}</span>
+                      {{ $t('apply') }}
                     </button>
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs"
-                      :disabled="applyingQosUser === row.user || !row.currentQos"
-                      @click.stop.prevent="clearUserQos(row)"
-                      :title="$t('hostQosClear')"
+                      disabled
+                      :title="'Host QoS временно отключён: текущая реализация на router-agent может ронять сетевые соединения'"
                     >
                       {{ $t('clear') }}
                     </button>
+                  </div>
+                  <div class="text-[11px] opacity-65 whitespace-nowrap text-right text-warning">
+                    Host QoS временно отключён
                   </div>
                   <div
                     v-if="rowRuntimeSummary(row)"
