@@ -1,3 +1,9 @@
+## v1.2.42
+
+- fixed router-agent `traffic_live` JSON assembly so `Router -> Router traffic live` can parse and render live counters again
+- restored missing router-agent firmware helpers: status now returns firmware text again and `firmware_check` no longer fails silently
+- bumped router-agent to 0.6.10 and exposed agent + server versions in Router system info cards
+
 ## v1.2.41
 
 - router-agent QoS hotfix: host QoS now runs in safe `wan-only` mode by default, so host priority is applied only on WAN egress instead of also attaching downlink shaping to the LAN bridge (`br0`)

@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.9"
+AGENT_VERSION="0.6.10"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -1079,7 +1079,7 @@ traffic_live_json() {
     ex_kind="$(traffic_iface_kind "$extra_if")"
     [ $first_extra -eq 0 ] && extra_json="$extra_json,"
     first_extra=0
-    extra_json="$extra_json{"name":"$(jesc "$extra_if")","kind":"$(jesc "$ex_kind")","rxBytes":$ex_rx,"txBytes":$ex_tx}"
+    extra_json="$extra_json$(printf '{"name":"%s","kind":"%s","rxBytes":%s,"txBytes":%s}' "$(jesc "$extra_if")" "$(jesc "$ex_kind")" "$ex_rx" "$ex_tx")"
   done
 
   reply_ok "$(printf '{"ok":true,"iface":"%s","rxBytes":%s,"txBytes":%s,"ts":%s,"extraIfaces":[%s]}' "$(jesc "$iface")" "$rx_bytes" "$tx_bytes" "$ts_ms" "$extra_json")"
@@ -3368,6 +3368,56 @@ status() {
 
   reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
 }
+
+detect_router_firmware_text() {
+  line=""
+  for p in /etc/ndm/version /opt/etc/ndm/version /tmp/sysinfo/firmware_version /tmp/sysinfo/firmware /etc/version; do
+    [ -r "$p" ] || continue
+    line="$(head -n 1 "$p" 2>/dev/null | tr -d '\000')"
+    [ -n "$line" ] && { printf '%s' "$line"; return 0; }
+  done
+
+  if command -v ndmq >/dev/null 2>&1; then
+    for key in system/release/version system/version version; do
+      line="$(ndmq -p "$key" 2>/dev/null | head -n 1 | tr -d '\000')"
+      [ -n "$line" ] && { printf '%s' "$line"; return 0; }
+    done
+  fi
+
+  if command -v ubus >/dev/null 2>&1; then
+    line="$(ubus call system board 2>/dev/null | sed -n 's/.*"release"[[:space:]]*:[[:space:]]*{.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*//p' | head -n 1 | tr -d '\000')"
+    [ -n "$line" ] && { printf '%s' "$line"; return 0; }
+  fi
+
+  if command -v xkeen >/dev/null 2>&1; then
+    line="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '\000')"
+    [ -n "$line" ] || line="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '\000')"
+    [ -n "$line" ] && { printf '%s' "$line"; return 0; }
+  fi
+
+  return 1
+}
+
+firmware_check_json() {
+  force_q="$1"
+  echo "Content-Type: application/json"
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo
+
+  current="$(detect_router_firmware_text 2>/dev/null || true)"
+  checked_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo '')"
+
+  if [ -n "$current" ]; then
+    printf '{"ok":true,"currentVersion":"%s","checkedAt":"%s","cached":true,"stale":false,"sourceUrl":""}' "$(jesc "$current")" "$(jesc "$checked_at")"
+  else
+    printf '{"ok":true,"currentVersion":"","checkedAt":"%s","cached":true,"stale":false,"sourceUrl":""}' "$(jesc "$checked_at")"
+  fi
+}
+
 agent_log() {
   # Best-effort command log for troubleshooting.
   # Stored locally on router, can be viewed via cmd=logs&type=agent.

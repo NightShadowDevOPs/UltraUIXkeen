@@ -114,6 +114,8 @@ import { useI18n } from 'vue-i18n'
 
 type AgentStatusExt = {
   ok: boolean
+  version?: string
+  serverVersion?: string
   cpuPct?: number
   load1?: string
   load5?: string
@@ -220,7 +222,9 @@ const infoItems = computed(() => {
   return [
     { key: 'hostname', label: t('hostname'), value: status.value.hostname || '—' },
     { key: 'model', label: t('model'), value: status.value.model || '—' },
-    { key: 'firmware', label: t('firmware'), value: status.value.firmware || '—' },
+    { key: 'agentVersion', label: t('agentVersion'), value: status.value.version || '—' },
+    { key: 'agentServerVersion', label: t('agentServerVersion'), value: status.value.serverVersion || '—' },
+    { key: 'firmware', label: t('firmware'), value: status.value.firmware || firmwareCheck.value.currentVersion || '—' },
     { key: 'kernel', label: t('kernel'), value: status.value.kernel || '—' },
     { key: 'arch', label: t('architecture'), value: status.value.arch || '—' },
     { key: 'mihomo', label: t('mihomoVersion'), value: status.value.mihomoBinVersion || backendVer || '—' },
