@@ -9,6 +9,7 @@
         </span>
         <span v-if="agentEnabled && status.ok && status.tc" class="badge badge-success">tc</span>
         <span v-if="agentEnabled && status.ok && !status.tc" class="badge badge-warning">no-tc</span>
+        <span v-if="agentEnabled && status.version" class="badge badge-ghost font-mono">{{ $t('agentVersion') }}: {{ status.version }}</span>
       </div>
 
       <div class="flex flex-wrap items-center justify-end gap-2">

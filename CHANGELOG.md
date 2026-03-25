@@ -1,3 +1,9 @@
+## v1.2.43
+
+- router-agent live traffic fix: restored missing `read_iface_counter()` helper so `cmd=traffic_live` returns WAN counters again and `Router -> Трафик роутера · live` can poll successfully
+- router-agent firmware check now performs an online check against the official Netcraze Ultra NDMS pages for main/preview/dev channels and returns latest version + update availability instead of only echoing the current firmware string
+- bumped router-agent to 0.6.11 and made the agent version more visible in the Router UI (Agent card badge + System info badges)
+
 ## v1.2.42
 
 - fixed router-agent `traffic_live` JSON assembly so `Router -> Router traffic live` can parse and render live counters again

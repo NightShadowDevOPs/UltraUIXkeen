@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.42
-- router-agent: 0.6.10
+- UI: v1.2.43
+- router-agent: 0.6.11
 
 Правила по проекту:
 - всегда давать архив релиза, commit message и отдельный блок команд для роутера
@@ -18,6 +18,9 @@
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.43 починен router-agent `traffic_live`: в agent была потеряна helper-функция `read_iface_counter()`, из-за чего live-график трафика роутера мог не получать WAN counters; теперь `Router -> Трафик роутера -> live` снова должен опрашиваться нормально
+- в v1.2.43 online-проверка прошивки снова стала осмысленной: router-agent теперь делает best-effort check по официальным страницам Netcraze Ultra для каналов main/preview/dev и возвращает latest version + updateAvailable вместо одного только currentVersion
+- в v1.2.43 версия router-agent вынесена в более заметное место UI: badge в карточке Router Agent и badges в Router -> System Info
 - в v1.2.42 исправлен `router-agent traffic_live`: live-трафик роутера в разделе Router снова должен корректно рисоваться
 - в v1.2.42 восстановлены helper-функции firmware/status в router-agent: снова должна отображаться версия прошивки, а firmware_check больше не падает пустотой
 - в v1.2.42 в Router -> System Info добавлены поля `Версия агента` и `Версия на сервере`

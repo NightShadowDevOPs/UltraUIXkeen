@@ -75,6 +75,9 @@
             <span class="badge badge-ghost">{{ $t('firmware') }}: {{ firmwareCurrentLabel }}</span>
             <span class="badge" :class="firmwareBadgeClass">{{ firmwareBadgeText }}</span>
             <span v-if="firmwareCheck.latestVersion" class="badge badge-info">site: {{ firmwareCheck.latestVersion }}</span>
+            <span v-if="firmwareCheck.mainLatestVersion" class="badge badge-ghost">main: {{ firmwareCheck.mainLatestVersion }}</span>
+            <span v-if="firmwareCheck.previewLatestVersion" class="badge badge-ghost">preview: {{ firmwareCheck.previewLatestVersion }}</span>
+            <span v-if="firmwareCheck.devLatestVersion" class="badge badge-ghost">dev: {{ firmwareCheck.devLatestVersion }}</span>
             <span v-if="firmwareCheck.channel" class="badge badge-ghost">{{ firmwareCheck.channel }}</span>
             <a v-if="firmwareCheck.sourceUrl" class="link link-hover text-xs" :href="firmwareCheck.sourceUrl" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
           </div>
@@ -144,6 +147,9 @@ type FirmwareCheckState = {
   ok: boolean
   currentVersion?: string
   latestVersion?: string
+  mainLatestVersion?: string
+  previewLatestVersion?: string
+  devLatestVersion?: string
   updateAvailable?: boolean
   checkedAt?: string
   sourceUrl?: string

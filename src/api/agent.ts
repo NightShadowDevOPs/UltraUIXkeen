@@ -81,6 +81,9 @@ export type AgentFirmwareCheck = {
   ok: boolean
   currentVersion?: string
   latestVersion?: string
+  mainLatestVersion?: string
+  previewLatestVersion?: string
+  devLatestVersion?: string
   updateAvailable?: boolean
   checkedAt?: string
   sourceUrl?: string

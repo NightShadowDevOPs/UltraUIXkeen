@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.10"
+AGENT_VERSION="0.6.11"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -1013,6 +1013,124 @@ ssl_cache_refresh_json() {
   next_refresh_at="$(ssl_cache_next_refresh_at_sec)"
   echo "$next_refresh_at" | grep -qE '^-?[0-9]+$' || next_refresh_at=-1
   reply_ok "{\"ok\":true,\"checkedAtSec\":${checkedAtSec},\"ready\":${cache_ready},\"fresh\":${cache_fresh},\"refreshing\":true,\"cacheAgeSec\":${cache_age_sec},\"nextRefreshAtSec\":${next_refresh_at}}"
+}
+
+
+read_iface_counter() {
+  ifn="$1"
+  dir="$2"
+  case "$dir" in
+    rx|tx) ;;
+    *) dir="rx" ;;
+  esac
+
+  p="/sys/class/net/$ifn/statistics/${dir}_bytes"
+  if [ -r "$p" ]; then
+    val="$(tr -dc '0-9' < "$p" 2>/dev/null | head -c 32)"
+    [ -n "$val" ] || val=0
+    printf '%s' "$val"
+    return 0
+  fi
+
+  if command -v ip >/dev/null 2>&1; then
+    if [ "$dir" = "rx" ]; then
+      val="$(ip -s link show dev "$ifn" 2>/dev/null | awk '/^[[:space:]]*RX:/ {getline; print $1; exit}')"
+    else
+      val="$(ip -s link show dev "$ifn" 2>/dev/null | awk '/^[[:space:]]*TX:/ {getline; print $1; exit}')"
+    fi
+    val="$(printf '%s' "$val" | tr -dc '0-9' | head -c 32)"
+    [ -n "$val" ] || val=0
+    printf '%s' "$val"
+    return 0
+  fi
+
+  printf '0'
+}
+
+firmware_fetch_url() {
+  url="$1"
+  ua='Mozilla/5.0 (UltraUIXkeen router-agent)'
+  if command -v /opt/bin/wget >/dev/null 2>&1; then
+    /opt/bin/wget -qO- --user-agent="$ua" "$url" 2>/dev/null && return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    curl -LfsS -A "$ua" "$url" 2>/dev/null && return 0
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -qO- --user-agent="$ua" "$url" 2>/dev/null && return 0
+  fi
+  return 1
+}
+
+firmware_extract_latest_version() {
+  body="$1"
+  printf '%s' "$body" \
+    | tr '\r' '\n' \
+    | grep -oE 'NDMS[[:space:]]+[0-9]+\.[0-9]+(\.[0-9]+|[[:space:]]+(Alpha|Beta|RC)[[:space:]]+[0-9]+)' \
+    | head -n1 \
+    | sed -E 's/[[:space:]]+/ /g; s/^NDMS //; s/[[:space:]]+$//'
+}
+
+firmware_version_key() {
+  s="$1"
+  base="$(printf '%s' "$s" | sed -nE 's/.*([0-9]+)\.([0-9]+)(\.([0-9]+))?.*/\1 \2 \4/p' | head -n1)"
+  set -- $base
+  maj="${1:-0}"
+  min="${2:-0}"
+  patch="${3:-0}"
+  stage=3
+  stage_no=0
+  if printf '%s' "$s" | grep -qi 'alpha'; then
+    stage=0
+    stage_no="$(printf '%s' "$s" | sed -nE 's/.*[Aa]lpha[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+  elif printf '%s' "$s" | grep -qi 'beta'; then
+    stage=1
+    stage_no="$(printf '%s' "$s" | sed -nE 's/.*[Bb]eta[[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+  elif printf '%s' "$s" | grep -qi 'rc'; then
+    stage=2
+    stage_no="$(printf '%s' "$s" | sed -nE 's/.*[Rr][Cc][[:space:]]*([0-9]+).*/\1/p' | head -n1)"
+  fi
+  [ -n "$stage_no" ] || stage_no=0
+  printf '%s %s %s %s %s' "$maj" "$min" "$patch" "$stage" "$stage_no"
+}
+
+firmware_cmp() {
+  ak="$(firmware_version_key "$1")"
+  bk="$(firmware_version_key "$2")"
+  awk -v a="$ak" -v b="$bk" 'BEGIN {
+    split(a,A," "); split(b,B," ");
+    for (i=1; i<=5; i++) {
+      ai=A[i]+0; bi=B[i]+0;
+      if (ai < bi) { print -1; exit }
+      if (ai > bi) { print 1; exit }
+    }
+    print 0
+  }'
+}
+
+firmware_detect_channel() {
+  current="$1"
+  main_latest="$2"
+  preview_latest="$3"
+  dev_latest="$4"
+
+  if [ -n "$dev_latest" ] && [ -n "$preview_latest" ] && [ "$(firmware_cmp "$current" "$preview_latest")" = "1" ] && [ "$(firmware_cmp "$current" "$dev_latest")" != "1" ]; then
+    printf 'dev'
+    return 0
+  fi
+  if [ -n "$preview_latest" ] && [ -n "$main_latest" ] && [ "$(firmware_cmp "$current" "$main_latest")" = "1" ] && [ "$(firmware_cmp "$current" "$preview_latest")" != "1" ]; then
+    printf 'preview'
+    return 0
+  fi
+  if printf '%s' "$current" | grep -qi 'alpha'; then
+    printf 'dev'
+    return 0
+  fi
+  if printf '%s' "$current" | grep -qiE 'beta|preview|предвар'; then
+    printf 'preview'
+    return 0
+  fi
+  printf 'main'
 }
 
 traffic_iface_kind() {
@@ -3373,25 +3491,30 @@ detect_router_firmware_text() {
   line=""
   for p in /etc/ndm/version /opt/etc/ndm/version /tmp/sysinfo/firmware_version /tmp/sysinfo/firmware /etc/version; do
     [ -r "$p" ] || continue
-    line="$(head -n 1 "$p" 2>/dev/null | tr -d '\000')"
+    line="$(head -n 1 "$p" 2>/dev/null | tr -d '\000
+')"
     [ -n "$line" ] && { printf '%s' "$line"; return 0; }
   done
 
   if command -v ndmq >/dev/null 2>&1; then
     for key in system/release/version system/version version; do
-      line="$(ndmq -p "$key" 2>/dev/null | head -n 1 | tr -d '\000')"
+      line="$(ndmq -p "$key" 2>/dev/null | head -n 1 | tr -d '\000
+')"
       [ -n "$line" ] && { printf '%s' "$line"; return 0; }
     done
   fi
 
   if command -v ubus >/dev/null 2>&1; then
-    line="$(ubus call system board 2>/dev/null | sed -n 's/.*"release"[[:space:]]*:[[:space:]]*{.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*//p' | head -n 1 | tr -d '\000')"
+    line="$(ubus call system board 2>/dev/null | sed -n 's/.*"release"[[:space:]]*:[[:space:]]*{.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*//p' | head -n 1 | tr -d '\000
+')"
     [ -n "$line" ] && { printf '%s' "$line"; return 0; }
   fi
 
   if command -v xkeen >/dev/null 2>&1; then
-    line="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '\000')"
-    [ -n "$line" ] || line="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '\000')"
+    line="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '\000
+')"
+    [ -n "$line" ] || line="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '\000
+')"
     [ -n "$line" ] && { printf '%s' "$line"; return 0; }
   fi
 
@@ -3411,11 +3534,50 @@ firmware_check_json() {
   current="$(detect_router_firmware_text 2>/dev/null || true)"
   checked_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo '')"
 
+  main_url="https://support.netcraze.ru/ultra/nc-1812/ru/46907-latest-main-release.html"
+  preview_url="https://support.netcraze.ru/ultra/nc-1812/ru/46988-latest-preview-release.html"
+  dev_url="https://support.netcraze.ru/ultra/nc-1812/ru/46620-latest-development-release.html"
+
+  main_page="$(firmware_fetch_url "$main_url" 2>/dev/null || true)"
+  preview_page="$(firmware_fetch_url "$preview_url" 2>/dev/null || true)"
+  dev_page="$(firmware_fetch_url "$dev_url" 2>/dev/null || true)"
+
+  main_latest="$(firmware_extract_latest_version "$main_page")"
+  preview_latest="$(firmware_extract_latest_version "$preview_page")"
+  dev_latest="$(firmware_extract_latest_version "$dev_page")"
+
+  chosen_channel="main"
+  latest=""
+  source_url="$main_url"
+
   if [ -n "$current" ]; then
-    printf '{"ok":true,"currentVersion":"%s","checkedAt":"%s","cached":true,"stale":false,"sourceUrl":""}' "$(jesc "$current")" "$(jesc "$checked_at")"
-  else
-    printf '{"ok":true,"currentVersion":"","checkedAt":"%s","cached":true,"stale":false,"sourceUrl":""}' "$(jesc "$checked_at")"
+    chosen_channel="$(firmware_detect_channel "$current" "$main_latest" "$preview_latest" "$dev_latest")"
   fi
+
+  case "$chosen_channel" in
+    dev)
+      latest="$dev_latest"
+      source_url="$dev_url"
+      ;;
+    preview)
+      latest="$preview_latest"
+      source_url="$preview_url"
+      ;;
+    *)
+      latest="$main_latest"
+      source_url="$main_url"
+      chosen_channel="main"
+      ;;
+  esac
+
+  update=false
+  if [ -n "$current" ] && [ -n "$latest" ] && [ "$(firmware_cmp "$current" "$latest")" = "-1" ]; then
+    update=true
+  fi
+
+  printf '{"ok":true,"currentVersion":"%s","latestVersion":"%s","updateAvailable":%s,"checkedAt":"%s","cached":false,"stale":false,"sourceUrl":"%s","channel":"%s","mainLatestVersion":"%s","previewLatestVersion":"%s","devLatestVersion":"%s"}' \
+    "$(jesc "$current")" "$(jesc "$latest")" "$update" "$(jesc "$checked_at")" "$(jesc "$source_url")" "$(jesc "$chosen_channel")" \
+    "$(jesc "$main_latest")" "$(jesc "$preview_latest")" "$(jesc "$dev_latest")"
 }
 
 agent_log() {
