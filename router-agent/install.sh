@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.11"
+AGENT_VERSION="0.6.12"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -122,6 +122,7 @@ USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
 USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
+AGENT_VERSION="0.6.12"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2037,8 +2038,9 @@ for kv in $QUERY_STRING; do
   key="${kv%%=*}"
   val="${kv#*=}"
   # URL decode for %2F etc. and '+' -> space for query params like cron schedules.
-  val="${val//+/ }"
-  val="$(printf '%b' "${val//%/\\x}")"
+  val="$(printf '%s' "$val" | tr '+' ' ')"
+  val_esc="$(printf '%s' "$val" | sed 's/%/\\x/g')"
+  val="$(printf '%b' "$val_esc")"
   case "$key" in
     cmd) cmd="$val" ;;
     ip) ip="$val" ;;

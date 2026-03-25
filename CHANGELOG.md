@@ -1,3 +1,9 @@
+## v1.2.44
+
+- fixed router-agent CGI query parsing for BusyBox /bin/sh: removed bash-only parameter substitution that crashed `cmd=status`, `cmd=traffic_live` and other endpoints with `Bad substitution`
+- bumped router-agent to 0.6.12 and synced bundled `_api.sh` / `_api_new.sh` with the same portable query decode logic
+- because the agent status endpoint is restored, Router UI can show agent version again and Router resources / live traffic stop falling back to `Агент включён, но недоступен`
+
 ## v1.2.43
 
 - router-agent live traffic fix: restored missing `read_iface_counter()` helper so `cmd=traffic_live` returns WAN counters again and `Router -> Трафик роутера · live` can poll successfully
