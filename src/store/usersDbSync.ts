@@ -6,7 +6,7 @@ import { useStorage } from '@vueuse/core'
 import { debounce, isEqual } from 'lodash'
 import { computed, ref, watch } from 'vue'
 import { agentEnabled } from './agent'
-import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault } from './settings'
+import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault, tunnelInterfaceDescriptionMap } from './settings'
 import { userLimits, type UserLimit, type UserLimitsStore } from './userLimits'
 
 /**
@@ -65,6 +65,11 @@ export const usersDbLastSyncedProviderSslWarnDaysMap = useStorage<Record<string,
   {},
 )
 
+export const usersDbLastSyncedTunnelInterfaceDescriptions = useStorage<Record<string, string>>(
+  'runtime/users-db-last-synced-tunnel-interface-descriptions-v1',
+  {},
+)
+
 // When agent is offline/disabled, keep local edits and sync later.
 export const usersDbLocalDirty = useStorage<boolean>('runtime/users-db-local-dirty-v1', false)
 
@@ -82,6 +87,7 @@ type UsersDbPayload = {
   providerIcons: Record<string, string>
   sslNearExpiryDaysDefault: number
   providerSslWarnDaysMap: Record<string, number>
+  tunnelInterfaceDescriptions: Record<string, string>
   userLimits: UserLimitsStore
 }
 
@@ -101,6 +107,11 @@ export type UsersDbDiff = {
     localOnly: Array<{ provider: string; icon: string }>
     remoteOnly: Array<{ provider: string; icon: string }>
     changed: Array<{ provider: string; local: string; remote: string }>
+  }
+  tunnels: {
+    localOnly: Array<{ name: string; description: string }>
+    remoteOnly: Array<{ name: string; description: string }>
+    changed: Array<{ name: string; local: string; remote: string }>
   }
   ssl: {
     defaultDays: { local: number; remote: number; changed: boolean }
@@ -252,6 +263,19 @@ const sanitizeIconMap = (raw: any): Record<string, string> => {
   return out
 }
 
+const sanitizeTunnelDescriptionMap = (raw: any): Record<string, string> => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const kk = String(k || '').trim().toLowerCase()
+    if (!kk) continue
+    const vv = String(v || '').trim()
+    if (!vv) continue
+    out[kk] = vv
+  }
+  return out
+}
+
 
 const sanitizeInt = (v: any, def: number, min: number, max: number): number => {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN
@@ -335,7 +359,8 @@ const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
   const icons = sanitizeIconMap((p as any)?.providerIcons || (p as any)?.proxyProviderIcons || (p as any)?.proxyProviderIconMap || {})
   const sslNear = sanitizeInt((p as any)?.sslNearExpiryDaysDefault, 2, 0, 365)
   const warnMap = sanitizeNumMap((p as any)?.providerSslWarnDaysMap)
-  return { labels, providerPanelUrls: urls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap, userLimits: sanitizeUserLimits((p as any)?.userLimits) }
+  const tunnelMap = sanitizeTunnelDescriptionMap((p as any)?.tunnelInterfaceDescriptions || (p as any)?.tunnelInterfaceDescriptionMap || {})
+  return { labels, providerPanelUrls: urls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap, tunnelInterfaceDescriptions: tunnelMap, userLimits: sanitizeUserLimits((p as any)?.userLimits) }
 }
 
 const labelSig = (x: any) => {
@@ -399,6 +424,21 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
     else if (rr && ll && rr != ll) iconsChanged.push({ provider: k, local: ll, remote: rr })
   }
 
+  const tunnelsLocalOnly: Array<{ name: string; description: string }> = []
+  const tunnelsRemoteOnly: Array<{ name: string; description: string }> = []
+  const tunnelsChanged: Array<{ name: string; local: string; remote: string }> = []
+
+  const rTunnels = (r as any).tunnelInterfaceDescriptions || {}
+  const lTunnels = (l as any).tunnelInterfaceDescriptions || {}
+  const tKeys = new Set<string>([...Object.keys(rTunnels), ...Object.keys(lTunnels)])
+  for (const k of tKeys) {
+    const rr = String((rTunnels as any)[k] || '').trim()
+    const ll = String((lTunnels as any)[k] || '').trim()
+    if (rr && !ll) tunnelsRemoteOnly.push({ name: k, description: rr })
+    else if (!rr && ll) tunnelsLocalOnly.push({ name: k, description: ll })
+    else if (rr && ll && rr !== ll) tunnelsChanged.push({ name: k, local: ll, remote: rr })
+  }
+
   const sslDefaultChanged = r.sslNearExpiryDaysDefault !== l.sslNearExpiryDaysDefault
 
   const rWarn = r.providerSslWarnDaysMap || {}
@@ -420,7 +460,7 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
   }
 
   // Safe auto-merge only if there are NO "changed" collisions.
-  const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0 && iconsChanged.length === 0 && !sslDefaultChanged && warnChanged.length === 0
+  const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0 && iconsChanged.length === 0 && tunnelsChanged.length === 0 && !sslDefaultChanged && warnChanged.length === 0
 
   // Stabilize for UI
   labelsLocalOnly.sort((a: any, b: any) => String(a?.key || '').localeCompare(String(b?.key || '')))
@@ -432,6 +472,9 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
   iconsLocalOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   iconsRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   iconsChanged.sort((a, b) => a.provider.localeCompare(b.provider))
+  tunnelsLocalOnly.sort((a, b) => a.name.localeCompare(b.name))
+  tunnelsRemoteOnly.sort((a, b) => a.name.localeCompare(b.name))
+  tunnelsChanged.sort((a, b) => a.name.localeCompare(b.name))
 
   warnLocalOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   warnRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
@@ -442,6 +485,7 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
     labels: { localOnly: labelsLocalOnly, remoteOnly: labelsRemoteOnly, changed: labelsChanged },
     urls: { localOnly: urlsLocalOnly, remoteOnly: urlsRemoteOnly, changed: urlsChanged },
     icons: { localOnly: iconsLocalOnly, remoteOnly: iconsRemoteOnly, changed: iconsChanged },
+    tunnels: { localOnly: tunnelsLocalOnly, remoteOnly: tunnelsRemoteOnly, changed: tunnelsChanged },
     ssl: {
       defaultDays: { local: l.sslNearExpiryDaysDefault, remote: r.sslNearExpiryDaysDefault, changed: sslDefaultChanged },
       providerDays: { localOnly: warnLocalOnly, remoteOnly: warnRemoteOnly, changed: warnChanged },
@@ -489,6 +533,7 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
         providerIcons: {},
         sslNearExpiryDaysDefault: 2,
         providerSslWarnDaysMap: {},
+        tunnelInterfaceDescriptions: {},
         userLimits: {},
       }
 
@@ -537,13 +582,14 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
         providerIcons: icons,
         sslNearExpiryDaysDefault: sslNear,
         providerSslWarnDaysMap: warnMap,
+        tunnelInterfaceDescriptions: sanitizeTunnelDescriptionMap(v.tunnelInterfaceDescriptions || v.tunnelInterfaceDescriptionMap || {}),
         userLimits: sanitizeUserLimits(v.userLimits),
       }
     }
   } catch {
     // ignore
   }
-  return { labels: [], providerPanelUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {}, userLimits: {} }
+  return { labels: [], providerPanelUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {}, tunnelInterfaceDescriptions: {}, userLimits: {} }
 }
 
 const buildPayloadForWrite = (p: UsersDbPayload) => {
@@ -554,6 +600,7 @@ const buildPayloadForWrite = (p: UsersDbPayload) => {
     providerIcons: (p as any).providerIcons || {},
     sslNearExpiryDaysDefault: p.sslNearExpiryDaysDefault,
     providerSslWarnDaysMap: p.providerSslWarnDaysMap || {},
+    tunnelInterfaceDescriptions: (p as any).tunnelInterfaceDescriptions || {},
     userLimits: sanitizeUserLimits((p as any).userLimits || {}),
   }
 }
@@ -611,6 +658,18 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     warnMap[kk] = Math.max(0, Math.min(365, Math.trunc(n)))
   }
 
+  const tunnelMap = { ...(rN.tunnelInterfaceDescriptions || {}) }
+  for (const [k, v] of Object.entries(lN.tunnelInterfaceDescriptions || {})) {
+    const kk = String(k || '').trim().toLowerCase()
+    if (!kk) continue
+    const vv = String(v || '').trim()
+    if (!vv) {
+      delete tunnelMap[kk]
+      continue
+    }
+    tunnelMap[kk] = vv
+  }
+
   const limits = mergeUserLimits(rN.userLimits || {}, lN.userLimits || {})
 
   // Local preference for the global threshold.
@@ -622,6 +681,7 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     providerIcons: icons,
     sslNearExpiryDaysDefault: sslNear,
     providerSslWarnDaysMap: warnMap,
+    tunnelInterfaceDescriptions: tunnelMap,
     userLimits: limits,
   })
 }
@@ -635,6 +695,7 @@ const payloadEqual = (a: UsersDbPayload, b: UsersDbPayload) => {
     isEqual((an as any).providerIcons || {}, (bn as any).providerIcons || {}) &&
     an.sslNearExpiryDaysDefault === bn.sslNearExpiryDaysDefault &&
     isEqual(an.providerSslWarnDaysMap || {}, bn.providerSslWarnDaysMap || {}) &&
+    isEqual((an as any).tunnelInterfaceDescriptions || {}, (bn as any).tunnelInterfaceDescriptions || {}) &&
     isEqual(an.userLimits || {}, bn.userLimits || {})
   )
 }
@@ -646,6 +707,7 @@ const setLocalFromPayload = (p: UsersDbPayload) => {
   proxyProviderIconMap.value = ((n as any).providerIcons || {}) as any
   sslNearExpiryDaysDefault.value = n.sslNearExpiryDaysDefault
   proxyProviderSslWarnDaysMap.value = (n.providerSslWarnDaysMap || {}) as any
+  tunnelInterfaceDescriptionMap.value = ((n as any).tunnelInterfaceDescriptions || {}) as any
   userLimits.value = (n.userLimits || {}) as any
 }
 
@@ -656,6 +718,7 @@ const getLocalPayload = (): UsersDbPayload => {
     providerIcons: (proxyProviderIconMap.value || {}) as any,
     sslNearExpiryDaysDefault: sslNearExpiryDaysDefault.value,
     providerSslWarnDaysMap: (proxyProviderSslWarnDaysMap.value || {}) as any,
+    tunnelInterfaceDescriptions: (tunnelInterfaceDescriptionMap.value || {}) as any,
     userLimits: (userLimits.value || {}) as any,
   })
 }
@@ -666,6 +729,7 @@ const markSynced = (p: UsersDbPayload) => {
   usersDbLastSyncedProviderIcons.value = ((p as any).providerIcons || {}) as any
   usersDbLastSyncedSslNearExpiryDaysDefault.value = p.sslNearExpiryDaysDefault
   usersDbLastSyncedProviderSslWarnDaysMap.value = (p.providerSslWarnDaysMap || {}) as any
+  usersDbLastSyncedTunnelInterfaceDescriptions.value = ((p as any).tunnelInterfaceDescriptions || {}) as any
 }
 
 export const usersDbSyncedIdSet = computed(() => {
@@ -754,6 +818,7 @@ export const usersDbPullNow = async () => {
         remotePayload.labels.length === 0 &&
         Object.keys(remotePayload.providerPanelUrls || {}).length === 0 &&
         Object.keys(remotePayload.providerSslWarnDaysMap || {}).length === 0 &&
+        Object.keys((remotePayload as any).tunnelInterfaceDescriptions || {}).length === 0 &&
         Object.keys(remotePayload.userLimits || {}).length === 0 &&
         Number(remotePayload.sslNearExpiryDaysDefault) === 2
 
@@ -761,6 +826,7 @@ export const usersDbPullNow = async () => {
         localPayload.labels.length > 0 ||
         Object.keys(localPayload.providerPanelUrls || {}).length > 0 ||
         Object.keys(localPayload.providerSslWarnDaysMap || {}).length > 0 ||
+        Object.keys((localPayload as any).tunnelInterfaceDescriptions || {}).length > 0 ||
         Object.keys(localPayload.userLimits || {}).length > 0 ||
         Number(localPayload.sslNearExpiryDaysDefault) !== 2
 
@@ -1053,6 +1119,7 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
     providerIcons: sanitizeIconMap(mergedIcons),
     sslNearExpiryDaysDefault: mergedSslNear,
     providerSslWarnDaysMap: sanitizeNumMap(mergedWarn),
+    tunnelInterfaceDescriptions: sanitizeTunnelDescriptionMap({ ...(rN.tunnelInterfaceDescriptions || {}), ...(lN.tunnelInterfaceDescriptions || {}) }),
     userLimits: mergeUserLimits(rN.userLimits || {}, lN.userLimits || {}),
   })
 }
@@ -1128,7 +1195,7 @@ export const initUsersDbSync = () => {
   )
 
   watch(
-    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap, userLimits],
+    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap, tunnelInterfaceDescriptionMap, userLimits],
     () => {
       if (suppressPushCount > 0) {
         suppressPushCount -= 1

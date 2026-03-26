@@ -9,11 +9,11 @@
           <div class="space-y-1">
             <div class="text-sm font-semibold">{{ $t('routerTrafficTunnelDescriptions') }}</div>
             <div class="text-xs opacity-70">{{ $t('routerTrafficTunnelDescriptionsSettingsHint') }}</div>
-            <div class="text-[11px] opacity-55">{{ $t('routerTrafficTunnelDescriptionsStorageHint') }}</div>
+            <div class="text-[11px] opacity-55">{{ tunnelDescriptionStorageHint }}</div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <span class="badge badge-ghost badge-sm">{{ tunnelDescriptionEntries.length }}</span>
-            <span class="badge badge-outline badge-sm">{{ $t('routerTrafficTunnelDescriptionsStorageLocalBadge') }}</span>
+            <span class="badge badge-outline badge-sm">{{ tunnelDescriptionStorageBadge }}</span>
             <button type="button" class="btn btn-sm" @click="openRouterTraffic">
               {{ $t('open') }} · {{ $t('router') }}
             </button>
@@ -91,10 +91,13 @@
 import { ROUTE_NAME } from '@/constant'
 import { COMMON_TUNNEL_INTERFACE_SUGGESTIONS, ifaceBaseDisplayName, inferTunnelKindFromName, normalizeTunnelDescription, normalizeTunnelInterfaceName } from '@/helper/tunnelDescriptions'
 import { tunnelInterfaceDescriptionMap } from '@/store/settings'
+import { usersDbSyncEnabled } from '@/store/usersDbSync'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 const tunnelDescriptionDrafts = ref<Record<string, string>>({})
 const newTunnelInterfaceName = ref('')
 const newTunnelInterfaceDescription = ref('')
@@ -120,6 +123,8 @@ const tunnelDescriptionSuggestions = computed(() => {
 })
 
 const canAddTunnelDescription = computed(() => normalizeTunnelInterfaceName(newTunnelInterfaceName.value).length > 0)
+const tunnelDescriptionStorageBadge = computed(() => usersDbSyncEnabled.value ? t('routerTrafficTunnelDescriptionsStorageSharedBadge') : t('routerTrafficTunnelDescriptionsStorageLocalBadge'))
+const tunnelDescriptionStorageHint = computed(() => usersDbSyncEnabled.value ? t('routerTrafficTunnelDescriptionsStorageSharedHint') : t('routerTrafficTunnelDescriptionsStorageHint'))
 
 const prefillTunnelDescriptionName = (name: string) => {
   const key = normalizeTunnelInterfaceName(name)

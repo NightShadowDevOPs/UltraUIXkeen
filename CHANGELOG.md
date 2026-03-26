@@ -1,3 +1,12 @@
+## v1.2.60 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Tunnel interface descriptions are now included in the shared router users DB payload, so OVPN/WG notes can sync between devices when router sync is enabled.
+- Router -> Settings and Router -> Traffic now show the current storage mode for tunnel descriptions (router sync vs local UI fallback), instead of always claiming local-only storage.
+- Tasks -> users DB revision preview now includes the number of synced tunnel interface descriptions.
+- router-agent code not changed in this release.
+
 ## v1.2.59 (2026-03-26)
 
 ### UI Mihomo / Ultra

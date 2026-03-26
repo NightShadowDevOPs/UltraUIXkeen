@@ -1,19 +1,13 @@
-UI Mihomo / Ultra — transfer update v1.2.59
+UI Mihomo / Ultra — transfer update v1.2.60
 
 What changed in this rebuild:
-- host details in Router -> Traffic now show tunnel descriptions as their own dedicated line, so saved OVPN/WG notes are visible in expanded host context and not only inside via/route labels
-- active target cards now split routed tunnel info into a base via label plus a separate tunnel description line when an interface note exists
-- Router -> Traffic tunnel descriptions are now always visible as their own section in the live traffic card instead of hiding until a tunnel is auto-detected
-- added an explicit empty-state hint plus quick suggestions for common names like wg0, ovpn-client1, tun0, and tailscale0
-- the section now explicitly warns that tunnel descriptions are currently stored locally in the active browser/UI profile
-- tunnel descriptions continue to be shown on live tunnel cards and in routed via/route labels for downstream hosts
-- Router -> Settings now contains a dedicated “Tunnel interfaces” card for OVPN/WG and other tunnel descriptions
-- Router -> Traffic tunnel descriptions now have a direct shortcut into Settings, so the feature is easier to find and edit
-- tunnel description storage is now shared via settings state under the same config key, so existing labels are preserved between both entry points
+- tunnel interface descriptions are now part of the shared router users DB payload, so saved OVPN/WG notes can sync between devices when router sync is enabled
+- Router -> Settings and Router -> Traffic now show whether tunnel descriptions are using router sync or only local UI storage/fallback
+- Tasks -> users DB revision preview now includes tunnel interface description counts
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.59
+- UI: v1.2.60
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -25,7 +19,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.59
+- UI: v1.2.60
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -42,7 +36,8 @@ Current versions:
 - в v1.2.59 карточки active targets разделяют base via и отдельную строку с описанием туннеля, если для интерфейса сохранена подпись
 - в v1.2.57 блок описаний туннелей в Router -> Traffic теперь виден всегда внутри карточки живого трафика, даже если live tunnel ещё не обнаружен автоматически
 - в v1.2.57 добавлены empty-state подсказка и быстрые варианты имён интерфейсов: wg0 / ovpn-client1 / tun0 / tailscale0
-- в v1.2.57 UI явно показывает, что описания туннелей пока сохраняются локально в активном браузере/UI-профиле
+- в v1.2.60 описания туннелей уже входят в общий users DB payload и могут синхронизироваться между устройствами, если включена router sync
+- в v1.2.60 Router -> Settings и Router -> Traffic показывают режим хранения/синхронизации описаний туннелей
 - в v1.2.56 в Traffic -> Users добавлен явный owner-resolution badge: если limit owner отличается от display user, это теперь видно сразу в строке
 - в v1.2.56 runtime tooltip/meta по строке объясняет причину owner-resolution: persisted self / name / IP / MAC match
 - в v1.2.56 в Router -> Traffic появились редактируемые описания для OVPN/WG и других tunnel interfaces; они показываются на карточках туннелей и в routed via/route подписях
@@ -76,5 +71,5 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- по желанию можно вынести tunnel descriptions из local UI storage в router-agent/shared config, чтобы подписи синхронизировались между устройствами
+- следующий логичный шаг — при желании добавить отдельную видимую диагностику конфликтов/изменений tunnel descriptions внутри users DB merge UI
 - затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом

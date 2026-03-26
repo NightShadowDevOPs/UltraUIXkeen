@@ -91,7 +91,10 @@
               <span class="badge badge-ghost badge-xs">{{ tunnelDescriptionEntries.length }}</span>
             </div>
             <div class="mt-1 text-xs opacity-60">{{ $t('routerTrafficTunnelDescriptionsHint') }}</div>
-            <div class="mt-1 text-[11px] opacity-50">{{ $t('routerTrafficTunnelDescriptionsStorageHint') }}</div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] opacity-60">
+              <span>{{ tunnelDescriptionStorageHint }}</span>
+              <span class="badge badge-outline badge-xs">{{ tunnelDescriptionStorageBadge }}</span>
+            </div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="btn btn-ghost btn-xs" @click="openTunnelDescriptionsSettings">
@@ -503,6 +506,7 @@ import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles } from 
 import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme, tunnelInterfaceDescriptionMap } from '@/store/settings'
+import { usersDbSyncEnabled } from '@/store/usersDbSync'
 import { useElementSize, useStorage } from '@vueuse/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
@@ -748,6 +752,8 @@ const currentVpnDownloadLabel = computed(() => speedLabel(latestValue(vpnDownloa
 
 const router = useRouter()
 const tunnelDescriptionMap = tunnelInterfaceDescriptionMap
+const tunnelDescriptionStorageBadge = computed(() => usersDbSyncEnabled.value ? t('routerTrafficTunnelDescriptionsStorageSharedBadge') : t('routerTrafficTunnelDescriptionsStorageLocalBadge'))
+const tunnelDescriptionStorageHint = computed(() => usersDbSyncEnabled.value ? t('routerTrafficTunnelDescriptionsStorageSharedHint') : t('routerTrafficTunnelDescriptionsStorageHint'))
 const tunnelDescriptionManagerOpen = ref(true)
 const tunnelDescriptionDrafts = ref<Record<string, string>>({})
 const newTunnelInterfaceName = ref('')

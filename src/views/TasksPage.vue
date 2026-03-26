@@ -1226,6 +1226,7 @@
                   • {{ $t('usersDbLabels') }}: <span class="font-mono">{{ usersDbViewSummary.labels }}</span>
                   • {{ $t('usersDbPanels') }}: <span class="font-mono">{{ usersDbViewSummary.panels }}</span>
                   • {{ $t('providerIcon') }}: <span class="font-mono">{{ usersDbViewSummary.icons }}</span>
+                  • {{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}: <span class="font-mono">{{ usersDbViewSummary.tunnels }}</span>
                   • SSL: <span class="font-mono">{{ usersDbViewSummary.sslDefault }}</span>
                 </span>
               </div>
@@ -2340,6 +2341,13 @@ const extractUsersDbPayloadView = (v: any) => {
           ? v.providerSslWarnDays
           : {}
 
+  const tunnelInterfaceDescriptions =
+    v?.tunnelInterfaceDescriptions && typeof v.tunnelInterfaceDescriptions === 'object'
+      ? v.tunnelInterfaceDescriptions
+      : v?.tunnelInterfaceDescriptionMap && typeof v.tunnelInterfaceDescriptionMap === 'object'
+        ? v.tunnelInterfaceDescriptionMap
+        : {}
+
   const cleanUrlMap: Record<string, string> = {}
   try {
     for (const [k, vv] of Object.entries(providerPanelUrls || {})) {
@@ -2378,12 +2386,25 @@ const extractUsersDbPayloadView = (v: any) => {
 
   const sslDef = Number.isFinite(sslNearExpiryDaysDefault) ? Math.max(0, Math.min(365, Math.trunc(sslNearExpiryDaysDefault))) : 2
 
+  const cleanTunnelMap: Record<string, string> = {}
+  try {
+    for (const [k, vv] of Object.entries(tunnelInterfaceDescriptions || {})) {
+      const kk = String(k || '').trim().toLowerCase()
+      const vvv = String(vv || '').trim()
+      if (!kk || !vvv) continue
+      cleanTunnelMap[kk] = vvv
+    }
+  } catch {
+    // ignore
+  }
+
   return {
     labels: Array.isArray(labels) ? labels : [],
     providerPanelUrls: cleanUrlMap,
     providerIcons: cleanIconMap,
     sslNearExpiryDaysDefault: sslDef,
     providerSslWarnDaysMap: cleanWarnMap,
+    tunnelInterfaceDescriptions: cleanTunnelMap,
   }
 }
 
@@ -2401,6 +2422,7 @@ const usersDbViewSummary = computed(() => {
     icons: (p as any).providerIcons ? Object.keys((p as any).providerIcons).length : 0,
     sslDefault: p.sslNearExpiryDaysDefault,
     warnMap: p.providerSslWarnDaysMap ? Object.keys(p.providerSslWarnDaysMap).length : 0,
+    tunnels: (p as any).tunnelInterfaceDescriptions ? Object.keys((p as any).tunnelInterfaceDescriptions).length : 0,
   }
 })
 
