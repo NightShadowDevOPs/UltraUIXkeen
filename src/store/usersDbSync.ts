@@ -132,6 +132,8 @@ export type UsersDbSmartMergeChoices = {
   urls?: Record<string, { mode: UsersDbSmartChoiceMode; customUrl?: string }>
   // Keyed by provider name
   icons?: Record<string, { mode: UsersDbSmartChoiceMode; customIcon?: string }>
+  // Keyed by tunnel interface name
+  tunnels?: Record<string, { mode: UsersDbSmartChoiceMode; customDescription?: string }>
   // Global SSL near-expiry days
   sslDefault?: { mode: UsersDbSmartChoiceMode; customDays?: number }
   // Keyed by provider name
@@ -975,6 +977,7 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
   const labelChoices = (choices?.labels || {}) as Record<string, any>
   const urlChoices = (choices?.urls || {}) as Record<string, any>
   const iconChoices = (choices?.icons || {}) as Record<string, any>
+  const tunnelChoices = (choices?.tunnels || {}) as Record<string, any>
   const warnChoices = (choices?.warnDays || {}) as Record<string, any>
   const sslChoice = choices?.sslDefault as any
 
@@ -1074,6 +1077,36 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
     }
   }
 
+  // ---- tunnel descriptions ----
+  const mergedTunnels: Record<string, string> = { ...(rN.tunnelInterfaceDescriptions || {}) }
+  for (const [k, v] of Object.entries(lN.tunnelInterfaceDescriptions || {})) {
+    const kk = String(k || '').trim().toLowerCase()
+    if (!kk) continue
+    const lv = String(v || '').trim()
+    const rv = String(mergedTunnels[kk] || '').trim()
+
+    if (!rv) {
+      if (lv) mergedTunnels[kk] = lv
+      continue
+    }
+
+    if (lv && rv && lv !== rv) {
+      const ch = tunnelChoices[kk] || { mode: 'local' }
+      const mode = (ch?.mode || 'local') as UsersDbSmartChoiceMode
+      if (mode === 'remote') {
+        // keep router
+      } else if (mode === 'custom') {
+        const customDescription = String(ch?.customDescription ?? '').trim()
+        if (customDescription) mergedTunnels[kk] = customDescription
+        else delete mergedTunnels[kk]
+      } else {
+        mergedTunnels[kk] = lv
+      }
+    } else if (lv) {
+      mergedTunnels[kk] = lv
+    }
+  }
+
   // ---- ssl default ----
   let mergedSslNear = sanitizeInt(lN.sslNearExpiryDaysDefault, rN.sslNearExpiryDaysDefault || 2, 0, 365)
   if (sslChoice) {
@@ -1119,7 +1152,7 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
     providerIcons: sanitizeIconMap(mergedIcons),
     sslNearExpiryDaysDefault: mergedSslNear,
     providerSslWarnDaysMap: sanitizeNumMap(mergedWarn),
-    tunnelInterfaceDescriptions: sanitizeTunnelDescriptionMap({ ...(rN.tunnelInterfaceDescriptions || {}), ...(lN.tunnelInterfaceDescriptions || {}) }),
+    tunnelInterfaceDescriptions: sanitizeTunnelDescriptionMap(mergedTunnels),
     userLimits: mergeUserLimits(rN.userLimits || {}, lN.userLimits || {}),
   })
 }

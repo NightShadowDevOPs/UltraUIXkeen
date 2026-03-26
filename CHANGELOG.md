@@ -1,3 +1,30 @@
+## v1.2.63 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Added copy/export actions for the current users DB conflict preview, so you can save the exact winner/result snapshot before pushing and compare it manually on another PC if needed.
+- Expanded Tasks -> users DB details to show local-only/router-only additions for provider icons and SSL warn overrides, plus raw changed lists for icons, tunnels, and SSL settings.
+- Conflict preview JSON now includes the current smart-merge winner/result rows together with local-only/router-only sections for labels, panel URLs, icons, tunnel descriptions, and SSL warn days.
+- router-agent code not changed in this release.
+
+## v1.2.62 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Extended users DB merge diagnostics beyond tunnel descriptions: Tasks -> users DB now also shows winner/result previews for provider panel URLs, provider icons, the global SSL warning threshold, and per-provider SSL warn days before push.
+- Conflict summary now includes SSL-related diffs too, so it is easier to see at a glance when warn-day settings diverged between router and local UI.
+- Smart-merge winner previews follow the real merge logic for router/local/custom modes, including fallback behavior for custom panel URLs and icon values.
+- router-agent code not changed in this release.
+
+## v1.2.61 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Added explicit tunnel description conflict diagnostics inside Tasks -> users DB, so interface-level clashes now show router value, local value, and the current winner/result before pushing.
+- Smart users DB merge now supports tunnel description conflicts too: you can choose router/local/custom per interface instead of silently keeping the local tunnel note.
+- Conflict summary now counts tunnel description diffs, and manual conflict actions include an explicit "Use local version" button for parity with the router choice.
+- router-agent code not changed in this release.
+
 ## v1.2.60 (2026-03-26)
 
 ### UI Mihomo / Ultra

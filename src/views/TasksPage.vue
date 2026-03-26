@@ -805,6 +805,18 @@
             <span class="opacity-60 ml-1">/</span>
             <span class="font-mono ml-1">~{{ usersDbConflictSummary.iconsChanged }}</span>
           </div>
+          <div>
+            <span class="opacity-60">{{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}:</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.tunnelsLocalOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.tunnelsRemoteOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">~{{ usersDbConflictSummary.tunnelsChanged }}</span>
+          </div>
+          <div>
+            <span class="opacity-60">SSL:</span>
+            <span class="font-mono ml-1">~{{ usersDbConflictSummary.sslDefaultChanged + usersDbConflictSummary.warnDaysChanged }}</span>
+          </div>
         </div>
 
         <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -814,9 +826,191 @@
           <button type="button" class="btn btn-xs" @click="usersDbResolvePull" :disabled="usersDbBusy">
             {{ $t('usersDbAcceptRouter') }}
           </button>
+          <button type="button" class="btn btn-xs" @click="usersDbResolvePush" :disabled="usersDbBusy">
+            {{ $t('usersDbAcceptLocal') }}
+          </button>
           <button type="button" class="btn btn-xs btn-ghost" @click="usersDbSmartOpen = !usersDbSmartOpen" :disabled="usersDbBusy">
             {{ $t('usersDbSmartMerge') }}
           </button>
+          <button type="button" class="btn btn-xs btn-ghost" @click="copyUsersDbConflictPreview" :disabled="usersDbBusy || !usersDbConflictPreviewText">
+            {{ $t('copy') }} {{ $t('usersDbConflictPreview') }}
+          </button>
+          <button type="button" class="btn btn-xs btn-ghost" @click="exportUsersDbConflictPreview" :disabled="usersDbBusy || !usersDbConflictPreviewText">
+            {{ $t('export') }} JSON
+          </button>
+        </div>
+        <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbConflictPreviewHint') }}</div>
+
+        <div v-if="usersDbTunnelChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">{{ $t('usersDbTunnelConflictDiagnostics') }}</div>
+            <span class="badge badge-warning badge-xs">{{ usersDbTunnelChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbTunnelConflictDiagnosticsHint') }}</div>
+          <div class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 160px">iface</th>
+                  <th style="width: 260px">{{ $t('router') }}</th>
+                  <th style="width: 260px">{{ $t('local') }}</th>
+                  <th style="width: 240px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbTunnelChangedRows" :key="row.name">
+                  <td class="font-mono">{{ row.name }}</td>
+                  <td class="max-w-[260px] truncate" :title="row.remote">{{ row.remote }}</td>
+                  <td class="max-w-[260px] truncate" :title="row.local">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                      <span class="font-mono" :title="row.result">{{ row.result }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="usersDbUrlChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">{{ $t('usersDbPanels') }} — {{ $t('usersDbWinner') }}</div>
+            <span class="badge badge-warning badge-xs">{{ usersDbUrlChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbWinnerHint') }}</div>
+          <div class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 180px">{{ $t('provider') }}</th>
+                  <th style="width: 320px">{{ $t('router') }}</th>
+                  <th style="width: 320px">{{ $t('local') }}</th>
+                  <th style="width: 280px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbUrlChangedRows" :key="row.provider">
+                  <td class="font-mono">{{ row.provider }}</td>
+                  <td class="max-w-[320px] truncate" :title="row.remote">{{ row.remote }}</td>
+                  <td class="max-w-[320px] truncate" :title="row.local">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                      <span class="font-mono break-all" :title="row.result || '—'">{{ row.result || '—' }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="usersDbIconChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">{{ $t('providerIcon') }} — {{ $t('usersDbWinner') }}</div>
+            <span class="badge badge-warning badge-xs">{{ usersDbIconChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbWinnerHint') }}</div>
+          <div class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 180px">{{ $t('provider') }}</th>
+                  <th style="width: 180px">{{ $t('router') }}</th>
+                  <th style="width: 180px">{{ $t('local') }}</th>
+                  <th style="width: 240px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbIconChangedRows" :key="row.provider">
+                  <td class="font-mono">{{ row.provider }}</td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <ProviderIconBadge :icon="row.remote" />
+                      <span class="font-mono">{{ fmtProviderIcon(row.remote) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex items-center gap-2">
+                      <ProviderIconBadge :icon="row.local" />
+                      <span class="font-mono">{{ fmtProviderIcon(row.local) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                      <div class="flex items-center gap-2">
+                        <ProviderIconBadge :icon="row.result" />
+                        <span class="font-mono">{{ fmtProviderIcon(row.result) }}</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="usersDbSslDefaultRow || usersDbWarnDaysChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">SSL — {{ $t('usersDbWinner') }}</div>
+            <span class="badge badge-warning badge-xs">{{ (usersDbSslDefaultRow ? 1 : 0) + usersDbWarnDaysChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbWinnerHint') }}</div>
+
+          <div v-if="usersDbSslDefaultRow" class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 180px">{{ $t('fieldName') }}</th>
+                  <th style="width: 120px">{{ $t('router') }}</th>
+                  <th style="width: 120px">{{ $t('local') }}</th>
+                  <th style="width: 220px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ $t('sslWarnThreshold') }}</td>
+                  <td class="font-mono">{{ usersDbSslDefaultRow.remote }}</td>
+                  <td class="font-mono">{{ usersDbSslDefaultRow.local }}</td>
+                  <td>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline badge-xs">{{ usersDbSslDefaultRow.modeLabel }}</span>
+                      <span class="font-mono">{{ usersDbSslDefaultRow.result }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="usersDbWarnDaysChangedRows.length" class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 180px">{{ $t('provider') }}</th>
+                  <th style="width: 120px">{{ $t('router') }}</th>
+                  <th style="width: 120px">{{ $t('local') }}</th>
+                  <th style="width: 220px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbWarnDaysChangedRows" :key="row.provider">
+                  <td class="font-mono">{{ row.provider }}</td>
+                  <td class="font-mono">{{ row.remote }}</td>
+                  <td class="font-mono">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                      <span class="font-mono">{{ row.result }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div v-if="usersDbSmartOpen" class="mt-2 rounded-lg border border-base-content/10 bg-base-200/40 p-2">
@@ -930,6 +1124,59 @@
                           type="text"
                           class="input input-bordered input-xs mt-1 w-full"
                           v-model="usersDbSmartChoices.urls[it.provider].customUrl"
+                          :placeholder="it.local"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.tunnels.changed.length">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="font-semibold text-xs">{{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}: {{ $t('usersDbChanged') }} ({{ usersDbConflictDiff.tunnels.changed.length }})</div>
+                <div class="flex items-center gap-1">
+                  <button type="button" class="btn btn-ghost btn-xs" @click="usersDbSmartSetAll('tunnels','local')" :disabled="usersDbBusy">{{ $t('usersDbSetAllLocal') }}</button>
+                  <button type="button" class="btn btn-ghost btn-xs" @click="usersDbSmartSetAll('tunnels','remote')" :disabled="usersDbBusy">{{ $t('usersDbSetAllRouter') }}</button>
+                </div>
+              </div>
+
+              <div class="mt-1 overflow-x-auto">
+                <table class="table table-xs">
+                  <thead>
+                    <tr>
+                      <th style="width: 160px">iface</th>
+                      <th style="width: 260px">{{ $t('router') }}</th>
+                      <th style="width: 260px">{{ $t('local') }}</th>
+                      <th>{{ $t('actions') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="it in usersDbConflictDiff.tunnels.changed" :key="it.name">
+                      <td class="font-mono">{{ it.name }}</td>
+                      <td class="max-w-[260px] truncate" :title="it.remote">{{ it.remote }}</td>
+                      <td class="max-w-[260px] truncate" :title="it.local">{{ it.local }}</td>
+                      <td class="min-w-[260px]">
+                        <div class="flex flex-wrap items-center gap-3">
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input class="radio radio-xs" type="radio" :name="`udb-t-${it.name}`" value="remote" v-model="usersDbSmartChoices.tunnels[it.name].mode" />
+                            <span class="text-[11px]">{{ $t('router') }}</span>
+                          </label>
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input class="radio radio-xs" type="radio" :name="`udb-t-${it.name}`" value="local" v-model="usersDbSmartChoices.tunnels[it.name].mode" />
+                            <span class="text-[11px]">{{ $t('local') }}</span>
+                          </label>
+                          <label class="inline-flex items-center gap-1 cursor-pointer">
+                            <input class="radio radio-xs" type="radio" :name="`udb-t-${it.name}`" value="custom" v-model="usersDbSmartChoices.tunnels[it.name].mode" />
+                            <span class="text-[11px]">{{ $t('custom') }}</span>
+                          </label>
+                        </div>
+                        <input
+                          v-if="usersDbSmartChoices.tunnels[it.name].mode === 'custom'"
+                          type="text"
+                          class="input input-bordered input-xs mt-1 w-full"
+                          v-model="usersDbSmartChoices.tunnels[it.name].customDescription"
                           :placeholder="it.local"
                         />
                       </td>
@@ -1151,6 +1398,129 @@
                       <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ it.url }}</span>
                     </div>
                     <div v-if="usersDbConflictDiff.urls.remoteOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="(usersDbConflictDiff as any).icons && (usersDbConflictDiff as any).icons.changed && (usersDbConflictDiff as any).icons.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('providerIcon') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in ((usersDbConflictDiff as any).icons.changed || []).slice(0, 50)" :key="it.provider" class="font-mono">
+                  <span class="opacity-60">{{ it.provider }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ fmtProviderIcon(it.remote) }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ fmtProviderIcon(it.local) }}</span>
+                </div>
+                <div v-if="((usersDbConflictDiff as any).icons.changed || []).length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="((usersDbConflictDiff as any).icons?.localOnly || []).length || ((usersDbConflictDiff as any).icons?.remoteOnly || []).length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('providerIcon') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in (((usersDbConflictDiff as any).icons?.localOnly) || []).slice(0, 50)" :key="it.provider" class="font-mono">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ fmtProviderIcon(it.icon) }}</span>
+                    </div>
+                    <div v-if="(((usersDbConflictDiff as any).icons?.localOnly) || []).length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in (((usersDbConflictDiff as any).icons?.remoteOnly) || []).slice(0, 50)" :key="it.provider" class="font-mono">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ fmtProviderIcon(it.icon) }}</span>
+                    </div>
+                    <div v-if="(((usersDbConflictDiff as any).icons?.remoteOnly) || []).length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.tunnels.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in usersDbConflictDiff.tunnels.changed.slice(0, 50)" :key="it.name" class="font-mono">
+                  <span class="opacity-60">{{ it.name }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ it.remote }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ it.local }}</span>
+                </div>
+                <div v-if="usersDbConflictDiff.tunnels.changed.length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.tunnels.localOnly.length || usersDbConflictDiff.tunnels.remoteOnly.length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.tunnels.localOnly.slice(0, 50)" :key="it.name" class="font-mono">
+                      <span class="opacity-60">{{ it.name }}</span><span class="opacity-60"> : </span><span>{{ it.description }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.tunnels.localOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.tunnels.remoteOnly.slice(0, 50)" :key="it.name" class="font-mono">
+                      <span class="opacity-60">{{ it.name }}</span><span class="opacity-60"> : </span><span>{{ it.description }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.tunnels.remoteOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.ssl.defaultDays.changed">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('sslWarnThreshold') }}</div>
+              <div class="mt-1 font-mono">
+                <span>{{ usersDbConflictDiff.ssl.defaultDays.remote }}</span>
+                <span class="opacity-60"> → </span>
+                <span>{{ usersDbConflictDiff.ssl.defaultDays.local }}</span>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.ssl.providerDays.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('sslWarnDays') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in usersDbConflictDiff.ssl.providerDays.changed.slice(0, 50)" :key="it.provider" class="font-mono">
+                  <span class="opacity-60">{{ it.provider }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ it.remote }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ it.local }}</span>
+                </div>
+                <div v-if="usersDbConflictDiff.ssl.providerDays.changed.length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.ssl.providerDays.localOnly.length || usersDbConflictDiff.ssl.providerDays.remoteOnly.length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('sslWarnDays') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.ssl.providerDays.localOnly.slice(0, 50)" :key="it.provider" class="font-mono">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ it.days }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.ssl.providerDays.localOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.ssl.providerDays.remoteOnly.slice(0, 50)" :key="it.provider" class="font-mono">
+                      <span class="opacity-60">{{ it.provider }}</span><span class="opacity-60"> : </span><span>{{ it.days }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.ssl.providerDays.remoteOnly.length > 50" class="opacity-60">…</div>
                   </div>
                 </div>
               </div>
@@ -2211,6 +2581,11 @@ const usersDbConflictSummary = computed(() => {
     iconsLocalOnly: (d as any).icons?.localOnly?.length || 0,
     iconsRemoteOnly: (d as any).icons?.remoteOnly?.length || 0,
     iconsChanged: (d as any).icons?.changed?.length || 0,
+    tunnelsLocalOnly: d.tunnels.localOnly.length,
+    tunnelsRemoteOnly: d.tunnels.remoteOnly.length,
+    tunnelsChanged: d.tunnels.changed.length,
+    sslDefaultChanged: d.ssl.defaultDays.changed ? 1 : 0,
+    warnDaysChanged: d.ssl.providerDays.changed.length,
     safeAutoMerge: d.safeAutoMerge,
   }
 })
@@ -2222,6 +2597,7 @@ type SmartChoices = {
   labels: Record<string, { mode: SmartChoiceMode; customLabel?: string }>
   urls: Record<string, { mode: SmartChoiceMode; customUrl?: string }>
   icons: Record<string, { mode: SmartChoiceMode; customIcon?: string }>
+  tunnels: Record<string, { mode: SmartChoiceMode; customDescription?: string }>
   warnDays: Record<string, { mode: SmartChoiceMode; customDays?: number }>
   sslDefault: { mode: SmartChoiceMode; customDays?: number }}
 
@@ -2230,6 +2606,7 @@ const usersDbSmartChoices = ref<SmartChoices>({
   labels: {},
   urls: {},
   icons: {},
+  tunnels: {},
   warnDays: {},
   sslDefault: { mode: 'local' },
 })
@@ -2240,23 +2617,26 @@ const initUsersDbSmartChoices = () => {
   const labels: SmartChoices['labels'] = {}
   const urls: SmartChoices['urls'] = {}
   const icons: SmartChoices['icons'] = {}
+  const tunnels: SmartChoices['tunnels'] = {}
   const warnDays: SmartChoices['warnDays'] = {}
 
   for (const it of d.labels.changed || []) labels[String(it.key)] = { mode: 'local' }
   for (const it of d.urls.changed || []) urls[String(it.provider)] = { mode: 'local' }
   for (const it of ((d as any).icons?.changed || []) as any[]) icons[String(it.provider)] = { mode: 'local' }
+  for (const it of d.tunnels.changed || []) tunnels[String(it.name)] = { mode: 'local' }
   for (const it of d.ssl.providerDays.changed || []) warnDays[String(it.provider)] = { mode: 'local' }
 
   usersDbSmartChoices.value = {
     labels,
     urls,
     icons,
+    tunnels,
     warnDays,
     sslDefault: { mode: 'local' },
   }
 }
 
-const usersDbSmartSetAll = (section: 'labels' | 'urls' | 'icons' | 'warnDays', mode: SmartChoiceMode) => {
+const usersDbSmartSetAll = (section: 'labels' | 'urls' | 'icons' | 'tunnels' | 'warnDays', mode: SmartChoiceMode) => {
   const v = usersDbSmartChoices.value
   const obj: any = (v as any)[section] || {}
   for (const k of Object.keys(obj)) {
@@ -2281,6 +2661,175 @@ watch(
     if (v) initUsersDbSmartChoices()
   },
 )
+
+const usersDbModeMeta = (mode: SmartChoiceMode | undefined) => {
+  if (mode === 'remote') return { mode: 'remote' as SmartChoiceMode, modeLabel: t('router') }
+  if (mode === 'custom') return { mode: 'custom' as SmartChoiceMode, modeLabel: t('custom') }
+  return { mode: 'local' as SmartChoiceMode, modeLabel: t('local') }
+}
+
+const usersDbLabelChangedRows = computed(() => {
+  const changed = usersDbConflictDiff.value?.labels?.changed || []
+  return changed.map((it) => {
+    const choice = usersDbSmartChoices.value.labels?.[it.key]
+    const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
+    const customValue = String(choice?.customLabel || '').trim()
+    const result = meta.mode === 'remote'
+      ? it.remote.label
+      : meta.mode === 'custom'
+        ? (customValue || it.remote.label)
+        : it.local.label
+    return {
+      key: it.key,
+      remote: it.remote.label,
+      local: it.local.label,
+      result,
+      mode: meta.mode,
+      modeLabel: meta.modeLabel,
+    }
+  })
+})
+
+const usersDbUrlChangedRows = computed(() => {
+  const changed = usersDbConflictDiff.value?.urls?.changed || []
+  return changed.map((it) => {
+    const choice = usersDbSmartChoices.value.urls?.[it.provider]
+    const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
+    const customValue = String(choice?.customUrl || '').trim()
+    const result = meta.mode === 'remote' ? it.remote : meta.mode === 'custom' ? (customValue || it.remote) : it.local
+    return {
+      provider: it.provider,
+      remote: it.remote,
+      local: it.local,
+      result,
+      mode: meta.mode,
+      modeLabel: meta.modeLabel,
+    }
+  })
+})
+
+const usersDbIconChangedRows = computed(() => {
+  const changed = ((usersDbConflictDiff.value as any)?.icons?.changed || []) as Array<{ provider: string; local: string; remote: string }>
+  return changed.map((it) => {
+    const choice = usersDbSmartChoices.value.icons?.[it.provider]
+    const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
+    const customRaw = String(choice?.customIcon || '').trim()
+    const customValue = normalizeProviderIcon(choice?.customIcon)
+    const result = meta.mode === 'remote'
+      ? it.remote
+      : meta.mode === 'custom'
+        ? (customValue || (customRaw === '' ? '' : it.remote))
+        : it.local
+    return {
+      provider: it.provider,
+      remote: it.remote,
+      local: it.local,
+      result,
+      mode: meta.mode,
+      modeLabel: meta.modeLabel,
+    }
+  })
+})
+
+const usersDbSslDefaultRow = computed(() => {
+  const row = usersDbConflictDiff.value?.ssl?.defaultDays
+  if (!row?.changed) return null
+  const choice = usersDbSmartChoices.value.sslDefault
+  const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
+  const customValue = typeof choice?.customDays === 'number' && Number.isFinite(choice.customDays)
+    ? Math.max(0, Math.min(365, Math.trunc(choice.customDays)))
+    : row.local
+  const result = meta.mode === 'remote' ? row.remote : meta.mode === 'custom' ? customValue : row.local
+  return {
+    remote: row.remote,
+    local: row.local,
+    result,
+    mode: meta.mode,
+    modeLabel: meta.modeLabel,
+  }
+})
+
+const usersDbWarnDaysChangedRows = computed(() => {
+  const changed = usersDbConflictDiff.value?.ssl?.providerDays?.changed || []
+  return changed.map((it) => {
+    const choice = usersDbSmartChoices.value.warnDays?.[it.provider]
+    const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
+    const customValue = typeof choice?.customDays === 'number' && Number.isFinite(choice.customDays)
+      ? Math.max(0, Math.min(365, Math.trunc(choice.customDays)))
+      : it.local
+    const result = meta.mode === 'remote' ? it.remote : meta.mode === 'custom' ? customValue : it.local
+    return {
+      provider: it.provider,
+      remote: it.remote,
+      local: it.local,
+      result,
+      mode: meta.mode,
+      modeLabel: meta.modeLabel,
+    }
+  })
+})
+
+const usersDbTunnelWinnerMeta = (name: string) => {
+  const key = String(name || '').trim().toLowerCase()
+  const choice = (usersDbSmartChoices.value.tunnels || {})[key]
+  const mode = (choice?.mode || 'local') as SmartChoiceMode
+  return usersDbModeMeta(mode)
+}
+
+const usersDbTunnelChangedRows = computed(() => {
+  const changed = usersDbConflictDiff.value?.tunnels?.changed || []
+  return changed.map((it) => {
+    const meta = usersDbTunnelWinnerMeta(it.name)
+    const key = String(it.name || '').trim().toLowerCase()
+    const customValue = String(usersDbSmartChoices.value.tunnels?.[key]?.customDescription || '').trim()
+    const result = meta.mode === 'remote' ? it.remote : meta.mode === 'custom' ? (customValue || it.local) : it.local
+    return {
+      name: it.name,
+      remote: it.remote,
+      local: it.local,
+      result,
+      mode: meta.mode,
+      modeLabel: meta.modeLabel,
+    }
+  })
+})
+
+const usersDbConflictPreview = computed(() => {
+  const d: any = usersDbConflictDiff.value as any
+  const summary = usersDbConflictSummary.value
+  if (!d || !summary) return null
+  return {
+    generatedAt: dayjs().toISOString(),
+    summary,
+    changed: {
+      labels: usersDbLabelChangedRows.value,
+      panels: usersDbUrlChangedRows.value,
+      icons: usersDbIconChangedRows.value,
+      tunnels: usersDbTunnelChangedRows.value,
+      sslDefault: usersDbSslDefaultRow.value,
+      sslWarnDays: usersDbWarnDaysChangedRows.value,
+    },
+    localOnly: {
+      labels: d.labels?.localOnly || [],
+      panels: d.urls?.localOnly || [],
+      icons: d.icons?.localOnly || [],
+      tunnels: d.tunnels?.localOnly || [],
+      sslWarnDays: d.ssl?.providerDays?.localOnly || [],
+    },
+    routerOnly: {
+      labels: d.labels?.remoteOnly || [],
+      panels: d.urls?.remoteOnly || [],
+      icons: d.icons?.remoteOnly || [],
+      tunnels: d.tunnels?.remoteOnly || [],
+      sslWarnDays: d.ssl?.providerDays?.remoteOnly || [],
+    },
+  }
+})
+
+const usersDbConflictPreviewText = computed(() => {
+  const p = usersDbConflictPreview.value
+  return p ? JSON.stringify(p, null, 2) : ''
+})
 
 watch(usersDbHasConflict, (v) => {
   if (!v) usersDbSmartOpen.value = false
@@ -2512,6 +3061,31 @@ const copyUsersDbViewIcons = async () => {
   const p: any = usersDbViewNormalized.value as any
   if (!p) return
   await copyTextToClipboard(JSON.stringify(p.providerIcons || {}, null, 2))
+}
+
+const copyUsersDbConflictPreview = async () => {
+  const text = String(usersDbConflictPreviewText.value || '')
+  if (!text) return
+  await copyTextToClipboard(text)
+}
+
+const exportUsersDbConflictPreview = () => {
+  try {
+    const text = String(usersDbConflictPreviewText.value || '')
+    if (!text) return
+    const blob = new Blob([text], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `zash-usersdb-conflict-preview-${dayjs().format('YYYYMMDD-HHmmss')}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showNotification({ content: 'done', type: 'alert-success', timeout: 1400 })
+  } catch {
+    showNotification({ content: 'operationFailed', type: 'alert-error', timeout: 2200 })
+  }
 }
 
 // --- Top rules -> open Topology with filter (stage R) ---
