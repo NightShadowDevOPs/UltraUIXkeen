@@ -1,12 +1,13 @@
-UI Mihomo / Ultra — transfer update v1.2.52
+UI Mihomo / Ultra — transfer update v1.2.53
 
 What changed in this rebuild:
-- hotfix after the v1.2.50 build failure: rolled back the global HomePage stale-build banner
-- kept the working UI cache validation from v1.2.48 and sidebar/footer build freshness status from v1.2.49
+- implemented the next planned step: CIDR helper path for Source IP mapping without a wide upstream merge
+- pattern-based mappings (CIDR / regex) now resolve live IPs in Traffic and Users flows, instead of behaving like “exact-IP only” mappings
+- traffic rows can now aggregate stored bucket data back into the mapped CIDR label, so subnet users stop splitting into orphan raw IP rows
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.52
+- UI: v1.2.53
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -18,7 +19,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.52
+- UI: v1.2.53
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -31,7 +32,9 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
-- в v1.2.52 найден и исправлен реальный build-breaker: синтаксическая ошибка в `src/i18n/en.ts` (апостроф в `yesterday's` внутри одинарных кавычек); откат глобального баннера из HomePage при этом сохранён как безопасный fallback
+- в v1.2.53 добавлен рабочий CIDR helper path для Source IP mapping: CIDR/regex-метки теперь участвуют в Users/Traffic и могут подтягивать живые IP
+- в v1.2.53 строки трафика снова собираются по смысловой метке подсети, а не расползаются только по отдельным IP из buckets
+- в v1.2.52 найден и исправлен реальный build-breaker: синтаксическая ошибка в `src/i18n/en.ts`; откат глобального баннера из HomePage сохранён как безопасный fallback
 - в v1.2.49 строка версии внизу левого меню остаётся живым индикатором свежести UI
 - в v1.2.49 в раскрытом sidebar есть кнопка жёсткого обновления UI, а в свернутом режиме — компактный статус/кнопка
 - в v1.2.48 в Settings есть проверка кэша UI: loaded bundle, bundle на роутере и статус совпадения/рассинхрона
@@ -55,5 +58,5 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- вернуть верхний индикатор новой сборки уже в виде отдельного, безопасного компонента после локальной проверки сборки
-- либо идти дальше в CIDR helper для Source IP mapping
+- показать в Users/Source IP mapping компактную подсказку по типу правила (exact / CIDR / regex) и числу live matches
+- затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом

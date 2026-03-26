@@ -792,7 +792,7 @@
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import { agentLanHostsAPI, agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, agentStatusAPI, type AgentLanHost, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
-import { getExactIPLabelFromMap } from '@/helper/sourceip'
+import { getExactIPLabelFromMap, getIPLabelFromMap } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { activeConnections } from '@/store/connections'
@@ -1225,6 +1225,10 @@ const isPatternSourceKey = (key: string) => {
 const getExactHostLabel = (ip: string, hostname = '') => {
   const exact = String(getExactIPLabelFromMap(ip) || '').trim()
   if (exact && !isReservedPseudoTrafficUser(exact)) return exact
+
+  const grouped = String(getIPLabelFromMap(ip) || '').trim()
+  if (grouped && grouped !== ip && !isReservedPseudoTrafficUser(grouped)) return grouped
+
   const host = String(hostname || '').trim()
   if (host && !isReservedPseudoTrafficUser(host)) return host
   return ip
@@ -1274,11 +1278,14 @@ const isReservedPseudoTrafficUser = (user: string) => {
   return reservedPseudoTrafficLabels.has(want)
 }
 
+const hasResolvedIpsForUser = (user: string) => (getIpsForUser(user) || []).some((ip) => looksLikeIP(ip))
+
 const isHostResolvableTrafficUser = (user: string) => {
   const value = String(user || '').trim()
   if (!value) return false
   if (looksLikeIP(value)) return true
   if (hasExactHostMappingForUser(value)) return true
+  if (hasGroupedSourceMappingForUser(value) && hasResolvedIpsForUser(value)) return true
   if (hasLanHostIdentityForUser(value)) return true
   if (hasSavedMacIdentityForUser(value)) return true
   return false
@@ -1289,7 +1296,7 @@ const isSyntheticTrafficGroupUser = (user: string) => {
   if (!value || looksLikeIP(value)) return false
   if (isReservedPseudoTrafficUser(value) && !isHostResolvableTrafficUser(value)) return true
   if (!hasGroupedSourceMappingForUser(value)) return false
-  return !hasExactHostMappingForUser(value)
+  return !hasExactHostMappingForUser(value) && !hasResolvedIpsForUser(value)
 }
 
 const shouldIncludeTrafficUser = (user: string) => {
@@ -1455,6 +1462,20 @@ const rows = computed<Row[]>(() => {
     normToIps.set(norm, new Set(ips))
   }
 
+  const matchedTrafficIpsByNorm = new Map<string, Set<string>>()
+  for (const k of aggByKey.keys()) {
+    const key = String(k || '').trim()
+    if (!looksLikeIP(key)) continue
+    const display = getExactHostLabel(key)
+    const norm = normalizeUserName(display)
+    if (!norm || norm === normalizeUserName(key)) continue
+    const set = matchedTrafficIpsByNorm.get(norm) || new Set<string>()
+    set.add(key)
+    matchedTrafficIpsByNorm.set(norm, set)
+  }
+
+  const trafficResolvableNorms = new Set<string>(matchedTrafficIpsByNorm.keys())
+
   // Legacy buckets could still be stored under a label/synthetic key.
   const legacyKeysByNorm = new Map<string, Set<string>>()
   for (const k of aggByKey.keys()) {
@@ -1474,9 +1495,14 @@ const rows = computed<Row[]>(() => {
     return canonicalUserByNorm.value.get(norm) || raw
   }
 
+  const isTrafficResolvableUser = (user: string) => {
+    const norm = normalizeUserName(user)
+    return shouldIncludeTrafficUser(user) || trafficResolvableNorms.has(norm)
+  }
+
   const addUser = (map: Map<string, string>, raw: string) => {
     const disp = canonicalFor(raw)
-    if (!disp || !shouldIncludeTrafficUser(disp)) return
+    if (!disp || !isTrafficResolvableUser(disp)) return
     const norm = normalizeUserName(disp)
     if (!map.has(norm)) map.set(norm, disp)
   }
@@ -1529,6 +1555,9 @@ const rows = computed<Row[]>(() => {
 
     // IP keys from mapping.
     for (const ip of normToIps.get(norm) || []) keysSet.add(ip)
+
+    // Pattern-based mapping (CIDR / regex) resolved from recorded traffic buckets.
+    for (const ip of matchedTrafficIpsByNorm.get(norm) || []) keysSet.add(ip)
 
     // If the displayed user is an IP itself, include it.
     if (looksLikeIP(user)) keysSet.add(user)
@@ -1604,7 +1633,7 @@ const rows = computed<Row[]>(() => {
   }, new Map<string, Row>()).values()).map((row) => ({
     ...row,
     user: pickBestDisplayForRow(row),
-  })).filter((row) => shouldIncludeTrafficUser(row.user) && shouldIncludeTrafficUser(row.limitOwner || ''))
+  })).filter((row) => isTrafficResolvableUser(row.user) && isTrafficResolvableUser(row.limitOwner || ''))
 
   const sorted = list.sort((a, b) => {
     const dir = sortDir.value === 'asc' ? 1 : -1

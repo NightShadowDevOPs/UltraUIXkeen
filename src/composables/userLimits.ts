@@ -10,7 +10,7 @@ import {
   agentUnblockIpAPI,
   agentUnblockMacAPI,
 } from '@/api/agent'
-import { getExactIPLabelFromMap, getIPLabelFromMap } from '@/helper/sourceip'
+import { getExactIPLabelFromMap, getIPLabelFromMap, matchesSourceIpRule } from '@/helper/sourceip'
 import { activeConnections } from '@/store/connections'
 import { sourceIPLabelList } from '@/store/settings'
 import {
@@ -442,7 +442,7 @@ const ipsForUserLabel = (userLabel: string) => {
   const want = (userLabel || '').trim()
   const wantLc = want.toLowerCase()
 
-  if (isReservedPseudoUserLabel(want) || isSyntheticGroupUserLabel(want)) return out
+  if (isReservedPseudoUserLabel(want)) return out
 
   const normIp = (k: string) => (k || '').trim().split('/')[0]
   const addIp = (val: string) => {
@@ -451,20 +451,32 @@ const ipsForUserLabel = (userLabel: string) => {
     out.push(ip)
   }
 
+  const liveIps = Array.from(new Set((activeConnections.value || [])
+    .map((c) => normIp(String((c as any)?.metadata?.sourceIP || '').trim()))
+    .filter(Boolean)))
+
   for (const it of sourceIPLabelList.value) {
     const rawKey = String(it.key || '').trim()
-    if (!rawKey || isPatternSourceKey(rawKey)) continue
+    if (!rawKey) continue
     const label = String(it.label || it.key || '').trim()
     const key = normIp(rawKey)
-    if (!key) continue
-    if (label === want || label.toLowerCase() === wantLc) addIp(key)
-    if (key === want) addIp(key)
+    const matchesLabel = label === want || label.toLowerCase() === wantLc
+    if (!matchesLabel && key !== want) continue
+
+    if (!isPatternSourceKey(rawKey)) {
+      if (key) addIp(key)
+      continue
+    }
+
+    for (const ip of liveIps) {
+      if (matchesSourceIpRule(rawKey, ip)) addIp(ip)
+    }
   }
 
   for (const c of activeConnections.value || []) {
     const ip = normIp(String((c as any)?.metadata?.sourceIP || '').trim())
     if (!ip) continue
-    const display = String(getExactIPLabelFromMap(ip) || ip).trim()
+    const display = String(getIPLabelFromMap(ip) || ip).trim()
     if (!display) continue
     if (display === want || display.toLowerCase() === wantLc || ip === want) addIp(ip)
   }

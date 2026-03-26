@@ -13,6 +13,7 @@ const sourceIPCIDRList: {
   key: string
 }[] = []
 
+export type SourceIpRuleKind = 'exact' | 'cidr' | 'regex' | 'suffix'
 
 export const isSourceIpScopeVisible = (scope?: string[]) => {
   if (!scope?.length) return true
@@ -83,6 +84,52 @@ watch(() => [sourceIPLabelList.value, activeBackend.value], preprocessSourceIPLi
   immediate: true,
   deep: true,
 })
+
+export const getSourceIpRuleKind = (key: string): SourceIpRuleKind => {
+  const raw = String(key || '').trim()
+  if (!raw) return 'exact'
+  if (raw.startsWith('/')) return 'regex'
+  if (raw.includes('/')) {
+    try {
+      ipaddr.parseCIDR(raw)
+      return 'cidr'
+    } catch {
+      // fall through
+    }
+  }
+  if (raw.includes(':') && !ipaddr.isValid(raw)) return 'suffix'
+  return 'exact'
+}
+
+export const matchesSourceIpRule = (key: string, ip: string) => {
+  const raw = String(key || '').trim()
+  const target = String(ip || '').trim()
+  if (!raw || !target) return false
+
+  const kind = getSourceIpRuleKind(raw)
+  if (kind === 'regex') {
+    try {
+      return new RegExp(raw.slice(1), 'i').test(target)
+    } catch {
+      return false
+    }
+  }
+
+  if (kind === 'cidr') {
+    if (!ipaddr.isValid(target)) return false
+    try {
+      const addr = ipaddr.parse(target) as ipaddr.IPv4 | ipaddr.IPv6
+      const cidr = ipaddr.parseCIDR(raw) as [ipaddr.IPv4 | ipaddr.IPv6, number]
+      if (addr.kind() !== cidr[0].kind()) return false
+      return addr.match(cidr)
+    } catch {
+      return false
+    }
+  }
+
+  if (kind === 'suffix') return target.includes(':') && target.endsWith(raw)
+  return target === raw
+}
 
 const getCIDRLabel = (ip: string) => {
   if (!sourceIPCIDRList.length) return ''
