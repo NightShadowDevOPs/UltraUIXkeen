@@ -1,3 +1,12 @@
+## v1.2.56 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Traffic -> Users rows now show an explicit owner-resolution badge when limits/QoS are resolved from another saved owner instead of the current display label.
+- QoS runtime meta/tooltip now explains why the row is attached to that owner (persisted self, name/IP/MAC match) and shows the matched value when available.
+- Router -> Traffic now supports editable human-friendly descriptions for OVPN/WG and other tunnel interfaces; the notes are shown in the tunnel cards and in routed via/route labels.
+- router-agent code not changed in this release.
+
 ## v1.2.55 (2026-03-26)
 
 ### UI Mihomo / Ultra

@@ -348,6 +348,20 @@
                       {{ badge.text }}
                     </span>
                   </div>
+                  <div
+                    v-if="editingUser !== row.user && rowOwnerResolutionBadges(row).length"
+                    class="flex flex-wrap items-center gap-1 text-[11px]"
+                  >
+                    <span
+                      v-for="badge in rowOwnerResolutionBadges(row)"
+                      :key="`${row.user}-${badge.text}`"
+                      class="inline-flex items-center rounded-full border px-2 py-0.5 font-medium"
+                      :class="badge.cls"
+                      :title="badge.title"
+                    >
+                      {{ badge.text }}
+                    </span>
+                  </div>
                 </div>
               </td>
               <td class="max-md:hidden">
@@ -858,6 +872,8 @@ import {
 } from '@heroicons/vue/24/outline'
 
 type RowQosState = AgentQosProfile | 'mixed' | undefined
+type LimitOwnerResolutionReason = 'self' | 'persisted' | 'name' | 'ip' | 'mac'
+
 type Row = {
   user: string
   keys: string
@@ -866,6 +882,8 @@ type Row = {
   ips: string[]
   macs: string[]
   limitOwner: string
+  limitOwnerReason: LimitOwnerResolutionReason
+  limitOwnerMatch?: string
   currentQos?: RowQosState
 }
 
@@ -1024,15 +1042,16 @@ const ipsForLimitOwner = (user: string, knownIps: string[] = [], knownMacs: stri
   return Array.from(out).sort((a, b) => a.localeCompare(b))
 }
 
-const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) => {
-  if (isReservedPseudoTrafficUser(user)) return user
-  if (hasPersistedLimit(user)) return user
+const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]): { owner: string; reason: LimitOwnerResolutionReason; match?: string } => {
+  if (isReservedPseudoTrafficUser(user)) return { owner: user, reason: 'self' }
+  if (hasPersistedLimit(user)) return { owner: user, reason: 'persisted' }
 
   const want = normalizeUserName(user)
   const ipSet = new Set((ips || []).filter((ip) => looksLikeIP(ip)))
   const macSet = new Set((macs || []).map((value) => normalizeMac(value)).filter(Boolean))
   let byName = ''
   let byIp = ''
+  let byIpMatch = ''
 
   for (const candidate of Object.keys(userLimits.value || {})) {
     if (!candidate || candidate === user) continue
@@ -1043,7 +1062,7 @@ const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) =>
     if (!byName && normalizeUserName(candidate) === want) byName = candidate
 
     const candidateMac = normalizeMac(getUserLimit(candidate).mac || '')
-    if (candidateMac && macSet.has(candidateMac)) return candidate
+    if (candidateMac && macSet.has(candidateMac)) return { owner: candidate, reason: 'mac', match: candidateMac }
 
     const candidateIps = new Set<string>()
     if (looksLikeIP(candidate)) candidateIps.add(candidate)
@@ -1054,13 +1073,16 @@ const resolveLimitOwnerForRow = (user: string, ips: string[], macs: string[]) =>
     for (const ip of candidateIps) {
       if (ipSet.has(ip)) {
         byIp = candidate
+        byIpMatch = ip
         break
       }
     }
     if (byIp) break
   }
 
-  return byIp || byName || user
+  if (byIp) return { owner: byIp, reason: 'ip', match: byIpMatch }
+  if (byName) return { owner: byName, reason: 'name' }
+  return { owner: user, reason: 'self' }
 }
 
 const rowLimitOwner = (row: Row) => row.limitOwner || row.user
@@ -1604,7 +1626,8 @@ const rows = computed<Row[]>(() => {
     ].filter((k) => looksLikeIP(k)))).sort((a, b) => a.localeCompare(b))
 
     const baseMacs = resolveMacsForIdentity(user, baseIps)
-    const limitOwner = resolveLimitOwnerForRow(user, baseIps, baseMacs)
+    const limitOwnerResolution = resolveLimitOwnerForRow(user, baseIps, baseMacs)
+    const limitOwner = limitOwnerResolution.owner
     const resolvedMacs = resolveMacsForIdentity(user, baseIps, limitOwner)
 
     const resolvedIps = Array.from(new Set([
@@ -1616,7 +1639,18 @@ const rows = computed<Row[]>(() => {
     const keys = resolvedIps.length ? resolvedIps.join(', ') : resolvedMacs.join(', ')
     const currentQos = resolveRowQos(resolvedIps)
 
-    return { user, keys, dl, ul, ips: resolvedIps, macs: resolvedMacs, limitOwner, currentQos }
+    return {
+      user,
+      keys,
+      dl,
+      ul,
+      ips: resolvedIps,
+      macs: resolvedMacs,
+      limitOwner,
+      limitOwnerReason: limitOwnerResolution.reason,
+      limitOwnerMatch: limitOwnerResolution.match,
+      currentQos,
+    }
   })
 
   const mergeQosState = (left: RowQosState, right: RowQosState): RowQosState => {
@@ -1639,6 +1673,13 @@ const rows = computed<Row[]>(() => {
     current.ips = Array.from(new Set([...(current.ips || []), ...(row.ips || [])].filter((ip) => looksLikeIP(ip)))).sort((a, b) => a.localeCompare(b))
     current.macs = Array.from(new Set([...(current.macs || []), ...(row.macs || [])].map((value) => normalizeMac(value)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
     current.currentQos = mergeQosState(current.currentQos, row.currentQos)
+    if (current.limitOwner === current.user && row.limitOwner !== row.user) {
+      current.limitOwner = row.limitOwner
+      current.limitOwnerReason = row.limitOwnerReason
+      current.limitOwnerMatch = row.limitOwnerMatch
+    } else if (!current.limitOwnerMatch && row.limitOwnerMatch) {
+      current.limitOwnerMatch = row.limitOwnerMatch
+    }
     if (!isSyntheticTrafficGroupUser(row.user)) {
       if (looksLikeIP(current.user) && !looksLikeIP(row.user)) current.user = row.user
       else if (current.user === current.limitOwner && row.user !== row.limitOwner && !looksLikeIP(row.user)) current.user = row.user
@@ -2205,6 +2246,27 @@ const rowSourceRuleBadges = (row: Row): RuntimeBadge[] => {
   }))
 }
 
+const rowOwnerResolutionReasonLabel = (row: Row) => {
+  if (row.limitOwnerReason === 'persisted') return t('userTrafficOwnerReasonPersisted')
+  if (row.limitOwnerReason === 'mac') return t('userTrafficOwnerReasonMac')
+  if (row.limitOwnerReason === 'ip') return t('userTrafficOwnerReasonIp')
+  if (row.limitOwnerReason === 'name') return t('userTrafficOwnerReasonName')
+  return t('userTrafficOwnerReasonSelf')
+}
+
+const rowOwnerResolutionBadges = (row: Row): RuntimeBadge[] => {
+  const owner = rowLimitOwner(row)
+  if (!owner || owner === row.user) return []
+  return [{
+    text: t('userTrafficLimitOwnerBadge', { owner }),
+    cls: runtimeBadgeClass('warning'),
+    title: [
+      t('userTrafficLimitOwnerTitle', { display: row.user, owner }),
+      t('userTrafficLimitOwnerReasonTitle', { reason: rowOwnerResolutionReasonLabel(row), match: row.limitOwnerMatch || '—' }),
+    ].join('\n'),
+  }]
+}
+
 const rowResolvedMacs = (row: Row) => resolveMacsForIdentity(row.user, effectiveIpsForRow(row), rowLimitOwner(row))
 
 const rowAgentQosItems = (row: Row) => {
@@ -2277,6 +2339,7 @@ const rowRuntimeMetaLine = (row: Row) => {
   const parts: string[] = []
   const ips = effectiveIpsForRow(row)
   const macs = rowResolvedMacs(row)
+  if (rowLimitOwner(row) !== row.user) parts.push(t('userTrafficLimitOwnerMeta', { owner: rowLimitOwner(row) }))
   if (ips.length) parts.push(`IP: ${compactList(ips, 2)}`)
   if (macs.length) parts.push(`MAC: ${compactList(macs, 1)}`)
   if ((row.currentQos || rowStoredOnlyQosIps(row).length) && qosStatus.value.qosMode === 'wan-only') parts.push('safe WAN-only')
@@ -2292,6 +2355,7 @@ const rowRuntimeTitle = (row: Row) => {
   if (row.currentQos === 'mixed') parts.push(`QoS: ${t('hostQosMixed')}`)
   else if (row.currentQos) parts.push(`QoS: ${profileLabel(row.currentQos)}`)
   else parts.push(`QoS: ${t('hostQosNone')}`)
+  if (rowLimitOwner(row) !== row.user) parts.push(t('userTrafficLimitOwnerRuntimeTitle', { display: row.user, owner: rowLimitOwner(row), reason: rowOwnerResolutionReasonLabel(row), match: row.limitOwnerMatch || '—' }))
   if (qosStatus.value.qosMode) parts.push(`Mode: ${qosStatus.value.qosMode}`)
   if (agentItems.length) parts.push(`Agent confirmed IP: ${agentItems.map((item) => item.ip).join(', ')}`)
   if (storedOnlyIps.length) parts.push(`UI-only IP: ${storedOnlyIps.join(', ')}`)

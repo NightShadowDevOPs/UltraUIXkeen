@@ -1,14 +1,14 @@
-UI Mihomo / Ultra — transfer update v1.2.55
+UI Mihomo / Ultra — transfer update v1.2.56
 
 What changed in this rebuild:
-- added compact Source IP match badges directly inside Traffic -> Users rows
-- rows now show whether the match path is exact IP, CIDR/subnet, regex, or IPv6 suffix without leaving the traffic table
-- each badge now exposes matched rule keys and live IPs in the tooltip for faster debugging
-- QoS runtime hover details now also include the source-match path for the row
+- added explicit owner-resolution diagnostics in Traffic -> Users when the effective limit/QoS owner differs from the display row
+- row badges/runtime hints now explain whether owner resolution came from persisted self state, name match, IP match, or MAC match
+- Router -> Traffic now supports editable descriptions for OVPN/WG and other tunnel interfaces
+- tunnel descriptions are shown both on the live tunnel cards and in routed via/route labels for downstream hosts
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.55
+- UI: v1.2.56
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -20,7 +20,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.55
+- UI: v1.2.56
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -33,6 +33,9 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.56 в Traffic -> Users добавлен явный owner-resolution badge: если limit owner отличается от display user, это теперь видно сразу в строке
+- в v1.2.56 runtime tooltip/meta по строке объясняет причину owner-resolution: persisted self / name / IP / MAC match
+- в v1.2.56 в Router -> Traffic появились редактируемые описания для OVPN/WG и других tunnel interfaces; они показываются на карточках туннелей и в routed via/route подписях
 - в v1.2.55 в Traffic -> Users строки теперь показывают компактные бейджи пути совпадения Source IP прямо рядом с пользователем: exact / CIDR / regex / IPv6 suffix
 - в v1.2.55 tooltip у этих бейджей показывает matched rule key(s) и live IPs, а QoS runtime hover тоже включает source-match path
 - в v1.2.54 в Users -> Source IP mapping появились компактные бейджи типа правила и live-match counters по каждой строке
@@ -63,5 +66,5 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- добавить ещё более явную diagnostics-строку для owner-resolution, если limit owner отличается от display user
+- добавить ещё более явную diagnostics-строку для tunnel descriptions в host target details, чтобы описание интерфейса было видно и в раскрытом контексте хоста
 - затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом

@@ -83,14 +83,76 @@
         </div>
       </div>
 
+      <div v-if="showTunnelDescriptionManagerToggle" class="flex items-center justify-end px-1">
+        <button type="button" class="btn btn-ghost btn-xs sm:btn-sm" @click="tunnelDescriptionManagerOpen = !tunnelDescriptionManagerOpen">
+          {{ $t('routerTrafficTunnelDescriptions') }}
+          <span class="ml-1 badge badge-ghost badge-xs">{{ tunnelDescriptionEntries.length }}</span>
+        </button>
+      </div>
+
+      <div
+        v-if="tunnelDescriptionManagerOpen && showTunnelDescriptionManagerToggle"
+        class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-3"
+      >
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div class="text-sm font-medium">{{ $t('routerTrafficTunnelDescriptions') }}</div>
+            <div class="text-xs opacity-60">{{ $t('routerTrafficTunnelDescriptionsHint') }}</div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-xs" @click="tunnelDescriptionManagerOpen = false">{{ $t('collapse') }}</button>
+        </div>
+
+        <div class="mt-3 space-y-2">
+          <div
+            v-for="entry in tunnelDescriptionEntries"
+            :key="`tunnel-desc-${entry.name}`"
+            class="grid gap-2 rounded-lg border border-base-content/10 bg-base-100/40 p-2 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto_auto]"
+          >
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium">{{ ifaceBaseDisplayName(entry.name, entry.kind) }}</div>
+              <div class="truncate font-mono text-[11px] opacity-60">{{ entry.name }}</div>
+            </div>
+            <input
+              v-model="tunnelDescriptionDrafts[entry.name]"
+              class="input input-sm w-full"
+              type="text"
+              :placeholder="$t('routerTrafficTunnelDescriptionPlaceholder')"
+            />
+            <button type="button" class="btn btn-sm" @click="saveTunnelDescription(entry.name)">{{ $t('save') }}</button>
+            <button type="button" class="btn btn-ghost btn-sm" @click="clearTunnelDescription(entry.name)">{{ $t('clear') }}</button>
+          </div>
+
+          <div class="grid gap-2 rounded-lg border border-dashed border-base-content/10 bg-base-100/30 p-2 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto]">
+            <input
+              v-model="newTunnelInterfaceName"
+              class="input input-sm w-full font-mono"
+              type="text"
+              :placeholder="$t('routerTrafficTunnelInterfacePlaceholder')"
+            />
+            <input
+              v-model="newTunnelInterfaceDescription"
+              class="input input-sm w-full"
+              type="text"
+              :placeholder="$t('routerTrafficTunnelDescriptionPlaceholder')"
+            />
+            <button type="button" class="btn btn-sm" :disabled="!canAddTunnelDescription" @click="addTunnelDescriptionEntry">
+              {{ $t('add') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="currentExtraStats.length" class="grid gap-2 px-1 text-sm sm:grid-cols-2 xl:grid-cols-3">
         <div
           v-for="(item, index) in currentExtraStats"
           :key="`extra-card-${item.name}`"
           class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2"
         >
-          <div class="mb-1 flex items-center justify-between gap-2">
-            <div class="min-w-0 truncate text-xs opacity-80">{{ ifaceDisplayName(item.name, item.kind) }}</div>
+          <div class="mb-1 flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="truncate text-xs opacity-80">{{ ifaceBaseDisplayName(item.name, item.kind) }}</div>
+              <div v-if="getTunnelDescription(item.name)" class="truncate text-[11px] opacity-60">{{ getTunnelDescription(item.name) }}</div>
+            </div>
             <span class="badge badge-ghost badge-xs uppercase">{{ item.kind || 'vpn' }}</span>
           </div>
           <div class="flex items-center gap-2">
@@ -656,7 +718,34 @@ const currentBypassDownloadLabel = computed(() => speedLabel(latestValue(bypassD
 const currentVpnUploadLabel = computed(() => speedLabel(latestValue(vpnUploadHistory.value)))
 const currentVpnDownloadLabel = computed(() => speedLabel(latestValue(vpnDownloadHistory.value)))
 
-const ifaceDisplayName = (name: string, kind?: string) => {
+const tunnelDescriptionMap = useStorage<Record<string, string>>('config/tunnel-interface-description-map', {})
+const tunnelDescriptionManagerOpen = ref(false)
+const tunnelDescriptionDrafts = ref<Record<string, string>>({})
+const newTunnelInterfaceName = ref('')
+const newTunnelInterfaceDescription = ref('')
+
+const normalizeTunnelDescription = (value: string) => String(value || '').replace(/\s+/g, ' ').trim()
+const normalizeTunnelInterfaceName = (value: string) => String(value || '').trim()
+
+const inferTunnelKindFromName = (name: string) => {
+  const raw = String(name || '').trim().toLowerCase()
+  if (!raw) return ''
+  if (/^(wg|wireguard)/.test(raw) || raw.includes('wireguard') || raw.includes('nordlynx')) return 'wireguard'
+  if (/^(ovpn|openvpn)/.test(raw) || raw.includes('openvpn')) return 'openvpn'
+  if (raw.includes('tailscale')) return 'tailscale'
+  if (raw.includes('zerotier')) return 'zerotier'
+  if (raw.includes('ipsec') || raw.includes('xfrm')) return 'ipsec'
+  if (raw.includes('xkeen')) return 'xkeen'
+  return 'vpn'
+}
+
+const getTunnelDescription = (name: string) => {
+  const key = normalizeTunnelInterfaceName(name)
+  if (!key) return ''
+  return normalizeTunnelDescription((tunnelDescriptionMap.value || {})[key] || '')
+}
+
+const ifaceBaseDisplayName = (name: string, kind?: string) => {
   const upperKind = (kind || '').toLowerCase()
   if (upperKind === 'xkeen') return `XKeen · ${name}`
   if (upperKind === 'wireguard') return `WireGuard · ${name}`
@@ -665,6 +754,13 @@ const ifaceDisplayName = (name: string, kind?: string) => {
   if (upperKind === 'zerotier') return `ZeroTier · ${name}`
   if (upperKind === 'ipsec') return `IPsec · ${name}`
   return name
+}
+
+const ifaceDisplayName = (name: string, kind?: string, includeDescription = false) => {
+  const base = ifaceBaseDisplayName(name, kind)
+  if (!includeDescription) return base
+  const description = getTunnelDescription(name)
+  return description ? `${base} · ${description}` : base
 }
 
 const ifaceDownLabel = (name: string, kind?: string) => `${ifaceDisplayName(name, kind)} ↓`
@@ -694,6 +790,65 @@ const currentExtraStats = computed(() => {
     .filter((item) => item.down > 0 || item.up > 0 || !!item.kind)
     .sort((a, b) => (b.down + b.up) - (a.down + a.up))
 })
+
+const tunnelDescriptionEntries = computed(() => {
+  const knownKinds = new Map(currentExtraStats.value.map((item) => [item.name, item.kind || inferTunnelKindFromName(item.name)]))
+  const names = new Set<string>([
+    ...currentExtraStats.value.map((item) => item.name),
+    ...Object.keys(tunnelDescriptionMap.value || {}).map((name) => normalizeTunnelInterfaceName(name)).filter(Boolean),
+  ])
+  return Array.from(names)
+    .map((name) => ({
+      name,
+      kind: knownKinds.get(name) || inferTunnelKindFromName(name),
+      description: getTunnelDescription(name),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const showTunnelDescriptionManagerToggle = computed(() => currentExtraStats.value.length > 0 || tunnelDescriptionEntries.value.length > 0 || tunnelDescriptionManagerOpen.value)
+const canAddTunnelDescription = computed(() => normalizeTunnelInterfaceName(newTunnelInterfaceName.value).length > 0)
+
+watch(tunnelDescriptionEntries, (entries) => {
+  const next: Record<string, string> = { ...tunnelDescriptionDrafts.value }
+  for (const entry of entries) {
+    if (!(entry.name in next)) next[entry.name] = entry.description
+  }
+  tunnelDescriptionDrafts.value = next
+}, { immediate: true, deep: true })
+
+const saveTunnelDescription = (name: string) => {
+  const key = normalizeTunnelInterfaceName(name)
+  if (!key) return
+  const next = { ...(tunnelDescriptionMap.value || {}) }
+  const description = normalizeTunnelDescription(tunnelDescriptionDrafts.value[key] || '')
+  if (description) next[key] = description
+  else delete next[key]
+  tunnelDescriptionMap.value = next
+  tunnelDescriptionDrafts.value = { ...tunnelDescriptionDrafts.value, [key]: description }
+}
+
+const clearTunnelDescription = (name: string) => {
+  const key = normalizeTunnelInterfaceName(name)
+  if (!key) return
+  const next = { ...(tunnelDescriptionMap.value || {}) }
+  delete next[key]
+  tunnelDescriptionMap.value = next
+  tunnelDescriptionDrafts.value = { ...tunnelDescriptionDrafts.value, [key]: '' }
+}
+
+const addTunnelDescriptionEntry = () => {
+  const key = normalizeTunnelInterfaceName(newTunnelInterfaceName.value)
+  if (!key) return
+  const description = normalizeTunnelDescription(newTunnelInterfaceDescription.value)
+  tunnelDescriptionDrafts.value = { ...tunnelDescriptionDrafts.value, [key]: description }
+  const next = { ...(tunnelDescriptionMap.value || {}) }
+  if (description) next[key] = description
+  else delete next[key]
+  tunnelDescriptionMap.value = next
+  newTunnelInterfaceName.value = ''
+  newTunnelInterfaceDescription.value = ''
+}
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
 const hostQosByIp = ref<Record<string, AgentQosStatusItem>>({})
@@ -762,7 +917,7 @@ const normalizeAgentRemoteTargetItem = (item: AgentHostRemoteTargetItem): HostTa
   const scope = scopeRaw === 'vpn' || scopeRaw === 'bypass' ? scopeRaw : 'bypass'
   const kind = String(item?.kind || '').trim() || undefined
   const viaName = String(item?.via || '').trim()
-  const via = viaName ? (scope === 'vpn' ? ifaceDisplayName(viaName, kind) : viaName) : undefined
+  const via = viaName ? (scope === 'vpn' ? ifaceDisplayName(viaName, kind, true) : viaName) : undefined
   const proto = String(item?.proto || '').trim().toUpperCase() || undefined
   return {
     target,
@@ -813,7 +968,7 @@ const parseRouteSource = (source?: string) => {
     meta[key] = value
   }
 
-  const ifaceLabel = ifaceDisplayName(via, kind)
+  const ifaceLabel = ifaceDisplayName(via, kind, true)
   const subnet = meta.subnet || undefined
   const peer = meta.peer || undefined
   const peerLabel = peer ? t('routerTrafficPeerLabel', { peer }) : ''
