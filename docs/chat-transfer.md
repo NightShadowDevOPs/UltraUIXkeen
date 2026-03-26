@@ -1,13 +1,14 @@
-UI Mihomo / Ultra — transfer update v1.2.62
+UI Mihomo / Ultra — transfer update v1.2.65
 
 What changed in this rebuild:
-- Tasks -> users DB now also shows winner/result diagnostics for provider panel URLs, provider icons, SSL warn threshold and per-provider SSL warn days, not only tunnel descriptions
-- conflict summary now includes SSL-related diffs too, so warn-day drift is visible immediately
-- winner/result previews follow the real smart-merge behavior for router/local/custom, including fallback cases for custom URL/icon values
+- Tasks -> users DB now also includes user limits in the conflict cockpit: changed/local-only/router-only rows are visible in diagnostics, apply-preview, and exported conflict preview JSON
+- changed user limits now have their own winner/result block, so it is obvious that the conflicting local value wins before push
+- Russian reason texts in the users DB conflict UI were rewritten into normal Russian wording without mixed reason/custom/fallback phrasing
+- users DB revision preview now also shows how many user-limit entries are stored in the synced payload
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.63
+- UI: v1.2.65
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -19,7 +20,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.63
+- UI: v1.2.65
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -39,6 +40,13 @@ Current versions:
 - в v1.2.62 в Tasks -> users DB расширена winner/result-диагностика users DB: кроме tunnel descriptions теперь видны panel URLs, provider icons, SSL warn threshold и per-provider warn days
 - в v1.2.63 в Tasks -> users DB появились copy/export действия для conflict preview: текущий snapshot winner/result можно скопировать или выгрузить в JSON перед push
 - в v1.2.63 details-блок конфликта users DB теперь показывает local-only/router-only для provider icons и SSL warn days, а также сырые changed-списки по icons/tunnels/SSL для ручной сверки
+- в v1.2.64 в Tasks -> users DB добавлен отдельный winner/result-блок для changed labels, так что labels теперь диагностируются симметрично с panels/icons/tunnels/SSL
+- в v1.2.64 smart-merge и exported conflict preview теперь показывают не только winner/result, но и reason: почему победило именно это значение
+- в v1.2.64 внутри Smart merge появился apply-preview с компактным dry-run до отправки: видно итоговые строки и счётчики changed/local-only/router-only
+- в v1.2.65 в Tasks -> users DB user limits теперь тоже попали в conflict cockpit: видны changed/local-only/router-only строки, а apply-preview и conflict preview JSON показывают, что именно уйдёт на роутер по лимитам пользователей
+- в v1.2.65 для changed user limits добавлен отдельный winner/result-блок: конфликтующее локальное значение явно показывается как победитель до push
+- в v1.2.65 reason-объяснения в русском UI переписаны нормальным русским языком без смеси reason/custom/fallback
+- в v1.2.65 preview ревизии users DB теперь показывает ещё и число записей user limits
 - в v1.2.62 summary конфликта users DB теперь явно показывает и SSL-related diffs, чтобы расхождение warn days было видно сразу
 - в v1.2.61 в Tasks -> users DB добавлена явная диагностика конфликтов описаний туннелей: видно значение роутера, локальное значение и текущего победителя/result перед push
 - в v1.2.61 smart merge для users DB теперь умеет отдельно разруливать конфликты tunnel descriptions по интерфейсам (router/local/custom)
@@ -78,5 +86,4 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- следующий логичный шаг — при желании добавить такой же winner/result preview и для changed labels, чтобы smart-merge был симметричным вообще по всем секциям users DB
-- затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом
+- следующим шагом логично сделать компактный diff/preview по scope у IP labels, чтобы в конфликте было видно не только label, но и расхождение по области действия правила

@@ -1,3 +1,22 @@
+## v1.2.65 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Added deterministic users DB diagnostics for user limits: changed/local-only/router-only rows are now visible in Tasks -> users DB and included in apply-preview/conflict preview JSON.
+- Added a dedicated winner/result block for changed user limits, so it is visible that conflicting router limits are overridden by the local value before push.
+- Updated conflict reason texts in the Russian UI to fully readable Russian phrasing instead of mixed reason/custom/fallback wording.
+- Users DB revision preview now also shows the number of synced user-limit entries.
+- router-agent code not changed in this release.
+
+## v1.2.64 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Added a dedicated winner/result diagnostics block for changed labels in Tasks -> users DB, so labels now have the same visible conflict cockpit as panels, icons, tunnels, and SSL settings.
+- Added explicit reason text for smart-merge winner rows and conflict preview JSON, so it is visible whether the result comes from local, router, a custom override, or a custom fallback path.
+- Added an apply-preview card inside Smart merge that shows the final rows and counts which will be pushed before you press the merge/push action.
+- router-agent code not changed in this release.
+
 ## v1.2.63 (2026-03-26)
 
 ### UI Mihomo / Ultra

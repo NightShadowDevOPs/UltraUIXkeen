@@ -121,6 +121,11 @@ export type UsersDbDiff = {
       changed: Array<{ provider: string; local: number; remote: number }>
     }
   }
+  userLimits: {
+    localOnly: Array<{ user: string; local: UserLimit }>
+    remoteOnly: Array<{ user: string; remote: UserLimit }>
+    changed: Array<{ user: string; local: UserLimit; remote: UserLimit }>
+  }
 }
 
 export type UsersDbSmartChoiceMode = 'local' | 'remote' | 'custom'
@@ -461,6 +466,21 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
     else if (rrOk && llOk && Math.trunc(rrNum) !== Math.trunc(llNum)) warnChanged.push({ provider: k, local: Math.trunc(llNum), remote: Math.trunc(rrNum) })
   }
 
+  const rUserLimits = r.userLimits || {}
+  const lUserLimits = l.userLimits || {}
+  const limitKeys = new Set<string>([...Object.keys(rUserLimits), ...Object.keys(lUserLimits)])
+  const userLimitsLocalOnly: Array<{ user: string; local: UserLimit }> = []
+  const userLimitsRemoteOnly: Array<{ user: string; remote: UserLimit }> = []
+  const userLimitsChanged: Array<{ user: string; local: UserLimit; remote: UserLimit }> = []
+  for (const key of limitKeys) {
+    const rr = sanitizeUserLimit((rUserLimits as any)[key])
+    const ll = sanitizeUserLimit((lUserLimits as any)[key])
+    const rrHas = Object.keys(rr || {}).length > 0
+    const llHas = Object.keys(ll || {}).length > 0
+    if (rrHas && !llHas) userLimitsRemoteOnly.push({ user: key, remote: rr })
+    else if (!rrHas && llHas) userLimitsLocalOnly.push({ user: key, local: ll })
+    else if (rrHas && llHas && !isEqual(rr, ll)) userLimitsChanged.push({ user: key, local: ll, remote: rr })
+  }
   // Safe auto-merge only if there are NO "changed" collisions.
   const safeAutoMerge = labelsChanged.length === 0 && urlsChanged.length === 0 && iconsChanged.length === 0 && tunnelsChanged.length === 0 && !sslDefaultChanged && warnChanged.length === 0
 
@@ -481,6 +501,9 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
   warnLocalOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   warnRemoteOnly.sort((a, b) => a.provider.localeCompare(b.provider))
   warnChanged.sort((a, b) => a.provider.localeCompare(b.provider))
+  userLimitsLocalOnly.sort((a, b) => a.user.localeCompare(b.user))
+  userLimitsRemoteOnly.sort((a, b) => a.user.localeCompare(b.user))
+  userLimitsChanged.sort((a, b) => a.user.localeCompare(b.user))
 
   return {
     safeAutoMerge,
@@ -492,6 +515,7 @@ export const computeUsersDbDiff = (remote: UsersDbPayload, local: UsersDbPayload
       defaultDays: { local: l.sslNearExpiryDaysDefault, remote: r.sslNearExpiryDaysDefault, changed: sslDefaultChanged },
       providerDays: { localOnly: warnLocalOnly, remoteOnly: warnRemoteOnly, changed: warnChanged },
     },
+    userLimits: { localOnly: userLimitsLocalOnly, remoteOnly: userLimitsRemoteOnly, changed: userLimitsChanged },
   }
 }
 

@@ -817,6 +817,14 @@
             <span class="opacity-60">SSL:</span>
             <span class="font-mono ml-1">~{{ usersDbConflictSummary.sslDefaultChanged + usersDbConflictSummary.warnDaysChanged }}</span>
           </div>
+          <div>
+            <span class="opacity-60">{{ $t('usersDbUserLimits') }}:</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.userLimitsLocalOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">+{{ usersDbConflictSummary.userLimitsRemoteOnly }}</span>
+            <span class="opacity-60 ml-1">/</span>
+            <span class="font-mono ml-1">~{{ usersDbConflictSummary.userLimitsChanged }}</span>
+          </div>
         </div>
 
         <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -840,6 +848,78 @@
           </button>
         </div>
         <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbConflictPreviewHint') }}</div>
+
+        <div v-if="usersDbLabelChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">{{ $t('usersDbLabels') }} — {{ $t('usersDbWinner') }}</div>
+            <span class="badge badge-warning badge-xs">{{ usersDbLabelChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbWinnerHint') }}</div>
+          <div class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 220px">key</th>
+                  <th style="width: 260px">{{ $t('router') }}</th>
+                  <th style="width: 260px">{{ $t('local') }}</th>
+                  <th style="width: 280px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbLabelChangedRows" :key="row.key">
+                  <td class="font-mono">{{ row.key }}</td>
+                  <td class="max-w-[260px] truncate" :title="row.remote">{{ row.remote }}</td>
+                  <td class="max-w-[260px] truncate" :title="row.local">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-col gap-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                        <span class="font-mono break-all" :title="row.result || '—'">{{ row.result || '—' }}</span>
+                      </div>
+                      <div class="text-[10px] opacity-60">{{ row.reason }}</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="usersDbUserLimitChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-semibold">{{ $t('usersDbUserLimits') }} — {{ $t('usersDbWinner') }}</div>
+            <span class="badge badge-warning badge-xs">{{ usersDbUserLimitChangedRows.length }}</span>
+          </div>
+          <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbUserLimitsHint') }}</div>
+          <div class="mt-2 overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr>
+                  <th style="width: 220px">user</th>
+                  <th style="width: 280px">{{ $t('router') }}</th>
+                  <th style="width: 280px">{{ $t('local') }}</th>
+                  <th style="width: 320px">{{ $t('usersDbWinner') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in usersDbUserLimitChangedRows" :key="row.user">
+                  <td class="font-mono">{{ row.user }}</td>
+                  <td class="max-w-[280px] truncate" :title="row.remote">{{ row.remote }}</td>
+                  <td class="max-w-[280px] truncate" :title="row.local">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-col gap-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                        <span class="font-mono break-all" :title="row.result">{{ row.result }}</span>
+                      </div>
+                      <div class="text-[10px] opacity-60">{{ row.reason }}</div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div v-if="usersDbTunnelChangedRows.length" class="mt-2 rounded-lg border border-warning/30 bg-base-100/60 p-2">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -867,6 +947,7 @@
                       <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
                       <span class="font-mono" :title="row.result">{{ row.result }}</span>
                     </div>
+                    <div class="text-[10px] opacity-60">{{ row.reason }}</div>
                   </td>
                 </tr>
               </tbody>
@@ -900,6 +981,7 @@
                       <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
                       <span class="font-mono break-all" :title="row.result || '—'">{{ row.result || '—' }}</span>
                     </div>
+                    <div class="text-[10px] opacity-60">{{ row.reason }}</div>
                   </td>
                 </tr>
               </tbody>
@@ -939,12 +1021,15 @@
                     </div>
                   </td>
                   <td>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
-                      <div class="flex items-center gap-2">
-                        <ProviderIconBadge :icon="row.result" />
-                        <span class="font-mono">{{ fmtProviderIcon(row.result) }}</span>
+                    <div class="flex flex-col gap-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
+                        <div class="flex items-center gap-2">
+                          <ProviderIconBadge :icon="row.result" />
+                          <span class="font-mono">{{ fmtProviderIcon(row.result) }}</span>
+                        </div>
                       </div>
+                      <div class="text-[10px] opacity-60">{{ row.reason }}</div>
                     </div>
                   </td>
                 </tr>
@@ -980,6 +1065,7 @@
                       <span class="badge badge-outline badge-xs">{{ usersDbSslDefaultRow.modeLabel }}</span>
                       <span class="font-mono">{{ usersDbSslDefaultRow.result }}</span>
                     </div>
+                    <div class="text-[10px] opacity-60">{{ usersDbSslDefaultRow.reason }}</div>
                   </td>
                 </tr>
               </tbody>
@@ -1006,6 +1092,7 @@
                       <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
                       <span class="font-mono">{{ row.result }}</span>
                     </div>
+                    <div class="text-[10px] opacity-60">{{ row.reason }}</div>
                   </td>
                 </tr>
               </tbody>
@@ -1020,10 +1107,45 @@
           </div>
           <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbSmartMergeDesc') }}</div>
 
-          <div class="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" class="btn btn-xs" @click="usersDbSmartApply" :disabled="usersDbBusy">
-              {{ $t('usersDbSmartMergeAndPush') }}
-            </button>
+          <div class="mt-2 rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-xs font-semibold">{{ $t('usersDbApplyPreviewTitle') }}</div>
+              <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                <span class="badge badge-outline badge-xs">{{ $t('usersDbChanged') }}: {{ usersDbSmartPreviewStats.changedRows }}</span>
+                <span class="badge badge-outline badge-xs">{{ $t('usersDbPreviewSections') }}: {{ usersDbSmartPreviewStats.changedSections }}</span>
+                <span class="badge badge-outline badge-xs">{{ $t('usersDbLocalOnly') }}: {{ usersDbSmartPreviewStats.localOnlyRows }}</span>
+                <span class="badge badge-outline badge-xs">{{ $t('usersDbRouterOnly') }}: {{ usersDbSmartPreviewStats.routerOnlyRows }}</span>
+              </div>
+            </div>
+            <div class="mt-1 text-[11px] opacity-70">{{ $t('usersDbApplyPreviewHint') }}</div>
+            <div v-if="usersDbSmartPreviewRows.length" class="mt-2 overflow-x-auto">
+              <table class="table table-xs">
+                <thead>
+                  <tr>
+                    <th style="width: 140px">{{ $t('fieldName') }}</th>
+                    <th style="width: 220px">{{ $t('provider') }} / key</th>
+                    <th style="width: 120px">{{ $t('usersDbWinner') }}</th>
+                    <th style="width: 260px">{{ $t('usersDbWinner') }}</th>
+                    <th>{{ $t('usersDbReason') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in usersDbSmartPreviewRows" :key="`${row.section}-${row.key}`">
+                    <td>{{ row.sectionLabel }}</td>
+                    <td class="font-mono break-all">{{ row.key }}</td>
+                    <td><span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span></td>
+                    <td class="font-mono break-all">{{ row.resultText }}</td>
+                    <td class="text-[11px] opacity-70">{{ row.reason }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="mt-2 text-[11px] opacity-60">{{ $t('usersDbPreviewNoChanges') }}</div>
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-xs" @click="usersDbSmartApply" :disabled="usersDbBusy">
+                {{ $t('usersDbSmartMergeAndPush') }}
+              </button>
+            </div>
           </div>
 
           <div class="mt-2 space-y-4">
@@ -1365,6 +1487,46 @@
               </div>
             </div>
 
+            <div v-if="usersDbConflictDiff.userLimits.changed.length">
+              <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('usersDbUserLimits') }}</div>
+              <div class="mt-1 space-y-1">
+                <div v-for="it in usersDbUserLimitChangedRows.slice(0, 50)" :key="it.user" class="font-mono break-all">
+                  <span class="opacity-60">{{ it.user }}</span>
+                  <span class="opacity-60"> : </span>
+                  <span>{{ it.remote }}</span>
+                  <span class="opacity-60"> → </span>
+                  <span>{{ it.result }}</span>
+                  <span class="opacity-60"> · </span>
+                  <span>{{ it.reason }}</span>
+                </div>
+                <div v-if="usersDbConflictDiff.userLimits.changed.length > 50" class="opacity-60">…</div>
+              </div>
+            </div>
+
+            <div v-if="usersDbConflictDiff.userLimits.localOnly.length || usersDbConflictDiff.userLimits.remoteOnly.length">
+              <div class="font-semibold">{{ $t('usersDbAddedRemoved') }}: {{ $t('usersDbUserLimits') }}</div>
+              <div class="mt-1 grid gap-3 md:grid-cols-2">
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.userLimits.localOnly.slice(0, 50)" :key="it.user" class="font-mono break-all">
+                      <span class="opacity-60">{{ it.user }}</span><span class="opacity-60"> : </span><span>{{ fmtUserLimitSummary(it.local) }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.userLimits.localOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
+                  <div class="mt-1 space-y-1">
+                    <div v-for="it in usersDbConflictDiff.userLimits.remoteOnly.slice(0, 50)" :key="it.user" class="font-mono break-all">
+                      <span class="opacity-60">{{ it.user }}</span><span class="opacity-60"> : </span><span>{{ fmtUserLimitSummary(it.remote) }}</span>
+                    </div>
+                    <div v-if="usersDbConflictDiff.userLimits.remoteOnly.length > 50" class="opacity-60">…</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div v-if="usersDbConflictDiff.urls.changed.length">
               <div class="font-semibold">{{ $t('usersDbChanged') }}: {{ $t('usersDbPanels') }}</div>
               <div class="mt-1 space-y-1">
@@ -1597,6 +1759,7 @@
                   • {{ $t('usersDbPanels') }}: <span class="font-mono">{{ usersDbViewSummary.panels }}</span>
                   • {{ $t('providerIcon') }}: <span class="font-mono">{{ usersDbViewSummary.icons }}</span>
                   • {{ $t('routerTrafficTunnelDescriptionsSettingsTitle') }}: <span class="font-mono">{{ usersDbViewSummary.tunnels }}</span>
+                  • {{ $t('usersDbUserLimits') }}: <span class="font-mono">{{ usersDbViewSummary.userLimits }}</span>
                   • SSL: <span class="font-mono">{{ usersDbViewSummary.sslDefault }}</span>
                 </span>
               </div>
@@ -1723,7 +1886,7 @@ import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProv
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
 import { userLimitSnapshots } from '@/store/userLimitSnapshots'
-import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowedCidrs, userLimits } from '@/store/userLimits'
+import { autoDisconnectLimitedUsers, hardBlockLimitedUsers, managedLanDisallowedCidrs, userLimits, type UserLimit } from '@/store/userLimits'
 import { activeConnections, closedConnections } from '@/store/connections'
 import { ruleHitMap } from '@/store/rules'
 import { clearJobs, finishJob, jobHistory, startJob } from '@/store/jobs'
@@ -2584,6 +2747,9 @@ const usersDbConflictSummary = computed(() => {
     tunnelsLocalOnly: d.tunnels.localOnly.length,
     tunnelsRemoteOnly: d.tunnels.remoteOnly.length,
     tunnelsChanged: d.tunnels.changed.length,
+    userLimitsLocalOnly: d.userLimits.localOnly.length,
+    userLimitsRemoteOnly: d.userLimits.remoteOnly.length,
+    userLimitsChanged: d.userLimits.changed.length,
     sslDefaultChanged: d.ssl.defaultDays.changed ? 1 : 0,
     warnDaysChanged: d.ssl.providerDays.changed.length,
     safeAutoMerge: d.safeAutoMerge,
@@ -2668,6 +2834,55 @@ const usersDbModeMeta = (mode: SmartChoiceMode | undefined) => {
   return { mode: 'local' as SmartChoiceMode, modeLabel: t('local') }
 }
 
+const usersDbReasonText = (mode: SmartChoiceMode, fallback?: 'local' | 'remote', customProvided = false) => {
+  if (mode === 'remote') return t('usersDbReasonRouterSelected')
+  if (mode === 'local') return t('usersDbReasonLocalSelected')
+  if (customProvided) return t('usersDbReasonCustomApplied')
+  if (fallback === 'remote') return t('usersDbReasonCustomFallbackRouter')
+  return t('usersDbReasonCustomFallbackLocal')
+}
+
+const usersDbSectionLabel = (section: 'labels' | 'urls' | 'icons' | 'tunnels' | 'warnDays' | 'sslDefault' | 'userLimits') => {
+  if (section === 'labels') return t('usersDbLabels')
+  if (section === 'urls') return t('usersDbPanels')
+  if (section === 'icons') return t('providerIcon')
+  if (section === 'tunnels') return t('routerTrafficTunnelDescriptionsSettingsTitle')
+  if (section === 'warnDays') return t('sslWarnDays')
+  if (section === 'userLimits') return t('usersDbUserLimits')
+  return t('sslWarnThreshold')
+}
+
+const fmtUserLimitMbps = (bps?: number) => {
+  const n = Number(bps || 0)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return `${((n * 8) / (1024 ** 2)).toFixed(1)} Mbps`
+}
+
+const fmtUserLimitPeriod = (period?: string) => {
+  if (period === '1d') return '24ч'
+  if (period === 'month') return 'месяц'
+  return '30д'
+}
+
+const fmtUserLimitSummary = (limit?: UserLimit | null) => {
+  const l = limit || {}
+  const parts: string[] = []
+  if (l.disabled) parts.push('ручная блокировка')
+  if (l.enabled === false) parts.push('лимит выключен')
+  if (typeof l.trafficLimitBytes === 'number' && Number.isFinite(l.trafficLimitBytes) && l.trafficLimitBytes > 0) {
+    parts.push(`${t('trafficLimit')}: ${prettyBytesHelper(l.trafficLimitBytes)} / ${fmtUserLimitPeriod(l.trafficPeriod)}`)
+  }
+  if (typeof l.bandwidthLimitBps === 'number' && Number.isFinite(l.bandwidthLimitBps) && l.bandwidthLimitBps > 0) {
+    parts.push(`${t('bandwidthLimit')}: ${fmtUserLimitMbps(l.bandwidthLimitBps)}`)
+  }
+  if (l.mac) parts.push(`MAC: ${l.mac}`)
+  return parts.length ? parts.join(' · ') : '—'
+}
+
+const usersDbUserLimitReasonChanged = () => t('usersDbReasonUserLimitLocalWins')
+const usersDbUserLimitReasonLocalOnly = () => t('usersDbReasonUserLimitLocalOnly')
+const usersDbUserLimitReasonRouterOnly = () => t('usersDbReasonUserLimitRouterOnly')
+
 const usersDbLabelChangedRows = computed(() => {
   const changed = usersDbConflictDiff.value?.labels?.changed || []
   return changed.map((it) => {
@@ -2679,11 +2894,13 @@ const usersDbLabelChangedRows = computed(() => {
       : meta.mode === 'custom'
         ? (customValue || it.remote.label)
         : it.local.label
+    const reason = usersDbReasonText(meta.mode, customValue ? undefined : 'remote', customValue.length > 0)
     return {
       key: it.key,
       remote: it.remote.label,
       local: it.local.label,
       result,
+      reason,
       mode: meta.mode,
       modeLabel: meta.modeLabel,
     }
@@ -2697,11 +2914,13 @@ const usersDbUrlChangedRows = computed(() => {
     const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
     const customValue = String(choice?.customUrl || '').trim()
     const result = meta.mode === 'remote' ? it.remote : meta.mode === 'custom' ? (customValue || it.remote) : it.local
+    const reason = usersDbReasonText(meta.mode, customValue ? undefined : 'remote', customValue.length > 0)
     return {
       provider: it.provider,
       remote: it.remote,
       local: it.local,
       result,
+      reason,
       mode: meta.mode,
       modeLabel: meta.modeLabel,
     }
@@ -2720,11 +2939,13 @@ const usersDbIconChangedRows = computed(() => {
       : meta.mode === 'custom'
         ? (customValue || (customRaw === '' ? '' : it.remote))
         : it.local
+    const reason = usersDbReasonText(meta.mode, undefined, meta.mode === 'custom' ? (customRaw === '' || customValue !== '') : false)
     return {
       provider: it.provider,
       remote: it.remote,
       local: it.local,
       result,
+      reason,
       mode: meta.mode,
       modeLabel: meta.modeLabel,
     }
@@ -2740,10 +2961,12 @@ const usersDbSslDefaultRow = computed(() => {
     ? Math.max(0, Math.min(365, Math.trunc(choice.customDays)))
     : row.local
   const result = meta.mode === 'remote' ? row.remote : meta.mode === 'custom' ? customValue : row.local
+  const hasCustom = typeof choice?.customDays === 'number' && Number.isFinite(choice.customDays)
   return {
     remote: row.remote,
     local: row.local,
     result,
+    reason: usersDbReasonText(meta.mode, hasCustom ? undefined : 'local', hasCustom),
     mode: meta.mode,
     modeLabel: meta.modeLabel,
   }
@@ -2758,11 +2981,13 @@ const usersDbWarnDaysChangedRows = computed(() => {
       ? Math.max(0, Math.min(365, Math.trunc(choice.customDays)))
       : it.local
     const result = meta.mode === 'remote' ? it.remote : meta.mode === 'custom' ? customValue : it.local
+    const hasCustom = typeof choice?.customDays === 'number' && Number.isFinite(choice.customDays)
     return {
       provider: it.provider,
       remote: it.remote,
       local: it.local,
       result,
+      reason: usersDbReasonText(meta.mode, hasCustom ? undefined : 'local', hasCustom),
       mode: meta.mode,
       modeLabel: meta.modeLabel,
     }
@@ -2788,10 +3013,163 @@ const usersDbTunnelChangedRows = computed(() => {
       remote: it.remote,
       local: it.local,
       result,
+      reason: usersDbReasonText(meta.mode, customValue ? undefined : 'local', customValue.length > 0),
       mode: meta.mode,
       modeLabel: meta.modeLabel,
     }
   })
+})
+
+const usersDbUserLimitChangedRows = computed(() => {
+  const changed = usersDbConflictDiff.value?.userLimits?.changed || []
+  return changed.map((it) => ({
+    user: it.user,
+    remote: fmtUserLimitSummary(it.remote),
+    local: fmtUserLimitSummary(it.local),
+    result: fmtUserLimitSummary(it.local),
+    reason: usersDbUserLimitReasonChanged(),
+    mode: 'local' as SmartChoiceMode,
+    modeLabel: t('local'),
+  }))
+})
+
+const usersDbSmartPreviewRows = computed(() => {
+  const rows: Array<{
+    section: 'labels' | 'urls' | 'icons' | 'tunnels' | 'warnDays' | 'sslDefault' | 'userLimits'
+    sectionLabel: string
+    key: string
+    result: string | number
+    resultText: string
+    mode: SmartChoiceMode
+    modeLabel: string
+    reason: string
+  }> = []
+
+  for (const row of usersDbLabelChangedRows.value) {
+    rows.push({
+      section: 'labels',
+      sectionLabel: usersDbSectionLabel('labels'),
+      key: row.key,
+      result: row.result,
+      resultText: row.result || '—',
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  for (const row of usersDbUrlChangedRows.value) {
+    rows.push({
+      section: 'urls',
+      sectionLabel: usersDbSectionLabel('urls'),
+      key: row.provider,
+      result: row.result,
+      resultText: row.result || '—',
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  for (const row of usersDbIconChangedRows.value) {
+    rows.push({
+      section: 'icons',
+      sectionLabel: usersDbSectionLabel('icons'),
+      key: row.provider,
+      result: row.result,
+      resultText: fmtProviderIcon(row.result),
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  for (const row of usersDbTunnelChangedRows.value) {
+    rows.push({
+      section: 'tunnels',
+      sectionLabel: usersDbSectionLabel('tunnels'),
+      key: row.name,
+      result: row.result,
+      resultText: row.result || '—',
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  if (usersDbSslDefaultRow.value) {
+    rows.push({
+      section: 'sslDefault',
+      sectionLabel: usersDbSectionLabel('sslDefault'),
+      key: 'sslNearExpiryDaysDefault',
+      result: usersDbSslDefaultRow.value.result,
+      resultText: String(usersDbSslDefaultRow.value.result),
+      mode: usersDbSslDefaultRow.value.mode,
+      modeLabel: usersDbSslDefaultRow.value.modeLabel,
+      reason: usersDbSslDefaultRow.value.reason,
+    })
+  }
+  for (const row of usersDbWarnDaysChangedRows.value) {
+    rows.push({
+      section: 'warnDays',
+      sectionLabel: usersDbSectionLabel('warnDays'),
+      key: row.provider,
+      result: row.result,
+      resultText: String(row.result),
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  for (const row of usersDbUserLimitChangedRows.value) {
+    rows.push({
+      section: 'userLimits',
+      sectionLabel: usersDbSectionLabel('userLimits'),
+      key: row.user,
+      result: row.result,
+      resultText: row.result,
+      mode: row.mode,
+      modeLabel: row.modeLabel,
+      reason: row.reason,
+    })
+  }
+  for (const row of (usersDbConflictDiff.value?.userLimits?.localOnly || [])) {
+    rows.push({
+      section: 'userLimits',
+      sectionLabel: usersDbSectionLabel('userLimits'),
+      key: row.user,
+      result: fmtUserLimitSummary(row.local),
+      resultText: fmtUserLimitSummary(row.local),
+      mode: 'local',
+      modeLabel: t('local'),
+      reason: usersDbUserLimitReasonLocalOnly(),
+    })
+  }
+  for (const row of (usersDbConflictDiff.value?.userLimits?.remoteOnly || [])) {
+    rows.push({
+      section: 'userLimits',
+      sectionLabel: usersDbSectionLabel('userLimits'),
+      key: row.user,
+      result: fmtUserLimitSummary(row.remote),
+      resultText: fmtUserLimitSummary(row.remote),
+      mode: 'remote',
+      modeLabel: t('router'),
+      reason: usersDbUserLimitReasonRouterOnly(),
+    })
+  }
+  return rows
+})
+
+const usersDbSmartPreviewStats = computed(() => {
+  const d: any = usersDbConflictDiff.value as any
+  const rows = usersDbSmartPreviewRows.value
+  if (!d) return { changedRows: 0, changedSections: 0, localOnlyRows: 0, routerOnlyRows: 0 }
+  const changedSections = new Set(rows.map((row) => row.section)).size
+  const localOnlyRows = (d.labels?.localOnly?.length || 0) + (d.urls?.localOnly?.length || 0) + (d.icons?.localOnly?.length || 0) + (d.tunnels?.localOnly?.length || 0) + (d.ssl?.providerDays?.localOnly?.length || 0) + (d.userLimits?.localOnly?.length || 0)
+  const routerOnlyRows = (d.labels?.remoteOnly?.length || 0) + (d.urls?.remoteOnly?.length || 0) + (d.icons?.remoteOnly?.length || 0) + (d.tunnels?.remoteOnly?.length || 0) + (d.ssl?.providerDays?.remoteOnly?.length || 0) + (d.userLimits?.remoteOnly?.length || 0)
+  const changedRows = (d.labels?.changed?.length || 0) + (d.urls?.changed?.length || 0) + (d.icons?.changed?.length || 0) + (d.tunnels?.changed?.length || 0) + (d.ssl?.providerDays?.changed?.length || 0) + (d.ssl?.defaultDays?.changed ? 1 : 0) + (d.userLimits?.changed?.length || 0)
+  return {
+    changedRows,
+    changedSections,
+    localOnlyRows,
+    routerOnlyRows,
+  }
 })
 
 const usersDbConflictPreview = computed(() => {
@@ -2801,6 +3179,10 @@ const usersDbConflictPreview = computed(() => {
   return {
     generatedAt: dayjs().toISOString(),
     summary,
+    applyPreview: {
+      stats: usersDbSmartPreviewStats.value,
+      rows: usersDbSmartPreviewRows.value,
+    },
     changed: {
       labels: usersDbLabelChangedRows.value,
       panels: usersDbUrlChangedRows.value,
@@ -2808,6 +3190,7 @@ const usersDbConflictPreview = computed(() => {
       tunnels: usersDbTunnelChangedRows.value,
       sslDefault: usersDbSslDefaultRow.value,
       sslWarnDays: usersDbWarnDaysChangedRows.value,
+      userLimits: usersDbUserLimitChangedRows.value,
     },
     localOnly: {
       labels: d.labels?.localOnly || [],
@@ -2815,6 +3198,7 @@ const usersDbConflictPreview = computed(() => {
       icons: d.icons?.localOnly || [],
       tunnels: d.tunnels?.localOnly || [],
       sslWarnDays: d.ssl?.providerDays?.localOnly || [],
+      userLimits: (d.userLimits?.localOnly || []).map((it: any) => ({ user: it.user, summary: fmtUserLimitSummary(it.local), raw: it.local })),
     },
     routerOnly: {
       labels: d.labels?.remoteOnly || [],
@@ -2822,6 +3206,7 @@ const usersDbConflictPreview = computed(() => {
       icons: d.icons?.remoteOnly || [],
       tunnels: d.tunnels?.remoteOnly || [],
       sslWarnDays: d.ssl?.providerDays?.remoteOnly || [],
+      userLimits: (d.userLimits?.remoteOnly || []).map((it: any) => ({ user: it.user, summary: fmtUserLimitSummary(it.remote), raw: it.remote })),
     },
   }
 })
@@ -2897,6 +3282,11 @@ const extractUsersDbPayloadView = (v: any) => {
         ? v.tunnelInterfaceDescriptionMap
         : {}
 
+  const userLimitsMap =
+    v?.userLimits && typeof v.userLimits === 'object'
+      ? v.userLimits
+      : {}
+
   const cleanUrlMap: Record<string, string> = {}
   try {
     for (const [k, vv] of Object.entries(providerPanelUrls || {})) {
@@ -2947,6 +3337,17 @@ const extractUsersDbPayloadView = (v: any) => {
     // ignore
   }
 
+  const cleanUserLimits: Record<string, UserLimit> = {}
+  try {
+    for (const [k, vv] of Object.entries(userLimitsMap || {})) {
+      const kk = String(k || '').trim()
+      if (!kk || !vv || typeof vv !== 'object' || Array.isArray(vv)) continue
+      cleanUserLimits[kk] = { ...(vv as UserLimit) }
+    }
+  } catch {
+    // ignore
+  }
+
   return {
     labels: Array.isArray(labels) ? labels : [],
     providerPanelUrls: cleanUrlMap,
@@ -2954,6 +3355,7 @@ const extractUsersDbPayloadView = (v: any) => {
     sslNearExpiryDaysDefault: sslDef,
     providerSslWarnDaysMap: cleanWarnMap,
     tunnelInterfaceDescriptions: cleanTunnelMap,
+    userLimits: cleanUserLimits,
   }
 }
 
@@ -2972,6 +3374,7 @@ const usersDbViewSummary = computed(() => {
     sslDefault: p.sslNearExpiryDaysDefault,
     warnMap: p.providerSslWarnDaysMap ? Object.keys(p.providerSslWarnDaysMap).length : 0,
     tunnels: (p as any).tunnelInterfaceDescriptions ? Object.keys((p as any).tunnelInterfaceDescriptions).length : 0,
+    userLimits: (p as any).userLimits ? Object.keys((p as any).userLimits).length : 0,
   }
 })
 
