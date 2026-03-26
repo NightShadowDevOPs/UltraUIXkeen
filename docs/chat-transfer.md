@@ -1,13 +1,14 @@
-UI Mihomo / Ultra — transfer update v1.2.54
+UI Mihomo / Ultra — transfer update v1.2.55
 
 What changed in this rebuild:
-- added compact rule-type badges in Users -> Source IP mapping (exact / CIDR / regex / IPv6 suffix)
-- added live-match counters for each mapping row, so active rules are visible immediately without guesswork
-- Source IP stats now resolves labels through the shared helper, so CIDR / regex / suffix mappings show up there too
+- added compact Source IP match badges directly inside Traffic -> Users rows
+- rows now show whether the match path is exact IP, CIDR/subnet, regex, or IPv6 suffix without leaving the traffic table
+- each badge now exposes matched rule keys and live IPs in the tooltip for faster debugging
+- QoS runtime hover details now also include the source-match path for the row
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.54
+- UI: v1.2.55
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -19,7 +20,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.54
+- UI: v1.2.55
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -32,6 +33,8 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.55 в Traffic -> Users строки теперь показывают компактные бейджи пути совпадения Source IP прямо рядом с пользователем: exact / CIDR / regex / IPv6 suffix
+- в v1.2.55 tooltip у этих бейджей показывает matched rule key(s) и live IPs, а QoS runtime hover тоже включает source-match path
 - в v1.2.54 в Users -> Source IP mapping появились компактные бейджи типа правила и live-match counters по каждой строке
 - в v1.2.54 Source IP stats теперь тоже показывает CIDR/regex/suffix-метки через общий helper, а не делает вид, что знает только exact IP
 - в v1.2.53 добавлен рабочий CIDR helper path для Source IP mapping: CIDR/regex-метки теперь участвуют в Users/Traffic и могут подтягивать живые IP
@@ -60,5 +63,5 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- вывести такую же компактную диагностику совпадения уже в Traffic/Users rows, чтобы было видно, exact это, CIDR или regex прямо в строке пользователя
+- добавить ещё более явную diagnostics-строку для owner-resolution, если limit owner отличается от display user
 - затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом

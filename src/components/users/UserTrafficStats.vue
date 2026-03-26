@@ -277,61 +277,77 @@
                 />
               </td>
               <td class="font-medium">
-                <div class="flex items-center gap-2">
-                  <LockClosedIcon
-                    v-if="limitStates[row.user]?.blocked"
-                    class="h-4 w-4 text-error"
-                    :title="$t('userBlockedTip')"
-                  />
-                  <template v-if="editingUser === row.user">
-                    <input
-                      class="input input-xs w-full max-w-[260px]"
-                      v-model="editingName"
-                      :placeholder="$t('user')"
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center gap-2">
+                    <LockClosedIcon
+                      v-if="limitStates[row.user]?.blocked"
+                      class="h-4 w-4 text-error"
+                      :title="$t('userBlockedTip')"
                     />
-                  </template>
-                  <template v-else>
-                    <span class="truncate inline-block max-w-[240px]" :title="row.user">{{ row.user }}</span>
-                    <div class="flex items-center gap-1">
+                    <template v-if="editingUser === row.user">
+                      <input
+                        class="input input-xs w-full max-w-[260px]"
+                        v-model="editingName"
+                        :placeholder="$t('user')"
+                      />
+                    </template>
+                    <template v-else>
+                      <span class="truncate inline-block max-w-[240px]" :title="row.user">{{ row.user }}</span>
+                      <div class="flex items-center gap-1">
+                        <span
+                          v-if="limitStates[row.user]?.trafficLimitBytes"
+                          class="inline-flex pointer-events-auto"
+                          :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled)"
+                        >
+                          <CircleStackIcon
+                            class="h-4 w-4"
+                            :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
+                            @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled))"
+                            @mouseleave="hideTip"
+                          />
+                        </span>
+                        <span
+                          v-if="limitStates[row.user]?.bandwidthLimitBps"
+                          class="inline-flex pointer-events-auto"
+                          :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
+                        >
+                          <BoltIcon
+                            class="h-4 w-4"
+                            :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
+                            @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
+                            @mouseleave="hideTip"
+                          />
+                        </span>
+                      </div>
                       <span
-                        v-if="limitStates[row.user]?.trafficLimitBytes"
-                        class="inline-flex pointer-events-auto"
-                        :title="trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled)"
+                        v-if="row.currentQos && row.currentQos !== 'mixed'"
+                        class="badge badge-xs"
+                        :class="profileBadgeClass(row.currentQos)"
                       >
-                        <CircleStackIcon
-                          class="h-4 w-4"
-                          :class="limitStates[row.user].enabled ? 'text-info' : 'opacity-40'"
-                          @mouseenter="showTip($event, trafficIconTitle(limitStates[row.user].trafficLimitBytes, rowLimit(row).trafficPeriod, limitStates[row.user].enabled))"
-                          @mouseleave="hideTip"
-                        />
+                        {{ profileIcon(row.currentQos) }} {{ profileLabel(row.currentQos) }}
                       </span>
                       <span
-                        v-if="limitStates[row.user]?.bandwidthLimitBps"
-                        class="inline-flex pointer-events-auto"
-                        :title="bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled)"
+                        v-else-if="row.currentQos === 'mixed'"
+                        class="badge badge-xs badge-warning"
                       >
-                        <BoltIcon
-                          class="h-4 w-4"
-                          :class="limitStates[row.user].enabled ? 'text-warning' : 'opacity-40'"
-                          @mouseenter="showTip($event, bandwidthIconTitle(limitStates[row.user].bandwidthLimitBps, limitStates[row.user].enabled))"
-                          @mouseleave="hideTip"
-                        />
+                        ≋ {{ $t('hostQosMixed') }}
                       </span>
-                    </div>
+                    </template>
+                  </div>
+                  <div
+                    v-if="editingUser !== row.user && rowSourceRuleBadges(row).length"
+                    class="flex flex-wrap items-center gap-1 text-[11px]"
+                  >
                     <span
-                      v-if="row.currentQos && row.currentQos !== 'mixed'"
-                      class="badge badge-xs"
-                      :class="profileBadgeClass(row.currentQos)"
+                      v-for="badge in rowSourceRuleBadges(row)"
+                      :key="`${row.user}-${badge.text}`"
+                      class="inline-flex items-center rounded-full border px-2 py-0.5 font-medium"
+                      :class="badge.cls"
+                      :title="badge.title"
                     >
-                      {{ profileIcon(row.currentQos) }} {{ profileLabel(row.currentQos) }}
+                      {{ badge.text }}
                     </span>
-                    <span
-                      v-else-if="row.currentQos === 'mixed'"
-                      class="badge badge-xs badge-warning"
-                    >
-                      ≋ {{ $t('hostQosMixed') }}
-                    </span>
-                  </template>
+                  </div>
                 </div>
               </td>
               <td class="max-md:hidden">
@@ -792,7 +808,7 @@
 <script setup lang="ts">
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import { agentLanHostsAPI, agentQosStatusAPI, agentRemoveHostQosAPI, agentSetHostQosAPI, agentStatusAPI, type AgentLanHost, type AgentQosProfile, type AgentQosStatus, type AgentQosStatusItem } from '@/api/agent'
-import { getExactIPLabelFromMap, getIPLabelFromMap } from '@/helper/sourceip'
+import { getExactIPLabelFromMap, getIPLabelFromMap, getPrimarySourceIpRule, type SourceIpRuleKind } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import { activeConnections } from '@/store/connections'
@@ -2121,6 +2137,74 @@ const compactList = (items: string[], max = 2) => {
   return `${list.slice(0, max).join(', ')} +${list.length - max}`
 }
 
+type RowSourceRuleSummary = {
+  kind: SourceIpRuleKind
+  ruleKeys: string[]
+  matchedIps: string[]
+}
+
+const sourceRuleKindLabel = (kind: SourceIpRuleKind) => {
+  if (kind === 'cidr') return t('sourceIpRuleKindCidr')
+  if (kind === 'regex') return t('sourceIpRuleKindRegex')
+  if (kind === 'suffix') return t('sourceIpRuleKindSuffix')
+  return t('sourceIpRuleKindExact')
+}
+
+const sourceRuleBadgeClass = (kind: SourceIpRuleKind) => {
+  if (kind === 'cidr') return runtimeBadgeClass('info')
+  if (kind === 'regex') return runtimeBadgeClass('warning')
+  if (kind === 'suffix') return 'border-secondary/30 bg-secondary/10 text-secondary'
+  return runtimeBadgeClass('neutral')
+}
+
+const rowSourceRuleSummaries = (row: Row): RowSourceRuleSummary[] => {
+  const grouped = new Map<SourceIpRuleKind, { kind: SourceIpRuleKind; ruleKeys: Set<string>; matchedIps: Set<string> }>()
+
+  for (const ip of effectiveIpsForRow(row)) {
+    const resolved = getPrimarySourceIpRule(ip)
+    if (!resolved?.kind) continue
+
+    const current = grouped.get(resolved.kind) || {
+      kind: resolved.kind,
+      ruleKeys: new Set<string>(),
+      matchedIps: new Set<string>(),
+    }
+    if (resolved.key) current.ruleKeys.add(resolved.key)
+    current.matchedIps.add(ip)
+    grouped.set(resolved.kind, current)
+  }
+
+  return Array.from(grouped.values())
+    .map((item) => ({
+      kind: item.kind,
+      ruleKeys: Array.from(item.ruleKeys).sort((a, b) => a.localeCompare(b)),
+      matchedIps: Array.from(item.matchedIps).sort((a, b) => a.localeCompare(b)),
+    }))
+    .sort((a, b) => {
+      if (b.matchedIps.length !== a.matchedIps.length) return b.matchedIps.length - a.matchedIps.length
+      return sourceRuleKindLabel(a.kind).localeCompare(sourceRuleKindLabel(b.kind))
+    })
+}
+
+const rowSourceRuleBadgeTitle = (summary: RowSourceRuleSummary) => {
+  const kind = sourceRuleKindLabel(summary.kind)
+  const rules = compactList(summary.ruleKeys, 3) || '—'
+  const ips = compactList(summary.matchedIps, 4) || '—'
+  return [
+    t('sourceIpRowMatchedTitle', { kind, count: summary.matchedIps.length }),
+    t('sourceIpRowRulesTitle', { rules }),
+    t('sourceIpRowIpsTitle', { ips }),
+  ].join('\n')
+}
+
+const rowSourceRuleBadges = (row: Row): RuntimeBadge[] => {
+  return rowSourceRuleSummaries(row).map((summary) => ({
+    text: `${sourceRuleKindLabel(summary.kind)} · ${t('sourceIpRowIpCountShort', { count: summary.matchedIps.length })}`,
+    cls: sourceRuleBadgeClass(summary.kind),
+    title: rowSourceRuleBadgeTitle(summary),
+  }))
+}
+
 const rowResolvedMacs = (row: Row) => resolveMacsForIdentity(row.user, effectiveIpsForRow(row), rowLimitOwner(row))
 
 const rowAgentQosItems = (row: Row) => {
@@ -2211,6 +2295,9 @@ const rowRuntimeTitle = (row: Row) => {
   if (qosStatus.value.qosMode) parts.push(`Mode: ${qosStatus.value.qosMode}`)
   if (agentItems.length) parts.push(`Agent confirmed IP: ${agentItems.map((item) => item.ip).join(', ')}`)
   if (storedOnlyIps.length) parts.push(`UI-only IP: ${storedOnlyIps.join(', ')}`)
+  for (const summary of rowSourceRuleSummaries(row)) {
+    parts.push(`Source ${sourceRuleKindLabel(summary.kind)}: ${summary.ruleKeys.join(', ')} -> ${summary.matchedIps.join(', ')}`)
+  }
   if (ips.length) parts.push(`Effective IP: ${ips.join(', ')}`)
   if (macs.length) parts.push(`MAC: ${macs.join(', ')}`)
   const priorities = Array.from(new Set(agentItems.map((item) => item.priority).filter((value) => value !== undefined && value !== null)))

@@ -1,3 +1,12 @@
+## v1.2.55 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Traffic -> Users rows now show compact Source IP match badges directly in the user line, so you can immediately see whether the row is attached by exact IP, CIDR/subnet, regex, or IPv6 suffix.
+- Each match badge now carries a tooltip with the matched rule key(s) and the live IPs behind that row, which makes troubleshooting user/traffic grouping much less guessy.
+- QoS runtime hover details now also include the source-match path used for the row.
+- router-agent code not changed in this release.
+
 ## v1.2.54 (2026-03-26)
 
 ### UI Mihomo / Ultra
