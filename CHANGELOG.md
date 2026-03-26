@@ -1,3 +1,8 @@
+## v1.2.45
+
+- adjusted Router -> Traffic live chart scaling to stay readable on low-throughput links: the y-axis no longer starts with a hard 1 MB/s floor, so WAN live counters from router-agent can remain visible even when current traffic is only tens or hundreds of KB/s
+- kept live polling/runtime logic intact: the chart still uses router-agent `traffic_live`, but now the peak scale adapts down to 64/128/256 KB/s when observed traffic is low instead of visually flattening small deltas into an "empty" chart
+
 ## v1.2.44
 
 - fixed router-agent CGI query parsing for BusyBox /bin/sh: removed bash-only parameter substitution that crashed `cmd=status`, `cmd=traffic_live` and other endpoints with `Bad substitution`

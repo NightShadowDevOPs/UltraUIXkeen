@@ -1630,8 +1630,20 @@ const allSeriesValues = computed(() => [
 const maxObserved = computed(() => Math.max(0, ...allSeriesValues.value))
 
 const roundedPeak = computed(() => {
-  const raw = Math.max(maxObserved.value * 1.15, 1024 * 1024)
-  const step = raw < 5 * 1024 * 1024 ? 256 * 1024 : 1024 * 1024
+  const observed = Math.max(0, Number(maxObserved.value || 0))
+  const floor = observed >= 512 * 1024
+    ? 256 * 1024
+    : observed >= 128 * 1024
+      ? 128 * 1024
+      : 64 * 1024
+  const raw = Math.max(observed * 1.2, floor)
+  const step = raw < 256 * 1024
+    ? 16 * 1024
+    : raw < 1024 * 1024
+      ? 64 * 1024
+      : raw < 5 * 1024 * 1024
+        ? 256 * 1024
+        : 1024 * 1024
   return Math.ceil(raw / step) * step
 })
 

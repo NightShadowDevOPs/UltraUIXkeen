@@ -7,7 +7,7 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.44
+- UI: v1.2.45
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -18,6 +18,7 @@
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.45 подправлен масштаб графика `Router -> Трафик роутера -> live`: жёсткий минимум шкалы 1 MB/s визуально прятал малый live-трафик, поэтому теперь шкала адаптивно опускается до 64/128/256 KB/s и небольшие WAN-дельты больше не выглядят как пустой график
 - в v1.2.44 починен router-agent CGI query parser под BusyBox /bin/sh: прежняя bash-only подстановка `${val//...}` роняла `cmd=status`, `cmd=traffic_live` и другие endpoint'ы с `Bad substitution`, из-за чего UI показывал `Агент включён, но недоступен`, не выводил версию агента и не работал live-трафик роутера
 - в v1.2.43 починен router-agent `traffic_live`: в agent была потеряна helper-функция `read_iface_counter()`, из-за чего live-график трафика роутера мог не получать WAN counters; теперь `Router -> Трафик роутера -> live` снова должен опрашиваться нормально
 - в v1.2.43 online-проверка прошивки снова стала осмысленной: router-agent теперь делает best-effort check по официальным страницам Netcraze Ultra для каналов main/preview/dev и возвращает latest version + updateAvailable вместо одного только currentVersion
