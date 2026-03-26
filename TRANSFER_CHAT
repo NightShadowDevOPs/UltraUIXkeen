@@ -1,12 +1,13 @@
-UI Mihomo / Ultra — transfer update v1.2.47
+UI Mihomo / Ultra — transfer update v1.2.48
 
 What changed in this rebuild:
-- added a visible QoS runtime block in Traffic with router-agent state, safe `wan-only` marker, WAN/LAN rates and confirmed agent IP count
-- expanded per-row Traffic runtime details: agent-confirmed QoS coverage, UI-only saved state, queue priority, guaranteed minimums, shaper state and compact IP/MAC hints
+- added UI cache validation in Settings: current loaded bundle vs bundle currently served by the router HTML
+- added hard refresh for UI cache: unregister service workers + clear CacheStorage before forced reload
+- added frontend build stamp visibility in Settings and made the sidebar footer version line brighter for quicker post-update verification
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.47
+- UI: v1.2.48
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -18,7 +19,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.47
+- UI: v1.2.48
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -29,6 +30,9 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.48 в Settings добавлена проверка кэша UI: видно текущий загруженный bundle, bundle из актуального HTML на роутере и статус совпадения/рассинхрона
+- в v1.2.48 кнопка жёсткого обновления UI теперь не ограничивается обычным reload: UI снимает service worker registrations, очищает CacheStorage и только потом форсирует reload с cache-bust query
+- в v1.2.48 в Settings показывается frontend build stamp, а строка версии внизу левого меню сделана заметнее для быстрой визуальной проверки после обновления
 - в v1.2.47 в разделе «Трафик» добавлен отдельный блок QoS runtime: видно состояние router-agent, safe mode `wan-only`, WAN/LAN rates и число IP, подтверждённых агентом
 - в v1.2.47 строки «Трафика» показывают расширенный runtime по QoS/шейперу: подтверждение agent vs UI-only state, prio, гарантированный минимум и компактные IP/MAC подсказки
 - в v1.2.45 подправлен масштаб графика `Router -> Трафик роутера -> live`: жёсткий минимум шкалы 1 MB/s визуально прятал малый live-трафик, поэтому теперь шкала адаптивно опускается до 64/128/256 KB/s и небольшие WAN-дельты больше не выглядят как пустой график
@@ -64,7 +68,5 @@ Current versions:
 - v1.2.36 — перевыпуск релиза после сбоя push: код изменений не получил, обновлены номер версии, transfer-метаданные и упаковка релиза
 - v1.2.37 — в разделе «Трафик» reserved pseudo labels вроде `dhcp`/`arp` больше не считаются host identities даже если приехали как exact mappings; реальные устройства в таких случаях падают обратно на IP/hostname, а псевдостроки lease pool не должны зеркалить QoS/лимиты
 
-
 - v1.2.38 — hardening для «Трафика»: централизован список reserved pseudo labels (`dhcp`, `arp`, `dnsmasq`), дедупликация строк усилена по цепочке owner/MAC/IP, а бейдж лимита канала теперь сверяет ожидаемое ограничение с фактически управляемыми agent shapers и показывает mismatch/reapply вместо ложного зелёного статуса
 - v1.2.39 — в «Трафике» добавлен компактный runtime-summary по строке (QoS/шейпер), ручное обновление runtime прямо из строки и более честный Reapply только для fail/unknown/mismatch состояний; tooltip шейпера теперь показывает связанные IP строки для быстрой диагностики
-

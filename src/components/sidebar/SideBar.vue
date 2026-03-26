@@ -75,8 +75,8 @@
           </button>
         </div>
       </template>
-      <div class="px-3 pb-1 text-[10px] opacity-60" :class="isSidebarCollapsed ? 'text-center' : ''">
-        UI Mihomo/Ultra {{ zashboardVersion }} (Netcraze Ultra/Mihomo)
+      <div class="px-3 pb-1 text-[11px] font-semibold text-base-content/85" :class="isSidebarCollapsed ? 'text-center' : ''">
+        UI Mihomo/Ultra {{ zashboardVersion }} · Netcraze Ultra/Mihomo
       </div>
     </div>
   </div>

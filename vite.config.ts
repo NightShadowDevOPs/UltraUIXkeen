@@ -5,10 +5,13 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const buildId = new Date().toISOString()
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __APP_BUILD_ID__: JSON.stringify(buildId),
   },
   base: './',
   plugins: [

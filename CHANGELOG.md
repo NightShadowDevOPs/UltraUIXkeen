@@ -1,3 +1,9 @@
+## v1.2.48
+- Settings -> UltraUIXkeen now includes UI cache validation: compare the currently loaded frontend bundle with the bundle currently served by the router HTML, so stale browser/PWA cache becomes visible instead of guesswork
+- added a real hard-refresh path for the UI: clear service worker registrations and CacheStorage before reloading, which is safer than a plain `window.location.reload()` when the browser holds on to an old build
+- added frontend build metadata (`build` stamp) in Settings and made the sidebar footer version line brighter for faster post-update verification
+- router-agent code not changed in this release (still 0.6.12)
+
 ## v1.2.47
 - Traffic: added a dedicated QoS runtime banner with router-agent state, safe `wan-only` visibility, WAN/LAN line rates, and confirmed agent IP count
 - Traffic per-user rows now show richer runtime chips: agent-confirmed QoS coverage vs UI-only saved state, queue priority, guaranteed minimum rates, shaper state, and compact IP/MAC hints
