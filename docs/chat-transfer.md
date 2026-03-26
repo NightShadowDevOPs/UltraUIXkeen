@@ -1,13 +1,13 @@
-UI Mihomo / Ultra — transfer update v1.2.48
+UI Mihomo / Ultra — transfer update v1.2.49
 
 What changed in this rebuild:
-- added UI cache validation in Settings: current loaded bundle vs bundle currently served by the router HTML
-- added hard refresh for UI cache: unregister service workers + clear CacheStorage before forced reload
-- added frontend build stamp visibility in Settings and made the sidebar footer version line brighter for quicker post-update verification
+- sidebar footer now shows a live UI build freshness state, so update readiness is visible without opening Settings
+- expanded sidebar gets a direct hard-refresh action, while collapsed mode shows a compact status button for stale-cache recovery
+- `useUiBuild()` listener lifecycle was hardened to avoid duplicate visibility checks when multiple UI sections mount the same build-status composable
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.48
+- UI: v1.2.49
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -19,7 +19,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.48
+- UI: v1.2.49
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -30,6 +30,9 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.49 строка версии внизу левого меню превратилась в живой индикатор свежести UI: теперь новая сборка видна прямо в sidebar, без захода в Settings
+- в v1.2.49 в раскрытом sidebar добавлена кнопка жёсткого обновления UI, а в свернутом режиме появился компактный статус/кнопка для быстрого сброса залипшего кэша
+- в v1.2.49 `useUiBuild()` больше не плодит лишние visibility listeners и повторные проверки, если статус сборки используется сразу в нескольких местах UI
 - в v1.2.48 в Settings добавлена проверка кэша UI: видно текущий загруженный bundle, bundle из актуального HTML на роутере и статус совпадения/рассинхрона
 - в v1.2.48 кнопка жёсткого обновления UI теперь не ограничивается обычным reload: UI снимает service worker registrations, очищает CacheStorage и только потом форсирует reload с cache-bust query
 - в v1.2.48 в Settings показывается frontend build stamp, а строка версии внизу левого меню сделана заметнее для быстрой визуальной проверки после обновления

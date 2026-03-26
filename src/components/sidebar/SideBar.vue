@@ -75,8 +75,55 @@
           </button>
         </div>
       </template>
-      <div class="px-3 pb-1 text-[11px] font-semibold text-base-content/85" :class="isSidebarCollapsed ? 'text-center' : ''">
-        UI Mihomo/Ultra {{ zashboardVersion }} · Netcraze Ultra/Mihomo
+      <div class="px-2 pb-2" :class="isSidebarCollapsed ? 'space-y-1' : 'space-y-2'">
+        <div class="px-1 text-[11px] font-semibold text-base-content/85" :class="isSidebarCollapsed ? 'text-center' : ''">
+          UI Mihomo/Ultra {{ zashboardVersion }} · Netcraze Ultra/Mihomo
+        </div>
+
+        <template v-if="!isSidebarCollapsed">
+          <div
+            class="rounded-2xl border px-2.5 py-2 text-xs shadow-sm"
+            :class="sidebarBuildCardClass"
+          >
+            <div class="flex items-center gap-2">
+              <span class="inline-flex h-2.5 w-2.5 rounded-full" :class="sidebarBuildDotClass"></span>
+              <span class="font-semibold">{{ $t(sidebarBuildLabelKey) }}</span>
+              <span v-if="isFreshUiBuildAvailable" class="ml-auto badge badge-warning badge-xs">UI</span>
+            </div>
+            <div class="mt-1 text-[11px] opacity-75">
+              {{ sidebarBuildHint }}
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-if="isFreshUiBuildAvailable"
+                class="btn btn-warning btn-xs"
+                @click="hardRefreshUiCache"
+              >
+                {{ $t('uiHardRefresh') }}
+              </button>
+              <button
+                v-else
+                class="btn btn-ghost btn-xs"
+                @click="checkFreshUiBuild"
+              >
+                {{ $t('uiCheckFreshness') }}
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="flex justify-center">
+            <button
+              class="btn btn-circle btn-xs"
+              :class="isFreshUiBuildAvailable ? 'btn-warning' : isUiBuildChecking ? 'btn-ghost animate-pulse' : 'btn-ghost'"
+              :title="$t(sidebarBuildLabelKey)"
+              @click="isFreshUiBuildAvailable ? hardRefreshUiCache() : checkFreshUiBuild()"
+            >
+              <span class="inline-flex h-2.5 w-2.5 rounded-full" :class="sidebarBuildDotClass"></span>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -84,6 +131,7 @@
 
 <script setup lang="ts">
 import CommonSidebar from '@/components/sidebar/CommonCtrl.vue'
+import { useUiBuild } from '@/composables/uiBuild'
 import { zashboardVersion } from '@/api'
 import { ROUTE_ICON_MAP, ROUTE_NAME } from '@/constant'
 import { renderRoutes } from '@/helper'
@@ -94,6 +142,7 @@ import { globalSearchOpen } from '@/store/globalSearch'
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
 import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import OverviewCarousel from './OverviewCarousel.vue'
 import VerticalInfos from './VerticalInfos.vue'
@@ -110,6 +159,36 @@ const mouseenterHandler = (e: MouseEvent, r: string) => {
 }
 
 const route = useRoute()
+const { isFreshUiBuildAvailable, isUiBuildChecking, uiBuildCheckError, checkFreshUiBuild, hardRefreshUiCache } = useUiBuild()
+
+const sidebarBuildLabelKey = computed(() => {
+  if (isUiBuildChecking.value) return 'uiSidebarBuildChecking'
+  if (uiBuildCheckError.value) return 'uiSidebarBuildCheckFailed'
+  if (isFreshUiBuildAvailable.value) return 'uiSidebarBuildUpdateReady'
+  return 'uiSidebarBuildCurrent'
+})
+
+const sidebarBuildHint = computed(() => {
+  if (isUiBuildChecking.value) return t('uiSidebarBuildHintChecking')
+  if (uiBuildCheckError.value) return uiBuildCheckError.value
+  if (isFreshUiBuildAvailable.value) return t('uiSidebarBuildHintUpdateReady')
+  return t('uiSidebarBuildHintCurrent')
+})
+
+const sidebarBuildCardClass = computed(() => {
+  if (isUiBuildChecking.value) return 'border-base-300/70 bg-base-100/60 text-base-content'
+  if (uiBuildCheckError.value) return 'border-error/40 bg-error/10 text-error-content'
+  if (isFreshUiBuildAvailable.value) return 'border-warning/40 bg-warning/15 text-base-content'
+  return 'border-success/30 bg-success/10 text-base-content'
+})
+
+const sidebarBuildDotClass = computed(() => {
+  if (isUiBuildChecking.value) return 'bg-base-content/60'
+  if (uiBuildCheckError.value) return 'bg-error'
+  if (isFreshUiBuildAvailable.value) return 'bg-warning'
+  return 'bg-success'
+})
+
 const activeNavClass = 'menu-active bg-primary/90 text-primary-content shadow-md ring-1 ring-primary/40 font-semibold'
 const inactiveNavClass = 'hover:bg-base-300/70 hover:text-base-content'
 

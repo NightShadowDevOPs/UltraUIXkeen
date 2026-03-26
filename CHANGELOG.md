@@ -1,3 +1,9 @@
+## v1.2.49
+- sidebar footer now shows a live UI build freshness state, so you can see update readiness without opening Settings
+- added a direct hard-refresh action in the expanded sidebar and a compact status/button in collapsed mode for quicker recovery from stale cache
+- `useUiBuild()` listener lifecycle was hardened so multiple mounted consumers do not register duplicate visibility checks or spam bundle probes
+- router-agent code not changed in this release (still 0.6.12)
+
 ## v1.2.48
 - Settings -> UltraUIXkeen now includes UI cache validation: compare the currently loaded frontend bundle with the bundle currently served by the router HTML, so stale browser/PWA cache becomes visible instead of guesswork
 - added a real hard-refresh path for the UI: clear service worker registrations and CacheStorage before reloading, which is safer than a plain `window.location.reload()` when the browser holds on to an old build

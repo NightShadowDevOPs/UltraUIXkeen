@@ -131,25 +131,54 @@ const hardRefreshUiCache = async () => {
 }
 
 let lastAutoCheckAt = 0
+let uiBuildVisibilityAttached = false
+let uiBuildConsumerCount = 0
+
 const AUTO_CHECK_COOLDOWN_MS = 8000
-const handleVisibilityChange = () => {
-  if (document.visibilityState !== 'visible') return
+const AUTO_RECHECK_AFTER_MS = 5 * 60 * 1000
+
+const maybeCheckFreshUiBuild = (force = false) => {
+  refreshCurrentBundleTag()
+
   const now = Date.now()
-  if (now - lastAutoCheckAt < AUTO_CHECK_COOLDOWN_MS) return
+  const shouldCheck = force
+    || !lastUiBuildCheckedAt.value
+    || now - lastUiBuildCheckedAt.value > AUTO_RECHECK_AFTER_MS
+    || now - lastAutoCheckAt > AUTO_CHECK_COOLDOWN_MS
+
+  if (!shouldCheck) return
+
   lastAutoCheckAt = now
   void checkFreshUiBuild()
 }
 
+const handleVisibilityChange = () => {
+  if (document.visibilityState !== 'visible') return
+  maybeCheckFreshUiBuild()
+}
+
+const attachUiBuildVisibilityListener = () => {
+  if (uiBuildVisibilityAttached) return
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  uiBuildVisibilityAttached = true
+}
+
+const detachUiBuildVisibilityListener = () => {
+  if (!uiBuildVisibilityAttached || uiBuildConsumerCount > 0) return
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  uiBuildVisibilityAttached = false
+}
+
 export const useUiBuild = () => {
   onMounted(() => {
-    refreshCurrentBundleTag()
-    lastAutoCheckAt = Date.now()
-    void checkFreshUiBuild()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    uiBuildConsumerCount += 1
+    attachUiBuildVisibilityListener()
+    maybeCheckFreshUiBuild()
   })
 
   onBeforeUnmount(() => {
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    uiBuildConsumerCount = Math.max(0, uiBuildConsumerCount - 1)
+    detachUiBuildVisibilityListener()
   })
 
   return {
