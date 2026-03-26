@@ -1,3 +1,7 @@
+## v1.2.51
+- hotfix after the v1.2.50 build failure: rolled back the new global HomePage stale-build banner while keeping the working UI cache checks in Settings and the sidebar/footer build status from v1.2.48-v1.2.49
+- no router-agent changes in this release (still 0.6.12)
+
 ## v1.2.50
 - added a global in-page UI build banner under the page title bar, so stale-cache/update-ready state is visible even on mobile screens without the desktop sidebar
 - the new banner shows both the currently loaded bundle and the router-served bundle, with direct hard-refresh and close actions
