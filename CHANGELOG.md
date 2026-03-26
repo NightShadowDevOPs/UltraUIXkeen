@@ -1,3 +1,20 @@
+## v1.2.59 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Host details in Router -> Traffic now show tunnel descriptions as their own dedicated line, so OVPN/WG notes are visible in expanded host context and not only inside via/route labels.
+- Active target cards now split routed tunnel info into a base via label plus a separate tunnel description line when a saved interface note exists.
+- router-agent code not changed in this release.
+
+## v1.2.58 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Added a dedicated Settings card for tunnel interface descriptions, so OVPN/WG and other tunnel notes now have an official, always-visible place instead of living only inside Router -> Traffic.
+- Router -> Traffic tunnel descriptions now include a direct shortcut to Settings, which makes the feature easier to discover and edit.
+- Tunnel description storage was moved to shared settings state under the same config key, so existing labels are preserved while both UI entry points use the same source of truth.
+- router-agent code not changed in this release.
+
 ## v1.2.57 (2026-03-26)
 
 ### UI Mihomo / Ultra

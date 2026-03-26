@@ -93,9 +93,14 @@
             <div class="mt-1 text-xs opacity-60">{{ $t('routerTrafficTunnelDescriptionsHint') }}</div>
             <div class="mt-1 text-[11px] opacity-50">{{ $t('routerTrafficTunnelDescriptionsStorageHint') }}</div>
           </div>
-          <button type="button" class="btn btn-ghost btn-xs" @click="tunnelDescriptionManagerOpen = !tunnelDescriptionManagerOpen">
-            {{ tunnelDescriptionManagerOpen ? $t('collapse') : $t('expand') }}
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-ghost btn-xs" @click="openTunnelDescriptionsSettings">
+              {{ $t('settings') }}
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs" @click="tunnelDescriptionManagerOpen = !tunnelDescriptionManagerOpen">
+              {{ tunnelDescriptionManagerOpen ? $t('collapse') : $t('expand') }}
+            </button>
+          </div>
         </div>
 
         <div v-if="tunnelDescriptionManagerOpen" class="mt-3 space-y-2">
@@ -440,7 +445,8 @@
                               </span>
                               <span v-if="target.proto" class="badge badge-ghost badge-xs uppercase">{{ target.proto }}</span>
                             </div>
-                            <div v-if="target.via" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficVia') }}: {{ target.via }}</div>
+                            <div v-if="target.viaBase || target.via" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficVia') }}: {{ target.viaBase || target.via }}</div>
+                            <div v-if="target.viaDescription" class="truncate text-[11px] opacity-65">{{ $t('routerTrafficTunnelDescriptionLabel') }}: {{ target.viaDescription }}</div>
                           </div>
                           <span class="badge badge-ghost badge-xs">{{ target.connections }} {{ $t('connections') }}</span>
                         </div>
@@ -459,6 +465,10 @@
                     <div class="mb-1 text-sm font-medium">{{ $t('details') }}</div>
                     <div class="mb-3 text-xs opacity-60">{{ $t('routerTrafficRouteContext') }}</div>
                     <div class="space-y-2 text-sm">
+                      <div v-if="hostTunnelDescription(item)" class="rounded-lg border border-info/20 bg-info/5 px-3 py-2">
+                        <div class="text-[11px] opacity-60">{{ $t('routerTrafficTunnelDescriptionLabel') }}</div>
+                        <div class="mt-1 text-sm font-medium">{{ hostTunnelDescription(item) }}</div>
+                      </div>
                       <div v-for="note in hostDetailNotes(item)" :key="`${item.ip}-${note}`" class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-2">
                         {{ note }}
                       </div>
@@ -485,12 +495,14 @@
 <script setup lang="ts">
 import { agentHostRemoteTargetsAPI, agentHostTrafficLiveAPI, agentLanHostsAPI, agentQosStatusAPI, agentTrafficLiveAPI, type AgentHostRemoteTargetItem, type AgentHostTrafficLiveItem, type AgentQosProfile, type AgentQosStatusItem, type AgentTrafficLiveIface } from '@/api/agent'
 import { getIPLabelFromMap } from '@/helper/sourceip'
+import { COMMON_TUNNEL_INTERFACE_SUGGESTIONS, ifaceBaseDisplayName, inferTunnelKindFromName, normalizeTunnelDescription, normalizeTunnelInterfaceName } from '@/helper/tunnelDescriptions'
 import { prettyBytesHelper } from '@/helper/utils'
+import { ROUTE_NAME } from '@/constant'
 import { agentEnabled } from '@/store/agent'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles } from '@/store/routerHostQos'
 import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
-import { font, theme } from '@/store/settings'
+import { font, theme, tunnelInterfaceDescriptionMap } from '@/store/settings'
 import { useElementSize, useStorage } from '@vueuse/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
@@ -498,6 +510,7 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { debounce } from 'lodash'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
@@ -529,6 +542,9 @@ type HostTargetStat = {
   up: number
   connections: number
   via?: string
+  viaBase?: string
+  viaName?: string
+  viaDescription?: string
   scope?: 'mihomo' | 'vpn' | 'bypass'
   kind?: string
   proto?: string
@@ -730,42 +746,17 @@ const currentBypassDownloadLabel = computed(() => speedLabel(latestValue(bypassD
 const currentVpnUploadLabel = computed(() => speedLabel(latestValue(vpnUploadHistory.value)))
 const currentVpnDownloadLabel = computed(() => speedLabel(latestValue(vpnDownloadHistory.value)))
 
-const tunnelDescriptionMap = useStorage<Record<string, string>>('config/tunnel-interface-description-map', {})
+const router = useRouter()
+const tunnelDescriptionMap = tunnelInterfaceDescriptionMap
 const tunnelDescriptionManagerOpen = ref(true)
 const tunnelDescriptionDrafts = ref<Record<string, string>>({})
 const newTunnelInterfaceName = ref('')
 const newTunnelInterfaceDescription = ref('')
 
-const normalizeTunnelDescription = (value: string) => String(value || '').replace(/\s+/g, ' ').trim()
-const normalizeTunnelInterfaceName = (value: string) => String(value || '').trim()
-
-const inferTunnelKindFromName = (name: string) => {
-  const raw = String(name || '').trim().toLowerCase()
-  if (!raw) return ''
-  if (/^(wg|wireguard)/.test(raw) || raw.includes('wireguard') || raw.includes('nordlynx')) return 'wireguard'
-  if (/^(ovpn|openvpn)/.test(raw) || raw.includes('openvpn')) return 'openvpn'
-  if (raw.includes('tailscale')) return 'tailscale'
-  if (raw.includes('zerotier')) return 'zerotier'
-  if (raw.includes('ipsec') || raw.includes('xfrm')) return 'ipsec'
-  if (raw.includes('xkeen')) return 'xkeen'
-  return 'vpn'
-}
-
 const getTunnelDescription = (name: string) => {
   const key = normalizeTunnelInterfaceName(name)
   if (!key) return ''
   return normalizeTunnelDescription((tunnelDescriptionMap.value || {})[key] || '')
-}
-
-const ifaceBaseDisplayName = (name: string, kind?: string) => {
-  const upperKind = (kind || '').toLowerCase()
-  if (upperKind === 'xkeen') return `XKeen · ${name}`
-  if (upperKind === 'wireguard') return `WireGuard · ${name}`
-  if (upperKind === 'tailscale') return `Tailscale · ${name}`
-  if (upperKind === 'openvpn' || upperKind === 'ovpn') return `OpenVPN · ${name}`
-  if (upperKind === 'zerotier') return `ZeroTier · ${name}`
-  if (upperKind === 'ipsec') return `IPsec · ${name}`
-  return name
 }
 
 const ifaceDisplayName = (name: string, kind?: string, includeDescription = false) => {
@@ -822,10 +813,7 @@ const tunnelDescriptionSuggestions = computed(() => {
   const names = [
     ...currentExtraStats.value.map((item) => item.name),
     ...Object.keys(tunnelDescriptionMap.value || {}),
-    'wg0',
-    'ovpn-client1',
-    'tun0',
-    'tailscale0',
+    ...COMMON_TUNNEL_INTERFACE_SUGGESTIONS,
   ]
   return Array.from(new Set(names.map((name) => normalizeTunnelInterfaceName(name)).filter(Boolean)))
     .filter((name) => !tunnelDescriptionEntries.value.some((entry) => entry.name === name))
@@ -879,6 +867,10 @@ const addTunnelDescriptionEntry = () => {
   tunnelDescriptionMap.value = next
   newTunnelInterfaceName.value = ''
   newTunnelInterfaceDescription.value = ''
+}
+
+const openTunnelDescriptionsSettings = () => {
+  router.push({ name: ROUTE_NAME.settings })
 }
 
 const hostTrafficState = ref<Record<string, HostTrafficState>>({})
@@ -948,6 +940,8 @@ const normalizeAgentRemoteTargetItem = (item: AgentHostRemoteTargetItem): HostTa
   const scope = scopeRaw === 'vpn' || scopeRaw === 'bypass' ? scopeRaw : 'bypass'
   const kind = String(item?.kind || '').trim() || undefined
   const viaName = String(item?.via || '').trim()
+  const viaDescription = viaName ? getTunnelDescription(viaName) : ''
+  const viaBase = viaName ? (scope === 'vpn' ? ifaceDisplayName(viaName, kind, false) : viaName) : undefined
   const via = viaName ? (scope === 'vpn' ? ifaceDisplayName(viaName, kind, true) : viaName) : undefined
   const proto = String(item?.proto || '').trim().toUpperCase() || undefined
   return {
@@ -956,6 +950,9 @@ const normalizeAgentRemoteTargetItem = (item: AgentHostRemoteTargetItem): HostTa
     up: Math.max(0, Number(item?.upBps || 0)),
     connections: Math.max(0, Number(item?.connections || 0)),
     via,
+    viaBase,
+    viaName: viaName || undefined,
+    viaDescription: viaDescription || undefined,
     scope,
     kind,
     proto,
@@ -1009,11 +1006,13 @@ const parseRouteSource = (source?: string) => {
   const siteLabel = siteParts.join(' · ')
   const compactSiteLabel = subnet || peerLabel || ifaceLabel
   const siteKey = ['route', kind, via, peer || '-', subnet || '-'].join(':')
+  const ifaceDescription = getTunnelDescription(via)
 
   return {
     kind,
     via,
     ifaceLabel,
+    ifaceDescription,
     subnet,
     peer,
     peerLabel,
@@ -1619,6 +1618,11 @@ const hostTopTargets = (item: HostTrafficStat) => {
     .filter((target) => (target.down + target.up) > 1 || target.connections > 0)
     .sort((a, b) => ((b.down + b.up) - (a.down + a.up)) || (b.connections - a.connections))
     .slice(0, 8)
+}
+
+const hostTunnelDescription = (item: HostTrafficStat) => {
+  const route = parseRouteSource(item.source)
+  return route?.ifaceDescription || ''
 }
 
 const hostDetailNotes = (item: HostTrafficStat) => {

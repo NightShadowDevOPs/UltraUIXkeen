@@ -118,6 +118,8 @@ export const twoIpTokensText = computed({
 })
 export const autoDisconnectIdleUDP = useStorage('config/auto-disconnect-idle-udp', false)
 export const autoDisconnectIdleUDPTime = useStorage('config/auto-disconnect-idle-udp-time', 300)
+export const tunnelInterfaceDescriptionMap = useStorage<Record<string, string>>('config/tunnel-interface-description-map', {})
+
 
 // overview
 export const splitOverviewPage = useStorage('config/split-overview-page', false)

@@ -1,14 +1,19 @@
-UI Mihomo / Ultra — transfer update v1.2.57
+UI Mihomo / Ultra — transfer update v1.2.59
 
 What changed in this rebuild:
+- host details in Router -> Traffic now show tunnel descriptions as their own dedicated line, so saved OVPN/WG notes are visible in expanded host context and not only inside via/route labels
+- active target cards now split routed tunnel info into a base via label plus a separate tunnel description line when an interface note exists
 - Router -> Traffic tunnel descriptions are now always visible as their own section in the live traffic card instead of hiding until a tunnel is auto-detected
 - added an explicit empty-state hint plus quick suggestions for common names like wg0, ovpn-client1, tun0, and tailscale0
 - the section now explicitly warns that tunnel descriptions are currently stored locally in the active browser/UI profile
 - tunnel descriptions continue to be shown on live tunnel cards and in routed via/route labels for downstream hosts
+- Router -> Settings now contains a dedicated “Tunnel interfaces” card for OVPN/WG and other tunnel descriptions
+- Router -> Traffic tunnel descriptions now have a direct shortcut into Settings, so the feature is easier to find and edit
+- tunnel description storage is now shared via settings state under the same config key, so existing labels are preserved between both entry points
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.57
+- UI: v1.2.59
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -20,7 +25,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.57
+- UI: v1.2.59
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -33,6 +38,8 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.59 host details в Router -> Traffic теперь показывают описание туннеля отдельной строкой, а не только внутри via/route-метки
+- в v1.2.59 карточки active targets разделяют base via и отдельную строку с описанием туннеля, если для интерфейса сохранена подпись
 - в v1.2.57 блок описаний туннелей в Router -> Traffic теперь виден всегда внутри карточки живого трафика, даже если live tunnel ещё не обнаружен автоматически
 - в v1.2.57 добавлены empty-state подсказка и быстрые варианты имён интерфейсов: wg0 / ovpn-client1 / tun0 / tailscale0
 - в v1.2.57 UI явно показывает, что описания туннелей пока сохраняются локально в активном браузере/UI-профиле
@@ -69,5 +76,5 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- добавить ещё более явную diagnostics-строку для tunnel descriptions в host target details, чтобы описание интерфейса было видно и в раскрытом контексте хоста
+- по желанию можно вынести tunnel descriptions из local UI storage в router-agent/shared config, чтобы подписи синхронизировались между устройствами
 - затем можно спокойно возвращать верхний build-banner уже отдельным безопасным компонентом
