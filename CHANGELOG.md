@@ -1,3 +1,12 @@
+## v1.2.54 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Users -> Source IP mapping now shows compact rule-type badges (exact / CIDR / regex / IPv6 suffix) right under each mapping row.
+- Source IP mapping rows now show live match counts, so you can immediately see whether a rule currently catches any active source IPs.
+- Connections -> Source IP stats now resolves labels through the shared mapping helper, so CIDR / regex / suffix labels no longer look like raw exact-IP-only entries.
+- router-agent code not changed in this release.
+
 ## v1.2.53 (2026-03-26)
 
 ### UI Mihomo / Ultra

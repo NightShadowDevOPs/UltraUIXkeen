@@ -6,7 +6,7 @@ import { watch } from 'vue'
 const CACHE_SIZE = 256
 const ipLabelCache = new Map<string, string>()
 const sourceIPMap = new Map<string, string>()
-const sourceIPRegexList: { regex: RegExp; label: string }[] = []
+const sourceIPRegexList: { regex: RegExp; label: string; key: string }[] = []
 const sourceIPCIDRList: {
   cidr: [ipaddr.IPv4 | ipaddr.IPv6, number]
   label: string
@@ -47,7 +47,7 @@ const preprocessSourceIPList = () => {
 
     // Regex: /.../
     if (key.startsWith('/')) {
-      sourceIPRegexList.push({ regex: new RegExp(key.slice(1), 'i'), label })
+      sourceIPRegexList.push({ regex: new RegExp(key.slice(1), 'i'), label, key })
       continue
     }
 
@@ -159,6 +159,88 @@ const getCIDRLabel = (ip: string) => {
   return ''
 }
 
+
+
+export type SourceIpResolvedRule = {
+  key: string
+  label: string
+  resolvedLabel: string
+  kind: SourceIpRuleKind
+}
+
+const resolveRuleLabel = (kind: SourceIpRuleKind, key: string, label: string, ip: string) => {
+  const trimmedLabel = String(label || '').trim()
+  if (trimmedLabel) return trimmedLabel
+  if (kind === 'cidr' || kind === 'suffix') return key
+  return ip || key
+}
+
+export const getPrimarySourceIpRule = (ip: string): SourceIpResolvedRule | null => {
+  const target = String(ip || '').trim()
+  if (!target) return null
+
+  if (sourceIPMap.has(target)) {
+    const label = sourceIPMap.get(target) || ''
+    return {
+      key: target,
+      label,
+      resolvedLabel: resolveRuleLabel('exact', target, label, target),
+      kind: 'exact',
+    }
+  }
+
+  if (target.includes(':')) {
+    for (const [key, label] of sourceIPMap.entries()) {
+      if (!target.endsWith(key)) continue
+      const kind = getSourceIpRuleKind(key)
+      return {
+        key,
+        label,
+        resolvedLabel: resolveRuleLabel(kind, key, label, target),
+        kind,
+      }
+    }
+  }
+
+  if (ipaddr.isValid(target)) {
+    let addr: ipaddr.IPv4 | ipaddr.IPv6
+    try {
+      addr = ipaddr.parse(target) as ipaddr.IPv4 | ipaddr.IPv6
+    } catch {
+      addr = null as any
+    }
+
+    if (addr) {
+      for (const { cidr, label, key } of sourceIPCIDRList) {
+        if (addr.kind() !== cidr[0].kind()) continue
+        try {
+          if (addr.match(cidr)) {
+            return {
+              key,
+              label,
+              resolvedLabel: resolveRuleLabel('cidr', key, label, target),
+              kind: 'cidr',
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  for (const { regex, label, key } of sourceIPRegexList) {
+    if (!regex.test(target)) continue
+    return {
+      key,
+      label,
+      resolvedLabel: resolveRuleLabel('regex', key, label, target),
+      kind: 'regex',
+    }
+  }
+
+  return null
+}
 
 export const getExactIPLabelFromMap = (ip: string) => {
   if (!ip) return ip === '' ? 'Inner' : ''

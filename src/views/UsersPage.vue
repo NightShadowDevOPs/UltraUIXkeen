@@ -219,6 +219,17 @@
                         </button>
                       </template>
                     </SourceIPInput>
+                    <div class="ml-10 flex flex-wrap items-center gap-1 text-xs">
+                      <span class="badge badge-xs" :class="ruleKindBadgeClass(sourceIP.key)">
+                        {{ ruleKindLabel(sourceIP.key) }}
+                      </span>
+                      <span
+                        class="badge badge-xs badge-ghost"
+                        :title="sourceIpLiveMatchesTitle(sourceIP.key)"
+                      >
+                        {{ t('sourceIpLiveMatchesShort', { count: sourceIpLiveMatchesCount(sourceIP.key) }) }}
+                      </span>
+                    </div>
                   </div>
                 </template>
               </Draggable>
@@ -248,6 +259,17 @@
                   </button>
                 </template>
               </SourceIPInput>
+              <div v-if="newLabelForIP.key" class="ml-10 flex flex-wrap items-center gap-1 text-xs">
+                <span class="badge badge-xs" :class="ruleKindBadgeClass(newLabelForIP.key)">
+                  {{ ruleKindLabel(newLabelForIP.key) }}
+                </span>
+                <span
+                  class="badge badge-xs badge-ghost"
+                  :title="sourceIpLiveMatchesTitle(newLabelForIP.key)"
+                >
+                  {{ t('sourceIpLiveMatchesShort', { count: sourceIpLiveMatchesCount(newLabelForIP.key) }) }}
+                </span>
+              </div>
             </div>
           </template>
         </CollapseCard>
@@ -279,6 +301,8 @@ import { i18n } from '@/i18n'
 import { disableSwipe } from '@/composables/swipe'
 import { ROUTE_NAME } from '@/constant'
 import { cleanupExpiredPendingPageFocus, clearPendingPageFocus, flashNavHighlight, getPendingPageFocusForRoute } from '@/helper/navFocus'
+import { getSourceIpRuleKind, matchesSourceIpRule } from '@/helper/sourceip'
+import { connections } from '@/store/connections'
 import { collapseGroupMap, sourceIPLabelList } from '@/store/settings'
 import { usersDbSyncActive, usersDbSyncedIdSet } from '@/store/usersDbSync'
 import type { SourceIPLabel } from '@/types'
@@ -330,6 +354,45 @@ const isBlockedUser = (sourceIP: Partial<SourceIPLabel>) => {
   const user = (sourceIP.label || sourceIP.key || '').toString().trim()
   if (!user) return false
   return getUserLimitState(user).blocked
+}
+
+
+const liveSourceIps = computed(() => {
+  return Array.from(new Set(
+    (connections.value || [])
+      .map((conn) => String((conn as any)?.metadata?.sourceIP || '').trim())
+      .filter(Boolean),
+  )).sort((a, b) => a.localeCompare(b))
+})
+
+const ruleKindLabel = (key: string) => {
+  const kind = getSourceIpRuleKind(String(key || '').trim())
+  if (kind === 'cidr') return t('sourceIpRuleKindCidr')
+  if (kind === 'regex') return t('sourceIpRuleKindRegex')
+  if (kind === 'suffix') return t('sourceIpRuleKindSuffix')
+  return t('sourceIpRuleKindExact')
+}
+
+const ruleKindBadgeClass = (key: string) => {
+  const kind = getSourceIpRuleKind(String(key || '').trim())
+  if (kind === 'cidr') return 'badge-info'
+  if (kind === 'regex') return 'badge-warning'
+  if (kind === 'suffix') return 'badge-secondary'
+  return 'badge-neutral'
+}
+
+const sourceIpLiveMatches = (key: string) => {
+  const raw = String(key || '').trim()
+  if (!raw) return []
+  return liveSourceIps.value.filter((ip) => matchesSourceIpRule(raw, ip))
+}
+
+const sourceIpLiveMatchesCount = (key: string) => sourceIpLiveMatches(key).length
+
+const sourceIpLiveMatchesTitle = (key: string) => {
+  const items = sourceIpLiveMatches(key)
+  if (!items.length) return t('sourceIpLiveMatchesNone')
+  return t('sourceIpLiveMatchesTitle', { count: items.length, ips: items.slice(0, 6).join(', ') })
 }
 
 

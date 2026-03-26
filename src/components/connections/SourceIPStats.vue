@@ -46,6 +46,10 @@
           {{ item.display }}
         </span>
 
+        <span v-if="item.kindBadge" class="badge badge-xs badge-ghost">
+          {{ item.kindBadge }}
+        </span>
+
         <span class="opacity-70">
           {{ item.count }}
         </span>
@@ -70,11 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { isSourceIpScopeVisible } from '@/helper/sourceip'
+import { getIPLabelFromMap, getPrimarySourceIpRule, type SourceIpRuleKind } from '@/helper/sourceip'
 import { prettyBytesHelper } from '@/helper/utils'
 import { connections, sourceIPFilter } from '@/store/connections'
-import { sourceIPLabelList } from '@/store/settings'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import TextInput from '../common/TextInput.vue'
 
 type StatItem = {
@@ -83,20 +87,22 @@ type StatItem = {
   dlSpeed: number
   ulSpeed: number
   display: string
+  kindBadge: string
 }
 
+const { t } = useI18n()
 const search = ref('')
 
-const labelFor = (ip: string) => {
-  const exact = sourceIPLabelList.value.find((x) => {
-    if (x.key !== ip) return false
-    return isSourceIpScopeVisible(x.scope as string[] | undefined)
-  })
-  return exact?.label || ''
+const ruleKindBadge = (kind?: SourceIpRuleKind | null) => {
+  if (!kind) return ''
+  if (kind === 'cidr') return t('sourceIpRuleKindCidr')
+  if (kind === 'regex') return t('sourceIpRuleKindRegex')
+  if (kind === 'suffix') return t('sourceIpRuleKindSuffix')
+  return t('sourceIpRuleKindExact')
 }
 
 const stats = computed<StatItem[]>(() => {
-  const map = new Map<string, Omit<StatItem, 'display'>>()
+  const map = new Map<string, Omit<StatItem, 'display' | 'kindBadge'>>()
 
   for (const c of connections.value) {
     const ip = c.metadata.sourceIP || ''
@@ -113,10 +119,13 @@ const stats = computed<StatItem[]>(() => {
     .sort((a, b) => (b.dlSpeed + b.ulSpeed) - (a.dlSpeed + a.ulSpeed))
     .slice(0, 60)
     .map((x) => {
-      const label = labelFor(x.ip)
+      const label = String(getIPLabelFromMap(x.ip) || '').trim()
+      const primaryRule = getPrimarySourceIpRule(x.ip)
+      const display = label && label !== x.ip ? `${label} (${x.ip})` : x.ip
       return {
         ...x,
-        display: label ? `${label} (${x.ip})` : x.ip,
+        display,
+        kindBadge: label && label !== x.ip ? ruleKindBadge(primaryRule?.kind) : '',
       }
     })
 
