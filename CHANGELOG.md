@@ -1,5 +1,6 @@
-## v1.2.51
-- hotfix after the v1.2.50 build failure: rolled back the new global HomePage stale-build banner while keeping the working UI cache checks in Settings and the sidebar/footer build status from v1.2.48-v1.2.49
+## v1.2.52
+- build hotfix: fixed a real syntax error in `src/i18n/en.ts` (`yesterday's` inside a single-quoted string) that broke the frontend build pipeline
+- the rollback from v1.2.51 stays in place: the global HomePage stale-build banner remains removed, while the working UI cache checks in Settings and the sidebar/footer build status from v1.2.48-v1.2.49 stay intact
 - no router-agent changes in this release (still 0.6.12)
 
 ## v1.2.50

@@ -1,4 +1,4 @@
-UI Mihomo / Ultra — transfer update v1.2.51
+UI Mihomo / Ultra — transfer update v1.2.52
 
 What changed in this rebuild:
 - hotfix after the v1.2.50 build failure: rolled back the global HomePage stale-build banner
@@ -6,7 +6,7 @@ What changed in this rebuild:
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.51
+- UI: v1.2.52
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -18,7 +18,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.51
+- UI: v1.2.52
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -31,7 +31,7 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
-- в v1.2.51 откатан глобальный баннер новой сборки из HomePage после ошибки сборки в v1.2.50
+- в v1.2.52 найден и исправлен реальный build-breaker: синтаксическая ошибка в `src/i18n/en.ts` (апостроф в `yesterday's` внутри одинарных кавычек); откат глобального баннера из HomePage при этом сохранён как безопасный fallback
 - в v1.2.49 строка версии внизу левого меню остаётся живым индикатором свежести UI
 - в v1.2.49 в раскрытом sidebar есть кнопка жёсткого обновления UI, а в свернутом режиме — компактный статус/кнопка
 - в v1.2.48 в Settings есть проверка кэша UI: loaded bundle, bundle на роутере и статус совпадения/рассинхрона
