@@ -8,6 +8,54 @@
       >
         <PageTitleBar :route-name="(route.name as string)" />
 
+        <Transition name="fade">
+          <div
+            v-if="showUiBuildBanner"
+            class="mx-4 mt-3 rounded-2xl border border-warning/40 bg-warning/15 p-3 shadow-sm"
+          >
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-start">
+              <div class="flex items-start gap-3 min-w-0 flex-1">
+                <div class="rounded-xl bg-warning/20 p-2 text-warning">
+                  <ExclamationTriangleIcon class="h-5 w-5" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="font-semibold">{{ $t('uiBuildBannerTitle') }}</div>
+                    <span class="badge badge-warning badge-sm">UI</span>
+                  </div>
+                  <div class="mt-1 text-sm opacity-80">{{ $t('uiBuildBannerHint') }}</div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-2 text-xs xl:grid-cols-2">
+                    <div class="rounded-xl bg-base-100/60 px-3 py-2">
+                      <div class="opacity-60">{{ $t('uiLoadedBundle') }}</div>
+                      <div class="mt-1 break-all font-mono text-[11px] text-base-content/90">{{ currentBundleTag }}</div>
+                    </div>
+                    <div class="rounded-xl bg-base-100/60 px-3 py-2">
+                      <div class="opacity-60">{{ $t('uiOnlineBundle') }}</div>
+                      <div class="mt-1 break-all font-mono text-[11px] text-base-content/90">{{ onlineBundleTag }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                <button
+                  class="btn btn-warning btn-sm"
+                  @click="hardRefreshUiCache"
+                >
+                  {{ $t('uiHardRefresh') }}
+                </button>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  @click="dismissUiBuildBanner"
+                >
+                  {{ $t('close') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Transition>
+
         <div
           v-if="ctrlsMap[route.name as string]"
           class="bg-base-100 ctrls-bar w-full"
@@ -95,6 +143,7 @@ import ProxiesCtrl from '@/components/sidebar/ProxiesCtrl.tsx'
 import RulesCtrl from '@/components/sidebar/RulesCtrl.tsx'
 import SideBar from '@/components/sidebar/SideBar.vue'
 import { useSettings } from '@/composables/settings'
+import { useUiBuild } from '@/composables/uiBuild'
 import { initUserTrafficRecorder } from '@/composables/userTraffic'
 import { initUserLimitsEnforcer } from '@/composables/userLimits'
 import { useSwipeRouter } from '@/composables/swipe'
@@ -112,10 +161,11 @@ import { activeBackend, activeUuid, backendList } from '@/store/setup'
 import { agentStatusAPI } from '@/api/agent'
 import { agentEnabled, agentEnforceBandwidth, bootstrapRouterAgentForLan } from '@/store/agent'
 import type { Backend } from '@/types'
-import { useDocumentVisibility, useElementSize } from '@vueuse/core'
+import { useDocumentVisibility, useElementSize, useSessionStorage } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, ref, watch, type Component } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { globalSearchOpen } from '@/store/globalSearch'
+import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 
 const ctrlsMap: Record<string, Component> = {
   [ROUTE_NAME.connections]: ConnectionCtrl,
@@ -128,6 +178,15 @@ const ctrlsMap: Record<string, Component> = {
 const styleForSafeArea = {
   height: 'calc(var(--spacing) * 14 + env(safe-area-inset-bottom))',
   'padding-bottom': 'env(safe-area-inset-bottom)',
+}
+
+const { isFreshUiBuildAvailable, currentBundleTag, onlineBundleTag, hardRefreshUiCache } = useUiBuild()
+const dismissedUiBuildBannerTag = useSessionStorage('cache/ui-build-banner-dismissed-tag', '')
+const showUiBuildBanner = computed(() => {
+  return isFreshUiBuildAvailable.value && dismissedUiBuildBannerTag.value !== onlineBundleTag.value
+})
+const dismissUiBuildBanner = () => {
+  dismissedUiBuildBannerTag.value = onlineBundleTag.value || currentBundleTag.value || String(Date.now())
 }
 
 const router = useRouter()

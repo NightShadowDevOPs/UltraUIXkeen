@@ -1,3 +1,9 @@
+## v1.2.50
+- added a global in-page UI build banner under the page title bar, so stale-cache/update-ready state is visible even on mobile screens without the desktop sidebar
+- the new banner shows both the currently loaded bundle and the router-served bundle, with direct hard-refresh and close actions
+- banner dismissal is stored per session and keyed to the online bundle tag, so it stays out of the way until a different build appears on the router
+- router-agent code not changed in this release (still 0.6.12)
+
 ## v1.2.49
 - sidebar footer now shows a live UI build freshness state, so you can see update readiness without opening Settings
 - added a direct hard-refresh action in the expanded sidebar and a compact status/button in collapsed mode for quicker recovery from stale cache
