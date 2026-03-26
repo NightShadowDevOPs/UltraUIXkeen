@@ -1,3 +1,7 @@
+## v1.2.46
+- fix Router live traffic card bootstrap: restore missing refreshAgentHostTraffic() function in NetcrazeTrafficCard so onMounted no longer aborts before pollTraffic()
+- start Router live poll before host-traffic agent refresh so WAN live graph and summary cards bootstrap even if host-side agent data is slow
+
 ## v1.2.45
 
 - adjusted Router -> Traffic live chart scaling to stay readable on low-throughput links: the y-axis no longer starts with a hard 1 MB/s floor, so WAN live counters from router-agent can remain visible even when current traffic is only tens or hundreds of KB/s

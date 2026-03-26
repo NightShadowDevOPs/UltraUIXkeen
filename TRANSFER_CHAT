@@ -1,3 +1,14 @@
+UI Mihomo / Ultra — transfer update v1.2.46
+
+What changed in this rebuild:
+- fixed Router live traffic card bootstrap bug in NetcrazeTrafficCard.vue
+- restored missing refreshAgentHostTraffic() implementation
+- moved pollTraffic() earlier in onMounted so live WAN chart starts even if host-side refresh stalls
+
+Current versions:
+- UI: v1.2.46
+- router-agent: 0.6.12
+
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
 
 Проект: UI Mihomo / Ultra

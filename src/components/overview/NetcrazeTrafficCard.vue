@@ -1592,6 +1592,28 @@ const scheduleHostQosRefresh = () => {
   }, 10000)
 }
 
+const refreshAgentHostTraffic = async () => {
+  if (!agentEnabled.value) {
+    agentHostTrafficByIp.value = {}
+    refreshHostTraffic()
+    return
+  }
+  const res = await agentHostTrafficLiveAPI()
+  if (!res?.ok || !Array.isArray(res.items)) {
+    agentHostTrafficByIp.value = {}
+    refreshHostTraffic()
+    return
+  }
+  const next: Record<string, AgentHostTrafficSnapshot> = {}
+  for (const item of res.items) {
+    const normalized = normalizeAgentHostTrafficItem(item)
+    if (!normalized) continue
+    next[normalized.ip] = normalized
+  }
+  agentHostTrafficByIp.value = next
+  refreshHostTraffic()
+}
+
 const scheduleHostRefresh = () => {
   if (hostsTimer !== null) window.clearTimeout(hostsTimer)
   hostsTimer = window.setTimeout(async () => {
@@ -2057,6 +2079,7 @@ onMounted(() => {
 
   refreshLanHosts()
   scheduleHostRefresh()
+  pollTraffic()
   refreshAgentHostTraffic()
   scheduleAgentHostTrafficRefresh()
   refreshHostQos()
@@ -2064,7 +2087,6 @@ onMounted(() => {
   refreshHostTraffic()
   scheduleHostTrafficRefresh()
   scheduleHostRemoteTargetsRefresh()
-  pollTraffic()
 
   watch(activeConnections, refreshHostTraffic, { deep: true })
 })
