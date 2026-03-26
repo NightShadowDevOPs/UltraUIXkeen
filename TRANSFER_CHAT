@@ -1,14 +1,14 @@
-UI Mihomo / Ultra — transfer update v1.2.56
+UI Mihomo / Ultra — transfer update v1.2.57
 
 What changed in this rebuild:
-- added explicit owner-resolution diagnostics in Traffic -> Users when the effective limit/QoS owner differs from the display row
-- row badges/runtime hints now explain whether owner resolution came from persisted self state, name match, IP match, or MAC match
-- Router -> Traffic now supports editable descriptions for OVPN/WG and other tunnel interfaces
-- tunnel descriptions are shown both on the live tunnel cards and in routed via/route labels for downstream hosts
+- Router -> Traffic tunnel descriptions are now always visible as their own section in the live traffic card instead of hiding until a tunnel is auto-detected
+- added an explicit empty-state hint plus quick suggestions for common names like wg0, ovpn-client1, tun0, and tailscale0
+- the section now explicitly warns that tunnel descriptions are currently stored locally in the active browser/UI profile
+- tunnel descriptions continue to be shown on live tunnel cards and in routed via/route labels for downstream hosts
 - router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.56
+- UI: v1.2.57
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -20,7 +20,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.56
+- UI: v1.2.57
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -33,6 +33,9 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.57 блок описаний туннелей в Router -> Traffic теперь виден всегда внутри карточки живого трафика, даже если live tunnel ещё не обнаружен автоматически
+- в v1.2.57 добавлены empty-state подсказка и быстрые варианты имён интерфейсов: wg0 / ovpn-client1 / tun0 / tailscale0
+- в v1.2.57 UI явно показывает, что описания туннелей пока сохраняются локально в активном браузере/UI-профиле
 - в v1.2.56 в Traffic -> Users добавлен явный owner-resolution badge: если limit owner отличается от display user, это теперь видно сразу в строке
 - в v1.2.56 runtime tooltip/meta по строке объясняет причину owner-resolution: persisted self / name / IP / MAC match
 - в v1.2.56 в Router -> Traffic появились редактируемые описания для OVPN/WG и других tunnel interfaces; они показываются на карточках туннелей и в routed via/route подписях

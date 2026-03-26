@@ -1,3 +1,12 @@
+## v1.2.57 (2026-03-26)
+
+### UI Mihomo / Ultra
+
+- Router -> Traffic tunnel descriptions are now always visible as their own section inside the live traffic card instead of hiding until a tunnel is auto-detected.
+- Added an explicit empty-state hint and one-click suggestions for common interface names such as `wg0`, `ovpn-client1`, `tun0`, and `tailscale0`, so manual setup is no longer a scavenger hunt.
+- The section now also tells you that descriptions are currently stored locally in the active browser/UI profile.
+- router-agent code not changed in this release.
+
 ## v1.2.56 (2026-03-26)
 
 ### UI Mihomo / Ultra

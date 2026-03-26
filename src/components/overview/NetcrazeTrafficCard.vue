@@ -83,26 +83,38 @@
         </div>
       </div>
 
-      <div v-if="showTunnelDescriptionManagerToggle" class="flex items-center justify-end px-1">
-        <button type="button" class="btn btn-ghost btn-xs sm:btn-sm" @click="tunnelDescriptionManagerOpen = !tunnelDescriptionManagerOpen">
-          {{ $t('routerTrafficTunnelDescriptions') }}
-          <span class="ml-1 badge badge-ghost badge-xs">{{ tunnelDescriptionEntries.length }}</span>
-        </button>
-      </div>
-
-      <div
-        v-if="tunnelDescriptionManagerOpen && showTunnelDescriptionManagerToggle"
-        class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-3"
-      >
+      <div class="rounded-lg border border-base-content/10 bg-base-200/20 px-3 py-3">
         <div class="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <div class="text-sm font-medium">{{ $t('routerTrafficTunnelDescriptions') }}</div>
-            <div class="text-xs opacity-60">{{ $t('routerTrafficTunnelDescriptionsHint') }}</div>
+            <div class="flex flex-wrap items-center gap-2 text-sm font-medium">
+              <span>{{ $t('routerTrafficTunnelDescriptions') }}</span>
+              <span class="badge badge-ghost badge-xs">{{ tunnelDescriptionEntries.length }}</span>
+            </div>
+            <div class="mt-1 text-xs opacity-60">{{ $t('routerTrafficTunnelDescriptionsHint') }}</div>
+            <div class="mt-1 text-[11px] opacity-50">{{ $t('routerTrafficTunnelDescriptionsStorageHint') }}</div>
           </div>
-          <button type="button" class="btn btn-ghost btn-xs" @click="tunnelDescriptionManagerOpen = false">{{ $t('collapse') }}</button>
+          <button type="button" class="btn btn-ghost btn-xs" @click="tunnelDescriptionManagerOpen = !tunnelDescriptionManagerOpen">
+            {{ tunnelDescriptionManagerOpen ? $t('collapse') : $t('expand') }}
+          </button>
         </div>
 
-        <div class="mt-3 space-y-2">
+        <div v-if="tunnelDescriptionManagerOpen" class="mt-3 space-y-2">
+          <div v-if="!tunnelDescriptionEntries.length" class="rounded-lg border border-dashed border-base-content/10 bg-base-100/30 px-3 py-2 text-xs opacity-70">
+            {{ $t('routerTrafficTunnelDescriptionsEmpty') }}
+          </div>
+
+          <div v-if="tunnelDescriptionSuggestions.length" class="flex flex-wrap gap-2">
+            <button
+              v-for="name in tunnelDescriptionSuggestions"
+              :key="`tunnel-desc-suggest-${name}`"
+              type="button"
+              class="btn btn-ghost btn-xs font-mono"
+              @click="prefillTunnelDescriptionName(name)"
+            >
+              {{ name }}
+            </button>
+          </div>
+
           <div
             v-for="entry in tunnelDescriptionEntries"
             :key="`tunnel-desc-${entry.name}`"
@@ -719,7 +731,7 @@ const currentVpnUploadLabel = computed(() => speedLabel(latestValue(vpnUploadHis
 const currentVpnDownloadLabel = computed(() => speedLabel(latestValue(vpnDownloadHistory.value)))
 
 const tunnelDescriptionMap = useStorage<Record<string, string>>('config/tunnel-interface-description-map', {})
-const tunnelDescriptionManagerOpen = ref(false)
+const tunnelDescriptionManagerOpen = ref(true)
 const tunnelDescriptionDrafts = ref<Record<string, string>>({})
 const newTunnelInterfaceName = ref('')
 const newTunnelInterfaceDescription = ref('')
@@ -806,8 +818,27 @@ const tunnelDescriptionEntries = computed(() => {
     .sort((a, b) => a.name.localeCompare(b.name))
 })
 
-const showTunnelDescriptionManagerToggle = computed(() => currentExtraStats.value.length > 0 || tunnelDescriptionEntries.value.length > 0 || tunnelDescriptionManagerOpen.value)
+const tunnelDescriptionSuggestions = computed(() => {
+  const names = [
+    ...currentExtraStats.value.map((item) => item.name),
+    ...Object.keys(tunnelDescriptionMap.value || {}),
+    'wg0',
+    'ovpn-client1',
+    'tun0',
+    'tailscale0',
+  ]
+  return Array.from(new Set(names.map((name) => normalizeTunnelInterfaceName(name)).filter(Boolean)))
+    .filter((name) => !tunnelDescriptionEntries.value.some((entry) => entry.name === name))
+    .slice(0, 8)
+})
 const canAddTunnelDescription = computed(() => normalizeTunnelInterfaceName(newTunnelInterfaceName.value).length > 0)
+
+const prefillTunnelDescriptionName = (name: string) => {
+  const key = normalizeTunnelInterfaceName(name)
+  if (!key) return
+  newTunnelInterfaceName.value = key
+  if (!tunnelDescriptionManagerOpen.value) tunnelDescriptionManagerOpen.value = true
+}
 
 watch(tunnelDescriptionEntries, (entries) => {
   const next: Record<string, string> = { ...tunnelDescriptionDrafts.value }
