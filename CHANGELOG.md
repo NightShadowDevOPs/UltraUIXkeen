@@ -1,3 +1,8 @@
+## v1.2.47
+- Traffic: added a dedicated QoS runtime banner with router-agent state, safe `wan-only` visibility, WAN/LAN line rates, and confirmed agent IP count
+- Traffic per-user rows now show richer runtime chips: agent-confirmed QoS coverage vs UI-only saved state, queue priority, guaranteed minimum rates, shaper state, and compact IP/MAC hints
+- UI-only polish release: router-agent remains on 0.6.12
+
 ## v1.2.46
 - fix Router live traffic card bootstrap: restore missing refreshAgentHostTraffic() function in NetcrazeTrafficCard so onMounted no longer aborts before pollTraffic()
 - start Router live poll before host-traffic agent refresh so WAN live graph and summary cards bootstrap even if host-side agent data is slow

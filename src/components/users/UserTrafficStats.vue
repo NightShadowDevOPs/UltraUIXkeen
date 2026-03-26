@@ -27,6 +27,35 @@
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-75">
         {{ $t('hostQosBulkHint') }}
       </div>
+
+      <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="text-sm font-semibold">QoS runtime</div>
+          <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
+          <span v-else-if="!agentRuntimeReady" class="badge badge-error">{{ $t('offline') }}</span>
+          <span v-else-if="qosStatus.ok && (qosStatus.supported || qosAppliedIpCount)" class="badge badge-success">{{ $t('online') }}</span>
+          <span v-else-if="agentRuntimeReady && !qosStatus.supported" class="badge badge-warning">no-tc</span>
+          <span v-else class="badge badge-error">runtime error</span>
+          <span v-if="qosStatus.qosMode === 'wan-only'" class="badge badge-info">Safe QoS · uplink/WAN only</span>
+          <span class="badge badge-ghost">WAN {{ qosStatus.wanRateMbit || '—' }} Мбит</span>
+          <span class="badge badge-ghost">LAN {{ qosStatus.lanRateMbit || '—' }} Мбит</span>
+          <span class="badge badge-ghost">Agent IP: {{ qosAppliedIpCount }}</span>
+        </div>
+        <div class="mt-1 text-xs opacity-70">
+          <template v-if="qosStatus.qosMode === 'wan-only'">
+            Safe mode активен: приоритет хоста применяется только на uplink/WAN и не трогает LAN bridge.
+          </template>
+          <template v-else-if="qosStatus.ok && qosStatus.supported">
+            Runtime получен с router-agent. По строкам ниже видно, на какие IP профиль реально подтверждён агентом.
+          </template>
+          <template v-else-if="agentRuntimeReady && !qosStatus.supported">
+            router-agent доступен, но tc/QoS на нём недоступен.
+          </template>
+          <template v-else>
+            Нет подтверждённого QoS runtime от router-agent.
+          </template>
+        </div>
+      </div>
       <div v-if="preset === 'custom'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm">
           <span class="opacity-70">{{ $t('from') }}</span>
@@ -395,15 +424,32 @@
                       {{ $t('clear') }}
                     </button>
                   </div>
-                  <div v-if="qosStatus.qosMode === 'wan-only'" class="text-[11px] opacity-65 whitespace-nowrap text-right text-info">
-                    Safe QoS: только uplink/WAN
+                  <div v-if="qosStatus.qosMode === 'wan-only'" class="flex max-w-[340px] flex-wrap justify-end gap-1 text-right">
+                    <span class="inline-flex items-center rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[11px] font-medium text-info">
+                      Safe QoS · uplink/WAN only
+                    </span>
                   </div>
                   <div
-                    v-if="rowRuntimeSummary(row)"
-                    class="text-[11px] opacity-65 whitespace-nowrap text-right"
+                    v-if="rowRuntimeBadges(row).length"
+                    class="flex max-w-[340px] flex-wrap justify-end gap-1 text-right"
                     :title="rowRuntimeTitle(row)"
                   >
-                    {{ rowRuntimeSummary(row) }}
+                    <span
+                      v-for="badge in rowRuntimeBadges(row)"
+                      :key="`${row.user}-${badge.text}`"
+                      class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                      :class="badge.cls"
+                      :title="badge.title || rowRuntimeTitle(row)"
+                    >
+                      {{ badge.text }}
+                    </span>
+                  </div>
+                  <div
+                    v-if="rowRuntimeMetaLine(row)"
+                    class="max-w-[340px] text-[11px] leading-4 opacity-65 text-right"
+                    :title="rowRuntimeTitle(row)"
+                  >
+                    {{ rowRuntimeMetaLine(row) }}
                   </div>
                 </div>
               </td>
@@ -1933,6 +1979,9 @@ const disableLimitsQuick = async (user: string) => {
 
 
 type ShaperBadge = { icon: any; cls: string; title: string; showReapply: boolean; summary: string }
+type RuntimeBadge = { text: string; cls: string; title?: string }
+
+const qosAppliedIpCount = computed(() => (qosStatus.value.items || []).length)
 
 const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   const out: Record<string, ShaperBadge | null> = {}
@@ -2011,25 +2060,138 @@ const shaperBadge = computed<Record<string, ShaperBadge | null>>(() => {
   return out
 })
 
-const rowRuntimeSummary = (row: Row) => {
-  const parts: string[] = []
-  if (row.currentQos === 'mixed') parts.push(`QoS: ${t('hostQosMixed')}`)
-  else if (row.currentQos) parts.push(`QoS: ${profileLabel(row.currentQos)}`)
-  else if (qosDraftByUser.value[row.user] && qosDraftByUser.value[row.user] !== 'normal') parts.push(`QoS: ${t('hostQosNone')}`)
+const runtimeBadgeClass = (tone: 'neutral' | 'success' | 'warning' | 'error' | 'info') => {
+  if (tone === 'success') return 'border-success/30 bg-success/10 text-success'
+  if (tone === 'warning') return 'border-warning/30 bg-warning/10 text-warning'
+  if (tone === 'error') return 'border-error/30 bg-error/10 text-error'
+  if (tone === 'info') return 'border-info/30 bg-info/10 text-info'
+  return 'border-base-content/15 bg-base-200/60 text-base-content/80'
+}
 
-  const badge = shaperBadge.value[row.user]
-  if (badge?.summary) parts.push(badge.summary)
+const runtimeProfileBadgeClass = (profile: AgentQosProfile | 'mixed') => {
+  if (profile === 'mixed') return runtimeBadgeClass('warning')
+  if (profile === 'critical') return 'border-error/30 bg-error/10 text-error'
+  if (profile === 'high') return 'border-success/30 bg-success/10 text-success'
+  if (profile === 'elevated') return 'border-accent/30 bg-accent/10 text-accent'
+  if (profile === 'low') return 'border-warning/30 bg-warning/10 text-warning'
+  if (profile === 'background') return 'border-base-content/15 bg-base-200/60 text-base-content/75'
+  return 'border-info/30 bg-info/10 text-info'
+}
+
+const formatMbpsCompact = (value?: number) => {
+  const n = Number(value || 0)
+  if (!Number.isFinite(n) || n <= 0) return '0'
+  if (Math.abs(n - Math.round(n)) < 0.01) return String(Math.round(n))
+  return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+}
+
+const compactList = (items: string[], max = 2) => {
+  const list = Array.from(new Set((items || []).filter(Boolean)))
+  if (!list.length) return ''
+  if (list.length <= max) return list.join(', ')
+  return `${list.slice(0, max).join(', ')} +${list.length - max}`
+}
+
+const rowResolvedMacs = (row: Row) => resolveMacsForIdentity(row.user, effectiveIpsForRow(row), rowLimitOwner(row))
+
+const rowAgentQosItems = (row: Row) => {
+  const seen = new Set<string>()
+  return effectiveIpsForRow(row)
+    .map((ip) => qosMap.value[ip])
+    .filter((item): item is AgentQosStatusItem => {
+      if (!item?.ip || seen.has(item.ip)) return false
+      seen.add(item.ip)
+      return true
+    })
+}
+
+const rowStoredOnlyQosIps = (row: Row) => {
+  const seen = new Set<string>()
+  return effectiveIpsForRow(row).filter((ip) => {
+    if (seen.has(ip)) return false
+    seen.add(ip)
+    return !qosMap.value[ip] && !!routerHostQosAppliedProfiles.value[ip]
+  })
+}
+
+const rowRuntimeBadges = (row: Row): RuntimeBadge[] => {
+  const out: RuntimeBadge[] = []
+  const ips = effectiveIpsForRow(row)
+  const agentItems = rowAgentQosItems(row)
+  const storedOnlyIps = rowStoredOnlyQosIps(row)
+
+  if (row.currentQos === 'mixed') {
+    out.push({ text: `QoS: ${t('hostQosMixed')}`, cls: runtimeProfileBadgeClass('mixed') })
+  } else if (row.currentQos) {
+    out.push({ text: `QoS: ${profileLabel(row.currentQos)}`, cls: runtimeProfileBadgeClass(row.currentQos) })
+  }
+
+  if (agentItems.length) {
+    out.push({
+      text: `agent ${agentItems.length}/${ips.length || agentItems.length} IP`,
+      cls: runtimeBadgeClass('success'),
+      title: 'Профиль подтверждён router-agent для указанных IP.',
+    })
+  } else if (storedOnlyIps.length) {
+    out.push({
+      text: `UI ${storedOnlyIps.length}/${ips.length || storedOnlyIps.length} IP`,
+      cls: runtimeBadgeClass('warning'),
+      title: 'Профиль сохранён в UI, но пока не подтверждён в свежем ответе router-agent.',
+    })
+  }
+
+  const priorities = Array.from(new Set(agentItems.map((item) => item.priority).filter((value) => value !== undefined && value !== null)))
+  if (priorities.length === 1) out.push({ text: `prio ${priorities[0]}`, cls: runtimeBadgeClass('neutral') })
+
+  const upValues = Array.from(new Set(agentItems.map((item) => Number(item.upMinMbit || 0)).filter((value) => value > 0)))
+  if (upValues.length === 1) out.push({ text: `↑ ${formatMbpsCompact(upValues[0])} Мбит`, cls: runtimeBadgeClass('info') })
+
+  if (qosStatus.value.qosDownlinkEnabled) {
+    const downValues = Array.from(new Set(agentItems.map((item) => Number(item.downMinMbit || 0)).filter((value) => value > 0)))
+    if (downValues.length === 1) out.push({ text: `↓ ${formatMbpsCompact(downValues[0])} Мбит`, cls: runtimeBadgeClass('info') })
+  }
+
+  const shape = shaperBadge.value[row.user]
+  if (shape?.summary) {
+    const tone: 'success' | 'warning' | 'error' = shape.cls.includes('text-success') ? 'success' : shape.cls.includes('text-error') ? 'error' : 'warning'
+    out.push({ text: `Shape: ${shape.summary}`, cls: runtimeBadgeClass(tone), title: shape.title })
+  }
+
+  return out
+}
+
+const rowRuntimeMetaLine = (row: Row) => {
+  const parts: string[] = []
+  const ips = effectiveIpsForRow(row)
+  const macs = rowResolvedMacs(row)
+  if (ips.length) parts.push(`IP: ${compactList(ips, 2)}`)
+  if (macs.length) parts.push(`MAC: ${compactList(macs, 1)}`)
+  if ((row.currentQos || rowStoredOnlyQosIps(row).length) && qosStatus.value.qosMode === 'wan-only') parts.push('safe WAN-only')
   return parts.join(' · ')
 }
 
 const rowRuntimeTitle = (row: Row) => {
   const parts: string[] = []
   const ips = effectiveIpsForRow(row)
+  const macs = rowResolvedMacs(row)
+  const agentItems = rowAgentQosItems(row)
+  const storedOnlyIps = rowStoredOnlyQosIps(row)
   if (row.currentQos === 'mixed') parts.push(`QoS: ${t('hostQosMixed')}`)
   else if (row.currentQos) parts.push(`QoS: ${profileLabel(row.currentQos)}`)
   else parts.push(`QoS: ${t('hostQosNone')}`)
-  if (ips.length) parts.push(`IP: ${ips.join(', ')}`)
-  if (row.macs?.length) parts.push(`MAC: ${row.macs.join(', ')}`)
+  if (qosStatus.value.qosMode) parts.push(`Mode: ${qosStatus.value.qosMode}`)
+  if (agentItems.length) parts.push(`Agent confirmed IP: ${agentItems.map((item) => item.ip).join(', ')}`)
+  if (storedOnlyIps.length) parts.push(`UI-only IP: ${storedOnlyIps.join(', ')}`)
+  if (ips.length) parts.push(`Effective IP: ${ips.join(', ')}`)
+  if (macs.length) parts.push(`MAC: ${macs.join(', ')}`)
+  const priorities = Array.from(new Set(agentItems.map((item) => item.priority).filter((value) => value !== undefined && value !== null)))
+  if (priorities.length === 1) parts.push(`Queue priority: ${priorities[0]}`)
+  const upValues = Array.from(new Set(agentItems.map((item) => Number(item.upMinMbit || 0)).filter((value) => value > 0)))
+  if (upValues.length === 1) parts.push(`Guaranteed uplink: ${formatMbpsCompact(upValues[0])} Мбит`)
+  if (qosStatus.value.qosDownlinkEnabled) {
+    const downValues = Array.from(new Set(agentItems.map((item) => Number(item.downMinMbit || 0)).filter((value) => value > 0)))
+    if (downValues.length === 1) parts.push(`Guaranteed downlink: ${formatMbpsCompact(downValues[0])} Мбит`)
+  }
   const badge = shaperBadge.value[row.user]
   if (badge?.title) parts.push(badge.title)
   return parts.join('\n')

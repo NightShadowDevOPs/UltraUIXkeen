@@ -1,12 +1,12 @@
-UI Mihomo / Ultra — transfer update v1.2.46
+UI Mihomo / Ultra — transfer update v1.2.47
 
 What changed in this rebuild:
-- fixed Router live traffic card bootstrap bug in NetcrazeTrafficCard.vue
-- restored missing refreshAgentHostTraffic() implementation
-- moved pollTraffic() earlier in onMounted so live WAN chart starts even if host-side refresh stalls
+- added a visible QoS runtime block in Traffic with router-agent state, safe `wan-only` marker, WAN/LAN rates and confirmed agent IP count
+- expanded per-row Traffic runtime details: agent-confirmed QoS coverage, UI-only saved state, queue priority, guaranteed minimums, shaper state and compact IP/MAC hints
+- router-agent code not changed in this release
 
 Current versions:
-- UI: v1.2.46
+- UI: v1.2.47
 - router-agent: 0.6.12
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
@@ -18,7 +18,7 @@ Current versions:
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.45
+- UI: v1.2.47
 - router-agent: 0.6.12
 
 Правила по проекту:
@@ -29,6 +29,8 @@ Current versions:
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
+- в v1.2.47 в разделе «Трафик» добавлен отдельный блок QoS runtime: видно состояние router-agent, safe mode `wan-only`, WAN/LAN rates и число IP, подтверждённых агентом
+- в v1.2.47 строки «Трафика» показывают расширенный runtime по QoS/шейперу: подтверждение agent vs UI-only state, prio, гарантированный минимум и компактные IP/MAC подсказки
 - в v1.2.45 подправлен масштаб графика `Router -> Трафик роутера -> live`: жёсткий минимум шкалы 1 MB/s визуально прятал малый live-трафик, поэтому теперь шкала адаптивно опускается до 64/128/256 KB/s и небольшие WAN-дельты больше не выглядят как пустой график
 - в v1.2.44 починен router-agent CGI query parser под BusyBox /bin/sh: прежняя bash-only подстановка `${val//...}` роняла `cmd=status`, `cmd=traffic_live` и другие endpoint'ы с `Bad substitution`, из-за чего UI показывал `Агент включён, но недоступен`, не выводил версию агента и не работал live-трафик роутера
 - в v1.2.43 починен router-agent `traffic_live`: в agent была потеряна helper-функция `read_iface_counter()`, из-за чего live-график трафика роутера мог не получать WAN counters; теперь `Router -> Трафик роутера -> live` снова должен опрашиваться нормально
