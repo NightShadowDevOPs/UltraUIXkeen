@@ -21,7 +21,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.21"
+AGENT_VERSION="0.6.22"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -1951,6 +1951,9 @@ mihomo_cfg_load_meta() {
   mcfg_lastApplyAt=''
   mcfg_lastApplySource=''
   mcfg_lastError=''
+  mcfg_lastSuccessfulRev=0
+  mcfg_lastSuccessfulAt=''
+  mcfg_lastSuccessfulSource=''
   if [ -f "$MIHOMO_CFG_META" ]; then
     mcfg_activeRev="$(sed -nE 's/.*"activeRev"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
     mcfg_activeUpdatedAt="$(sed -nE 's/.*"activeUpdatedAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
@@ -1961,23 +1964,28 @@ mihomo_cfg_load_meta() {
     mcfg_lastApplyAt="$(sed -nE 's/.*"lastApplyAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
     mcfg_lastApplySource="$(sed -nE 's/.*"lastApplySource"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
     mcfg_lastError="$(sed -nE 's/.*"lastError"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastSuccessfulRev="$(sed -nE 's/.*"lastSuccessfulRev"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastSuccessfulAt="$(sed -nE 's/.*"lastSuccessfulAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastSuccessfulSource="$(sed -nE 's/.*"lastSuccessfulSource"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
   fi
   echo "$mcfg_activeRev" | grep -qE '^[0-9]+$' || mcfg_activeRev=0
   echo "$mcfg_draftRev" | grep -qE '^[0-9]+$' || mcfg_draftRev=0
+  echo "$mcfg_lastSuccessfulRev" | grep -qE '^[0-9]+$' || mcfg_lastSuccessfulRev=0
   [ -n "$mcfg_lastApplyStatus" ] || mcfg_lastApplyStatus='idle'
 }
 
 mihomo_cfg_write_meta() {
   mkdir -p "$MIHOMO_CFG_DIR" >/dev/null 2>&1 || true
   tmp="$MIHOMO_CFG_META.tmp.$$"
-  printf '{"activeRev":%s,"activeUpdatedAt":"%s","draftRev":%s,"draftUpdatedAt":"%s","baselineUpdatedAt":"%s","lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s"}' \
+  printf '{"activeRev":%s,"activeUpdatedAt":"%s","draftRev":%s,"draftUpdatedAt":"%s","baselineUpdatedAt":"%s","lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s","lastSuccessfulRev":%s,"lastSuccessfulAt":"%s","lastSuccessfulSource":"%s"}' \
     "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" \
     "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")" \
     "$(jesc "$mcfg_baselineUpdatedAt")" \
     "$(jesc "$mcfg_lastApplyStatus")" \
     "$(jesc "$mcfg_lastApplyAt")" \
     "$(jesc "$mcfg_lastApplySource")" \
-    "$(jesc "$mcfg_lastError")" > "$tmp" 2>/dev/null || return 1
+    "$(jesc "$mcfg_lastError")" \
+    "$mcfg_lastSuccessfulRev" "$(jesc "$mcfg_lastSuccessfulAt")" "$(jesc "$mcfg_lastSuccessfulSource")" > "$tmp" 2>/dev/null || return 1
   mv -f "$tmp" "$MIHOMO_CFG_META" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; return 1; }
   return 0
 }
@@ -1999,6 +2007,14 @@ mihomo_cfg_init_if_missing() {
       mcfg_draftUpdatedAt="$(mihomo_cfg_now_iso)"
     fi
     [ -n "$mcfg_baselineUpdatedAt" ] || [ ! -f "$MIHOMO_CFG_BASELINE_FILE" ] || mcfg_baselineUpdatedAt="$(mihomo_cfg_now_iso)"
+    mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  fi
+  if [ -f "$MIHOMO_CONFIG" ] && [ "$mcfg_lastSuccessfulRev" -le 0 ]; then
+    [ "$mcfg_activeRev" -gt 0 ] || mcfg_activeRev=1
+    [ -n "$mcfg_activeUpdatedAt" ] || mcfg_activeUpdatedAt="$(mihomo_cfg_now_iso)"
+    mcfg_lastSuccessfulRev="$mcfg_activeRev"
+    mcfg_lastSuccessfulAt="$mcfg_activeUpdatedAt"
+    [ -n "$mcfg_lastSuccessfulSource" ] || mcfg_lastSuccessfulSource='active'
     mihomo_cfg_write_meta >/dev/null 2>&1 || true
   fi
 }
@@ -2193,11 +2209,22 @@ mihomo_cfg_state_json() {
   active_exists=false; [ -f "$MIHOMO_CONFIG" ] && active_exists=true
   draft_exists=false; [ -f "$MIHOMO_CFG_DRAFT_FILE" ] && draft_exists=true
   baseline_exists=false; [ -f "$MIHOMO_CFG_BASELINE_FILE" ] && baseline_exists=true
-  reply_ok "$(printf '{"ok":true,"active":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"draft":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"baseline":{"path":"%s","updatedAt":"%s","exists":%s,"sizeBytes":%s},"lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s","validator":{"available":%s,"bin":"%s"},"restart":{"available":%s,"mode":"%s"}}' \
+  last_success_exists=false
+  if [ "$mcfg_lastSuccessfulRev" -gt 0 ]; then
+    if [ "$mcfg_lastSuccessfulRev" = "$mcfg_activeRev" ] && [ -f "$MIHOMO_CONFIG" ]; then
+      last_success_exists=true
+    elif [ -f "$MIHOMO_CFG_REVS_DIR/rev-$mcfg_lastSuccessfulRev.yaml" ]; then
+      last_success_exists=true
+    fi
+  fi
+  last_success_current=false
+  [ "$mcfg_lastSuccessfulRev" -gt 0 ] && [ "$mcfg_lastSuccessfulRev" = "$mcfg_activeRev" ] && last_success_current=true
+  reply_ok "$(printf '{"ok":true,"active":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"draft":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"baseline":{"path":"%s","updatedAt":"%s","exists":%s,"sizeBytes":%s},"lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s","lastSuccessful":{"rev":%s,"updatedAt":"%s","source":"%s","exists":%s,"current":%s},"validator":{"available":%s,"bin":"%s"},"restart":{"available":%s,"mode":"%s"}}' \
     "$(jesc "$MIHOMO_CONFIG")" "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$active_exists" "$(mihomo_cfg_file_size "$MIHOMO_CONFIG")" \
     "$(jesc "$MIHOMO_CFG_DRAFT_FILE")" "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")" "$draft_exists" "$(mihomo_cfg_file_size "$MIHOMO_CFG_DRAFT_FILE")" \
     "$(jesc "$MIHOMO_CFG_BASELINE_FILE")" "$(jesc "$mcfg_baselineUpdatedAt")" "$baseline_exists" "$(mihomo_cfg_file_size "$MIHOMO_CFG_BASELINE_FILE")" \
     "$(jesc "$mcfg_lastApplyStatus")" "$(jesc "$mcfg_lastApplyAt")" "$(jesc "$mcfg_lastApplySource")" "$(jesc "$mcfg_lastError")" \
+    "$mcfg_lastSuccessfulRev" "$(jesc "$mcfg_lastSuccessfulAt")" "$(jesc "$mcfg_lastSuccessfulSource")" "$last_success_exists" "$last_success_current" \
     "$validator_available" "$(jesc "$validator_bin")" "$restart_available" "$(jesc "$restart_mode")")"
 }
 
@@ -2378,6 +2405,9 @@ mihomo_cfg_apply_path() {
         mcfg_lastApplyAt="$mcfg_activeUpdatedAt"
         mcfg_lastApplySource='baseline'
         mcfg_lastError='apply-failed-restored-baseline'
+        mcfg_lastSuccessfulRev="$mcfg_activeRev"
+        mcfg_lastSuccessfulAt="$mcfg_activeUpdatedAt"
+        mcfg_lastSuccessfulSource='baseline'
         mihomo_cfg_write_meta >/dev/null 2>&1 || true
         mihomo_cfg_lock_release
         reply_ok "$(printf '{"ok":false,"phase":"restart","error":"apply-failed","source":"%s","recovery":"%s","restored":"baseline","rev":%s,"updatedAt":"%s","validateCmd":"%s","firstRestartMethod":"%s","firstRestartOutput":"%s","rollbackRestartMethod":"%s","rollbackRestartOutput":"%s","baselineRestartMethod":"%s","baselineRestartOutput":"%s"}' "$(jesc "$source_name")" "$(jesc "$recovery")" "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$validate_cmd")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$rollback_restart_method")" "$(jesc "$rollback_restart_output")" "$(jesc "$baseline_restart_method")" "$(jesc "$baseline_restart_output")")"
@@ -2401,6 +2431,9 @@ mihomo_cfg_apply_path() {
   mcfg_lastApplyAt="$mcfg_activeUpdatedAt"
   mcfg_lastApplySource="$source_name"
   mcfg_lastError=''
+  mcfg_lastSuccessfulRev="$mcfg_activeRev"
+  mcfg_lastSuccessfulAt="$mcfg_activeUpdatedAt"
+  mcfg_lastSuccessfulSource="$source_name"
   mihomo_cfg_write_meta >/dev/null 2>&1 || true
   mihomo_cfg_lock_release
   reply_ok "$(printf '{"ok":true,"phase":"apply","rev":%s,"updatedAt":"%s","appliedFrom":"%s","recovery":"none","restartMethod":"%s","restartOutput":"%s","validateCmd":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$source_name")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$validate_cmd")")"

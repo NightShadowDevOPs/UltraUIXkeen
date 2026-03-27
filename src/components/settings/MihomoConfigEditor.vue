@@ -115,6 +115,51 @@
               <pre class="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] opacity-80">{{ validationOutput }}</pre>
             </div>
 
+            <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configLastSuccessfulTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configLastSuccessfulTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge" :class="lastSuccessfulBadgeClass">{{ lastSuccessfulStatusText }}</span>
+                  <span v-if="managedState?.lastSuccessful?.current" class="badge badge-primary badge-outline">{{ $t('configLastSuccessfulCurrent') }}</span>
+                  <span v-else-if="managedState?.lastSuccessful?.rev" class="badge badge-ghost">{{ $t('configHistoryRevisionLabel') }} {{ managedState?.lastSuccessful?.rev }}</span>
+                </div>
+              </div>
+
+              <div v-if="!lastSuccessfulExists" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configLastSuccessfulEmpty') }}
+              </div>
+
+              <div v-else class="space-y-2">
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                    <div class="opacity-60">{{ $t('configLastSuccessfulRevision') }}</div>
+                    <div class="mt-1 font-mono">rev {{ managedState?.lastSuccessful?.rev ?? '—' }}</div>
+                  </div>
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                    <div class="opacity-60">{{ $t('configDiagSource') }}</div>
+                    <div class="mt-1">{{ sourceText(managedState?.lastSuccessful?.source) }}</div>
+                  </div>
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                    <div class="opacity-60">{{ $t('updatedAt') }}</div>
+                    <div class="mt-1">{{ fmtTextTs(managedState?.lastSuccessful?.updatedAt) }}</div>
+                  </div>
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                    <div class="opacity-60">{{ $t('configLastSuccessfulStorage') }}</div>
+                    <div class="mt-1">{{ managedState?.lastSuccessful?.current ? $t('configLastSuccessfulFromCurrent') : $t('configLastSuccessfulFromHistory') }}</div>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <button class="btn btn-sm" @click="loadLastSuccessfulIntoEditor" :disabled="busyAny || !lastSuccessfulExists">{{ $t('configLoadIntoEditor') }}</button>
+                  <button class="btn btn-sm btn-ghost" @click="compareDraftWithLastSuccessful" :disabled="!lastSuccessfulExists">{{ $t('configLastSuccessfulCompareDraft') }}</button>
+                  <button class="btn btn-sm btn-ghost" @click="compareActiveWithLastSuccessful" :disabled="!lastSuccessfulExists || managedState?.lastSuccessful?.current">{{ $t('configLastSuccessfulCompareActive') }}</button>
+                </div>
+              </div>
+            </div>
+
             <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -261,6 +306,135 @@
                 </div>
 
                 <div class="text-[11px] opacity-60">{{ $t('configOverviewApproximate') }}</div>
+              </div>
+            </div>
+
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configQuickEditorTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configQuickEditorTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configQuickEditorEditorScope') }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="syncQuickEditorFromPayload">{{ $t('configQuickEditorReadFromEditor') }}</button>
+                  <button class="btn btn-xs" @click="applyQuickEditorToPayload" :disabled="!quickEditorCanApply">{{ $t('configQuickEditorApplyToEditor') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configQuickEditorEmpty') }}
+              </div>
+
+              <div v-else class="space-y-3">
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configQuickEditorGeneralTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewMode') }}</span>
+                        <select v-model="quickEditor.mode" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="rule">rule</option>
+                          <option value="global">global</option>
+                          <option value="direct">direct</option>
+                          <option value="script">script</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewLogLevel') }}</span>
+                        <select v-model="quickEditor.logLevel" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="info">info</option>
+                          <option value="warning">warning</option>
+                          <option value="error">error</option>
+                          <option value="debug">debug</option>
+                          <option value="silent">silent</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewAllowLan') }}</span>
+                        <select v-model="quickEditor.allowLan" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewIpv6') }}</span>
+                        <select v-model="quickEditor.ipv6" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewUnifiedDelay') }}</span>
+                        <select v-model="quickEditor.unifiedDelay" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewFindProcessMode') }}</span>
+                        <select v-model="quickEditor.findProcessMode" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="off">off</option>
+                          <option value="always">always</option>
+                          <option value="strict">strict</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewGeodataMode') }}</span>
+                        <select v-model="quickEditor.geodataMode" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control md:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewController') }}</span>
+                        <input v-model="quickEditor.controller" type="text" class="input input-sm" :placeholder="$t('configQuickEditorControllerPlaceholder')" />
+                      </label>
+                      <label class="form-control md:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorSecret') }}</span>
+                        <input v-model="quickEditor.secret" type="text" class="input input-sm" :placeholder="$t('configQuickEditorSecretPlaceholder')" />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configQuickEditorPortsTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewMixedPort') }}</span>
+                        <input v-model="quickEditor.mixedPort" type="text" inputmode="numeric" class="input input-sm" placeholder="7890" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewPort') }}</span>
+                        <input v-model="quickEditor.port" type="text" inputmode="numeric" class="input input-sm" placeholder="7891" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewSocksPort') }}</span>
+                        <input v-model="quickEditor.socksPort" type="text" inputmode="numeric" class="input input-sm" placeholder="7892" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewRedirPort') }}</span>
+                        <input v-model="quickEditor.redirPort" type="text" inputmode="numeric" class="input input-sm" placeholder="7893" />
+                      </label>
+                      <label class="form-control md:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configOverviewTproxyPort') }}</span>
+                        <input v-model="quickEditor.tproxyPort" type="text" inputmode="numeric" class="input input-sm" placeholder="7894" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                  <span class="badge badge-outline">{{ $t('configQuickEditorOnlyTopLevel') }}</span>
+                  <span>{{ $t('configQuickEditorEmptyRemoves') }}</span>
+                </div>
               </div>
             </div>
 
@@ -492,7 +666,7 @@ import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/24/outline'
 import axios from 'axios'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const path = useStorage('config/mihomo-config-path', '/opt/etc/mihomo/config.yaml')
@@ -540,8 +714,8 @@ type ConfigActionDiagnostic = {
 
 const lastAction = ref<ConfigActionDiagnostic | null>(null)
 
-type DiffSourceKind = 'active' | 'draft' | 'baseline' | 'editor'
-type ManagedPayloadKind = Exclude<DiffSourceKind, 'editor'>
+type DiffSourceKind = 'active' | 'draft' | 'baseline' | 'editor' | 'last-success'
+type ManagedPayloadKind = Exclude<DiffSourceKind, 'editor' | 'last-success'>
 type DiffRow = {
   type: 'context' | 'add' | 'remove'
   leftNo: number | null
@@ -551,6 +725,23 @@ type DiffRow = {
 }
 
 type ConfigOverviewSectionState = 'enabled' | 'disabled' | 'present' | 'missing'
+
+type ConfigQuickEditorModel = {
+  mode: string
+  logLevel: string
+  allowLan: string
+  ipv6: string
+  unifiedDelay: string
+  findProcessMode: string
+  geodataMode: string
+  controller: string
+  secret: string
+  mixedPort: string
+  port: string
+  socksPort: string
+  redirPort: string
+  tproxyPort: string
+}
 
 type ConfigOverview = {
   topLevelSections: string[]
@@ -595,6 +786,26 @@ const managedPayloads = ref<Record<ManagedPayloadKind, string>>({
   draft: '',
   baseline: '',
 })
+const lastSuccessfulPayload = ref('')
+
+const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
+  mode: '',
+  logLevel: '',
+  allowLan: '',
+  ipv6: '',
+  unifiedDelay: '',
+  findProcessMode: '',
+  geodataMode: '',
+  controller: '',
+  secret: '',
+  mixedPort: '',
+  port: '',
+  socksPort: '',
+  redirPort: '',
+  tproxyPort: '',
+})
+
+const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
 
 const legacyLoadBusy = ref(false)
 const legacyApplyBusy = ref(false)
@@ -603,6 +814,14 @@ const legacyRestartBusy = ref(false)
 const currentPath = computed(() => managedMode.value ? (managedState.value?.active?.path || path.value) : path.value)
 const managedMode = computed(() => agentEnabled.value && Boolean(managedState.value?.ok))
 const busyAny = computed(() => refreshBusy.value || historyBusy.value || actionBusy.value)
+const lastSuccessfulExists = computed(() => Boolean(managedState.value?.lastSuccessful?.exists))
+
+const lastSuccessfulStatusText = computed(() => {
+  if (!lastSuccessfulExists.value) return t('configLastSuccessfulMissing')
+  return managedState.value?.lastSuccessful?.current ? t('configLastSuccessfulCurrent') : t('configLastSuccessfulSavedSnapshot')
+})
+
+const lastSuccessfulBadgeClass = computed(() => (managedState.value?.lastSuccessful?.current ? 'badge-success' : 'badge-ghost'))
 
 const fmtTextTs = (value?: string) => {
   const s = String(value || '').trim()
@@ -732,6 +951,25 @@ const refreshManagedPayloads = async (state: MihomoConfigManagedState) => {
   return next
 }
 
+const refreshLastSuccessfulPayload = async (state: MihomoConfigManagedState, nextPayloads: Record<ManagedPayloadKind, string>) => {
+  const last = state.lastSuccessful
+  if (!last?.exists || !last.rev) {
+    lastSuccessfulPayload.value = ''
+    return ''
+  }
+  if (last.current || (state.active?.rev && last.rev === state.active.rev)) {
+    lastSuccessfulPayload.value = nextPayloads.active || ''
+    return lastSuccessfulPayload.value
+  }
+  try {
+    const r = await agentMihomoConfigManagedGetRevAPI(last.rev)
+    lastSuccessfulPayload.value = r.ok && r.contentB64 ? decodeB64Utf8(r.contentB64) : ''
+  } catch {
+    lastSuccessfulPayload.value = ''
+  }
+  return lastSuccessfulPayload.value
+}
+
 const loadHistory = async () => {
   if (!agentEnabled.value) return
   historyBusy.value = true
@@ -749,6 +987,7 @@ const refreshManaged = async (loadEditor = false) => {
   if (!state.ok) return false
 
   const managedTexts = await refreshManagedPayloads(state)
+  await refreshLastSuccessfulPayload(state, managedTexts)
 
   if (loadEditor) {
     if (state.draft?.exists) {
@@ -1023,6 +1262,26 @@ const restoreHistoryRev = async (rev: number) => {
   }
 }
 
+const loadLastSuccessfulIntoEditor = () => {
+  if (!lastSuccessfulExists.value) return
+  payload.value = lastSuccessfulPayload.value || ''
+  validationOutput.value = ''
+  validationCmd.value = ''
+  showNotification({ content: 'configLastSuccessfulLoadedIntoEditor', type: 'alert-success' })
+}
+
+const compareDraftWithLastSuccessful = () => {
+  if (!lastSuccessfulExists.value) return
+  compareLeft.value = 'last-success'
+  compareRight.value = diffSourceAvailable('draft') ? 'draft' : 'editor'
+}
+
+const compareActiveWithLastSuccessful = () => {
+  if (!lastSuccessfulExists.value) return
+  compareLeft.value = 'last-success'
+  compareRight.value = diffSourceAvailable('active') ? 'active' : 'editor'
+}
+
 const diffSourceLabel = (kind: DiffSourceKind) => {
   switch (kind) {
     case 'active':
@@ -1031,6 +1290,8 @@ const diffSourceLabel = (kind: DiffSourceKind) => {
       return t('configCompareSourceDraft')
     case 'baseline':
       return t('configCompareSourceBaseline')
+    case 'last-success':
+      return t('configCompareSourceLastSuccess')
     case 'editor':
     default:
       return t('configCompareSourceEditor')
@@ -1039,7 +1300,8 @@ const diffSourceLabel = (kind: DiffSourceKind) => {
 
 const diffSourceAvailable = (kind: DiffSourceKind) => {
   if (kind === 'editor') return true
-  return Boolean(managedState.value?.[kind]?.exists)
+  if (kind === 'last-success') return Boolean(managedState.value?.lastSuccessful?.exists)
+  return Boolean(managedState.value?.[kind as ManagedPayloadKind]?.exists)
 }
 
 const normalizeDiffSource = (kind: DiffSourceKind): DiffSourceKind => {
@@ -1052,6 +1314,7 @@ const diffSourceOptions = computed(() => ([
   { value: 'active' as DiffSourceKind, label: diffSourceLabel('active'), disabled: !diffSourceAvailable('active') },
   { value: 'draft' as DiffSourceKind, label: diffSourceLabel('draft'), disabled: !diffSourceAvailable('draft') },
   { value: 'baseline' as DiffSourceKind, label: diffSourceLabel('baseline'), disabled: !diffSourceAvailable('baseline') },
+  { value: 'last-success' as DiffSourceKind, label: diffSourceLabel('last-success'), disabled: !diffSourceAvailable('last-success') },
   { value: 'editor' as DiffSourceKind, label: diffSourceLabel('editor'), disabled: false },
 ]))
 
@@ -1204,6 +1467,8 @@ const buildConfigOverview = (value: string): ConfigOverview => {
 
 const overviewSummary = computed(() => buildConfigOverview(diffSourceContent(overviewSourceResolved.value)))
 const overviewHasContent = computed(() => overviewSummary.value.stats.totalLines > 0)
+const quickEditorHasPayload = computed(() => normalizeDiffText(payload.value).trim().length > 0)
+const quickEditorCanApply = computed(() => quickEditorHasPayload.value)
 
 const overviewText = (value?: string | number | null) => {
   const text = String(value ?? '').trim()
@@ -1249,10 +1514,97 @@ const compareRightResolved = computed<DiffSourceKind>(() => normalizeDiffSource(
 
 const diffSourceContent = (kind: DiffSourceKind) => {
   if (kind === 'editor') return String(payload.value || '')
-  return String(managedPayloads.value[kind] || '')
+  if (kind === 'last-success') return String(lastSuccessfulPayload.value || '')
+  return String(managedPayloads.value[kind as ManagedPayloadKind] || '')
 }
 
 const normalizeDiffText = (value: string) => String(value || '').replace(/\r\n/g, '\n')
+
+const escapeRegExp = (value: string) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const getTopLevelScalarValue = (value: string, key: string) => {
+  const normalized = normalizeDiffText(value)
+  const re = new RegExp(`^${escapeRegExp(key)}:\\s*(.*?)\\s*$`, 'm')
+  const match = normalized.match(re)
+  if (!match) return ''
+  return sanitizeScalarValue(match[1] || '')
+}
+
+const syncQuickEditorFromPayload = () => {
+  const source = normalizeDiffText(payload.value)
+  quickEditor.value = {
+    mode: getTopLevelScalarValue(source, 'mode'),
+    logLevel: getTopLevelScalarValue(source, 'log-level'),
+    allowLan: getTopLevelScalarValue(source, 'allow-lan'),
+    ipv6: getTopLevelScalarValue(source, 'ipv6'),
+    unifiedDelay: getTopLevelScalarValue(source, 'unified-delay'),
+    findProcessMode: getTopLevelScalarValue(source, 'find-process-mode'),
+    geodataMode: getTopLevelScalarValue(source, 'geodata-mode'),
+    controller: getTopLevelScalarValue(source, 'external-controller'),
+    secret: getTopLevelScalarValue(source, 'secret'),
+    mixedPort: getTopLevelScalarValue(source, 'mixed-port'),
+    port: getTopLevelScalarValue(source, 'port'),
+    socksPort: getTopLevelScalarValue(source, 'socks-port'),
+    redirPort: getTopLevelScalarValue(source, 'redir-port'),
+    tproxyPort: getTopLevelScalarValue(source, 'tproxy-port'),
+  }
+}
+
+const upsertTopLevelInlineScalars = (value: string, entries: Array<[string, string]>) => {
+  const normalized = normalizeDiffText(value)
+  const lines = normalized.length ? normalized.split('\n') : []
+  const findLineIndex = (key: string) => lines.findIndex((line) => new RegExp(`^${escapeRegExp(key)}:\\s*.*$`).test(line))
+
+  for (const [key, rawValue] of entries) {
+    const cleaned = String(rawValue || '').trim()
+    const idx = findLineIndex(key)
+    if (!cleaned.length) {
+      if (idx >= 0) lines.splice(idx, 1)
+      continue
+    }
+    const nextLine = `${key}: ${cleaned}`
+    if (idx >= 0) lines[idx] = nextLine
+  }
+
+  const pending = entries
+    .filter(([key, rawValue]) => String(rawValue || '').trim().length > 0 && findLineIndex(key) < 0)
+    .map(([key, rawValue]) => `${key}: ${String(rawValue || '').trim()}`)
+
+  if (pending.length) {
+    let insertAt = 0
+    while (insertAt < lines.length && (!lines[insertAt]?.trim().length || /^\s*#/.test(lines[insertAt] || ''))) insertAt += 1
+    lines.splice(insertAt, 0, ...pending)
+  }
+
+  const joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+  return joined ? `${joined}\n` : ''
+}
+
+const applyQuickEditorToPayload = () => {
+  if (!quickEditorCanApply.value) {
+    showNotification({ content: 'configQuickEditorEmptyToast', type: 'alert-warning' })
+    return
+  }
+
+  payload.value = upsertTopLevelInlineScalars(payload.value, [
+    ['mode', quickEditor.value.mode],
+    ['log-level', quickEditor.value.logLevel],
+    ['allow-lan', quickEditor.value.allowLan],
+    ['ipv6', quickEditor.value.ipv6],
+    ['unified-delay', quickEditor.value.unifiedDelay],
+    ['find-process-mode', quickEditor.value.findProcessMode],
+    ['geodata-mode', quickEditor.value.geodataMode],
+    ['external-controller', quickEditor.value.controller],
+    ['secret', quickEditor.value.secret],
+    ['mixed-port', quickEditor.value.mixedPort],
+    ['port', quickEditor.value.port],
+    ['socks-port', quickEditor.value.socksPort],
+    ['redir-port', quickEditor.value.redirPort],
+    ['tproxy-port', quickEditor.value.tproxyPort],
+  ])
+
+  showNotification({ content: 'configQuickEditorAppliedToast', type: 'alert-success' })
+}
 
 const splitDiffLines = (value: string) => {
   const normalized = normalizeDiffText(value)
@@ -1599,6 +1951,10 @@ const legacyRestart = async () => {
 const clearDraft = () => {
   payload.value = ''
 }
+
+watch(payload, () => {
+  syncQuickEditorFromPayload()
+}, { immediate: true })
 
 onMounted(async () => {
   await refreshAll(true)

@@ -1,3 +1,18 @@
+## [1.2.84] (2026-03-27)
+
+### Features
+
+- Mihomo config workspace: add a quick editor for common top-level parameters directly over the current YAML in the editor
+- Quick editor can read/apply mode, log-level, allow-lan, ipv6, unified-delay, find-process-mode, geodata-mode, external-controller, secret, and common port keys without changing the managed apply/rollback pipeline
+- router-agent stays on 0.6.22; the new block is UI-only and keeps raw YAML editing as the main safe path
+
+## [1.2.83] (2026-03-27)
+
+### Features
+
+- Mihomo config workspace: add last successful revision block and diff source
+- router-agent 0.6.22: track last successfully started config revision in managed metadata
+
 ## v1.2.82 — структурированный обзор популярных секций config.yaml
 
 - `Mihomo → Конфигурация`: добавлен новый блок **структурированного обзора** для `active / draft / baseline / editor`

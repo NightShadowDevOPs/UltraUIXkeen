@@ -582,6 +582,13 @@ export type MihomoConfigManagedState = {
   lastApplyAt?: string
   lastApplySource?: string
   lastError?: string
+  lastSuccessful?: {
+    rev?: number
+    updatedAt?: string
+    source?: string
+    exists?: boolean
+    current?: boolean
+  }
   validator?: {
     available?: boolean
     bin?: string
