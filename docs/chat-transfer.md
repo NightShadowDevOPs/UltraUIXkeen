@@ -1,4 +1,4 @@
-UI Mihomo / Ultra — transfer update v1.2.77
+UI Mihomo / Ultra — transfer update v1.2.78
 
 Что изменилось в этом релизе:
 - редактор конфига Mihomo вынесен из Settings в отдельный верхнеуровневый раздел `Mihomo`
@@ -9,7 +9,7 @@ UI Mihomo / Ultra — transfer update v1.2.77
 - Router → Agent status теперь перепроверяется автоматически, поэтому единичный сбой первого запроса не должен надолго оставлять карточку в offline
 
 Текущие версии:
-- UI: v1.2.77
+- UI: v1.2.78
 - router-agent: 0.6.20
 
 Что важно по новой навигации:

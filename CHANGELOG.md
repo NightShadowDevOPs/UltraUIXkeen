@@ -1,3 +1,10 @@
+## v1.2.78 — Mihomo workspace subsection pass
+
+- Mihomo page now has internal quick navigation (`Overview / Runtime / Providers / Rules / Config`) instead of a single long block
+- added dedicated Mihomo subsection cards so runtime, traffic, connections, subscriptions, policies and service tasks are easier to reach from one place
+- Settings → Open Mihomo now lands directly on the config subsection, because that is the most common admin workflow after the split
+- navigation docs and transfer notes updated for the new Mihomo page structure
+
 ## v1.2.77 — router agent status self-healing hotfix
 
 - Router → Agent: fixed stale offline state in the UI — the card now re-checks router-agent status periodically instead of trusting only the first request after page open

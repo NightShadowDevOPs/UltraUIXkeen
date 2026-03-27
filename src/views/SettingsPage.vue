@@ -94,6 +94,6 @@ const scrollToSection = (id: string) => {
 }
 
 const openMihomo = () => {
-  router.push({ name: ROUTE_NAME.mihomo })
+  router.push({ name: ROUTE_NAME.mihomo, query: { section: 'config' } })
 }
 </script>
