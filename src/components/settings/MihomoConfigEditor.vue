@@ -117,6 +117,80 @@
 
             <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configDiffTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configDiffTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <label class="label cursor-pointer gap-2 py-0">
+                    <span class="label-text text-xs">{{ $t('configDiffOnlyChanges') }}</span>
+                    <input v-model="compareChangesOnly" type="checkbox" class="toggle toggle-sm" />
+                  </label>
+                  <button class="btn btn-xs btn-ghost" @click="swapDiffSources">{{ $t('configSwapCompareSides') }}</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-end">
+                <label class="form-control gap-1">
+                  <span class="label-text text-[11px] opacity-70">{{ $t('configCompareLeft') }}</span>
+                  <select v-model="compareLeft" class="select select-sm">
+                    <option v-for="option in diffSourceOptions" :key="`left-${option.value}`" :value="option.value" :disabled="option.disabled">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <div class="hidden justify-center pb-2 text-lg opacity-40 lg:flex">⇄</div>
+
+                <label class="form-control gap-1">
+                  <span class="label-text text-[11px] opacity-70">{{ $t('configCompareRight') }}</span>
+                  <select v-model="compareRight" class="select select-sm">
+                    <option v-for="option in diffSourceOptions" :key="`right-${option.value}`" :value="option.value" :disabled="option.disabled">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <span class="badge badge-ghost">{{ $t('configDiffRowsCount', { count: diffRows.length }) }}</span>
+                <span class="badge badge-success badge-outline">{{ $t('configDiffAddedCount', { count: diffSummary.added }) }}</span>
+                <span class="badge badge-error badge-outline">{{ $t('configDiffRemovedCount', { count: diffSummary.removed }) }}</span>
+                <span class="badge badge-ghost">{{ $t('configDiffContextCount', { count: diffSummary.context }) }}</span>
+              </div>
+
+              <div v-if="!diffRowsVisible.length" class="mt-2 opacity-60">
+                {{ diffHasChanges ? $t('configDiffHiddenByFilter') : $t('configDiffNoChanges') }}
+              </div>
+
+              <div v-else class="mt-2 max-h-[28rem] overflow-auto rounded-lg border border-base-content/10 bg-base-100/60">
+                <table class="table table-xs w-full font-mono">
+                  <thead class="sticky top-0 z-10 bg-base-100/95 text-[10px] uppercase tracking-[0.08em] opacity-70">
+                    <tr>
+                      <th class="w-12 text-right">#</th>
+                      <th>{{ diffSourceLabel(compareLeftResolved) }}</th>
+                      <th class="w-12 text-right">#</th>
+                      <th>{{ diffSourceLabel(compareRightResolved) }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(row, index) in diffRowsVisible"
+                      :key="`${row.type}-${row.leftNo ?? 'n'}-${row.rightNo ?? 'n'}-${index}`"
+                      :class="row.type === 'add' ? 'bg-success/10' : row.type === 'remove' ? 'bg-error/10' : ''"
+                    >
+                      <td class="w-12 select-none text-right align-top opacity-50">{{ row.leftNo ?? '' }}</td>
+                      <td class="whitespace-pre-wrap break-all align-top">{{ row.leftText }}</td>
+                      <td class="w-12 select-none text-right align-top opacity-50">{{ row.rightNo ?? '' }}</td>
+                      <td class="whitespace-pre-wrap break-all align-top">{{ row.rightText }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="font-semibold">{{ $t('configHistoryTitle') }}</div>
                 <button class="btn btn-xs btn-ghost" @click="loadHistory" :disabled="historyBusy">{{ $t('refresh') }}</button>
               </div>
@@ -182,10 +256,16 @@ import { useStorage } from '@vueuse/core'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/vue/24/outline'
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const path = useStorage('config/mihomo-config-path', '/opt/etc/mihomo/config.yaml')
 const payload = useStorage('config/mihomo-config-payload', '')
 const expanded = useStorage('config/mihomo-config-expanded', false)
+const compareLeft = useStorage<DiffSourceKind>('config/mihomo-config-diff-left', 'active')
+const compareRight = useStorage<DiffSourceKind>('config/mihomo-config-diff-right', 'draft')
+const compareChangesOnly = useStorage('config/mihomo-config-diff-only-changes', true)
+
+const { t } = useI18n()
 
 const refreshBusy = ref(false)
 const historyBusy = ref(false)
@@ -195,6 +275,22 @@ const historyItems = ref<MihomoConfigHistoryItem[]>([])
 const validationOutput = ref('')
 const validationCmd = ref('')
 const validationOk = ref(false)
+
+type DiffSourceKind = 'active' | 'draft' | 'baseline' | 'editor'
+type ManagedPayloadKind = Exclude<DiffSourceKind, 'editor'>
+type DiffRow = {
+  type: 'context' | 'add' | 'remove'
+  leftNo: number | null
+  rightNo: number | null
+  leftText: string
+  rightText: string
+}
+
+const managedPayloads = ref<Record<ManagedPayloadKind, string>>({
+  active: '',
+  draft: '',
+  baseline: '',
+})
 
 const legacyLoadBusy = ref(false)
 const legacyApplyBusy = ref(false)
@@ -246,12 +342,28 @@ const managedStatusBadgeClass = computed(() => {
   return 'badge-ghost'
 })
 
-const loadManagedPayload = async (kind: 'active' | 'draft' | 'baseline') => {
+const fetchManagedPayloadText = async (kind: ManagedPayloadKind): Promise<string> => {
   const r = await agentMihomoConfigManagedGetAPI(kind)
-  if (!r.ok || !r.contentB64) return false
-  payload.value = decodeB64Utf8(r.contentB64)
-  path.value = r.path || path.value
-  return true
+  if (!r.ok || !r.contentB64) return ''
+  return decodeB64Utf8(r.contentB64)
+}
+
+const refreshManagedPayloads = async (state: MihomoConfigManagedState) => {
+  const next: Record<ManagedPayloadKind, string> = {
+    active: '',
+    draft: '',
+    baseline: '',
+  }
+
+  const kinds: ManagedPayloadKind[] = ['active', 'draft', 'baseline']
+  await Promise.all(kinds.map(async (kind) => {
+    if (state[kind]?.exists) {
+      next[kind] = await fetchManagedPayloadText(kind)
+    }
+  }))
+
+  managedPayloads.value = next
+  return next
 }
 
 const loadHistory = async () => {
@@ -269,10 +381,16 @@ const refreshManaged = async (loadEditor = false) => {
   const state = await agentMihomoConfigStateAPI()
   managedState.value = state
   if (!state.ok) return false
+
+  const managedTexts = await refreshManagedPayloads(state)
+
   if (loadEditor) {
-    const loadedDraft = state.draft?.exists ? await loadManagedPayload('draft') : false
-    if (!loadedDraft && state.active?.exists) {
-      await loadManagedPayload('active')
+    if (state.draft?.exists) {
+      payload.value = managedTexts.draft
+      path.value = state.draft?.path || path.value
+    } else if (state.active?.exists) {
+      payload.value = managedTexts.active
+      path.value = state.active?.path || path.value
     }
   }
   await loadHistory()
@@ -321,7 +439,7 @@ const copyFromManaged = async (from: 'active' | 'baseline') => {
     const r = await agentMihomoConfigManagedCopyAPI(from)
     if (!r.ok) throw new Error(r.error || 'copy-failed')
     await refreshManaged(false)
-    await loadManagedPayload('draft')
+    payload.value = managedPayloads.value.draft
     validationOutput.value = ''
     showNotification({ content: from === 'active' ? 'configDraftLoadedFromActive' : 'configDraftLoadedFromBaseline', type: 'alert-success' })
   } catch (e: any) {
@@ -433,6 +551,162 @@ const restoreHistoryRev = async (rev: number) => {
   } finally {
     actionBusy.value = false
   }
+}
+
+const diffSourceLabel = (kind: DiffSourceKind) => {
+  switch (kind) {
+    case 'active':
+      return t('configCompareSourceActive')
+    case 'draft':
+      return t('configCompareSourceDraft')
+    case 'baseline':
+      return t('configCompareSourceBaseline')
+    case 'editor':
+    default:
+      return t('configCompareSourceEditor')
+  }
+}
+
+const diffSourceAvailable = (kind: DiffSourceKind) => {
+  if (kind === 'editor') return true
+  return Boolean(managedState.value?.[kind]?.exists)
+}
+
+const normalizeDiffSource = (kind: DiffSourceKind): DiffSourceKind => {
+  if (diffSourceAvailable(kind)) return kind
+  if (kind !== 'editor') return 'editor'
+  return 'editor'
+}
+
+const diffSourceOptions = computed(() => ([
+  { value: 'active' as DiffSourceKind, label: diffSourceLabel('active'), disabled: !diffSourceAvailable('active') },
+  { value: 'draft' as DiffSourceKind, label: diffSourceLabel('draft'), disabled: !diffSourceAvailable('draft') },
+  { value: 'baseline' as DiffSourceKind, label: diffSourceLabel('baseline'), disabled: !diffSourceAvailable('baseline') },
+  { value: 'editor' as DiffSourceKind, label: diffSourceLabel('editor'), disabled: false },
+]))
+
+const compareLeftResolved = computed<DiffSourceKind>(() => normalizeDiffSource(compareLeft.value as DiffSourceKind))
+const compareRightResolved = computed<DiffSourceKind>(() => normalizeDiffSource(compareRight.value as DiffSourceKind))
+
+const diffSourceContent = (kind: DiffSourceKind) => {
+  if (kind === 'editor') return String(payload.value || '')
+  return String(managedPayloads.value[kind] || '')
+}
+
+const normalizeDiffText = (value: string) => String(value || '').replace(/\r\n/g, '\n')
+
+const splitDiffLines = (value: string) => {
+  const normalized = normalizeDiffText(value)
+  if (!normalized.length) return [] as string[]
+  const lines = normalized.split('\n')
+  if (lines.length && lines[lines.length - 1] === '') lines.pop()
+  return lines
+}
+
+const buildLineDiffRows = (leftLines: string[], rightLines: string[]): DiffRow[] => {
+  const m = leftLines.length
+  const n = rightLines.length
+  const dp = Array.from({ length: m + 1 }, () => new Uint32Array(n + 1))
+
+  for (let i = m - 1; i >= 0; i -= 1) {
+    for (let j = n - 1; j >= 0; j -= 1) {
+      if (leftLines[i] === rightLines[j]) dp[i][j] = dp[i + 1][j + 1] + 1
+      else dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1])
+    }
+  }
+
+  const rows: DiffRow[] = []
+  let i = 0
+  let j = 0
+  let leftNo = 1
+  let rightNo = 1
+
+  while (i < m && j < n) {
+    if (leftLines[i] === rightLines[j]) {
+      rows.push({
+        type: 'context',
+        leftNo,
+        rightNo,
+        leftText: leftLines[i],
+        rightText: rightLines[j],
+      })
+      i += 1
+      j += 1
+      leftNo += 1
+      rightNo += 1
+      continue
+    }
+
+    if (dp[i + 1][j] >= dp[i][j + 1]) {
+      rows.push({
+        type: 'remove',
+        leftNo,
+        rightNo: null,
+        leftText: leftLines[i],
+        rightText: '',
+      })
+      i += 1
+      leftNo += 1
+    } else {
+      rows.push({
+        type: 'add',
+        leftNo: null,
+        rightNo,
+        leftText: '',
+        rightText: rightLines[j],
+      })
+      j += 1
+      rightNo += 1
+    }
+  }
+
+  while (i < m) {
+    rows.push({
+      type: 'remove',
+      leftNo,
+      rightNo: null,
+      leftText: leftLines[i],
+      rightText: '',
+    })
+    i += 1
+    leftNo += 1
+  }
+
+  while (j < n) {
+    rows.push({
+      type: 'add',
+      leftNo: null,
+      rightNo,
+      leftText: '',
+      rightText: rightLines[j],
+    })
+    j += 1
+    rightNo += 1
+  }
+
+  return rows
+}
+
+const diffRows = computed(() => buildLineDiffRows(
+  splitDiffLines(diffSourceContent(compareLeftResolved.value)),
+  splitDiffLines(diffSourceContent(compareRightResolved.value)),
+))
+
+const diffRowsVisible = computed(() => (compareChangesOnly.value ? diffRows.value.filter((row) => row.type !== 'context') : diffRows.value))
+
+const diffSummary = computed(() => diffRows.value.reduce((acc, row) => {
+  if (row.type === 'add') acc.added += 1
+  else if (row.type === 'remove') acc.removed += 1
+  else acc.context += 1
+  return acc
+}, { context: 0, added: 0, removed: 0 }))
+
+const diffHasChanges = computed(() => diffSummary.value.added > 0 || diffSummary.value.removed > 0)
+
+const swapDiffSources = () => {
+  const currentLeft = compareLeft.value
+  compareLeft.value = compareRight.value
+  compareRight.value = currentLeft
 }
 
 const dumpYaml = (value: any): string => {
