@@ -1,3 +1,8 @@
+## v1.2.68 — 2026-03-27
+- router-agent 0.6.15: harden host-traffic temp file lifecycle with dedicated temp-file helpers and extra readability guards
+- router-agent 0.6.15: switch host-traffic temp paths to unique files instead of plain $$ names to avoid missing /tmp/zash_host_traffic_hosts.* during concurrent/live requests
+- docs: update transfer notes for router-agent 0.6.15 hotfix
+
 ## v1.2.67 — 2026-03-27
 - router-agent 0.6.14: quiet host-traffic temp-file handling to avoid /tmp/zash_host_traffic_hosts.* log spam when tracked host snapshot is empty or unavailable
 - router-agent 0.6.14: pre-create and guard host traffic temp files in sync/live paths
