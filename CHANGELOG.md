@@ -1,3 +1,11 @@
+## v1.2.73 — users DB label scope diagnostics
+
+- added visible scope diagnostics for changed IP labels inside users DB conflict UI
+- label winner/result rows now show not only label text, but also resolved backend scope that will actually be pushed
+- smart merge label table now shows router/local scope side by side; custom label mode explicitly keeps local scope
+- conflict details and exported preview now include compact scope-aware label summaries
+- router-agent was not changed in this release
+
 ## v1.2.72 - 2026-03-27
 
 - router-agent: publish stable CGI/status hotfix as 0.6.19

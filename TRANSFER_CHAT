@@ -7,24 +7,35 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.72
+- UI: v1.2.73
 - router-agent: 0.6.19
 
-Что сделано в v1.2.72:
-- router-agent переведён на стабильный релиз 0.6.19 с уже подтверждённым рабочим CGI shebang `#!/opt/bin/sh`
-- в `status` убран подвисающий внешний запрос версии через `remote_agent_version()`; теперь `serverVersion` берётся локально из версии агента
-- в generated `api.sh` добавлен отсутствовавший helper `version_cmp_sh()`, чтобы убрать хвост логов `version_cmp_sh: not found` и `bad number`
-- подтверждённый рабочий сценарий на роутере: после локального hotfix `status` снова отвечает JSON
-
-Важно по проекту:
+Правила по проекту:
+- всегда отдавать архив релиза
+- commit message давать отдельно
+- команды для роутера давать отдельно
+- в командах для роутера добавлять clear
 - UI на роутере обновляется через встроенный механизм интерфейса, не через git pull
 - если меняется router-agent, нужно синхронизировать версию в install.sh и status API
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
-Команды для установки/проверки router-agent на роутере:
+Что важно по текущему состоянию:
+- users DB conflict cockpit уже показывает winner/result/reason по tunnels, panel URLs, icons, SSL warn settings, labels и user limits; есть apply-preview и copy/export conflict preview
+- labels теперь тоже показывают scope в конфликте: router/local/result видно не только по тексту label, но и по области действия правила
+- в smart merge custom-режим для labels меняет только label, а scope остаётся локальным — это теперь явно видно в UI
+- router-agent после v1.2.72 стабилен по основному пути: status/qos_status/traffic_live отвечают, shebang `#!/opt/bin/sh` подтверждён рабочим, `serverVersion` локальный, `version_cmp_sh()` в payload есть
+- остаточный host-traffic / `Broken pipe` log noise ещё не исправлен и должен идти отдельным безопасным шагом от уже рабочей базы
+
+Порядок работы по проекту:
+1. Собираем релиз архивом
+2. Пользователь обновляет локальный репозиторий через GitHub Desktop
+3. UI на роутере обновляется через встроенный механизм интерфейса
+4. Если меняется router-agent — обновляем его отдельно через install.sh
+5. Для нового чата используем docs/chat-transfer.md и корневой TRANSFER_CHAT как точку переноса
+
+Команды для проверки на роутере:
 ```sh
 clear
-/opt/bin/wget -O- "https://raw.githubusercontent.com/NightShadowDevOPs/UltraUIXkeen/main/router-agent/install.sh" | /opt/bin/sh
 wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"
 wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=qos_status"
 wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"

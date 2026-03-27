@@ -868,14 +868,25 @@
               <tbody>
                 <tr v-for="row in usersDbLabelChangedRows" :key="row.key">
                   <td class="font-mono">{{ row.key }}</td>
-                  <td class="max-w-[260px] truncate" :title="row.remote">{{ row.remote }}</td>
-                  <td class="max-w-[260px] truncate" :title="row.local">{{ row.local }}</td>
+                  <td>
+                    <div class="flex flex-col gap-1">
+                      <div class="max-w-[260px] truncate" :title="row.remote">{{ row.remote || '—' }}</div>
+                      <div class="text-[10px] opacity-60">{{ $t('agentRestoreScope') }}: {{ row.remoteScopeText }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex flex-col gap-1">
+                      <div class="max-w-[260px] truncate" :title="row.local">{{ row.local || '—' }}</div>
+                      <div class="text-[10px] opacity-60">{{ $t('agentRestoreScope') }}: {{ row.localScopeText }}</div>
+                    </div>
+                  </td>
                   <td>
                     <div class="flex flex-col gap-1">
                       <div class="flex flex-wrap items-center gap-2">
                         <span class="badge badge-outline badge-xs">{{ row.modeLabel }}</span>
-                        <span class="font-mono break-all" :title="row.result || '—'">{{ row.result || '—' }}</span>
+                        <span class="font-mono break-all" :title="row.resultSummary">{{ row.resultLabel || '—' }}</span>
                       </div>
+                      <div class="text-[10px] opacity-60">{{ $t('agentRestoreScope') }}: {{ row.resultScopeText }}</div>
                       <div class="text-[10px] opacity-60">{{ row.reason }}</div>
                     </div>
                   </td>
@@ -1171,8 +1182,18 @@
                   <tbody>
                     <tr v-for="it in usersDbConflictDiff.labels.changed" :key="it.key">
                       <td class="font-mono">{{ it.key }}</td>
-                      <td class="max-w-[260px] truncate">{{ it.remote.label }}</td>
-                      <td class="max-w-[260px] truncate">{{ it.local.label }}</td>
+                      <td>
+                        <div class="flex flex-col gap-1">
+                          <div class="max-w-[260px] truncate" :title="it.remote.label">{{ it.remote.label || '—' }}</div>
+                          <div class="text-[10px] opacity-60">{{ $t('agentRestoreScope') }}: {{ usersDbFormatScopeText(it.remote.scope) }}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="flex flex-col gap-1">
+                          <div class="max-w-[260px] truncate" :title="it.local.label">{{ it.local.label || '—' }}</div>
+                          <div class="text-[10px] opacity-60">{{ $t('agentRestoreScope') }}: {{ usersDbFormatScopeText(it.local.scope) }}</div>
+                        </div>
+                      </td>
                       <td class="min-w-[260px]">
                         <div class="flex flex-wrap items-center gap-3">
                           <label class="inline-flex items-center gap-1 cursor-pointer">
@@ -1195,6 +1216,9 @@
                           v-model="usersDbSmartChoices.labels[it.key].customLabel"
                           :placeholder="it.local.label"
                         />
+                        <div v-if="usersDbSmartChoices.labels[it.key].mode === 'custom'" class="mt-1 text-[10px] opacity-60">
+                          {{ $t('agentRestoreScope') }}: {{ usersDbFormatScopeText(it.local.scope) }} · {{ $t('local') }}
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -1455,9 +1479,9 @@
                 <div v-for="it in usersDbConflictDiff.labels.changed.slice(0, 50)" :key="it.key" class="font-mono">
                   <span class="opacity-60">{{ it.key }}</span>
                   <span class="opacity-60"> : </span>
-                  <span>{{ it.remote.label }}</span>
+                  <span>{{ usersDbFormatLabelSummary(it.remote.label, it.remote.scope) }}</span>
                   <span class="opacity-60"> → </span>
-                  <span>{{ it.local.label }}</span>
+                  <span>{{ usersDbFormatLabelSummary(it.local.label, it.local.scope) }}</span>
                 </div>
                 <div v-if="usersDbConflictDiff.labels.changed.length > 50" class="opacity-60">…</div>
               </div>
@@ -1470,7 +1494,7 @@
                   <div class="opacity-70">{{ $t('usersDbLocalOnly') }}</div>
                   <div class="mt-1 space-y-1">
                     <div v-for="it in usersDbConflictDiff.labels.localOnly.slice(0, 50)" :key="it.key" class="font-mono">
-                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ it.label }}</span>
+                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ usersDbFormatLabelSummary(it.label, it.scope) }}</span>
                     </div>
                     <div v-if="usersDbConflictDiff.labels.localOnly.length > 50" class="opacity-60">…</div>
                   </div>
@@ -1479,7 +1503,7 @@
                   <div class="opacity-70">{{ $t('usersDbRouterOnly') }}</div>
                   <div class="mt-1 space-y-1">
                     <div v-for="it in usersDbConflictDiff.labels.remoteOnly.slice(0, 50)" :key="it.key" class="font-mono">
-                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ it.label }}</span>
+                      <span class="opacity-60">{{ it.key }}</span><span class="opacity-60"> : </span><span>{{ usersDbFormatLabelSummary(it.label, it.scope) }}</span>
                     </div>
                     <div v-if="usersDbConflictDiff.labels.remoteOnly.length > 50" class="opacity-60">…</div>
                   </div>
@@ -1879,7 +1903,7 @@ import { showNotification } from '@/helper/notification'
 import { decodeB64Utf8 } from '@/helper/b64'
 import { countryCodeToFlagEmoji, normalizeProviderIcon } from '@/helper/providerIcon'
 import { FLAG_CODES } from '@/helper/flagIcons'
-import { activeBackend } from '@/store/setup'
+import { activeBackend, backendList } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
 import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProvidersSslRefreshing, fetchAgentProviders, panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl, refreshAgentProviderSslCache } from '@/store/providerHealth'
@@ -2864,6 +2888,27 @@ const fmtUserLimitPeriod = (period?: string) => {
   return '30д'
 }
 
+const usersDbNormalizeScope = (scope?: string[]) => {
+  const ids = Array.isArray(scope) ? scope.map((it) => String(it || '').trim()).filter(Boolean) : []
+  return Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
+}
+
+const usersDbFormatScopeText = (scope?: string[]) => {
+  const ids = usersDbNormalizeScope(scope)
+  if (!ids.length) return t('all')
+  return ids
+    .map((id) => {
+      const backend = backendList.value.find((it) => String(it?.uuid || '').trim() === id)
+      return backend ? getLabelFromBackend(backend as any) : id
+    })
+    .join(', ')
+}
+
+const usersDbFormatLabelSummary = (label?: string, scope?: string[]) => {
+  const safeLabel = String(label || '').trim() || '—'
+  return `${safeLabel} · ${t('agentRestoreScope')}: ${usersDbFormatScopeText(scope)}`
+}
+
 const fmtUserLimitSummary = (limit?: UserLimit | null) => {
   const l = limit || {}
   const parts: string[] = []
@@ -2889,17 +2934,25 @@ const usersDbLabelChangedRows = computed(() => {
     const choice = usersDbSmartChoices.value.labels?.[it.key]
     const meta = usersDbModeMeta((choice?.mode || 'local') as SmartChoiceMode)
     const customValue = String(choice?.customLabel || '').trim()
-    const result = meta.mode === 'remote'
+    const resultLabel = meta.mode === 'remote'
       ? it.remote.label
       : meta.mode === 'custom'
-        ? (customValue || it.remote.label)
+        ? (customValue || it.local.label)
         : it.local.label
-    const reason = usersDbReasonText(meta.mode, customValue ? undefined : 'remote', customValue.length > 0)
+    const resultScope = meta.mode === 'remote' ? it.remote.scope : it.local.scope
+    const reason = usersDbReasonText(meta.mode, customValue ? undefined : 'local', customValue.length > 0)
     return {
       key: it.key,
       remote: it.remote.label,
       local: it.local.label,
-      result,
+      remoteScope: usersDbNormalizeScope((it.remote as any)?.scope),
+      localScope: usersDbNormalizeScope((it.local as any)?.scope),
+      remoteScopeText: usersDbFormatScopeText((it.remote as any)?.scope),
+      localScopeText: usersDbFormatScopeText((it.local as any)?.scope),
+      resultLabel,
+      resultScope: usersDbNormalizeScope(resultScope as any),
+      resultScopeText: usersDbFormatScopeText(resultScope as any),
+      resultSummary: usersDbFormatLabelSummary(resultLabel, resultScope as any),
       reason,
       mode: meta.mode,
       modeLabel: meta.modeLabel,
@@ -3050,8 +3103,8 @@ const usersDbSmartPreviewRows = computed(() => {
       section: 'labels',
       sectionLabel: usersDbSectionLabel('labels'),
       key: row.key,
-      result: row.result,
-      resultText: row.result || '—',
+      result: row.resultLabel,
+      resultText: row.resultSummary,
       mode: row.mode,
       modeLabel: row.modeLabel,
       reason: row.reason,
