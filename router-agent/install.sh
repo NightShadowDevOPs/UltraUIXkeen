@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.20"
+AGENT_VERSION="0.6.21"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -128,7 +128,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.20"
+AGENT_VERSION="0.6.21"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2405,7 +2405,7 @@ mihomo_cfg_validate_json() {
   mihomo_cfg_validate_file "$f"
   ok=false
   [ "$validate_rc" -eq 0 ] && ok=true
-  reply_ok "$(printf '{"ok":%s,"kind":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$ok" "$(jesc "$kind")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
+  reply_ok "$(printf '{"ok":%s,"phase":"validate","kind":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$ok" "$(jesc "$kind")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
 }
 
 mihomo_cfg_apply_path() {
@@ -2419,6 +2419,14 @@ mihomo_cfg_apply_path() {
   mihomo_cfg_lock_acquire || { reply_ok '{"ok":false,"error":"busy"}'; return; }
   mihomo_cfg_load_meta
 
+  first_restart_method=''
+  first_restart_output=''
+  rollback_restart_method=''
+  rollback_restart_output=''
+  baseline_restart_method=''
+  baseline_restart_output=''
+  recovery='none'
+
   mihomo_cfg_validate_file "$src"
   if [ "$validate_rc" -ne 0 ]; then
     mcfg_lastApplyStatus='validate-failed'
@@ -2427,7 +2435,7 @@ mihomo_cfg_apply_path() {
     mcfg_lastError="$validate_output"
     mihomo_cfg_write_meta >/dev/null 2>&1 || true
     mihomo_cfg_lock_release
-    reply_ok "$(printf '{"ok":false,"error":"validation-failed","source":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$(jesc "$source_name")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
+    reply_ok "$(printf '{"ok":false,"phase":"validate","error":"validation-failed","source":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$(jesc "$source_name")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
     return
   fi
 
@@ -2440,29 +2448,37 @@ mihomo_cfg_apply_path() {
   fi
 
   tmp="$MIHOMO_CONFIG.tmp.$$"
-  cp "$src" "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
-  mv -f "$tmp" "$MIHOMO_CONFIG" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  cp "$src" "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"phase":"apply","error":"write-failed"}'; return; }
+  mv -f "$tmp" "$MIHOMO_CONFIG" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"phase":"apply","error":"write-failed"}'; return; }
 
   mihomo_cfg_restart_core
+  first_restart_method="$restart_method"
+  first_restart_output="$restart_output"
   if [ "$restart_rc" -ne 0 ]; then
     if [ -f "$backup" ]; then
       cp "$backup" "$MIHOMO_CONFIG" 2>/dev/null || true
       mihomo_cfg_restart_core
+      rollback_restart_method="$restart_method"
+      rollback_restart_output="$restart_output"
       if [ "$restart_rc" -eq 0 ]; then
+        recovery='previous-active'
         mcfg_lastApplyStatus='rolled-back'
         mcfg_lastApplyAt="$(mihomo_cfg_now_iso)"
         mcfg_lastApplySource="$source_name"
         mcfg_lastError='apply-failed-restored-previous'
         mihomo_cfg_write_meta >/dev/null 2>&1 || true
         mihomo_cfg_lock_release
-        reply_ok "$(printf '{"ok":false,"error":"apply-failed","restored":"previous-active","restartMethod":"%s","restartOutput":"%s"}' "$(jesc "$restart_method")" "$(jesc "$restart_output")")"
+        reply_ok "$(printf '{"ok":false,"phase":"restart","error":"apply-failed","source":"%s","recovery":"%s","restored":"previous-active","validateCmd":"%s","firstRestartMethod":"%s","firstRestartOutput":"%s","rollbackRestartMethod":"%s","rollbackRestartOutput":"%s"}' "$(jesc "$source_name")" "$(jesc "$recovery")" "$(jesc "$validate_cmd")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$rollback_restart_method")" "$(jesc "$rollback_restart_output")")"
         return
       fi
     fi
     if [ -f "$MIHOMO_CFG_BASELINE_FILE" ]; then
       cp "$MIHOMO_CFG_BASELINE_FILE" "$MIHOMO_CONFIG" 2>/dev/null || true
       mihomo_cfg_restart_core
+      baseline_restart_method="$restart_method"
+      baseline_restart_output="$restart_output"
       if [ "$restart_rc" -eq 0 ]; then
+        recovery='baseline'
         mcfg_activeRev=$((mcfg_activeRev + 1))
         mcfg_activeUpdatedAt="$(mihomo_cfg_now_iso)"
         mcfg_lastApplyStatus='restored-baseline'
@@ -2471,17 +2487,18 @@ mihomo_cfg_apply_path() {
         mcfg_lastError='apply-failed-restored-baseline'
         mihomo_cfg_write_meta >/dev/null 2>&1 || true
         mihomo_cfg_lock_release
-        reply_ok "$(printf '{"ok":false,"error":"apply-failed","restored":"baseline","rev":%s,"updatedAt":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")")"
+        reply_ok "$(printf '{"ok":false,"phase":"restart","error":"apply-failed","source":"%s","recovery":"%s","restored":"baseline","rev":%s,"updatedAt":"%s","validateCmd":"%s","firstRestartMethod":"%s","firstRestartOutput":"%s","rollbackRestartMethod":"%s","rollbackRestartOutput":"%s","baselineRestartMethod":"%s","baselineRestartOutput":"%s"}' "$(jesc "$source_name")" "$(jesc "$recovery")" "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$validate_cmd")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$rollback_restart_method")" "$(jesc "$rollback_restart_output")" "$(jesc "$baseline_restart_method")" "$(jesc "$baseline_restart_output")")"
         return
       fi
     fi
+    recovery='failed'
     mcfg_lastApplyStatus='failed'
     mcfg_lastApplyAt="$(mihomo_cfg_now_iso)"
     mcfg_lastApplySource="$source_name"
     mcfg_lastError="$restart_output"
     mihomo_cfg_write_meta >/dev/null 2>&1 || true
     mihomo_cfg_lock_release
-    reply_ok "$(printf '{"ok":false,"error":"restart-failed","restartMethod":"%s","restartOutput":"%s"}' "$(jesc "$restart_method")" "$(jesc "$restart_output")")"
+    reply_ok "$(printf '{"ok":false,"phase":"restart","error":"restart-failed","source":"%s","recovery":"%s","validateCmd":"%s","firstRestartMethod":"%s","firstRestartOutput":"%s","rollbackRestartMethod":"%s","rollbackRestartOutput":"%s","baselineRestartMethod":"%s","baselineRestartOutput":"%s","restartMethod":"%s","restartOutput":"%s"}' "$(jesc "$source_name")" "$(jesc "$recovery")" "$(jesc "$validate_cmd")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$rollback_restart_method")" "$(jesc "$rollback_restart_output")" "$(jesc "$baseline_restart_method")" "$(jesc "$baseline_restart_output")" "$(jesc "$restart_method")" "$(jesc "$restart_output")")"
     return
   fi
 
@@ -2493,7 +2510,7 @@ mihomo_cfg_apply_path() {
   mcfg_lastError=''
   mihomo_cfg_write_meta >/dev/null 2>&1 || true
   mihomo_cfg_lock_release
-  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","appliedFrom":"%s","restartMethod":"%s","validateCmd":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$source_name")" "$(jesc "$restart_method")" "$(jesc "$validate_cmd")")"
+  reply_ok "$(printf '{"ok":true,"phase":"apply","rev":%s,"updatedAt":"%s","appliedFrom":"%s","recovery":"none","restartMethod":"%s","restartOutput":"%s","validateCmd":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$source_name")" "$(jesc "$first_restart_method")" "$(jesc "$first_restart_output")" "$(jesc "$validate_cmd")")"
 }
 
 mihomo_cfg_apply_json() {

@@ -662,7 +662,9 @@ export const agentMihomoConfigManagedCopyAPI = async (from: 'active' | 'baseline
 
 export const agentMihomoConfigManagedValidateAPI = async (kind: 'active' | 'draft' | 'baseline'): Promise<{
   ok: boolean
+  phase?: string
   kind?: string
+  source?: string
   cmd?: string
   exitCode?: number
   output?: string
@@ -681,12 +683,21 @@ export const agentMihomoConfigManagedValidateAPI = async (kind: 'active' | 'draf
 
 export const agentMihomoConfigManagedApplyAPI = async (): Promise<{
   ok: boolean
+  phase?: string
   rev?: number
   updatedAt?: string
+  source?: string
   appliedFrom?: string
   restored?: string
+  recovery?: string
   restartMethod?: string
   restartOutput?: string
+  firstRestartMethod?: string
+  firstRestartOutput?: string
+  rollbackRestartMethod?: string
+  rollbackRestartOutput?: string
+  baselineRestartMethod?: string
+  baselineRestartOutput?: string
   validateCmd?: string
   error?: string
   output?: string
@@ -718,10 +729,23 @@ export const agentMihomoConfigManagedSetBaselineFromActiveAPI = async (): Promis
 
 export const agentMihomoConfigManagedRestoreBaselineAPI = async (): Promise<{
   ok: boolean
+  phase?: string
   rev?: number
   updatedAt?: string
+  source?: string
   restored?: string
+  recovery?: string
+  restartMethod?: string
+  restartOutput?: string
+  firstRestartMethod?: string
+  firstRestartOutput?: string
+  rollbackRestartMethod?: string
+  rollbackRestartOutput?: string
+  baselineRestartMethod?: string
+  baselineRestartOutput?: string
+  validateCmd?: string
   error?: string
+  output?: string
 }> => {
   try {
     const { data } = await agentAxios().post('/cgi-bin/api.sh?cmd=mihomo_cfg_restore_baseline', null, {
@@ -777,10 +801,23 @@ export const agentMihomoConfigManagedGetRevAPI = async (rev: number): Promise<{
 
 export const agentMihomoConfigManagedRestoreRevAPI = async (rev: number): Promise<{
   ok: boolean
+  phase?: string
   rev?: number
   updatedAt?: string
+  source?: string
   restored?: string
+  recovery?: string
+  restartMethod?: string
+  restartOutput?: string
+  firstRestartMethod?: string
+  firstRestartOutput?: string
+  rollbackRestartMethod?: string
+  rollbackRestartOutput?: string
+  baselineRestartMethod?: string
+  baselineRestartOutput?: string
+  validateCmd?: string
   error?: string
+  output?: string
 }> => {
   try {
     const { data } = await agentAxios().post(`/cgi-bin/api.sh?cmd=mihomo_cfg_restore_rev&rev=${encodeURIComponent(String(rev ?? 0))}`, null, {

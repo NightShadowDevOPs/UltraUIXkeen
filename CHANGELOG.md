@@ -1,3 +1,10 @@
+## v1.2.81 — диагностика validate / apply / rollback в Mihomo Config
+
+- `Mihomo → Конфигурация`: добавлен отдельный блок диагностики последней операции с понятными полями `этап / источник / команда проверки / код выхода / способ перезапуска / результат восстановления`
+- при `apply` и восстановлении из `baseline/history` UI теперь показывает, что произошло после первого перезапуска: сработал ли откат на previous active, был ли использован baseline и какие выводы вернул каждый этап
+- `router-agent 0.6.21`: ответы `mihomo_cfg_validate`, `mihomo_cfg_apply`, `mihomo_cfg_restore_baseline`, `mihomo_cfg_restore_rev` расширены безопасными диагностическими полями без изменения самого контура применения
+- обновлены `docs/mihomo-config-management.md`, `docs/chat-transfer.md` и корневой `TRANSFER_CHAT` под новый сценарий разбора причин validate/apply/rollback
+
 ## v1.2.80 — diff для active / draft / baseline в Mihomo Config
 
 - `Mihomo → Конфигурация`: добавлен встроенный line-diff для сравнения `активного`, `черновика`, `эталонного` и текущего содержимого редактора

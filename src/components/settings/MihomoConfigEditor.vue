@@ -31,10 +31,10 @@
       <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
         <div class="flex flex-wrap items-center gap-2">
           <span class="badge" :class="managedStatusBadgeClass">{{ managedStatusText }}</span>
-          <span v-if="managedState?.active?.rev" class="badge badge-ghost">active rev {{ managedState?.active?.rev }}</span>
-          <span v-if="managedState?.draft?.rev" class="badge badge-ghost">draft rev {{ managedState?.draft?.rev }}</span>
+          <span v-if="managedState?.active?.rev" class="badge badge-ghost">{{ $t('configActiveTitle') }} rev {{ managedState?.active?.rev }}</span>
+          <span v-if="managedState?.draft?.rev" class="badge badge-ghost">{{ $t('configDraftTitle') }} rev {{ managedState?.draft?.rev }}</span>
           <span v-if="managedState?.validator?.bin" class="badge badge-ghost">{{ managedState?.validator?.bin }}</span>
-          <span v-if="managedState?.restart?.mode" class="badge badge-ghost">restart: {{ managedState?.restart?.mode }}</span>
+          <span v-if="managedState?.restart?.mode" class="badge badge-ghost">{{ $t('configDiagRestartMethod') }}: {{ managedState?.restart?.mode }}</span>
         </div>
 
         <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
@@ -113,6 +113,94 @@
                 <span v-if="validationCmd" class="badge badge-ghost font-mono">{{ validationCmd }}</span>
               </div>
               <pre class="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] opacity-80">{{ validationOutput }}</pre>
+            </div>
+
+            <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configDiagnosticsTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configDiagnosticsTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge" :class="lastAction.ok ? 'badge-success' : 'badge-error'">{{ lastAction.ok ? $t('configDiagStatusOk') : $t('configDiagStatusFailed') }}</span>
+                  <span class="badge badge-outline">{{ actionTypeText(lastAction.kind) }}</span>
+                  <span v-if="hasText(lastAction.phase)" class="badge badge-ghost">{{ phaseText(lastAction.phase) }}</span>
+                  <span v-if="hasText(lastAction.recovery) && lastAction.recovery !== 'none'" class="badge badge-warning badge-outline">{{ recoveryText(lastAction.recovery) }}</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagAction') }}</div>
+                  <div class="mt-1">{{ actionTypeText(lastAction.kind) }}</div>
+                </div>
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagPhase') }}</div>
+                  <div class="mt-1">{{ phaseText(lastAction.phase) }}</div>
+                </div>
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagSource') }}</div>
+                  <div class="mt-1">{{ sourceText(lastAction.source) }}</div>
+                </div>
+                <div v-if="hasText(lastAction.validateCmd)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagValidateCommand') }}</div>
+                  <div class="mt-1 break-all font-mono text-[11px]">{{ lastAction.validateCmd }}</div>
+                </div>
+                <div v-if="lastAction.exitCode !== null && lastAction.exitCode !== undefined && lastAction.exitCode !== ''" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagExitCode') }}</div>
+                  <div class="mt-1">{{ String(lastAction.exitCode) }}</div>
+                </div>
+                <div v-if="hasText(lastAction.restartMethod)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagRestartMethod') }}</div>
+                  <div class="mt-1">{{ lastAction.restartMethod }}</div>
+                </div>
+                <div v-if="hasText(lastAction.recovery)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagRecovery') }}</div>
+                  <div class="mt-1">{{ recoveryText(lastAction.recovery) }}</div>
+                </div>
+                <div v-if="hasText(lastAction.restored)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagRestored') }}</div>
+                  <div class="mt-1">{{ recoveryText(lastAction.restored) }}</div>
+                </div>
+                <div v-if="hasText(lastAction.updatedAt)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('updatedAt') }}</div>
+                  <div class="mt-1">{{ fmtTextTs(lastAction.updatedAt) }}</div>
+                </div>
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="opacity-60">{{ $t('configDiagCapturedAt') }}</div>
+                  <div class="mt-1">{{ fmtTextTs(lastAction.at) }}</div>
+                </div>
+              </div>
+
+              <div class="mt-2 grid grid-cols-1 gap-2 xl:grid-cols-3">
+                <div v-if="hasText(lastAction.error)" class="rounded-lg border border-warning/20 bg-warning/5 p-2">
+                  <div class="font-semibold text-warning">{{ $t('configDiagError') }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.error }}</pre>
+                </div>
+                <div v-if="hasText(lastAction.output)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="font-semibold">{{ $t('configDiagOutput') }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.output }}</pre>
+                </div>
+                <div v-if="hasText(lastAction.restartOutput)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="font-semibold">{{ $t('configDiagRestartOutput') }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.restartOutput }}</pre>
+                </div>
+                <div v-if="hasText(lastAction.firstRestartOutput)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="font-semibold">{{ $t('configDiagFirstRestartOutput') }}</div>
+                  <div v-if="hasText(lastAction.firstRestartMethod)" class="mt-1 opacity-60">{{ $t('configDiagRestartMethod') }}: {{ lastAction.firstRestartMethod }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.firstRestartOutput }}</pre>
+                </div>
+                <div v-if="hasText(lastAction.rollbackRestartOutput)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="font-semibold">{{ $t('configDiagRollbackOutput') }}</div>
+                  <div v-if="hasText(lastAction.rollbackRestartMethod)" class="mt-1 opacity-60">{{ $t('configDiagRestartMethod') }}: {{ lastAction.rollbackRestartMethod }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.rollbackRestartOutput }}</pre>
+                </div>
+                <div v-if="hasText(lastAction.baselineRestartOutput)" class="rounded-lg border border-base-content/10 bg-base-100/60 p-2">
+                  <div class="font-semibold">{{ $t('configDiagBaselineOutput') }}</div>
+                  <div v-if="hasText(lastAction.baselineRestartMethod)" class="mt-1 opacity-60">{{ $t('configDiagRestartMethod') }}: {{ lastAction.baselineRestartMethod }}</div>
+                  <pre class="mt-1 whitespace-pre-wrap break-words font-mono text-[11px] opacity-90">{{ lastAction.baselineRestartOutput }}</pre>
+                </div>
+              </div>
             </div>
 
             <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
@@ -204,8 +292,8 @@
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
                       <span class="font-mono">rev {{ item.rev }}</span>
-                      <span v-if="item.current" class="badge badge-primary badge-xs">current</span>
-                      <span v-if="item.source" class="badge badge-ghost badge-xs">{{ item.source }}</span>
+                      <span v-if="item.current" class="badge badge-primary badge-xs">{{ $t('current') }}</span>
+                      <span v-if="item.source" class="badge badge-ghost badge-xs">{{ sourceText(item.source) }}</span>
                     </div>
                     <div class="mt-1 opacity-70">{{ fmtTextTs(item.updatedAt) }}</div>
                   </div>
@@ -276,6 +364,32 @@ const validationOutput = ref('')
 const validationCmd = ref('')
 const validationOk = ref(false)
 
+type ConfigActionKind = 'validate' | 'apply' | 'restore-baseline' | 'restore-revision'
+type ConfigActionDiagnostic = {
+  kind: ConfigActionKind
+  ok: boolean
+  phase?: string
+  source?: string
+  recovery?: string
+  restored?: string
+  validateCmd?: string
+  exitCode?: number | string
+  restartMethod?: string
+  restartOutput?: string
+  firstRestartMethod?: string
+  firstRestartOutput?: string
+  rollbackRestartMethod?: string
+  rollbackRestartOutput?: string
+  baselineRestartMethod?: string
+  baselineRestartOutput?: string
+  error?: string
+  output?: string
+  updatedAt?: string
+  at: string
+}
+
+const lastAction = ref<ConfigActionDiagnostic | null>(null)
+
 type DiffSourceKind = 'active' | 'draft' | 'baseline' | 'editor'
 type ManagedPayloadKind = Exclude<DiffSourceKind, 'editor'>
 type DiffRow = {
@@ -341,6 +455,68 @@ const managedStatusBadgeClass = computed(() => {
   if (status === 'validate-failed' || status === 'failed') return 'badge-error'
   return 'badge-ghost'
 })
+
+const hasText = (value?: string | number | null) => String(value ?? '').trim().length > 0
+
+const actionTypeText = (kind?: string) => {
+  switch (kind) {
+    case 'validate':
+      return t('configDiagActionValidate')
+    case 'apply':
+      return t('configDiagActionApply')
+    case 'restore-baseline':
+      return t('configDiagActionRestoreBaseline')
+    case 'restore-revision':
+      return t('configDiagActionRestoreRevision')
+    default:
+      return '—'
+  }
+}
+
+const phaseText = (phase?: string) => {
+  switch (String(phase || '').trim()) {
+    case 'validate':
+      return t('configDiagPhaseValidate')
+    case 'apply':
+      return t('configDiagPhaseApply')
+    case 'restart':
+      return t('configDiagPhaseRestart')
+    default:
+      return '—'
+  }
+}
+
+const recoveryText = (value?: string) => {
+  switch (String(value || '').trim()) {
+    case 'none':
+      return t('configDiagRecoveryNone')
+    case 'previous-active':
+      return t('configDiagRecoveryPreviousActive')
+    case 'baseline':
+      return t('configDiagRecoveryBaseline')
+    case 'failed':
+      return t('configDiagRecoveryFailed')
+    default:
+      return value || '—'
+  }
+}
+
+const sourceText = (value?: string) => {
+  const source = String(value || '').trim()
+  if (!source) return '—'
+  if (source === 'draft') return t('configCompareSourceDraft')
+  if (source === 'baseline') return t('configCompareSourceBaseline')
+  if (source === 'active') return t('configCompareSourceActive')
+  if (source.startsWith('history:')) return `${t('configHistoryRevisionLabel')} ${source.slice('history:'.length)}`
+  return source
+}
+
+const setLastAction = (next: Omit<ConfigActionDiagnostic, 'at'>) => {
+  lastAction.value = {
+    ...next,
+    at: new Date().toISOString(),
+  }
+}
 
 const fetchManagedPayloadText = async (kind: ManagedPayloadKind): Promise<string> => {
   const r = await agentMihomoConfigManagedGetAPI(kind)
@@ -458,11 +634,28 @@ const validateDraft = async () => {
     validationOk.value = Boolean(r.ok)
     validationCmd.value = String(r.cmd || '')
     validationOutput.value = String(r.output || r.error || '')
+    setLastAction({
+      kind: 'validate',
+      ok: Boolean(r.ok),
+      phase: r.phase || 'validate',
+      source: r.source || 'draft',
+      validateCmd: String(r.cmd || ''),
+      exitCode: r.exitCode,
+      output: String(r.output || ''),
+      error: String(r.error || ''),
+    })
     showNotification({ content: r.ok ? 'configValidationSuccess' : 'configValidationFailedToast', type: r.ok ? 'alert-success' : 'alert-error' })
   } catch (e: any) {
     validationOk.value = false
     validationCmd.value = ''
     validationOutput.value = e?.message || 'failed'
+    setLastAction({
+      kind: 'validate',
+      ok: false,
+      phase: 'validate',
+      source: 'draft',
+      error: e?.message || 'failed',
+    })
     showNotification({ content: 'configValidationFailedToast', type: 'alert-error' })
   } finally {
     actionBusy.value = false
@@ -479,9 +672,38 @@ const applyDraft = async () => {
     validationOk.value = Boolean(r.ok)
     validationCmd.value = String(r.validateCmd || '')
     validationOutput.value = String(r.restartOutput || r.output || r.error || '')
-    if (!r.ok) throw new Error(r.error || r.output || r.restartOutput || 'apply-failed')
+    setLastAction({
+      kind: 'apply',
+      ok: Boolean(r.ok),
+      phase: r.phase || (r.ok ? 'apply' : 'restart'),
+      source: r.appliedFrom || r.source || 'draft',
+      recovery: r.recovery,
+      restored: r.restored,
+      validateCmd: r.validateCmd,
+      restartMethod: r.restartMethod,
+      restartOutput: r.restartOutput,
+      firstRestartMethod: r.firstRestartMethod,
+      firstRestartOutput: r.firstRestartOutput,
+      rollbackRestartMethod: r.rollbackRestartMethod,
+      rollbackRestartOutput: r.rollbackRestartOutput,
+      baselineRestartMethod: r.baselineRestartMethod,
+      baselineRestartOutput: r.baselineRestartOutput,
+      error: r.error,
+      output: r.output,
+      updatedAt: r.updatedAt,
+    })
+    if (!r.ok) throw new Error(r.error || r.output || r.restartOutput || r.firstRestartOutput || 'apply-failed')
     showNotification({ content: 'configApplySuccess', type: 'alert-success' })
   } catch (e: any) {
+    if (!lastAction.value || lastAction.value.kind !== 'apply') {
+      setLastAction({
+        kind: 'apply',
+        ok: false,
+        phase: 'apply',
+        source: 'draft',
+        error: e?.message || 'failed',
+      })
+    }
     showNotification({ content: 'configApplyFailed', params: { error: e?.message || 'failed' }, type: 'alert-error' })
   } finally {
     actionBusy.value = false
@@ -511,9 +733,38 @@ const restoreBaseline = async () => {
   try {
     const r = await agentMihomoConfigManagedRestoreBaselineAPI()
     await refreshManaged(true)
-    if (!r.ok) throw new Error(r.error || 'restore-failed')
+    setLastAction({
+      kind: 'restore-baseline',
+      ok: Boolean(r.ok),
+      phase: r.phase || (r.ok ? 'apply' : 'restart'),
+      source: r.source || 'baseline',
+      recovery: r.recovery,
+      restored: r.restored,
+      validateCmd: r.validateCmd,
+      restartMethod: r.restartMethod,
+      restartOutput: r.restartOutput,
+      firstRestartMethod: r.firstRestartMethod,
+      firstRestartOutput: r.firstRestartOutput,
+      rollbackRestartMethod: r.rollbackRestartMethod,
+      rollbackRestartOutput: r.rollbackRestartOutput,
+      baselineRestartMethod: r.baselineRestartMethod,
+      baselineRestartOutput: r.baselineRestartOutput,
+      error: r.error,
+      output: r.output,
+      updatedAt: r.updatedAt,
+    })
+    if (!r.ok) throw new Error(r.error || r.output || r.restartOutput || r.firstRestartOutput || 'restore-failed')
     showNotification({ content: 'configBaselineRestored', type: 'alert-success' })
   } catch (e: any) {
+    if (!lastAction.value || lastAction.value.kind !== 'restore-baseline') {
+      setLastAction({
+        kind: 'restore-baseline',
+        ok: false,
+        phase: 'apply',
+        source: 'baseline',
+        error: e?.message || 'failed',
+      })
+    }
     showNotification({ content: 'configBaselineRestoreFailed', params: { error: e?.message || 'failed' }, type: 'alert-error' })
   } finally {
     actionBusy.value = false
@@ -544,9 +795,38 @@ const restoreHistoryRev = async (rev: number) => {
   try {
     const r = await agentMihomoConfigManagedRestoreRevAPI(rev)
     await refreshManaged(true)
-    if (!r.ok) throw new Error(r.error || 'restore-failed')
+    setLastAction({
+      kind: 'restore-revision',
+      ok: Boolean(r.ok),
+      phase: r.phase || (r.ok ? 'apply' : 'restart'),
+      source: r.source || `history:${rev}`,
+      recovery: r.recovery,
+      restored: r.restored,
+      validateCmd: r.validateCmd,
+      restartMethod: r.restartMethod,
+      restartOutput: r.restartOutput,
+      firstRestartMethod: r.firstRestartMethod,
+      firstRestartOutput: r.firstRestartOutput,
+      rollbackRestartMethod: r.rollbackRestartMethod,
+      rollbackRestartOutput: r.rollbackRestartOutput,
+      baselineRestartMethod: r.baselineRestartMethod,
+      baselineRestartOutput: r.baselineRestartOutput,
+      error: r.error,
+      output: r.output,
+      updatedAt: r.updatedAt,
+    })
+    if (!r.ok) throw new Error(r.error || r.output || r.restartOutput || r.firstRestartOutput || 'restore-failed')
     showNotification({ content: 'configHistoryRestoreSuccess', type: 'alert-success' })
   } catch (e: any) {
+    if (!lastAction.value || lastAction.value.kind !== 'restore-revision') {
+      setLastAction({
+        kind: 'restore-revision',
+        ok: false,
+        phase: 'apply',
+        source: `history:${rev}`,
+        error: e?.message || 'failed',
+      })
+    }
     showNotification({ content: 'configHistoryRestoreFailed', params: { error: e?.message || 'failed' }, type: 'alert-error' })
   } finally {
     actionBusy.value = false
