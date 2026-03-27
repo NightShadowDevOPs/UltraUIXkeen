@@ -1,32 +1,39 @@
-## v1.2.78 — Mihomo workspace subsection pass
+## v1.2.79 — русификация новых разделов Mihomo и Settings
 
-- Mihomo page now has internal quick navigation (`Overview / Runtime / Providers / Rules / Config`) instead of a single long block
-- added dedicated Mihomo subsection cards so runtime, traffic, connections, subscriptions, policies and service tasks are easier to reach from one place
-- Settings → Open Mihomo now lands directly on the config subsection, because that is the most common admin workflow after the split
-- navigation docs and transfer notes updated for the new Mihomo page structure
+- переведены на русский новые элементы навигации и внутренние секции `Mihomo`, добавленные в линии v1.2.76–v1.2.78
+- очищены формулировки в `Settings` и `Mihomo` от англоязычных хвостов вроде `runtime / providers / rules / baseline / fallback`
+- обновлены `docs/navigation-audit.md`, `docs/mihomo-config-management.md`, `docs/chat-transfer.md` и корневой `TRANSFER_CHAT`
+- логика маршрутов и `router-agent` в этом релизе не менялись; это чистый UI/документационный патч
 
-## v1.2.77 — router agent status self-healing hotfix
+## v1.2.78 — внутренние подразделы раздела Mihomo
 
-- Router → Agent: fixed stale offline state in the UI — the card now re-checks router-agent status periodically instead of trusting only the first request after page open
-- Router → Agent: changing agent enable/url/token now immediately triggers a fresh status check instead of waiting for a manual button press or page remount
-- router-agent code not changed in this release; the hotfix is UI-only and keeps the stable 0.6.20 agent line
-- docs: updated transfer notes to record that a temporary frontend status miss can no longer leave the agent card stuck offline for long
+- страница `Mihomo` получила внутреннюю быструю навигацию (`Обзор / Состояние / Провайдеры / Правила / Конфигурация`) вместо одного длинного полотна
+- добавлены отдельные карточки-переходы внутри `Mihomo`, чтобы быстрее добираться до состояния, трафика, соединений, подписок, политик и служебных задач
+- кнопка `Settings → Открыть раздел «Mihomo»` теперь сразу ведёт к секции конфигурации — это самый частый административный сценарий после разделения
+- обновлены документы по навигации и переносу для новой структуры страницы `Mihomo`
 
-## v1.2.76 — Mihomo section + navigation audit foundation
+## v1.2.77 — hotfix самовосстановления статуса router-agent
 
-- navigation: split the desktop sidebar into logical groups (Monitor, Network & Mihomo, Management) instead of one long flat list
-- navigation: added a dedicated top-level Mihomo section and moved the config editor out of Settings into its own workspace
-- Mihomo: new page with quick links to runtime/providers/rules plus the managed config editor in one focused area
-- Settings: reorganized the page into grouped subsections (Interface, Backends, Traffic & labels, Pages & cards) and added quick-jump buttons
-- docs: updated transfer notes and added a navigation audit note so future cleanup can continue from the same information architecture baseline
+- `Router → Agent`: исправлено зависание UI в состоянии `offline` — карточка теперь периодически перепроверяет статус router-agent, а не верит только первому запросу после открытия страницы
+- `Router → Agent`: изменение `agent enable / url / token` теперь сразу запускает новую проверку статуса вместо ожидания ручной кнопки или повторного монтирования страницы
+- код `router-agent` в этом релизе не менялся; hotfix целиком находится на стороне UI и сохраняет стабильную линию агента `0.6.20`
+- обновлены заметки переноса: временный фронтовый промах статуса больше не должен надолго оставлять карточку агента в `offline`
 
-## v1.2.75 — safe Mihomo config management foundation
+## v1.2.76 — фундамент раздела Mihomo и аудита навигации
 
-- router-agent 0.6.20: added a dedicated managed-config workflow for Mihomo with router-side draft storage, protected baseline config, validation, apply pipeline, revision history and restore endpoints
-- router-agent 0.6.20: applying a draft now validates the candidate locally, snapshots the previous active config, restarts Mihomo and rolls back to the previous or baseline config on failure
-- Settings → Mihomo Config: upgraded the editor to use the managed draft/baseline flow when router-agent supports it, while keeping the older direct-core fallback mode for plain backends
-- Settings → Mihomo Config: added buttons for Active → Draft, Baseline → Draft, Save draft, Validate draft, Apply draft, Make active baseline, Restore baseline, and applied-history restore
-- docs: updated transfer notes for the new baseline-first config workflow and synced the router-agent version to 0.6.20
+- навигация: desktop sidebar разбит на логические группы (`Мониторинг / Сеть и Mihomo / Управление`) вместо одного длинного плоского списка
+- навигация: добавлен отдельный верхнеуровневый раздел `Mihomo`, а редактор конфигурации вынесен из `Settings` в собственное рабочее пространство
+- `Mihomo`: новая страница с быстрыми переходами к состоянию, провайдерам, правилам и редактору конфигурации в одном сфокусированном месте
+- `Settings`: страница перегруппирована в понятные подблоки (`Интерфейс / Бэкенды / Трафик и подписи / Страницы и карточки`) и получила быстрые переходы
+- обновлены заметки переноса и добавлен документ по аудиту навигации, чтобы будущая чистка продолжалась от той же информационной архитектуры
+
+## v1.2.75 — безопасный фундамент управления конфигурацией Mihomo
+
+- `router-agent 0.6.20`: добавлен отдельный контур управляемой конфигурации Mihomo с хранением черновика на роутере, защищённой эталонной версией, валидацией, конвейером применения, историей ревизий и командами восстановления
+- `router-agent 0.6.20`: применение черновика теперь локально проверяет кандидата, делает снимок предыдущей активной конфигурации, перезапускает Mihomo и откатывается на предыдущую или эталонную конфигурацию при ошибке
+- `Settings → Конфигурация Mihomo`: редактор переведён на managed flow `draft / baseline`, если router-agent это поддерживает, при сохранении старого прямого fallback-режима для обычных бэкендов
+- `Settings → Конфигурация Mihomo`: добавлены кнопки `Active → Draft`, `Baseline → Draft`, `Сохранить черновик`, `Проверить черновик`, `Применить черновик`, `Сделать активную конфигурацию эталонной`, `Восстановить эталонную` и восстановление из истории
+- обновлены заметки переноса для нового baseline-first workflow и синхронизирована версия `router-agent` до `0.6.20`
 
 ## v1.2.73 — users DB label scope diagnostics
 
