@@ -7,27 +7,28 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.71
-- router-agent: 0.6.18
+- UI: v1.2.72
+- router-agent: 0.6.19
 
-Что сделано в v1.2.71:
-- router-agent переведён на стабильный CGI shebang: generated `api.sh` теперь использует `#!/opt/bin/sh`
-- это фиксирует реальную аварию на роутере, где `uhttpd` запускал payload через несовместимый `/bin/sh` и валил `syntax error: unexpected "{" (expecting "then")`
-- сохранены уже рабочие агентные фиксы: `read_conntrack_table()`, неблокирующий `rehydrate`, более жёсткий stale-process cleanup на restart
-- остаточный шум host-traffic temp files пока не менялся и должен идти отдельным безопасным шагом
+Что сделано в v1.2.72:
+- router-agent переведён на стабильный релиз 0.6.19 с уже подтверждённым рабочим CGI shebang `#!/opt/bin/sh`
+- в `status` убран подвисающий внешний запрос версии через `remote_agent_version()`; теперь `serverVersion` берётся локально из версии агента
+- в generated `api.sh` добавлен отсутствовавший helper `version_cmp_sh()`, чтобы убрать хвост логов `version_cmp_sh: not found` и `bad number`
+- подтверждённый рабочий сценарий на роутере: после локального hotfix `status` снова отвечает JSON
 
 Важно по проекту:
 - UI на роутере обновляется через встроенный механизм интерфейса, не через git pull
 - если меняется router-agent, нужно синхронизировать версию в install.sh и status API
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
-Команды для проверки на роутере:
+Команды для установки/проверки router-agent на роутере:
 ```sh
 clear
-wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"
-wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=qos_status"
-wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
+/opt/bin/wget -O- "https://raw.githubusercontent.com/NightShadowDevOPs/UltraUIXkeen/main/router-agent/install.sh" | /opt/bin/sh
+wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"
+wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=qos_status"
+wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 ```
 
 Следующий логичный шаг:
-- отдельным безопасным патчем дочистить остаточный host-traffic log noise, не трогая уже рабочий CGI/shebang путь агента
+- отдельным безопасным патчем дочистить остаточный host-traffic / Broken pipe log noise, уже не трогая рабочий CGI/status путь агента

@@ -1,3 +1,11 @@
+## v1.2.72 - 2026-03-27
+
+- router-agent: publish stable CGI/status hotfix as 0.6.19
+- router-agent: generated `/opt/zash-agent/www/cgi-bin/api.sh` now keeps the working `#!/opt/bin/sh` shebang in the installer payload
+- router-agent: `status` no longer blocks on external `remote_agent_version()` lookups; `serverVersion` falls back to the bundled local agent version
+- router-agent: add the missing `version_cmp_sh()` helper to the generated payload so router logs no longer spam `version_cmp_sh: not found` / `bad number` after the local server-version fallback
+- docs: record the confirmed root cause and the final stable fix path (CGI shell + local status version path)
+
 ## v1.2.71 - 2026-03-27
 
 - router-agent: publish clean CGI interpreter fix as 0.6.18; generated `/opt/zash-agent/www/cgi-bin/api.sh` now uses `#!/opt/bin/sh` instead of `#!/bin/sh`
