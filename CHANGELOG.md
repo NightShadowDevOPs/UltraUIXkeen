@@ -1,3 +1,10 @@
+## v1.2.71 - 2026-03-27
+
+- router-agent: publish clean CGI interpreter fix as 0.6.18; generated `/opt/zash-agent/www/cgi-bin/api.sh` now uses `#!/opt/bin/sh` instead of `#!/bin/sh`
+- router-agent: keeps the already-working safe fixes from 0.6.17 (missing `read_conntrack_table()` helper, non-blocking startup `rehydrate`, harder stale `uhttpd` cleanup on restart)
+- docs: record that the real router-side breakage was caused by CGI running the payload under the incompatible `/bin/sh`; manual shebang switch to `/opt/bin/sh` confirmed the fix on the user's router
+- notes: host-traffic temp-file log noise is still deferred to a separate safe follow-up and is intentionally not changed in this release
+
 ## v1.2.70 - 2026-03-27
 
 - router-agent: rollback from broken 0.6.16 payload to clean working baseline and republish as 0.6.17
