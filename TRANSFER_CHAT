@@ -7,7 +7,7 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.76
+- UI: v1.2.77
 - router-agent: 0.6.20
 
 Правила по проекту:
@@ -24,6 +24,7 @@
 - router-agent стабильный CGI/status путь сохранён: shebang `#!/opt/bin/sh`, `serverVersion` локальный, `version_cmp_sh()` в payload есть
 - safe managed config flow из v1.2.75 сохранён: draft, baseline, history, validate/apply, rollback на previous active и fallback на baseline
 - с v1.2.76 редактор конфига вынесен из Settings в отдельный верхнеуровневый раздел `Mihomo`
+- v1.2.77: карточка Router agent больше не должна зависать в состоянии offline после единичного неудачного запроса при открытии страницы; статус теперь перепроверяется автоматически
 - левое меню теперь разбито на логические группы: Monitor / Network & Mihomo / Management
 - Settings разгружен и разбит на подблоки: Interface / Backends / Traffic & labels / Pages & cards
 - baseline не должен перезаписываться обычным save draft; он меняется только через отдельное действие “Make active baseline”
@@ -44,4 +45,4 @@ wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_cfg_history"
 ```
 
 Следующий логичный шаг:
-- добить второй этап навигационного аудита: решить, нужны ли вложенные подразделы внутри Mihomo (Runtime / Config / Providers / Rules) и отдельно продумать облегчённую мобильную навигацию, чтобы нижний dock не превращался в маршрутку в час пик
+- после hotfix v1.2.77 вернуться к аудиту навигации: решить, нужны ли вложенные подразделы внутри Mihomo (Runtime / Config / Providers / Rules) и отдельно продумать облегчённую мобильную навигацию

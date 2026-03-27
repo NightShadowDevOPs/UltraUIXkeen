@@ -1,3 +1,10 @@
+## v1.2.77 — router agent status self-healing hotfix
+
+- Router → Agent: fixed stale offline state in the UI — the card now re-checks router-agent status periodically instead of trusting only the first request after page open
+- Router → Agent: changing agent enable/url/token now immediately triggers a fresh status check instead of waiting for a manual button press or page remount
+- router-agent code not changed in this release; the hotfix is UI-only and keeps the stable 0.6.20 agent line
+- docs: updated transfer notes to record that a temporary frontend status miss can no longer leave the agent card stuck offline for long
+
 ## v1.2.76 — Mihomo section + navigation audit foundation
 
 - navigation: split the desktop sidebar into logical groups (Monitor, Network & Mihomo, Management) instead of one long flat list

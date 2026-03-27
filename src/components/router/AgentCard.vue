@@ -658,7 +658,7 @@ import {
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
@@ -1464,12 +1464,18 @@ const onBackupLogToggle = async (e: any) => {
   }
 }
 
-const refresh = async () => {
+const refreshStatus = async () => {
   if (!agentEnabled.value) {
     status.value = { ok: false }
-    return
+    return false
   }
   status.value = await agentStatusAPI()
+  return !!status.value?.ok
+}
+
+const refresh = async () => {
+  const ok = await refreshStatus()
+  if (!ok) return
   await refreshCron()
   await refreshBackup()
   await refreshBackupList()
@@ -1479,9 +1485,13 @@ const refresh = async () => {
 }
 
 let liveTimer: number | undefined
+let statusTimer: number | undefined
 
 onMounted(() => {
   refresh()
+  statusTimer = window.setInterval(() => {
+    refreshStatus()
+  }, 10_000)
   liveTimer = window.setInterval(() => {
     if (restore.value?.running) {
       refreshRestore()
@@ -1492,7 +1502,15 @@ onMounted(() => {
   }, 2000)
 })
 
+watch([agentEnabled, agentUrl, agentToken], () => {
+  refresh()
+})
+
 onUnmounted(() => {
+  if (statusTimer) {
+    window.clearInterval(statusTimer)
+    statusTimer = undefined
+  }
   if (liveTimer) {
     window.clearInterval(liveTimer)
     liveTimer = undefined
