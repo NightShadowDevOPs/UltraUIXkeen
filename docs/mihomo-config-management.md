@@ -55,8 +55,16 @@
 - `router-agent 0.6.21` отдаёт расширенные диагностические поля для `mihomo_cfg_validate`, `mihomo_cfg_apply`, `mihomo_cfg_restore_baseline`, `mihomo_cfg_restore_rev`
 - логика применения не менялась: добавлена только более подробная телеметрия результата
 
+## Что добавлено в v1.2.82
+
+- новый блок **структурированного обзора** поверх `active / draft / baseline / editor`
+- краткий срез по типовым секциям без ручного чтения всего YAML: `mode`, `log-level`, `allow-lan`, `ipv6`, `unified-delay`, `find-process-mode`, порты, `external-controller`, `secret`, `geodata-mode`
+- отдельные статусы по модулям `tun / dns / profile / sniffer` и список top-level секций
+- быстрые счётчики по `proxies`, `proxy-groups`, `rules`, `proxy-providers`, `rule-providers`
+- обзор работает целиком на стороне UI и не требует новых router-agent API
+
 ## Что логично делать дальше
 
-- частично структурированный обзор популярных секций YAML
 - отдельный просмотр последней успешно применённой версии
 - потом — более умный редактор частых блоков `config.yaml`
+- после этого уже можно решать, какие секции стоит переводить в формовый редактор

@@ -115,6 +115,155 @@
               <pre class="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] opacity-80">{{ validationOutput }}</pre>
             </div>
 
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configOverviewTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configOverviewTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configOverviewRows', { count: overviewSummary.stats.totalLines }) }}</span>
+                  <span class="badge badge-ghost">{{ $t('configOverviewSectionsCount', { count: overviewSummary.topLevelSections.length }) }}</span>
+                  <label class="flex items-center gap-2">
+                    <span class="opacity-70">{{ $t('configOverviewSource') }}</span>
+                    <select v-model="overviewSource" class="select select-xs max-w-[220px]">
+                      <option v-for="option in diffSourceOptions" :key="`overview-${option.value}`" :value="option.value" :disabled="option.disabled">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div v-if="!overviewHasContent" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configOverviewEmpty') }}
+              </div>
+
+              <div v-else class="space-y-3">
+                <div class="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configOverviewModeTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewMode') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.mode) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewLogLevel') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.logLevel) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewAllowLan') }}</div>
+                        <div class="mt-1">{{ overviewBoolText(overviewSummary.scalars.allowLan) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewIpv6') }}</div>
+                        <div class="mt-1">{{ overviewBoolText(overviewSummary.scalars.ipv6) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewUnifiedDelay') }}</div>
+                        <div class="mt-1">{{ overviewBoolText(overviewSummary.scalars.unifiedDelay) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewFindProcessMode') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.findProcessMode) }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configOverviewPortsTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3">
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewMixedPort') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.mixedPort) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewPort') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.port) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewSocksPort') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.socksPort) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewRedirPort') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.redirPort) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewTproxyPort') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.tproxyPort) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewController') }}</div>
+                        <div class="mt-1 break-all font-mono text-[11px]">{{ overviewText(overviewSummary.scalars.controller) }}</div>
+                      </div>
+                    </div>
+                    <div class="mt-2 text-[11px] opacity-70">
+                      {{ $t('configOverviewSecretState') }}: {{ overviewText(overviewSummary.scalars.secretState) }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configOverviewModulesTitle') }}</div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <span class="badge badge-outline" :class="sectionStateBadgeClass(overviewSummary.sections.tun)">{{ $t('configOverviewTun') }}: {{ sectionStateText(overviewSummary.sections.tun) }}</span>
+                      <span class="badge badge-outline" :class="sectionStateBadgeClass(overviewSummary.sections.dns)">{{ $t('configOverviewDns') }}: {{ sectionStateText(overviewSummary.sections.dns) }}</span>
+                      <span class="badge badge-outline" :class="sectionStateBadgeClass(overviewSummary.sections.profile)">{{ $t('configOverviewProfile') }}: {{ sectionStateText(overviewSummary.sections.profile) }}</span>
+                      <span class="badge badge-outline" :class="sectionStateBadgeClass(overviewSummary.sections.sniffer)">{{ $t('configOverviewSniffer') }}: {{ sectionStateText(overviewSummary.sections.sniffer) }}</span>
+                    </div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewGeodataMode') }}</div>
+                        <div class="mt-1">{{ overviewText(overviewSummary.scalars.geodataMode) }}</div>
+                      </div>
+                      <div>
+                        <div class="opacity-60">{{ $t('configOverviewTopLevelSections') }}</div>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          <span v-for="section in overviewSummary.topLevelSections" :key="section" class="badge badge-ghost badge-sm">{{ section }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configOverviewRoutingTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3">
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewProxiesCount') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.counts.proxies }}</div>
+                      </div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewProxyGroupsCount') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.counts.proxyGroups }}</div>
+                      </div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewRulesCount') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.counts.rules }}</div>
+                      </div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewProxyProvidersCount') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.counts.proxyProviders }}</div>
+                      </div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewRuleProvidersCount') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.counts.ruleProviders }}</div>
+                      </div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2">
+                        <div class="opacity-60">{{ $t('configOverviewNonEmptyRows') }}</div>
+                        <div class="mt-1 text-lg font-semibold">{{ overviewSummary.stats.nonEmptyLines }}</div>
+                      </div>
+                    </div>
+                    <div class="mt-2 text-[11px] opacity-70">{{ $t('configOverviewCommentRows', { count: overviewSummary.stats.commentLines }) }}</div>
+                  </div>
+                </div>
+
+                <div class="text-[11px] opacity-60">{{ $t('configOverviewApproximate') }}</div>
+              </div>
+            </div>
+
             <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -352,6 +501,7 @@ const expanded = useStorage('config/mihomo-config-expanded', false)
 const compareLeft = useStorage<DiffSourceKind>('config/mihomo-config-diff-left', 'active')
 const compareRight = useStorage<DiffSourceKind>('config/mihomo-config-diff-right', 'draft')
 const compareChangesOnly = useStorage('config/mihomo-config-diff-only-changes', true)
+const overviewSource = useStorage<DiffSourceKind>('config/mihomo-config-overview-source', 'draft')
 
 const { t } = useI18n()
 
@@ -398,6 +548,46 @@ type DiffRow = {
   rightNo: number | null
   leftText: string
   rightText: string
+}
+
+type ConfigOverviewSectionState = 'enabled' | 'disabled' | 'present' | 'missing'
+
+type ConfigOverview = {
+  topLevelSections: string[]
+  counts: {
+    proxies: number
+    proxyGroups: number
+    rules: number
+    proxyProviders: number
+    ruleProviders: number
+  }
+  scalars: {
+    mode: string
+    logLevel: string
+    allowLan: string
+    ipv6: string
+    unifiedDelay: string
+    findProcessMode: string
+    geodataMode: string
+    controller: string
+    secretState: string
+    port: string
+    mixedPort: string
+    socksPort: string
+    redirPort: string
+    tproxyPort: string
+  }
+  sections: {
+    tun: ConfigOverviewSectionState
+    dns: ConfigOverviewSectionState
+    profile: ConfigOverviewSectionState
+    sniffer: ConfigOverviewSectionState
+  }
+  stats: {
+    totalLines: number
+    nonEmptyLines: number
+    commentLines: number
+  }
 }
 
 const managedPayloads = ref<Record<ManagedPayloadKind, string>>({
@@ -864,6 +1054,195 @@ const diffSourceOptions = computed(() => ([
   { value: 'baseline' as DiffSourceKind, label: diffSourceLabel('baseline'), disabled: !diffSourceAvailable('baseline') },
   { value: 'editor' as DiffSourceKind, label: diffSourceLabel('editor'), disabled: false },
 ]))
+
+const overviewSourceResolved = computed<DiffSourceKind>(() => normalizeDiffSource(overviewSource.value as DiffSourceKind))
+
+const emptyConfigOverview = (): ConfigOverview => ({
+  topLevelSections: [],
+  counts: {
+    proxies: 0,
+    proxyGroups: 0,
+    rules: 0,
+    proxyProviders: 0,
+    ruleProviders: 0,
+  },
+  scalars: {
+    mode: '',
+    logLevel: '',
+    allowLan: '',
+    ipv6: '',
+    unifiedDelay: '',
+    findProcessMode: '',
+    geodataMode: '',
+    controller: '',
+    secretState: '',
+    port: '',
+    mixedPort: '',
+    socksPort: '',
+    redirPort: '',
+    tproxyPort: '',
+  },
+  sections: {
+    tun: 'missing',
+    dns: 'missing',
+    profile: 'missing',
+    sniffer: 'missing',
+  },
+  stats: {
+    totalLines: 0,
+    nonEmptyLines: 0,
+    commentLines: 0,
+  },
+})
+
+const unquoteYamlKey = (value: string) => {
+  const s = String(value || '').trim()
+  if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) return s.slice(1, -1)
+  return s
+}
+
+const sanitizeScalarValue = (value: string) => {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) return ''
+  const withoutComment = trimmed.replace(/\s+#.*$/, '').trim()
+  if ((withoutComment.startsWith("'") && withoutComment.endsWith("'")) || (withoutComment.startsWith('"') && withoutComment.endsWith('"'))) {
+    return withoutComment.slice(1, -1)
+  }
+  return withoutComment
+}
+
+const countListItemsInSection = (lines: string[]) => lines.reduce((acc, line) => acc + (/^\s{2}-\s+/.test(line) ? 1 : 0), 0)
+
+const countMapItemsInSection = (lines: string[]) => lines.reduce((acc, line) => {
+  if (/^\s{2}(?:[^#\s][^:]*|"[^"]+"|'[^']+'):\s*(?:#.*)?$/.test(line)) return acc + 1
+  return acc
+}, 0)
+
+const detectSectionState = (sectionLines: string[] | undefined): ConfigOverviewSectionState => {
+  if (!sectionLines || !sectionLines.length) return 'missing'
+  const enabledLine = sectionLines.find((line) => /^\s{2}enabled:\s*/.test(line) || /^\s{2}enable:\s*/.test(line))
+  if (!enabledLine) return 'present'
+  const raw = sanitizeScalarValue(enabledLine.replace(/^\s{2}(?:enabled|enable):\s*/, ''))
+  const lowered = raw.toLowerCase()
+  if (['true', 'on', 'yes'].includes(lowered)) return 'enabled'
+  if (['false', 'off', 'no'].includes(lowered)) return 'disabled'
+  return 'present'
+}
+
+const buildConfigOverview = (value: string): ConfigOverview => {
+  const normalized = normalizeDiffText(value)
+  const overview = emptyConfigOverview()
+  const trimmed = normalized.trim()
+  if (!trimmed) return overview
+
+  const lines = normalized.split('\n')
+  overview.stats.totalLines = lines.length
+  overview.stats.nonEmptyLines = lines.filter((line) => line.trim().length > 0).length
+  overview.stats.commentLines = lines.filter((line) => /^\s*#/.test(line)).length
+
+  const sectionLines: Record<string, string[]> = {}
+  let currentTopLevel = ''
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\r$/, '')
+    const trimmedLine = line.trim()
+    if (!trimmedLine.length) {
+      if (currentTopLevel) sectionLines[currentTopLevel].push(line)
+      continue
+    }
+    if (/^#/.test(trimmedLine)) {
+      if (currentTopLevel) sectionLines[currentTopLevel].push(line)
+      continue
+    }
+
+    const topMatch = line.match(/^([A-Za-z0-9_.@-]+|"[^"]+"|'[^']+'):\s*(.*)$/)
+    if (topMatch && !/^\s/.test(line)) {
+      const key = unquoteYamlKey(topMatch[1])
+      currentTopLevel = key
+      if (!overview.topLevelSections.includes(key)) overview.topLevelSections.push(key)
+      sectionLines[key] = []
+      const rest = sanitizeScalarValue(topMatch[2])
+      if (rest && !['|', '|-', '>', '>-', '{}', '[]'].includes(rest)) {
+        switch (key) {
+          case 'mode': overview.scalars.mode = rest; break
+          case 'log-level': overview.scalars.logLevel = rest; break
+          case 'allow-lan': overview.scalars.allowLan = rest; break
+          case 'ipv6': overview.scalars.ipv6 = rest; break
+          case 'unified-delay': overview.scalars.unifiedDelay = rest; break
+          case 'find-process-mode': overview.scalars.findProcessMode = rest; break
+          case 'geodata-mode': overview.scalars.geodataMode = rest; break
+          case 'external-controller': overview.scalars.controller = rest; break
+          case 'secret': overview.scalars.secretState = rest ? t('configOverviewSecretSet') : t('configOverviewSecretEmpty'); break
+          case 'port': overview.scalars.port = rest; break
+          case 'mixed-port': overview.scalars.mixedPort = rest; break
+          case 'socks-port': overview.scalars.socksPort = rest; break
+          case 'redir-port': overview.scalars.redirPort = rest; break
+          case 'tproxy-port': overview.scalars.tproxyPort = rest; break
+        }
+      }
+      continue
+    }
+
+    if (currentTopLevel) sectionLines[currentTopLevel].push(line)
+  }
+
+  overview.counts.proxies = countListItemsInSection(sectionLines['proxies'] || [])
+  overview.counts.proxyGroups = countListItemsInSection(sectionLines['proxy-groups'] || [])
+  overview.counts.rules = countListItemsInSection(sectionLines['rules'] || [])
+  overview.counts.proxyProviders = countMapItemsInSection(sectionLines['proxy-providers'] || [])
+  overview.counts.ruleProviders = countMapItemsInSection(sectionLines['rule-providers'] || [])
+
+  overview.sections.tun = detectSectionState(sectionLines.tun)
+  overview.sections.dns = detectSectionState(sectionLines.dns)
+  overview.sections.profile = detectSectionState(sectionLines.profile)
+  overview.sections.sniffer = detectSectionState(sectionLines.sniffer)
+
+  if (!overview.scalars.secretState) overview.scalars.secretState = overview.topLevelSections.includes('secret') ? t('configOverviewSecretEmpty') : t('configOverviewSecretNotSet')
+
+  return overview
+}
+
+const overviewSummary = computed(() => buildConfigOverview(diffSourceContent(overviewSourceResolved.value)))
+const overviewHasContent = computed(() => overviewSummary.value.stats.totalLines > 0)
+
+const overviewText = (value?: string | number | null) => {
+  const text = String(value ?? '').trim()
+  return text || '—'
+}
+
+const overviewBoolText = (value?: string | number | null) => {
+  const text = String(value ?? '').trim().toLowerCase()
+  if (!text) return '—'
+  if (['true', 'on', 'yes'].includes(text)) return t('enabled')
+  if (['false', 'off', 'no'].includes(text)) return t('disabled')
+  return String(value ?? '')
+}
+
+const sectionStateText = (value: ConfigOverviewSectionState) => {
+  switch (value) {
+    case 'enabled':
+      return t('enabled')
+    case 'disabled':
+      return t('disabled')
+    case 'present':
+      return t('configOverviewPresent')
+    default:
+      return t('configOverviewMissing')
+  }
+}
+
+const sectionStateBadgeClass = (value: ConfigOverviewSectionState) => {
+  switch (value) {
+    case 'enabled':
+      return 'badge-success'
+    case 'disabled':
+      return 'badge-error'
+    case 'present':
+      return 'badge-ghost'
+    default:
+      return 'badge-neutral'
+  }
+}
 
 const compareLeftResolved = computed<DiffSourceKind>(() => normalizeDiffSource(compareLeft.value as DiffSourceKind))
 const compareRightResolved = computed<DiffSourceKind>(() => normalizeDiffSource(compareRight.value as DiffSourceKind))
