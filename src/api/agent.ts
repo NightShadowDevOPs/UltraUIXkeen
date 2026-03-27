@@ -556,6 +556,242 @@ export const agentMihomoConfigAPI = async (): Promise<{
   }
 }
 
+export type MihomoConfigManagedState = {
+  ok: boolean
+  active?: {
+    path?: string
+    rev?: number
+    updatedAt?: string
+    exists?: boolean
+    sizeBytes?: number
+  }
+  draft?: {
+    path?: string
+    rev?: number
+    updatedAt?: string
+    exists?: boolean
+    sizeBytes?: number
+  }
+  baseline?: {
+    path?: string
+    updatedAt?: string
+    exists?: boolean
+    sizeBytes?: number
+  }
+  lastApplyStatus?: string
+  lastApplyAt?: string
+  lastApplySource?: string
+  lastError?: string
+  validator?: {
+    available?: boolean
+    bin?: string
+  }
+  restart?: {
+    available?: boolean
+    mode?: string
+  }
+  error?: string
+}
+
+export const agentMihomoConfigStateAPI = async (): Promise<MihomoConfigManagedState> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'mihomo_cfg_state' },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedGetAPI = async (kind: 'active' | 'draft' | 'baseline'): Promise<{
+  ok: boolean
+  kind?: string
+  path?: string
+  rev?: number
+  updatedAt?: string
+  contentB64?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'mihomo_cfg_get', kind },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedPutDraftAPI = async (content: string): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post('/cgi-bin/api.sh?cmd=mihomo_cfg_put&kind=draft', content ?? '', {
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      timeout: 20000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedCopyAPI = async (from: 'active' | 'baseline'): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post(`/cgi-bin/api.sh?cmd=mihomo_cfg_copy&from=${encodeURIComponent(from)}&to=draft`, null, {
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedValidateAPI = async (kind: 'active' | 'draft' | 'baseline'): Promise<{
+  ok: boolean
+  kind?: string
+  cmd?: string
+  exitCode?: number
+  output?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'mihomo_cfg_validate', kind },
+      timeout: 25000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedApplyAPI = async (): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  appliedFrom?: string
+  restored?: string
+  restartMethod?: string
+  restartOutput?: string
+  validateCmd?: string
+  error?: string
+  output?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post('/cgi-bin/api.sh?cmd=mihomo_cfg_apply', null, {
+      timeout: 30000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedSetBaselineFromActiveAPI = async (): Promise<{
+  ok: boolean
+  updatedAt?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post('/cgi-bin/api.sh?cmd=mihomo_cfg_set_baseline_from_active', null, {
+      timeout: 20000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedRestoreBaselineAPI = async (): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  restored?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post('/cgi-bin/api.sh?cmd=mihomo_cfg_restore_baseline', null, {
+      timeout: 30000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export type MihomoConfigHistoryItem = {
+  rev: number
+  updatedAt?: string
+  current?: boolean
+  source?: string
+}
+
+export const agentMihomoConfigManagedHistoryAPI = async (): Promise<{
+  ok: boolean
+  items?: MihomoConfigHistoryItem[]
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'mihomo_cfg_history' },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedGetRevAPI = async (rev: number): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  source?: string
+  contentB64?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+      params: { cmd: 'mihomo_cfg_get_rev', rev: String(rev ?? 0) },
+      timeout: 15000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
+export const agentMihomoConfigManagedRestoreRevAPI = async (rev: number): Promise<{
+  ok: boolean
+  rev?: number
+  updatedAt?: string
+  restored?: string
+  error?: string
+}> => {
+  try {
+    const { data } = await agentAxios().post(`/cgi-bin/api.sh?cmd=mihomo_cfg_restore_rev&rev=${encodeURIComponent(String(rev ?? 0))}`, null, {
+      timeout: 30000,
+    })
+    return (data || {}) as any
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'offline' }
+  }
+}
+
 export const agentMihomoProvidersAPI = async (force = false): Promise<{
   ok: boolean
   checkedAtSec?: number

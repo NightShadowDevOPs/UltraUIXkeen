@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.73
-- router-agent: 0.6.19
+- UI: v1.2.75
+- router-agent: 0.6.20
 
 Правила по проекту:
 - всегда отдавать архив релиза
@@ -20,11 +20,17 @@
 - в каждом релизе обновлять docs/chat-transfer.md и корневой TRANSFER_CHAT
 
 Что важно по текущему состоянию:
-- users DB conflict cockpit уже показывает winner/result/reason по tunnels, panel URLs, icons, SSL warn settings, labels и user limits; есть apply-preview и copy/export conflict preview
-- labels теперь тоже показывают scope в конфликте: router/local/result видно не только по тексту label, но и по области действия правила
-- в smart merge custom-режим для labels меняет только label, а scope остаётся локальным — это теперь явно видно в UI
-- router-agent после v1.2.72 стабилен по основному пути: status/qos_status/traffic_live отвечают, shebang `#!/opt/bin/sh` подтверждён рабочим, `serverVersion` локальный, `version_cmp_sh()` в payload есть
-- остаточный host-traffic / `Broken pipe` log noise ещё не исправлен и должен идти отдельным безопасным шагом от уже рабочей базы
+- users DB conflict cockpit по label scope и apply-preview из v1.2.73 сохранён
+- router-agent стабильный CGI/status путь сохранён: shebang `#!/opt/bin/sh`, `serverVersion` локальный, `version_cmp_sh()` в payload есть
+- в v1.2.75 добавлен отдельный безопасный контур для управления `config.yaml` через router-agent:
+  - draft на роутере
+  - baseline (эталонный) конфиг
+  - history ревизий активного конфига
+  - validate/apply pipeline
+  - rollback на предыдущий active
+  - fallback на baseline
+- редактор конфига в Settings умеет работать в managed-режиме через router-agent, но если новые команды agent недоступны, остаётся старый direct/fallback-режим
+- baseline не должен перезаписываться обычным save draft; он меняется только через отдельное действие “Make active baseline”
 
 Порядок работы по проекту:
 1. Собираем релиз архивом
@@ -37,9 +43,9 @@
 ```sh
 clear
 wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"
-wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=qos_status"
-wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
+wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_cfg_state"
+wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_cfg_history"
 ```
 
 Следующий логичный шаг:
-- отдельным безопасным патчем дочистить остаточный host-traffic / Broken pipe log noise, уже не трогая рабочий CGI/status путь агента
+- добавить diff active/draft/baseline, показать причины validate/apply/rollback более наглядно и потом уже думать о частично-структурированном редакторе секций YAML

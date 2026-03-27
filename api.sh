@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/opt/bin/sh
 
 ENV_FILE="/opt/zash-agent/agent.env"
 [ -f "$ENV_FILE" ] && . "$ENV_FILE"
@@ -14,8 +14,14 @@ USERS_DB_FILE="${USERS_DB_FILE:-/opt/zash-agent/var/users-db.json}"
 USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
 USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
+MIHOMO_CFG_DIR="${MIHOMO_CFG_DIR:-/opt/zash-agent/var/mihomo-config}"
+MIHOMO_CFG_DRAFT_FILE="${MIHOMO_CFG_DRAFT_FILE:-$MIHOMO_CFG_DIR/draft.yaml}"
+MIHOMO_CFG_BASELINE_FILE="${MIHOMO_CFG_BASELINE_FILE:-$MIHOMO_CFG_DIR/baseline.yaml}"
+MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
+MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
+MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.16"
+AGENT_VERSION="0.6.20"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -1919,13 +1925,550 @@ users_db_put_json() {
   reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s"}' "$udb_rev" "$(jesc "$udb_updatedAt")")"
 }
 
+
+mihomo_cfg_now_iso() {
+  date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo ''
+}
+
+mihomo_cfg_file_size() {
+  f="$1"
+  [ -f "$f" ] || {
+    echo 0
+    return
+  }
+  sz="$(wc -c < "$f" 2>/dev/null || echo 0)"
+  echo "$sz" | grep -qE '^[0-9]+$' || sz=0
+  echo "$sz"
+}
+
+mihomo_cfg_load_meta() {
+  mcfg_activeRev=0
+  mcfg_activeUpdatedAt=''
+  mcfg_draftRev=0
+  mcfg_draftUpdatedAt=''
+  mcfg_baselineUpdatedAt=''
+  mcfg_lastApplyStatus='idle'
+  mcfg_lastApplyAt=''
+  mcfg_lastApplySource=''
+  mcfg_lastError=''
+  if [ -f "$MIHOMO_CFG_META" ]; then
+    mcfg_activeRev="$(sed -nE 's/.*"activeRev"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_activeUpdatedAt="$(sed -nE 's/.*"activeUpdatedAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_draftRev="$(sed -nE 's/.*"draftRev"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_draftUpdatedAt="$(sed -nE 's/.*"draftUpdatedAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_baselineUpdatedAt="$(sed -nE 's/.*"baselineUpdatedAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastApplyStatus="$(sed -nE 's/.*"lastApplyStatus"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastApplyAt="$(sed -nE 's/.*"lastApplyAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastApplySource="$(sed -nE 's/.*"lastApplySource"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+    mcfg_lastError="$(sed -nE 's/.*"lastError"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$MIHOMO_CFG_META" 2>/dev/null | head -n1)"
+  fi
+  echo "$mcfg_activeRev" | grep -qE '^[0-9]+$' || mcfg_activeRev=0
+  echo "$mcfg_draftRev" | grep -qE '^[0-9]+$' || mcfg_draftRev=0
+  [ -n "$mcfg_lastApplyStatus" ] || mcfg_lastApplyStatus='idle'
+}
+
+mihomo_cfg_write_meta() {
+  mkdir -p "$MIHOMO_CFG_DIR" >/dev/null 2>&1 || true
+  tmp="$MIHOMO_CFG_META.tmp.$$"
+  printf '{"activeRev":%s,"activeUpdatedAt":"%s","draftRev":%s,"draftUpdatedAt":"%s","baselineUpdatedAt":"%s","lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s"}' \
+    "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" \
+    "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")" \
+    "$(jesc "$mcfg_baselineUpdatedAt")" \
+    "$(jesc "$mcfg_lastApplyStatus")" \
+    "$(jesc "$mcfg_lastApplyAt")" \
+    "$(jesc "$mcfg_lastApplySource")" \
+    "$(jesc "$mcfg_lastError")" > "$tmp" 2>/dev/null || return 1
+  mv -f "$tmp" "$MIHOMO_CFG_META" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; return 1; }
+  return 0
+}
+
+mihomo_cfg_init_if_missing() {
+  mkdir -p "$MIHOMO_CFG_DIR" "$MIHOMO_CFG_REVS_DIR" >/dev/null 2>&1 || true
+  mihomo_cfg_load_meta
+  if [ -f "$MIHOMO_CONFIG" ] && [ ! -f "$MIHOMO_CFG_BASELINE_FILE" ]; then
+    cp "$MIHOMO_CONFIG" "$MIHOMO_CFG_BASELINE_FILE" 2>/dev/null || true
+    [ -n "$mcfg_baselineUpdatedAt" ] || mcfg_baselineUpdatedAt="$(mihomo_cfg_now_iso)"
+  fi
+  if [ ! -f "$MIHOMO_CFG_META" ]; then
+    if [ -f "$MIHOMO_CONFIG" ] && [ "$mcfg_activeRev" -le 0 ]; then
+      mcfg_activeRev=1
+      mcfg_activeUpdatedAt="$(mihomo_cfg_now_iso)"
+    fi
+    if [ -f "$MIHOMO_CFG_DRAFT_FILE" ] && [ "$mcfg_draftRev" -le 0 ]; then
+      mcfg_draftRev=1
+      mcfg_draftUpdatedAt="$(mihomo_cfg_now_iso)"
+    fi
+    [ -n "$mcfg_baselineUpdatedAt" ] || [ ! -f "$MIHOMO_CFG_BASELINE_FILE" ] || mcfg_baselineUpdatedAt="$(mihomo_cfg_now_iso)"
+    mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  fi
+}
+
+mihomo_cfg_prune_revs() {
+  max="$MIHOMO_CFG_REVS_MAX"
+  echo "$max" | grep -qE '^[0-9]+$' || max=10
+  [ "$max" -le 0 ] && max=10
+  [ -d "$MIHOMO_CFG_REVS_DIR" ] || return 0
+  revs="$(ls "$MIHOMO_CFG_REVS_DIR"/rev-*.meta.json 2>/dev/null | sed -nE 's/.*rev-([0-9]+)\.meta\.json/\1/p' | sort -n)"
+  cnt="$(printf '%s\n' "$revs" | sed '/^$/d' | wc -l 2>/dev/null || echo 0)"
+  echo "$cnt" | grep -qE '^[0-9]+$' || cnt=0
+  if [ "$cnt" -le "$max" ]; then
+    return 0
+  fi
+  rm_cnt=$((cnt - max))
+  i=0
+  printf '%s\n' "$revs" | sed '/^$/d' | while read r; do
+    i=$((i+1))
+    [ "$i" -le "$rm_cnt" ] || break
+    rm -f "$MIHOMO_CFG_REVS_DIR/rev-$r.yaml" "$MIHOMO_CFG_REVS_DIR/rev-$r.meta.json" 2>/dev/null || true
+  done
+  return 0
+}
+
+mihomo_cfg_snapshot_current() {
+  [ -f "$MIHOMO_CONFIG" ] || return 0
+  mkdir -p "$MIHOMO_CFG_REVS_DIR" >/dev/null 2>&1 || true
+  [ "$mcfg_activeRev" -gt 0 ] || return 0
+  snap_yaml="$MIHOMO_CFG_REVS_DIR/rev-$mcfg_activeRev.yaml"
+  snap_meta="$MIHOMO_CFG_REVS_DIR/rev-$mcfg_activeRev.meta.json"
+  cp "$MIHOMO_CONFIG" "$snap_yaml" 2>/dev/null || return 0
+  printf '{"rev":%s,"updatedAt":"%s","source":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$mcfg_lastApplySource")" > "$snap_meta" 2>/dev/null || true
+  mihomo_cfg_prune_revs >/dev/null 2>&1 || true
+  return 0
+}
+
+mihomo_cfg_read_rev_meta() {
+  rev="$1"
+  meta="$MIHOMO_CFG_REVS_DIR/rev-$rev.meta.json"
+  r_updatedAt=''
+  r_source=''
+  if [ -f "$meta" ]; then
+    r_updatedAt="$(sed -nE 's/.*"updatedAt"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$meta" 2>/dev/null | head -n1)"
+    r_source="$(sed -nE 's/.*"source"[[:space:]]*:[[:space:]]*"([^\"]*)".*/\1/p' "$meta" 2>/dev/null | head -n1)"
+  fi
+}
+
+mihomo_cfg_lock_acquire() {
+  lockdir="$MIHOMO_CFG_DIR/apply.lock"
+  if [ -d "$lockdir" ]; then
+    lm="$(stat_mtime_sec "$lockdir")"
+    now="$(date +%s 2>/dev/null || echo 0)"
+    echo "$lm" | grep -qE '^[0-9]+$' || lm=0
+    echo "$now" | grep -qE '^[0-9]+$' || now=0
+    if [ "$lm" -gt 0 ] && [ "$now" -gt 0 ] && [ $((now - lm)) -gt 120 ]; then
+      rmdir "$lockdir" 2>/dev/null || true
+    fi
+  fi
+  i=0
+  while ! mkdir "$lockdir" 2>/dev/null; do
+    i=$((i+1))
+    [ $i -ge 10 ] && return 1
+    sleep 1 2>/dev/null || true
+  done
+  return 0
+}
+
+mihomo_cfg_lock_release() {
+  rmdir "$MIHOMO_CFG_DIR/apply.lock" 2>/dev/null || true
+}
+
+mihomo_cfg_detect_validator() {
+  if command -v mihomo >/dev/null 2>&1; then
+    echo "mihomo"
+    return
+  fi
+  if command -v clash-meta >/dev/null 2>&1; then
+    echo "clash-meta"
+    return
+  fi
+  echo ""
+}
+
+mihomo_cfg_find_init() {
+  for init in /opt/etc/init.d/S99mihomo /opt/etc/init.d/S98mihomo /opt/etc/init.d/S99clash /opt/etc/init.d/S98clash /etc/init.d/mihomo /etc/init.d/clash-meta; do
+    [ -x "$init" ] && {
+      echo "$init"
+      return
+    }
+  done
+  echo ""
+}
+
+mihomo_cfg_is_running() {
+  if command -v pidof >/dev/null 2>&1; then
+    pidof mihomo >/dev/null 2>&1 && return 0
+    pidof clash-meta >/dev/null 2>&1 && return 0
+  fi
+  ps 2>/dev/null | grep -E '[m]ihomo|[c]lash-meta' >/dev/null 2>&1 && return 0
+  return 1
+}
+
+mihomo_cfg_validate_file() {
+  f="$1"
+  validate_rc=1
+  validate_output=''
+  validate_cmd=''
+  [ -f "$f" ] || {
+    validate_rc=1
+    validate_output='config-not-found'
+    return 1
+  }
+  bin="$(mihomo_cfg_detect_validator)"
+  [ -n "$bin" ] || {
+    validate_rc=127
+    validate_output='validator-unavailable'
+    return 127
+  }
+  d="$(dirname "$f" 2>/dev/null || echo /opt/etc/mihomo)"
+  f_q="$(printf '%s' "$f" | sed "s/'/'\\''/g")"
+  d_q="$(printf '%s' "$d" | sed "s/'/'\\''/g")"
+  for args in "-t -f '$f_q'" "-t -d '$d_q' -f '$f_q'"; do
+    out="$(run_with_timeout_sh 20 "$bin $args" 2>&1)"
+    rc="$?"
+    validate_cmd="$bin $args"
+    if [ "$rc" -eq 0 ]; then
+      validate_rc=0
+      validate_output="$out"
+      return 0
+    fi
+    validate_rc="$rc"
+    validate_output="$out"
+  done
+  return 1
+}
+
+mihomo_cfg_restart_core() {
+  restart_rc=1
+  restart_output=''
+  restart_method=''
+  init="$(mihomo_cfg_find_init)"
+  if [ -n "$init" ]; then
+    out="$("$init" restart 2>&1)"
+    rc="$?"
+    restart_method='init'
+    restart_output="$out"
+    restart_rc="$rc"
+  else
+    restart_method='signal'
+    pids="$(pidof mihomo 2>/dev/null || true) $(pidof clash-meta 2>/dev/null || true)"
+    pids="$(printf '%s' "$pids" | tr '\n\t' '  ' | sed 's/  */ /g; s/^ //; s/ $//')"
+    if [ -n "$pids" ]; then
+      kill -HUP $pids >/dev/null 2>&1 || true
+      restart_output='sent-HUP'
+      restart_rc=0
+    else
+      restart_output='restart-method-not-found'
+      restart_rc=1
+    fi
+  fi
+  i=0
+  while [ $i -lt 6 ]; do
+    mihomo_cfg_is_running && break
+    sleep 1 2>/dev/null || true
+    i=$((i+1))
+  done
+  mihomo_cfg_is_running
+  running_rc="$?"
+  if [ "$running_rc" -ne 0 ] && [ "$restart_rc" -eq 0 ]; then
+    restart_rc=1
+    [ -n "$restart_output" ] && restart_output="$restart_output\nnot-running-after-restart" || restart_output='not-running-after-restart'
+  fi
+  return "$restart_rc"
+}
+
+mihomo_cfg_state_json() {
+  mihomo_cfg_init_if_missing
+  validator_bin="$(mihomo_cfg_detect_validator)"
+  restart_init="$(mihomo_cfg_find_init)"
+  [ -n "$validator_bin" ] && validator_available=true || validator_available=false
+  if [ -n "$restart_init" ]; then
+    restart_available=true
+    restart_mode='init'
+  elif mihomo_cfg_is_running; then
+    restart_available=true
+    restart_mode='signal'
+  else
+    restart_available=false
+    restart_mode=''
+  fi
+  active_exists=false; [ -f "$MIHOMO_CONFIG" ] && active_exists=true
+  draft_exists=false; [ -f "$MIHOMO_CFG_DRAFT_FILE" ] && draft_exists=true
+  baseline_exists=false; [ -f "$MIHOMO_CFG_BASELINE_FILE" ] && baseline_exists=true
+  reply_ok "$(printf '{"ok":true,"active":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"draft":{"path":"%s","rev":%s,"updatedAt":"%s","exists":%s,"sizeBytes":%s},"baseline":{"path":"%s","updatedAt":"%s","exists":%s,"sizeBytes":%s},"lastApplyStatus":"%s","lastApplyAt":"%s","lastApplySource":"%s","lastError":"%s","validator":{"available":%s,"bin":"%s"},"restart":{"available":%s,"mode":"%s"}}' \
+    "$(jesc "$MIHOMO_CONFIG")" "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$active_exists" "$(mihomo_cfg_file_size "$MIHOMO_CONFIG")" \
+    "$(jesc "$MIHOMO_CFG_DRAFT_FILE")" "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")" "$draft_exists" "$(mihomo_cfg_file_size "$MIHOMO_CFG_DRAFT_FILE")" \
+    "$(jesc "$MIHOMO_CFG_BASELINE_FILE")" "$(jesc "$mcfg_baselineUpdatedAt")" "$baseline_exists" "$(mihomo_cfg_file_size "$MIHOMO_CFG_BASELINE_FILE")" \
+    "$(jesc "$mcfg_lastApplyStatus")" "$(jesc "$mcfg_lastApplyAt")" "$(jesc "$mcfg_lastApplySource")" "$(jesc "$mcfg_lastError")" \
+    "$validator_available" "$(jesc "$validator_bin")" "$restart_available" "$(jesc "$restart_mode")")"
+}
+
+mihomo_cfg_get_json() {
+  kind="$1"
+  mihomo_cfg_init_if_missing
+  case "$kind" in
+    active)
+      f="$MIHOMO_CONFIG"
+      rev="$mcfg_activeRev"
+      updatedAt="$mcfg_activeUpdatedAt"
+      ;;
+    draft)
+      f="$MIHOMO_CFG_DRAFT_FILE"
+      rev="$mcfg_draftRev"
+      updatedAt="$mcfg_draftUpdatedAt"
+      ;;
+    baseline)
+      f="$MIHOMO_CFG_BASELINE_FILE"
+      rev=''
+      updatedAt="$mcfg_baselineUpdatedAt"
+      ;;
+    *)
+      reply_ok '{"ok":false,"error":"bad-kind"}'
+      return
+      ;;
+  esac
+  [ -f "$f" ] || {
+    reply_ok '{"ok":false,"error":"not-found"}'
+    return
+  }
+  content="$( (head -c 1048576 "$f" 2>/dev/null || cat "$f" 2>/dev/null || printf '') | b64enc )"
+  reply_ok "$(printf '{"ok":true,"kind":"%s","path":"%s","rev":%s,"updatedAt":"%s","contentB64":"%s"}' "$(jesc "$kind")" "$(jesc "$f")" "${rev:-0}" "$(jesc "$updatedAt")" "$content")"
+}
+
+mihomo_cfg_put_json() {
+  kind="$1"
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  [ "$kind" = 'draft' ] || { reply_ok '{"ok":false,"error":"bad-kind"}'; return; }
+  mihomo_cfg_init_if_missing
+  mihomo_cfg_lock_acquire || { reply_ok '{"ok":false,"error":"busy"}'; return; }
+  body=''
+  if [ -n "$CONTENT_LENGTH" ] && echo "$CONTENT_LENGTH" | grep -qE '^[0-9]+$'; then
+    body="$(head -c "$CONTENT_LENGTH" 2>/dev/null || dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null || true)"
+  else
+    body="$(cat 2>/dev/null || true)"
+  fi
+  sz="$(printf '%s' "$body" | wc -c 2>/dev/null || echo 0)"
+  echo "$sz" | grep -qE '^[0-9]+$' || sz=0
+  if [ "$sz" -gt 1048576 ]; then
+    mihomo_cfg_lock_release
+    reply_ok '{"ok":false,"error":"too-large"}'
+    return
+  fi
+  tmp="$MIHOMO_CFG_DRAFT_FILE.tmp.$$"
+  printf '%s' "$body" > "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$MIHOMO_CFG_DRAFT_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mcfg_draftRev=$((mcfg_draftRev + 1))
+  mcfg_draftUpdatedAt="$(mihomo_cfg_now_iso)"
+  mcfg_lastError=''
+  mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  mihomo_cfg_lock_release
+  reply_ok "$(printf '{"ok":true,"kind":"draft","rev":%s,"updatedAt":"%s"}' "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")")"
+}
+
+mihomo_cfg_copy_json() {
+  from="$1"
+  to="$2"
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  [ "$to" = 'draft' ] || { reply_ok '{"ok":false,"error":"bad-target"}'; return; }
+  case "$from" in
+    active) src="$MIHOMO_CONFIG" ;;
+    baseline) src="$MIHOMO_CFG_BASELINE_FILE" ;;
+    *) reply_ok '{"ok":false,"error":"bad-source"}'; return ;;
+  esac
+  [ -f "$src" ] || { reply_ok '{"ok":false,"error":"not-found"}'; return; }
+  mihomo_cfg_init_if_missing
+  mihomo_cfg_lock_acquire || { reply_ok '{"ok":false,"error":"busy"}'; return; }
+  tmp="$MIHOMO_CFG_DRAFT_FILE.tmp.$$"
+  cp "$src" "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$MIHOMO_CFG_DRAFT_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mcfg_draftRev=$((mcfg_draftRev + 1))
+  mcfg_draftUpdatedAt="$(mihomo_cfg_now_iso)"
+  mcfg_lastError=''
+  mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  mihomo_cfg_lock_release
+  reply_ok "$(printf '{"ok":true,"from":"%s","to":"%s","rev":%s,"updatedAt":"%s"}' "$(jesc "$from")" "$(jesc "$to")" "$mcfg_draftRev" "$(jesc "$mcfg_draftUpdatedAt")")"
+}
+
+mihomo_cfg_validate_json() {
+  kind="$1"
+  case "$kind" in
+    active) f="$MIHOMO_CONFIG" ;;
+    draft) f="$MIHOMO_CFG_DRAFT_FILE" ;;
+    baseline) f="$MIHOMO_CFG_BASELINE_FILE" ;;
+    *) reply_ok '{"ok":false,"error":"bad-kind"}'; return ;;
+  esac
+  mihomo_cfg_validate_file "$f"
+  ok=false
+  [ "$validate_rc" -eq 0 ] && ok=true
+  reply_ok "$(printf '{"ok":%s,"kind":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$ok" "$(jesc "$kind")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
+}
+
+mihomo_cfg_apply_path() {
+  src="$1"
+  source_name="$2"
+  [ -f "$src" ] || {
+    reply_ok '{"ok":false,"error":"not-found"}'
+    return
+  }
+  mihomo_cfg_init_if_missing
+  mihomo_cfg_lock_acquire || { reply_ok '{"ok":false,"error":"busy"}'; return; }
+  mihomo_cfg_load_meta
+
+  mihomo_cfg_validate_file "$src"
+  if [ "$validate_rc" -ne 0 ]; then
+    mcfg_lastApplyStatus='validate-failed'
+    mcfg_lastApplyAt="$(mihomo_cfg_now_iso)"
+    mcfg_lastApplySource="$source_name"
+    mcfg_lastError="$validate_output"
+    mihomo_cfg_write_meta >/dev/null 2>&1 || true
+    mihomo_cfg_lock_release
+    reply_ok "$(printf '{"ok":false,"error":"validation-failed","source":"%s","cmd":"%s","exitCode":%s,"output":"%s"}' "$(jesc "$source_name")" "$(jesc "$validate_cmd")" "${validate_rc:-1}" "$(jesc "$validate_output")")"
+    return
+  fi
+
+  backup="$MIHOMO_CFG_DIR/active.rollback.yaml"
+  if [ -f "$MIHOMO_CONFIG" ]; then
+    cp "$MIHOMO_CONFIG" "$backup" 2>/dev/null || true
+    mihomo_cfg_snapshot_current >/dev/null 2>&1 || true
+  else
+    rm -f "$backup" 2>/dev/null || true
+  fi
+
+  tmp="$MIHOMO_CONFIG.tmp.$$"
+  cp "$src" "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$MIHOMO_CONFIG" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+
+  mihomo_cfg_restart_core
+  if [ "$restart_rc" -ne 0 ]; then
+    if [ -f "$backup" ]; then
+      cp "$backup" "$MIHOMO_CONFIG" 2>/dev/null || true
+      mihomo_cfg_restart_core
+      if [ "$restart_rc" -eq 0 ]; then
+        mcfg_lastApplyStatus='rolled-back'
+        mcfg_lastApplyAt="$(mihomo_cfg_now_iso)"
+        mcfg_lastApplySource="$source_name"
+        mcfg_lastError='apply-failed-restored-previous'
+        mihomo_cfg_write_meta >/dev/null 2>&1 || true
+        mihomo_cfg_lock_release
+        reply_ok "$(printf '{"ok":false,"error":"apply-failed","restored":"previous-active","restartMethod":"%s","restartOutput":"%s"}' "$(jesc "$restart_method")" "$(jesc "$restart_output")")"
+        return
+      fi
+    fi
+    if [ -f "$MIHOMO_CFG_BASELINE_FILE" ]; then
+      cp "$MIHOMO_CFG_BASELINE_FILE" "$MIHOMO_CONFIG" 2>/dev/null || true
+      mihomo_cfg_restart_core
+      if [ "$restart_rc" -eq 0 ]; then
+        mcfg_activeRev=$((mcfg_activeRev + 1))
+        mcfg_activeUpdatedAt="$(mihomo_cfg_now_iso)"
+        mcfg_lastApplyStatus='restored-baseline'
+        mcfg_lastApplyAt="$mcfg_activeUpdatedAt"
+        mcfg_lastApplySource='baseline'
+        mcfg_lastError='apply-failed-restored-baseline'
+        mihomo_cfg_write_meta >/dev/null 2>&1 || true
+        mihomo_cfg_lock_release
+        reply_ok "$(printf '{"ok":false,"error":"apply-failed","restored":"baseline","rev":%s,"updatedAt":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")")"
+        return
+      fi
+    fi
+    mcfg_lastApplyStatus='failed'
+    mcfg_lastApplyAt="$(mihomo_cfg_now_iso)"
+    mcfg_lastApplySource="$source_name"
+    mcfg_lastError="$restart_output"
+    mihomo_cfg_write_meta >/dev/null 2>&1 || true
+    mihomo_cfg_lock_release
+    reply_ok "$(printf '{"ok":false,"error":"restart-failed","restartMethod":"%s","restartOutput":"%s"}' "$(jesc "$restart_method")" "$(jesc "$restart_output")")"
+    return
+  fi
+
+  mcfg_activeRev=$((mcfg_activeRev + 1))
+  mcfg_activeUpdatedAt="$(mihomo_cfg_now_iso)"
+  mcfg_lastApplyStatus='ok'
+  mcfg_lastApplyAt="$mcfg_activeUpdatedAt"
+  mcfg_lastApplySource="$source_name"
+  mcfg_lastError=''
+  mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  mihomo_cfg_lock_release
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","appliedFrom":"%s","restartMethod":"%s","validateCmd":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$source_name")" "$(jesc "$restart_method")" "$(jesc "$validate_cmd")")"
+}
+
+mihomo_cfg_apply_json() {
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  mihomo_cfg_apply_path "$MIHOMO_CFG_DRAFT_FILE" 'draft'
+}
+
+mihomo_cfg_set_baseline_from_active_json() {
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  [ -f "$MIHOMO_CONFIG" ] || { reply_ok '{"ok":false,"error":"config-not-found"}'; return; }
+  mihomo_cfg_init_if_missing
+  mihomo_cfg_lock_acquire || { reply_ok '{"ok":false,"error":"busy"}'; return; }
+  tmp="$MIHOMO_CFG_BASELINE_FILE.tmp.$$"
+  cp "$MIHOMO_CONFIG" "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mv -f "$tmp" "$MIHOMO_CFG_BASELINE_FILE" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; mihomo_cfg_lock_release; reply_ok '{"ok":false,"error":"write-failed"}'; return; }
+  mcfg_baselineUpdatedAt="$(mihomo_cfg_now_iso)"
+  mihomo_cfg_write_meta >/dev/null 2>&1 || true
+  mihomo_cfg_lock_release
+  reply_ok "$(printf '{"ok":true,"updatedAt":"%s"}' "$(jesc "$mcfg_baselineUpdatedAt")")"
+}
+
+mihomo_cfg_restore_baseline_json() {
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  mihomo_cfg_apply_path "$MIHOMO_CFG_BASELINE_FILE" 'baseline'
+}
+
+mihomo_cfg_history_json() {
+  mihomo_cfg_init_if_missing
+  printf 'Content-Type: application/json\n'
+  echo "Access-Control-Allow-Origin: *"
+  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
+  echo "Access-Control-Allow-Private-Network: true"
+  echo "Cache-Control: no-store"
+  echo ""
+  printf '{"ok":true,"items":['
+  printf '{"rev":%s,"updatedAt":"%s","current":true,"source":"%s"}' "$mcfg_activeRev" "$(jesc "$mcfg_activeUpdatedAt")" "$(jesc "$mcfg_lastApplySource")"
+  if [ -d "$MIHOMO_CFG_REVS_DIR" ]; then
+    revs="$(ls "$MIHOMO_CFG_REVS_DIR"/rev-*.meta.json 2>/dev/null | sed -nE 's/.*rev-([0-9]+)\.meta\.json/\1/p' | sort -nr)"
+    printf '%s\n' "$revs" | sed '/^$/d' | while read r; do
+      [ -n "$r" ] || continue
+      [ "$r" = "$mcfg_activeRev" ] && continue
+      mihomo_cfg_read_rev_meta "$r"
+      printf ',{"rev":%s,"updatedAt":"%s","current":false,"source":"%s"}' "$r" "$(jesc "$r_updatedAt")" "$(jesc "$r_source")"
+    done
+  fi
+  printf ']}'
+}
+
+mihomo_cfg_get_rev_json() {
+  req_rev="$1"
+  echo "$req_rev" | grep -qE '^[0-9]+$' || req_rev=''
+  [ -n "$req_rev" ] || { reply_ok '{"ok":false,"error":"bad-rev"}'; return; }
+  mihomo_cfg_init_if_missing
+  if [ "$req_rev" = "$mcfg_activeRev" ]; then
+    mihomo_cfg_get_json active
+    return
+  fi
+  f="$MIHOMO_CFG_REVS_DIR/rev-$req_rev.yaml"
+  [ -f "$f" ] || { reply_ok '{"ok":false,"error":"not-found"}'; return; }
+  mihomo_cfg_read_rev_meta "$req_rev"
+  content="$( (head -c 1048576 "$f" 2>/dev/null || cat "$f" 2>/dev/null || printf '') | b64enc )"
+  reply_ok "$(printf '{"ok":true,"rev":%s,"updatedAt":"%s","source":"%s","contentB64":"%s"}' "$req_rev" "$(jesc "$r_updatedAt")" "$(jesc "$r_source")" "$content")"
+}
+
+mihomo_cfg_restore_rev_json() {
+  [ "$REQUEST_METHOD" = "POST" ] || { reply_ok '{"ok":false,"error":"method-not-allowed"}'; return; }
+  req_rev="$1"
+  echo "$req_rev" | grep -qE '^[0-9]+$' || req_rev=''
+  [ -n "$req_rev" ] || { reply_ok '{"ok":false,"error":"bad-rev"}'; return; }
+  f="$MIHOMO_CFG_REVS_DIR/rev-$req_rev.yaml"
+  [ -f "$f" ] || { reply_ok '{"ok":false,"error":"not-found"}'; return; }
+  mihomo_cfg_apply_path "$f" "history:$req_rev"
+}
+
 if [ "$REQUEST_METHOD" = "OPTIONS" ]; then
   reply_ok "{}"
   exit 0
 fi
 
 # Parse query string (key=value&...)
-cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""; enabled_q=""; schedule_q=""; remote_q=""; remotes_q=""; force_q=""; format_q=""; providers_q=""; name_q=""
+cmd=""; ip=""; up=""; down=""; mac=""; ports=""; token_q=""; type=""; lines=""; offset=""; rev_q=""; enabled_q=""; schedule_q=""; remote_q=""; remotes_q=""; force_q=""; format_q=""; providers_q=""; name_q=""; kind_q=""; from_q=""; to_q=""
 IFS='&'
 for kv in $QUERY_STRING; do
   key="${kv%%=*}"
@@ -1957,6 +2500,9 @@ for kv in $QUERY_STRING; do
     format) format_q="$val" ;;
     providers) providers_q="$val" ;;
     name) name_q="$val" ;;
+    kind) kind_q="$val" ;;
+    from) from_q="$val" ;;
+    to) to_q="$val" ;;
   esac
 done
 unset IFS
@@ -2449,7 +2995,8 @@ host_traffic_live_json() {
     function esc(s) {
       gsub(/\/, "\", s)
       gsub(/"/, "\"", s)
-      gsub(//, "", s)
+      gsub(/
+/, "", s)
       gsub(/
 /, " ", s)
       return s
@@ -4476,6 +5023,39 @@ case "$cmd" in
     ;;
   mihomo_config)
     mihomo_config_json
+    ;;
+  mihomo_cfg_state)
+    mihomo_cfg_state_json
+    ;;
+  mihomo_cfg_get)
+    mihomo_cfg_get_json "$kind_q"
+    ;;
+  mihomo_cfg_put)
+    mihomo_cfg_put_json "$kind_q"
+    ;;
+  mihomo_cfg_copy)
+    mihomo_cfg_copy_json "$from_q" "$to_q"
+    ;;
+  mihomo_cfg_validate)
+    mihomo_cfg_validate_json "$kind_q"
+    ;;
+  mihomo_cfg_apply)
+    mihomo_cfg_apply_json
+    ;;
+  mihomo_cfg_set_baseline_from_active)
+    mihomo_cfg_set_baseline_from_active_json
+    ;;
+  mihomo_cfg_restore_baseline)
+    mihomo_cfg_restore_baseline_json
+    ;;
+  mihomo_cfg_history)
+    mihomo_cfg_history_json
+    ;;
+  mihomo_cfg_get_rev)
+    mihomo_cfg_get_rev_json "$rev_q"
+    ;;
+  mihomo_cfg_restore_rev)
+    mihomo_cfg_restore_rev_json "$rev_q"
     ;;
   mihomo_providers)
     mihomo_providers_json

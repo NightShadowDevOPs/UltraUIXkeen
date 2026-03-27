@@ -1,3 +1,11 @@
+## v1.2.75 — safe Mihomo config management foundation
+
+- router-agent 0.6.20: added a dedicated managed-config workflow for Mihomo with router-side draft storage, protected baseline config, validation, apply pipeline, revision history and restore endpoints
+- router-agent 0.6.20: applying a draft now validates the candidate locally, snapshots the previous active config, restarts Mihomo and rolls back to the previous or baseline config on failure
+- Settings → Mihomo Config: upgraded the editor to use the managed draft/baseline flow when router-agent supports it, while keeping the older direct-core fallback mode for plain backends
+- Settings → Mihomo Config: added buttons for Active → Draft, Baseline → Draft, Save draft, Validate draft, Apply draft, Make active baseline, Restore baseline, and applied-history restore
+- docs: updated transfer notes for the new baseline-first config workflow and synced the router-agent version to 0.6.20
+
 ## v1.2.73 — users DB label scope diagnostics
 
 - added visible scope diagnostics for changed IP labels inside users DB conflict UI

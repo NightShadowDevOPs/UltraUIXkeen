@@ -1,16 +1,20 @@
-UI Mihomo / Ultra — transfer update v1.2.73
+UI Mihomo / Ultra — transfer update v1.2.75
 
 Что изменилось в этом релизе:
-- users DB conflict UI для IP labels теперь показывает не только label, но и scope
-- в winner/result по labels видно, какая область действия правила реально победила и уйдёт на роутер
-- в smart merge для labels router/local значения теперь показываются вместе со scope по backend'ам
-- в режиме custom для labels явно видно, что меняется только label, а scope остаётся локальным
-- details и exported conflict preview теперь тоже scope-aware по labels
-- router-agent в этом релизе не менялся
+- добавлен безопасный контур управления `config.yaml` через router-agent: отдельный черновик на роутере, отдельный эталонный конфиг, история ревизий активного конфига
+- в редакторе конфига в Настройках появился managed-режим: Active → Draft, Baseline → Draft, Save draft, Validate draft, Apply draft, Make active baseline, Restore baseline, Restore revision
+- применение черновика теперь идёт через pipeline: validate → snapshot current active → write config.yaml → restart Mihomo → rollback на предыдущий active или fallback на baseline при ошибке
+- если managed-команды router-agent недоступны, редактор остаётся в старом direct/fallback-режиме и не ломает обычные backend'ы
 
 Текущие версии:
-- UI: v1.2.73
-- router-agent: 0.6.19
+- UI: v1.2.75
+- router-agent: 0.6.20
+
+Что важно по новой логике:
+- эталонный конфиг хранится отдельно и не перезаписывается обычным сохранением черновика
+- baseline меняется только отдельным действием “Make active baseline”
+- при неудачном применении сначала идёт откат на предыдущий active, затем fallback на baseline
+- первый этап пока без визуального конструктора YAML: основа — безопасное хранение, проверка, применение и восстановление
 
 Следующий логичный шаг:
-- отдельным безопасным патчем дочистить остаточный host-traffic / Broken pipe log noise, уже не трогая рабочий CGI/status путь агента
+- добавить diff/sравнение active vs draft vs baseline и аккуратный просмотр причин отката/результата validate прямо в UI
