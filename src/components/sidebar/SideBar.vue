@@ -23,28 +23,40 @@
           </button>
         </li>
 
-        <li
-          v-for="r in renderRoutes"
-          :key="r"
-          @mouseenter="(e) => mouseenterHandler(e, r)"
+        <template
+          v-for="section in navSections"
+          :key="section.key"
         >
-          <a
-            :class="[
-              r === route.name ? activeNavClass : inactiveNavClass,
-              isSidebarCollapsed && 'justify-center',
-              'py-2 rounded-xl transition-all',
-            ]"
-            @click.passive="() => router.push({ name: r })"
+          <li
+            v-if="!isSidebarCollapsed"
+            class="menu-title px-3 pt-4 pb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-base-content/45"
           >
-            <component
-              :is="ROUTE_ICON_MAP[r]"
-              class="h-5 w-5"
-            />
-            <template v-if="!isSidebarCollapsed">
-              {{ $t(r) }}
-            </template>
-          </a>
-        </li>
+            <span>{{ $t(section.key) }}</span>
+          </li>
+
+          <li
+            v-for="r in section.routes"
+            :key="r"
+            @mouseenter="(e) => mouseenterHandler(e, r)"
+          >
+            <a
+              :class="[
+                r === route.name ? activeNavClass : inactiveNavClass,
+                isSidebarCollapsed && 'justify-center',
+                'py-2 rounded-xl transition-all',
+              ]"
+              @click.passive="() => router.push({ name: r })"
+            >
+              <component
+                :is="ROUTE_ICON_MAP[r]"
+                class="h-5 w-5"
+              />
+              <template v-if="!isSidebarCollapsed">
+                {{ $t(r) }}
+              </template>
+            </a>
+          </li>
+        </template>
       </ul>
       <template v-if="isSidebarCollapsed">
         <VerticalInfos v-if="showStatisticsWhenSidebarCollapsed" />
@@ -134,7 +146,7 @@ import CommonSidebar from '@/components/sidebar/CommonCtrl.vue'
 import { useUiBuild } from '@/composables/uiBuild'
 import { zashboardVersion } from '@/api'
 import { ROUTE_ICON_MAP, ROUTE_NAME } from '@/constant'
-import { renderRoutes } from '@/helper'
+import { navSections } from '@/helper'
 import { useTooltip } from '@/helper/tooltip'
 import router from '@/router'
 import { isSidebarCollapsed, showStatisticsWhenSidebarCollapsed } from '@/store/settings'

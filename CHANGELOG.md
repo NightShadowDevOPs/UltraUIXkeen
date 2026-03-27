@@ -1,3 +1,11 @@
+## v1.2.76 — Mihomo section + navigation audit foundation
+
+- navigation: split the desktop sidebar into logical groups (Monitor, Network & Mihomo, Management) instead of one long flat list
+- navigation: added a dedicated top-level Mihomo section and moved the config editor out of Settings into its own workspace
+- Mihomo: new page with quick links to runtime/providers/rules plus the managed config editor in one focused area
+- Settings: reorganized the page into grouped subsections (Interface, Backends, Traffic & labels, Pages & cards) and added quick-jump buttons
+- docs: updated transfer notes and added a navigation audit note so future cleanup can continue from the same information architecture baseline
+
 ## v1.2.75 — safe Mihomo config management foundation
 
 - router-agent 0.6.20: added a dedicated managed-config workflow for Mihomo with router-side draft storage, protected baseline config, validation, apply pipeline, revision history and restore endpoints

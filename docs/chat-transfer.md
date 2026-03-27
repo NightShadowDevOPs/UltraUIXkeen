@@ -1,20 +1,20 @@
-UI Mihomo / Ultra — transfer update v1.2.75
+UI Mihomo / Ultra — transfer update v1.2.76
 
 Что изменилось в этом релизе:
-- добавлен безопасный контур управления `config.yaml` через router-agent: отдельный черновик на роутере, отдельный эталонный конфиг, история ревизий активного конфига
-- в редакторе конфига в Настройках появился managed-режим: Active → Draft, Baseline → Draft, Save draft, Validate draft, Apply draft, Make active baseline, Restore baseline, Restore revision
-- применение черновика теперь идёт через pipeline: validate → snapshot current active → write config.yaml → restart Mihomo → rollback на предыдущий active или fallback на baseline при ошибке
-- если managed-команды router-agent недоступны, редактор остаётся в старом direct/fallback-режиме и не ломает обычные backend'ы
+- редактор конфига Mihomo вынесен из Settings в отдельный верхнеуровневый раздел `Mihomo`
+- левое меню разбито на логические группы: Monitor / Network & Mihomo / Management
+- страница Settings разгружена и собрана в подблоки с быстрыми переходами: Interface / Backends / Traffic & labels / Pages & cards
+- новый раздел Mihomo стал точкой входа для config workflow и быстрых переходов к runtime/providers/rules
+- safe managed config flow из v1.2.75 сохранён без изменения router-agent версии
 
 Текущие версии:
-- UI: v1.2.75
+- UI: v1.2.76
 - router-agent: 0.6.20
 
-Что важно по новой логике:
-- эталонный конфиг хранится отдельно и не перезаписывается обычным сохранением черновика
-- baseline меняется только отдельным действием “Make active baseline”
-- при неудачном применении сначала идёт откат на предыдущий active, затем fallback на baseline
-- первый этап пока без визуального конструктора YAML: основа — безопасное хранение, проверка, применение и восстановление
+Что важно по новой навигации:
+- `Mihomo` теперь отдельный рабочий раздел, а не карточка внутри Settings
+- Settings теперь держит только UI/поведение и связанные display-настройки
+- sidebar уже разбит на смысловые группы, но это только первый этап audit/refactor
 
 Следующий логичный шаг:
-- добавить diff/sравнение active vs draft vs baseline и аккуратный просмотр причин отката/результата validate прямо в UI
+- решить, делать ли внутри Mihomo полноценные подразделы Runtime / Config / Providers / Rules и отдельно переработать мобильную навигацию

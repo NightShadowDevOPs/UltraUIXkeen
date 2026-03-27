@@ -133,18 +133,53 @@ export const getColorForLatency = (latency: number) => {
 export const renderRoutes = computed(() => {
   return [
     ROUTE_NAME.overview,
+    ROUTE_NAME.router,
+    ROUTE_NAME.traffic,
+    ROUTE_NAME.connections,
+    ROUTE_NAME.logs,
     ROUTE_NAME.proxies,
     ROUTE_NAME.proxyProviders,
     ROUTE_NAME.subscriptions,
-    ROUTE_NAME.router,
-    ROUTE_NAME.traffic,
-    ROUTE_NAME.tasks,
-    ROUTE_NAME.connections,
-    ROUTE_NAME.logs,
     ROUTE_NAME.rules,
+    ROUTE_NAME.mihomo,
+    ROUTE_NAME.tasks,
     ROUTE_NAME.users,
     ROUTE_NAME.policies,
     ROUTE_NAME.settings,
+  ]
+})
+
+export const navSections = computed(() => {
+  return [
+    {
+      key: 'navSectionMonitor',
+      routes: [
+        ROUTE_NAME.overview,
+        ROUTE_NAME.router,
+        ROUTE_NAME.traffic,
+        ROUTE_NAME.connections,
+        ROUTE_NAME.logs,
+      ],
+    },
+    {
+      key: 'navSectionNetwork',
+      routes: [
+        ROUTE_NAME.proxies,
+        ROUTE_NAME.proxyProviders,
+        ROUTE_NAME.subscriptions,
+        ROUTE_NAME.rules,
+        ROUTE_NAME.mihomo,
+      ],
+    },
+    {
+      key: 'navSectionManagement',
+      routes: [
+        ROUTE_NAME.tasks,
+        ROUTE_NAME.users,
+        ROUTE_NAME.policies,
+        ROUTE_NAME.settings,
+      ],
+    },
   ]
 })
 

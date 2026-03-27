@@ -11,6 +11,7 @@ import {
   ClipboardDocumentListIcon,
   LinkIcon,
   ChartBarSquareIcon,
+  CommandLineIcon,
 } from '@heroicons/vue/24/outline'
 
 export const IS_APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
@@ -138,6 +139,7 @@ export enum ROUTE_NAME {
   rules = 'rules',
   users = 'users',
   policies = 'policies',
+  mihomo = 'mihomo',
   settings = 'settings',
   setup = 'setup',
 }
@@ -155,6 +157,7 @@ export const ROUTE_ICON_MAP = {
   [ROUTE_NAME.logs]: DocumentTextIcon,
   [ROUTE_NAME.users]: UserGroupIcon,
   [ROUTE_NAME.policies]: ClipboardDocumentListIcon,
+  [ROUTE_NAME.mihomo]: CommandLineIcon,
   [ROUTE_NAME.settings]: Cog6ToothIcon,
   [ROUTE_NAME.setup]: CubeTransparentIcon,
 }
