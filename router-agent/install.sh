@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.16"
+AGENT_VERSION="0.6.17"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -122,7 +122,7 @@ USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
 USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.16"
+AGENT_VERSION="0.6.17"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2275,30 +2275,6 @@ read_conntrack_table() {
   return 0
 }
 
-new_tmp_file() {
-  prefix="$1"
-  [ -n "$prefix" ] || prefix="zash_tmp"
-  mkdir -p /tmp >/dev/null 2>&1 || true
-  if command -v mktemp >/dev/null 2>&1; then
-    tmp_path="$(mktemp "/tmp/${prefix}.XXXXXX" 2>/dev/null || true)"
-    if [ -n "$tmp_path" ]; then
-      printf '%s
-' "$tmp_path"
-      return 0
-    fi
-  fi
-  printf '/tmp/%s.%s.%s
-' "$prefix" "$$" "$(date +%s 2>/dev/null || echo 0)"
-}
-
-ensure_tmp_file() {
-  tmp_path="$1"
-  [ -n "$tmp_path" ] || return 1
-  mkdir -p /tmp >/dev/null 2>&1 || true
-  : > "$tmp_path" 2>/dev/null || touch "$tmp_path" 2>/dev/null || return 1
-  [ -f "$tmp_path" ]
-}
-
 collect_routed_tunnel_hosts_tsv() {
   out_file="$1"
   [ -n "$out_file" ] || return 1
@@ -2360,19 +2336,14 @@ collect_routed_tunnel_hosts_tsv() {
 collect_tracked_hosts_tsv() {
   out_file="$1"
   [ -n "$out_file" ] || return 1
-  ensure_tmp_file "$out_file" || return 1
 
-  lan_tmp="$(new_tmp_file zash_tracked_lan_hosts)"
-  routed_tmp="$(new_tmp_file zash_tracked_routed_hosts)"
-  [ -n "$lan_tmp" ] || lan_tmp="/tmp/zash_tracked_lan_hosts.$$"
-  [ -n "$routed_tmp" ] || routed_tmp="/tmp/zash_tracked_routed_hosts.$$"
-  ensure_tmp_file "$lan_tmp" || return 1
-  ensure_tmp_file "$routed_tmp" || { rm -f "$lan_tmp" 2>/dev/null || true; return 1; }
+  lan_tmp="/tmp/zash_tracked_lan_hosts.$$"
+  routed_tmp="/tmp/zash_tracked_routed_hosts.$$"
 
   collect_lan_hosts_tsv "$lan_tmp"
   collect_routed_tunnel_hosts_tsv "$routed_tmp"
 
-  awk -F'	' '
+  awk -F'\t' '
     FNR == NR {
       if ($1 != "") {
         mac[$1] = $2
@@ -2391,11 +2362,10 @@ collect_tracked_hosts_tsv() {
       }
     }
     END {
-      for (ip in src) print ip "	" mac[ip] "	" host[ip] "	" src[ip] "	" order[ip]
+      for (ip in src) print ip "\t" mac[ip] "\t" host[ip] "\t" src[ip] "\t" order[ip]
     }
-  ' "$lan_tmp" "$routed_tmp" 2>/dev/null | sort -t'	' -k5,5n -k1,1 | awk -F'	' '{print $1 "	" $2 "	" $3 "	" $4}' > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+  ' "$lan_tmp" "$routed_tmp" 2>/dev/null | sort -t'\t' -k5,5n -k1,1 | awk -F'\t' '{print $1 "\t" $2 "\t" $3 "\t" $4}' > "$out_file" 2>/dev/null || true
 
-  [ -f "$out_file" ] || ensure_tmp_file "$out_file" || true
   rm -f "$lan_tmp" "$routed_tmp" 2>/dev/null || true
 }
 
@@ -2403,11 +2373,10 @@ host_traffic_sync_rules() {
   ensure_host_traffic_chains
   mkdir -p /tmp >/dev/null 2>&1 || true
 
-  hosts_tmp="$(new_tmp_file zash_host_traffic_hosts)"
-  [ -n "$hosts_tmp" ] || hosts_tmp="/tmp/zash_host_traffic_hosts.$$.$(date +%s 2>/dev/null || echo 0)"
-  ensure_tmp_file "$hosts_tmp" || return 0
-  collect_tracked_hosts_tsv "$hosts_tmp" || ensure_tmp_file "$hosts_tmp" || return 0
-  [ -f "$hosts_tmp" ] || ensure_tmp_file "$hosts_tmp" || return 0
+  hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
+  : > "$hosts_tmp" 2>/dev/null || true
+  collect_tracked_hosts_tsv "$hosts_tmp"
+  [ -f "$hosts_tmp" ] || : > "$hosts_tmp" 2>/dev/null || true
   extra_ifaces="$(list_extra_traffic_ifaces 2>/dev/null | tr '
 ' ' ')"
 
@@ -2415,8 +2384,6 @@ host_traffic_sync_rules() {
     rm -f "$hosts_tmp" 2>/dev/null || true
     return 0
   fi
-
-  [ -r "$hosts_tmp" ] || { rm -f "$hosts_tmp" 2>/dev/null || true; return 0; }
 
   while IFS='	' read -r ip_ mac_ host_ src_; do
     printf '%s' "$ip_" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || continue
@@ -2489,24 +2456,19 @@ host_traffic_live_json() {
   mkdir -p /tmp >/dev/null 2>&1 || true
   host_traffic_sync_rules
 
-  hosts_tmp="$(new_tmp_file zash_host_traffic_hosts)"
-  raw_tmp="$(new_tmp_file zash_host_traffic_raw)"
-  current_tmp="$(new_tmp_file zash_host_traffic_current)"
-  [ -n "$hosts_tmp" ] || hosts_tmp="/tmp/zash_host_traffic_hosts.$$.$(date +%s 2>/dev/null || echo 0)"
-  [ -n "$raw_tmp" ] || raw_tmp="/tmp/zash_host_traffic_raw.$$.$(date +%s 2>/dev/null || echo 0)"
-  [ -n "$current_tmp" ] || current_tmp="/tmp/zash_host_traffic_current.$$.$(date +%s 2>/dev/null || echo 0)"
+  hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
+  raw_tmp="/tmp/zash_host_traffic_raw.$$"
+  current_tmp="/tmp/zash_host_traffic_current.$$"
   prev_tmp="$HOST_TRAFFIC_STATE_FILE"
   prev_ts_file="$HOST_TRAFFIC_TS_FILE"
 
-  ensure_tmp_file "$hosts_tmp" || { reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  ensure_tmp_file "$raw_tmp" || { rm -f "$hosts_tmp" 2>/dev/null || true; reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  ensure_tmp_file "$current_tmp" || { rm -f "$hosts_tmp" "$raw_tmp" 2>/dev/null || true; reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  collect_tracked_hosts_tsv "$hosts_tmp" || ensure_tmp_file "$hosts_tmp" || true
+  : > "$hosts_tmp" 2>/dev/null || true
+  : > "$raw_tmp" 2>/dev/null || true
+  : > "$current_tmp" 2>/dev/null || true
+  collect_tracked_hosts_tsv "$hosts_tmp"
   host_traffic_collect_bytes_tsv "$raw_tmp"
-  [ -f "$hosts_tmp" ] || ensure_tmp_file "$hosts_tmp" || true
-  [ -f "$raw_tmp" ] || ensure_tmp_file "$raw_tmp" || true
-  [ -r "$hosts_tmp" ] || ensure_tmp_file "$hosts_tmp" || true
-  [ -r "$raw_tmp" ] || ensure_tmp_file "$raw_tmp" || true
+  [ -f "$hosts_tmp" ] || : > "$hosts_tmp" 2>/dev/null || true
+  [ -f "$raw_tmp" ] || : > "$raw_tmp" 2>/dev/null || true
 
   awk -F'	' '
     FNR==NR {
@@ -2531,11 +2493,10 @@ host_traffic_live_json() {
         print ip "	"           (data[ip SUBSEP "bypassDownBytes"] + 0) "	"           (data[ip SUBSEP "bypassUpBytes"] + 0) "	"           (data[ip SUBSEP "vpnDownBytes"] + 0) "	"           (data[ip SUBSEP "vpnUpBytes"] + 0) "	"           host_mac[ip] "	" host_name[ip] "	" host_src[ip];
       }
     }
-  ' "$hosts_tmp" "$raw_tmp" 2>/dev/null | sort > "$current_tmp" 2>/dev/null || ensure_tmp_file "$current_tmp" || true
+  ' "$hosts_tmp" "$raw_tmp" 2>/dev/null | sort > "$current_tmp" 2>/dev/null || true
 
   now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
-  prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '
- ' || true)"
+  prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '\r\n ' || true)"
   echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
   if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
     dt_ms=$((now_ms - prev_ms))
@@ -2554,12 +2515,10 @@ host_traffic_live_json() {
   items_json="$(awk -F'	' -v dt="$dt_sec" '
     function clamp(v) { return (v < 0 ? 0 : v) }
     function esc(s) {
-      gsub(/\/, "\", s)
-      gsub(/"/, "\"", s)
-      gsub(/
-/, "", s)
-      gsub(/
-/, " ", s)
+      gsub(/\\/, "\\\\", s)
+      gsub(/"/, "\\"", s)
+      gsub(/\r/, "", s)
+      gsub(/\n/, " ", s)
       return s
     }
     FNR==NR {
@@ -2581,7 +2540,7 @@ host_traffic_live_json() {
       if (totalDownBps + totalUpBps <= 1 && bd + bu + vd + vu <= 0) next;
       if (first == 0) printf ",";
       first = 0;
-      printf "{"ip":"%s","mac":"%s","hostname":"%s","source":"%s","bypassDownBps":%.3f,"bypassUpBps":%.3f,"vpnDownBps":%.3f,"vpnUpBps":%.3f,"totalDownBps":%.3f,"totalUpBps":%.3f}",         esc(ip), esc(mac), esc(host), esc(src), bypassDownBps, bypassUpBps, vpnDownBps, vpnUpBps, totalDownBps, totalUpBps;
+      printf "{\"ip\":\"%s\",\"mac\":\"%s\",\"hostname\":\"%s\",\"source\":\"%s\",\"bypassDownBps\":%.3f,\"bypassUpBps\":%.3f,\"vpnDownBps\":%.3f,\"vpnUpBps\":%.3f,\"totalDownBps\":%.3f,\"totalUpBps\":%.3f}",         esc(ip), esc(mac), esc(host), esc(src), bypassDownBps, bypassUpBps, vpnDownBps, vpnUpBps, totalDownBps, totalUpBps;
     }
   ' "$prev_input" "$current_tmp" 2>/dev/null)"
 
@@ -4668,6 +4627,7 @@ case "$cmd" in
     ;;
   *) reply_ok '{"ok":false,"error":"unknown-cmd"}' ;;
 esac
+
 EOF
 
 chmod +x "$AGENT_DIR/www/cgi-bin/api.sh"

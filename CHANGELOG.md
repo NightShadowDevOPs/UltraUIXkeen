@@ -1,3 +1,10 @@
+## v1.2.70 - 2026-03-27
+
+- router-agent: rollback from broken 0.6.16 payload to clean working baseline and republish as 0.6.17
+- keeps the safe fixes that already worked in the stable agent path: missing read_conntrack_table helper, non-blocking rehydrate on startup, and harder stale uhttpd cleanup on restart
+- intentionally drops the broken host-traffic temp-file changes from v1.2.68-v1.2.69 that produced shell syntax errors on the router
+- notes remaining known issue: host-traffic temp-file log noise will be fixed in a separate follow-up after a clean baseline is restored
+
 ## v1.2.69 — 2026-03-27
 - router-agent 0.6.16: replace malformed 0.6.15 hotfix with clean host-traffic temp-file guards based on the stable 0.6.14 agent body
 - router-agent 0.6.16: add dedicated temp-file helpers for tracked hosts/live traffic and restore valid generated api.sh in install.sh

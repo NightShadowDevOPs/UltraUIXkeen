@@ -89,7 +89,14 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 - следующим шагом логично сделать компактный diff/preview по scope у IP labels, чтобы в конфликте было видно не только label, но и расхождение по области действия правила
 
 
-Hotfix note (v1.2.69 / router-agent 0.6.16)
+Hotfix note (v1.2.70 / router-agent 0.6.16)
 - fixed missing read_conntrack_table() helper in router-agent host traffic logic
 - startup rehydrate now runs in background with a 5 second timeout
 - init stop now also clears stale uhttpd / api.sh processes when the pid file is stale
+
+
+## 2026-03-27 update (v1.2.70)
+
+- Router-agent v1.2.68-v1.2.69 host-traffic hotfix path was rolled back after shell syntax errors on the router.
+- Agent is republished as 0.6.17 on the last clean working payload baseline.
+- Remaining host-traffic temp-file log noise is intentionally deferred to the next safe iteration.
