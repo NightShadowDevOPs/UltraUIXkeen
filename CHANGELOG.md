@@ -1,3 +1,9 @@
+## v1.2.66 / router-agent 0.6.13
+- fixed missing `read_conntrack_table()` helper in bundled router-agent host traffic logic, which could break `traffic_live` / tracked hosts flow and hang CGI requests
+- made startup `rehydrate` non-blocking and added a 5 second timeout so manual `start` / `restart` no longer waits on a stuck warm-up call
+- hardened `S99zash-agent stop` to kill stale `uhttpd` / lingering `api.sh` processes when the pid file is stale
+- updated transfer docs for the router-agent hotfix release
+
 ## v1.2.65 (2026-03-26)
 
 ### UI Mihomo / Ultra

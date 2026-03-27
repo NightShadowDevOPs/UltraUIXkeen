@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.12"
+AGENT_VERSION="0.6.13"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -122,7 +122,7 @@ USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
 USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.12"
+AGENT_VERSION="0.6.13"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2257,6 +2257,22 @@ route_site_source_for_ip() {
   esac
 
   printf '%s' "$source"
+}
+
+read_conntrack_table() {
+  if [ -r /proc/net/nf_conntrack ]; then
+    cat /proc/net/nf_conntrack 2>/dev/null
+    return 0
+  fi
+  if [ -r /proc/net/ip_conntrack ]; then
+    cat /proc/net/ip_conntrack 2>/dev/null
+    return 0
+  fi
+  if command -v conntrack >/dev/null 2>&1; then
+    conntrack -L 2>/dev/null || true
+    return 0
+  fi
+  return 0
 }
 
 collect_routed_tunnel_hosts_tsv() {
@@ -5563,7 +5579,9 @@ echo $! > "$PID_FILE"
 HOST="$BIND_IP"
 [ "$HOST" = "0.0.0.0" ] && HOST="127.0.0.1"
 sleep 1
-(wget -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 || busybox wget -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 || true)
+(
+  wget -T 5 -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 ||   busybox wget -T 5 -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 ||   true
+) &
 
 EOF
 
@@ -5584,6 +5602,10 @@ case "$1" in
       kill "$pid" 2>/dev/null || true
       rm -f "$PID_FILE"
     fi
+    killall uhttpd 2>/dev/null || true
+    ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
+      kill "$p" 2>/dev/null || true
+    done
     # Remove firewall allow rule (best effort)
     ENV_FILE="/opt/zash-agent/agent.env"
     [ -f "$ENV_FILE" ] && . "$ENV_FILE"

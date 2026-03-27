@@ -9,7 +9,7 @@ What changed in this rebuild:
 
 Current versions:
 - UI: v1.2.65
-- router-agent: 0.6.12
+- router-agent: 0.6.13
 
 13.03.2026 UI Mihomo / Ultra — сообщение для нового чата (вставь целиком)
 
@@ -21,7 +21,7 @@ Current versions:
 
 Текущие версии:
 - UI: v1.2.65
-- router-agent: 0.6.12
+- router-agent: 0.6.13
 
 Правила по проекту:
 - всегда отдавать архив релиза
@@ -87,3 +87,9 @@ wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=traffic_live"
 
 Следующий логичный шаг:
 - следующим шагом логично сделать компактный diff/preview по scope у IP labels, чтобы в конфликте было видно не только label, но и расхождение по области действия правила
+
+
+Hotfix note (v1.2.66 / router-agent 0.6.13)
+- fixed missing read_conntrack_table() helper in router-agent host traffic logic
+- startup rehydrate now runs in background with a 5 second timeout
+- init stop now also clears stale uhttpd / api.sh processes when the pid file is stale
