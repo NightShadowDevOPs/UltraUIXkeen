@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.13"
+AGENT_VERSION="0.6.14"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -122,7 +122,7 @@ USERS_DB_META="${USERS_DB_META:-/opt/zash-agent/var/users-db.meta.json}"
 USERS_DB_REVS_DIR="${USERS_DB_REVS_DIR:-/opt/zash-agent/var/users-db.revs}"
 USERS_DB_REVS_MAX="${USERS_DB_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.13"
+AGENT_VERSION="0.6.14"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2371,11 +2371,19 @@ collect_tracked_hosts_tsv() {
 
 host_traffic_sync_rules() {
   ensure_host_traffic_chains
+  mkdir -p /tmp >/dev/null 2>&1 || true
 
   hosts_tmp="/tmp/zash_host_traffic_hosts.$$"
+  : > "$hosts_tmp" 2>/dev/null || true
   collect_tracked_hosts_tsv "$hosts_tmp"
+  [ -f "$hosts_tmp" ] || : > "$hosts_tmp" 2>/dev/null || true
   extra_ifaces="$(list_extra_traffic_ifaces 2>/dev/null | tr '
 ' ' ')"
+
+  if [ ! -s "$hosts_tmp" ]; then
+    rm -f "$hosts_tmp" 2>/dev/null || true
+    return 0
+  fi
 
   while IFS='	' read -r ip_ mac_ host_ src_; do
     printf '%s' "$ip_" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' || continue
@@ -2454,8 +2462,13 @@ host_traffic_live_json() {
   prev_tmp="$HOST_TRAFFIC_STATE_FILE"
   prev_ts_file="$HOST_TRAFFIC_TS_FILE"
 
+  : > "$hosts_tmp" 2>/dev/null || true
+  : > "$raw_tmp" 2>/dev/null || true
+  : > "$current_tmp" 2>/dev/null || true
   collect_tracked_hosts_tsv "$hosts_tmp"
   host_traffic_collect_bytes_tsv "$raw_tmp"
+  [ -f "$hosts_tmp" ] || : > "$hosts_tmp" 2>/dev/null || true
+  [ -f "$raw_tmp" ] || : > "$raw_tmp" 2>/dev/null || true
 
   awk -F'	' '
     FNR==NR {

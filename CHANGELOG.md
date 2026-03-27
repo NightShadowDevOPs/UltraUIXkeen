@@ -1,4 +1,9 @@
-## v1.2.66 / router-agent 0.6.13
+## v1.2.67 — 2026-03-27
+- router-agent 0.6.14: quiet host-traffic temp-file handling to avoid /tmp/zash_host_traffic_hosts.* log spam when tracked host snapshot is empty or unavailable
+- router-agent 0.6.14: pre-create and guard host traffic temp files in sync/live paths
+- docs: update transfer notes for router-agent 0.6.14 hotfix
+
+## v1.2.67 / router-agent 0.6.14
 - fixed missing `read_conntrack_table()` helper in bundled router-agent host traffic logic, which could break `traffic_live` / tracked hosts flow and hang CGI requests
 - made startup `rehydrate` non-blocking and added a 5 second timeout so manual `start` / `restart` no longer waits on a stuck warm-up call
 - hardened `S99zash-agent stop` to kill stale `uhttpd` / lingering `api.sh` processes when the pid file is stale
