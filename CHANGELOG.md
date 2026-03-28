@@ -1,3 +1,19 @@
+## [1.2.86] (2026-03-28)
+
+### Features
+
+- Mihomo config workspace: expand the quick editor to common scalar fields inside `tun` and `dns` without replacing raw YAML editing
+- Quick editor now reads, previews and writes `tun.enable`, `tun.stack`, `tun.auto-route`, `tun.auto-detect-interface`, `dns.enable`, `dns.ipv6`, `dns.listen`, and `dns.enhanced-mode`
+- The form still touches only common scalar keys; nameserver/fallback lists, complex nested blocks and router-agent safe apply/rollback flow stay unchanged on 0.6.22
+
+## [1.2.85] (2026-03-27)
+
+### Features
+
+- Mihomo config workspace: add a structured quick-editor preview for pending top-level changes before they are written back into the YAML editor
+- Preview now shows what will be added, changed or removed for common keys and groups the impact by Mihomo areas such as runtime, network access, controller and ports
+- router-agent stays on 0.6.22; the new preview remains UI-only and keeps the safe managed apply/rollback flow unchanged
+
 ## [1.2.84] (2026-03-27)
 
 ### Features

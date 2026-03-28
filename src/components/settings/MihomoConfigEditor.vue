@@ -431,8 +431,143 @@
                   </div>
                 </div>
 
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configQuickEditorTunTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configQuickEditorTunTip') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorTunEnable') }}</span>
+                        <select v-model="quickEditor.tunEnable" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorTunStack') }}</span>
+                        <select v-model="quickEditor.tunStack" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="system">system</option>
+                          <option value="mixed">mixed</option>
+                          <option value="gvisor">gvisor</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorTunAutoRoute') }}</span>
+                        <select v-model="quickEditor.tunAutoRoute" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorTunAutoDetectInterface') }}</span>
+                        <select v-model="quickEditor.tunAutoDetectInterface" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configQuickEditorDnsTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configQuickEditorDnsTip') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorDnsEnable') }}</span>
+                        <select v-model="quickEditor.dnsEnable" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorDnsIpv6') }}</span>
+                        <select v-model="quickEditor.dnsIpv6" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">{{ $t('enabled') }}</option>
+                          <option value="false">{{ $t('disabled') }}</option>
+                        </select>
+                      </label>
+                      <label class="form-control md:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorDnsListen') }}</span>
+                        <input v-model="quickEditor.dnsListen" type="text" class="input input-sm" :placeholder="$t('configQuickEditorDnsListenPlaceholder')" />
+                      </label>
+                      <label class="form-control md:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configQuickEditorDnsEnhancedMode') }}</span>
+                        <select v-model="quickEditor.dnsEnhancedMode" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="redir-host">redir-host</option>
+                          <option value="fake-ip">fake-ip</option>
+                          <option value="normal">normal</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ $t('configQuickEditorPreviewTitle') }}</div>
+                      <div class="opacity-70">{{ $t('configQuickEditorPreviewTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-success badge-outline">{{ $t('configQuickEditorPreviewAdded', { count: quickEditorPreviewSummary.added }) }}</span>
+                      <span class="badge badge-warning badge-outline">{{ $t('configQuickEditorPreviewChanged', { count: quickEditorPreviewSummary.changed }) }}</span>
+                      <span class="badge badge-error badge-outline">{{ $t('configQuickEditorPreviewRemoved', { count: quickEditorPreviewSummary.removed }) }}</span>
+                    </div>
+                  </div>
+
+                  <div v-if="!quickEditorPreviewChanges.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configQuickEditorPreviewNoChanges') }}
+                  </div>
+
+                  <div v-else class="space-y-3">
+                    <div class="flex flex-wrap gap-2">
+                      <span class="badge badge-outline">{{ $t('configQuickEditorPreviewTotal', { count: quickEditorPreviewChanges.length }) }}</span>
+                      <span
+                        v-for="group in quickEditorAffectedGroups"
+                        :key="group"
+                        class="badge badge-ghost"
+                      >
+                        {{ previewGroupLabel(group) }}
+                      </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2 xl:grid-cols-2">
+                      <div
+                        v-for="item in quickEditorPreviewChanges"
+                        :key="item.key"
+                        class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"
+                      >
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <div class="font-semibold">{{ previewFieldLabel(item.key) }}</div>
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="badge" :class="previewChangeBadgeClass(item.changeType)">{{ previewChangeTypeText(item.changeType) }}</span>
+                            <span class="badge badge-ghost">{{ previewGroupLabel(item.group) }}</span>
+                          </div>
+                        </div>
+                        <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                          <div>
+                            <div class="opacity-60">{{ $t('configQuickEditorPreviewBefore') }}</div>
+                            <div class="mt-1 break-all font-mono text-[11px]">{{ previewValueText(item.before) }}</div>
+                          </div>
+                          <div>
+                            <div class="opacity-60">{{ $t('configQuickEditorPreviewAfter') }}</div>
+                            <div class="mt-1 break-all font-mono text-[11px]">{{ previewValueText(item.after) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="flex flex-wrap items-center gap-2 text-[11px] opacity-70">
-                  <span class="badge badge-outline">{{ $t('configQuickEditorOnlyTopLevel') }}</span>
+                  <span class="badge badge-outline">{{ $t('configQuickEditorCommonScope') }}</span>
                   <span>{{ $t('configQuickEditorEmptyRemoves') }}</span>
                 </div>
               </div>
@@ -741,6 +876,26 @@ type ConfigQuickEditorModel = {
   socksPort: string
   redirPort: string
   tproxyPort: string
+  tunEnable: string
+  tunStack: string
+  tunAutoRoute: string
+  tunAutoDetectInterface: string
+  dnsEnable: string
+  dnsIpv6: string
+  dnsListen: string
+  dnsEnhancedMode: string
+}
+
+type QuickEditorFieldKey = keyof ConfigQuickEditorModel
+type QuickEditorGroup = 'runtime' | 'network' | 'controller' | 'ports' | 'tun' | 'dns'
+type QuickEditorChangeType = 'add' | 'change' | 'remove'
+
+type QuickEditorPreviewItem = {
+  key: QuickEditorFieldKey
+  group: QuickEditorGroup
+  changeType: QuickEditorChangeType
+  before: string
+  after: string
 }
 
 type ConfigOverview = {
@@ -788,6 +943,33 @@ const managedPayloads = ref<Record<ManagedPayloadKind, string>>({
 })
 const lastSuccessfulPayload = ref('')
 
+type QuickEditorFieldMeta = { key: QuickEditorFieldKey; group: QuickEditorGroup; yamlKey?: string; section?: 'tun' | 'dns'; nestedKey?: string }
+
+const quickEditorFieldMeta: QuickEditorFieldMeta[] = [
+  { key: 'mode', yamlKey: 'mode', group: 'runtime' },
+  { key: 'logLevel', yamlKey: 'log-level', group: 'runtime' },
+  { key: 'allowLan', yamlKey: 'allow-lan', group: 'network' },
+  { key: 'ipv6', yamlKey: 'ipv6', group: 'network' },
+  { key: 'unifiedDelay', yamlKey: 'unified-delay', group: 'runtime' },
+  { key: 'findProcessMode', yamlKey: 'find-process-mode', group: 'runtime' },
+  { key: 'geodataMode', yamlKey: 'geodata-mode', group: 'runtime' },
+  { key: 'controller', yamlKey: 'external-controller', group: 'controller' },
+  { key: 'secret', yamlKey: 'secret', group: 'controller' },
+  { key: 'mixedPort', yamlKey: 'mixed-port', group: 'ports' },
+  { key: 'port', yamlKey: 'port', group: 'ports' },
+  { key: 'socksPort', yamlKey: 'socks-port', group: 'ports' },
+  { key: 'redirPort', yamlKey: 'redir-port', group: 'ports' },
+  { key: 'tproxyPort', yamlKey: 'tproxy-port', group: 'ports' },
+  { key: 'tunEnable', section: 'tun', nestedKey: 'enable', group: 'tun' },
+  { key: 'tunStack', section: 'tun', nestedKey: 'stack', group: 'tun' },
+  { key: 'tunAutoRoute', section: 'tun', nestedKey: 'auto-route', group: 'tun' },
+  { key: 'tunAutoDetectInterface', section: 'tun', nestedKey: 'auto-detect-interface', group: 'tun' },
+  { key: 'dnsEnable', section: 'dns', nestedKey: 'enable', group: 'dns' },
+  { key: 'dnsIpv6', section: 'dns', nestedKey: 'ipv6', group: 'dns' },
+  { key: 'dnsListen', section: 'dns', nestedKey: 'listen', group: 'dns' },
+  { key: 'dnsEnhancedMode', section: 'dns', nestedKey: 'enhanced-mode', group: 'dns' },
+]
+
 const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
   mode: '',
   logLevel: '',
@@ -803,6 +985,14 @@ const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
   socksPort: '',
   redirPort: '',
   tproxyPort: '',
+  tunEnable: '',
+  tunStack: '',
+  tunAutoRoute: '',
+  tunAutoDetectInterface: '',
+  dnsEnable: '',
+  dnsIpv6: '',
+  dnsListen: '',
+  dnsEnhancedMode: '',
 })
 
 const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
@@ -1468,7 +1658,127 @@ const buildConfigOverview = (value: string): ConfigOverview => {
 const overviewSummary = computed(() => buildConfigOverview(diffSourceContent(overviewSourceResolved.value)))
 const overviewHasContent = computed(() => overviewSummary.value.stats.totalLines > 0)
 const quickEditorHasPayload = computed(() => normalizeDiffText(payload.value).trim().length > 0)
-const quickEditorCanApply = computed(() => quickEditorHasPayload.value)
+
+const quickEditorPreviewChanges = computed<QuickEditorPreviewItem[]>(() => {
+  const source = normalizeDiffText(payload.value)
+  if (!source.trim().length) return []
+  return quickEditorFieldMeta.flatMap((field) => {
+    const before = getQuickEditorFieldValue(source, field)
+    const after = String(quickEditor.value[field.key] || '').trim()
+    if (before === after) return []
+    let changeType: QuickEditorChangeType = 'change'
+    if (!before.length && after.length) changeType = 'add'
+    else if (before.length && !after.length) changeType = 'remove'
+    return [{ key: field.key, group: field.group, changeType, before, after }]
+  })
+})
+
+const quickEditorPreviewSummary = computed(() => quickEditorPreviewChanges.value.reduce((acc, item) => {
+  if (item.changeType === 'add') acc.added += 1
+  else if (item.changeType === 'remove') acc.removed += 1
+  else acc.changed += 1
+  return acc
+}, { added: 0, changed: 0, removed: 0 }))
+
+const quickEditorAffectedGroups = computed<QuickEditorGroup[]>(() => Array.from(new Set(quickEditorPreviewChanges.value.map((item) => item.group))))
+const quickEditorCanApply = computed(() => quickEditorHasPayload.value && quickEditorPreviewChanges.value.length > 0)
+
+const previewGroupLabel = (group: QuickEditorGroup) => {
+  switch (group) {
+    case 'runtime':
+      return t('configQuickEditorGroupRuntime')
+    case 'network':
+      return t('configQuickEditorGroupNetwork')
+    case 'controller':
+      return t('configQuickEditorGroupController')
+    case 'ports':
+      return t('configQuickEditorGroupPorts')
+    case 'tun':
+      return t('configQuickEditorGroupTun')
+    case 'dns':
+      return t('configQuickEditorGroupDns')
+    default:
+      return '—'
+  }
+}
+
+const previewFieldLabel = (key: QuickEditorFieldKey) => {
+  switch (key) {
+    case 'mode':
+      return t('configOverviewMode')
+    case 'logLevel':
+      return t('configOverviewLogLevel')
+    case 'allowLan':
+      return t('configOverviewAllowLan')
+    case 'ipv6':
+      return t('configOverviewIpv6')
+    case 'unifiedDelay':
+      return t('configOverviewUnifiedDelay')
+    case 'findProcessMode':
+      return t('configOverviewFindProcessMode')
+    case 'geodataMode':
+      return t('configOverviewGeodataMode')
+    case 'controller':
+      return t('configOverviewController')
+    case 'secret':
+      return t('configQuickEditorSecret')
+    case 'mixedPort':
+      return t('configOverviewMixedPort')
+    case 'port':
+      return t('configOverviewPort')
+    case 'socksPort':
+      return t('configOverviewSocksPort')
+    case 'redirPort':
+      return t('configOverviewRedirPort')
+    case 'tproxyPort':
+      return t('configOverviewTproxyPort')
+    case 'tunEnable':
+      return t('configQuickEditorTunEnable')
+    case 'tunStack':
+      return t('configQuickEditorTunStack')
+    case 'tunAutoRoute':
+      return t('configQuickEditorTunAutoRoute')
+    case 'tunAutoDetectInterface':
+      return t('configQuickEditorTunAutoDetectInterface')
+    case 'dnsEnable':
+      return t('configQuickEditorDnsEnable')
+    case 'dnsIpv6':
+      return t('configQuickEditorDnsIpv6')
+    case 'dnsListen':
+      return t('configQuickEditorDnsListen')
+    case 'dnsEnhancedMode':
+      return t('configQuickEditorDnsEnhancedMode')
+    default:
+      return String(key)
+  }
+}
+
+const previewChangeTypeText = (changeType: QuickEditorChangeType) => {
+  switch (changeType) {
+    case 'add':
+      return t('configQuickEditorPreviewAddAction')
+    case 'remove':
+      return t('configQuickEditorPreviewRemoveAction')
+    default:
+      return t('configQuickEditorPreviewChangeAction')
+  }
+}
+
+const previewChangeBadgeClass = (changeType: QuickEditorChangeType) => {
+  switch (changeType) {
+    case 'add':
+      return 'badge-success'
+    case 'remove':
+      return 'badge-error'
+    default:
+      return 'badge-warning'
+  }
+}
+
+const previewValueText = (value?: string | number | null) => {
+  const text = String(value ?? '').trim()
+  return text || t('configQuickEditorPreviewEmptyValue')
+}
 
 const overviewText = (value?: string | number | null) => {
   const text = String(value ?? '').trim()
@@ -1530,24 +1840,48 @@ const getTopLevelScalarValue = (value: string, key: string) => {
   return sanitizeScalarValue(match[1] || '')
 }
 
+const getNestedScalarValue = (value: string, section: string, key: string) => {
+  const normalized = normalizeDiffText(value)
+  if (!normalized.trim().length) return ''
+  const lines = normalized.split('\n')
+  const start = lines.findIndex((line) => new RegExp(`^${escapeRegExp(section)}:\\s*(?:#.*)?$`).test(line))
+  if (start < 0) return ''
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i] || ''
+    if (!line.trim().length || /^\s*#/.test(line)) continue
+    if (!/^\s/.test(line)) {
+      end = i
+      break
+    }
+  }
+  const re = new RegExp(`^\\s+${escapeRegExp(key)}:\\s*(.*?)\\s*$`)
+  for (let i = start + 1; i < end; i += 1) {
+    const match = (lines[i] || '').match(re)
+    if (match) return sanitizeScalarValue(match[1] || '')
+  }
+  return ''
+}
+
+type QuickEditorFieldMetaWithYaml = QuickEditorFieldMeta & { yamlKey: string }
+type QuickEditorFieldMetaWithNested = QuickEditorFieldMeta & { section: 'tun' | 'dns'; nestedKey: string }
+
+const isTopLevelQuickEditorField = (field: QuickEditorFieldMeta): field is QuickEditorFieldMetaWithYaml => Boolean(field.yamlKey)
+const isNestedQuickEditorField = (field: QuickEditorFieldMeta): field is QuickEditorFieldMetaWithNested => Boolean(field.section && field.nestedKey)
+
+const getQuickEditorFieldValue = (source: string, field: QuickEditorFieldMeta) => {
+  if (field.yamlKey) return getTopLevelScalarValue(source, field.yamlKey)
+  if (field.section && field.nestedKey) return getNestedScalarValue(source, field.section, field.nestedKey)
+  return ''
+}
+
 const syncQuickEditorFromPayload = () => {
   const source = normalizeDiffText(payload.value)
-  quickEditor.value = {
-    mode: getTopLevelScalarValue(source, 'mode'),
-    logLevel: getTopLevelScalarValue(source, 'log-level'),
-    allowLan: getTopLevelScalarValue(source, 'allow-lan'),
-    ipv6: getTopLevelScalarValue(source, 'ipv6'),
-    unifiedDelay: getTopLevelScalarValue(source, 'unified-delay'),
-    findProcessMode: getTopLevelScalarValue(source, 'find-process-mode'),
-    geodataMode: getTopLevelScalarValue(source, 'geodata-mode'),
-    controller: getTopLevelScalarValue(source, 'external-controller'),
-    secret: getTopLevelScalarValue(source, 'secret'),
-    mixedPort: getTopLevelScalarValue(source, 'mixed-port'),
-    port: getTopLevelScalarValue(source, 'port'),
-    socksPort: getTopLevelScalarValue(source, 'socks-port'),
-    redirPort: getTopLevelScalarValue(source, 'redir-port'),
-    tproxyPort: getTopLevelScalarValue(source, 'tproxy-port'),
+  const next = emptyQuickEditorModel()
+  for (const field of quickEditorFieldMeta) {
+    next[field.key] = getQuickEditorFieldValue(source, field)
   }
+  quickEditor.value = next
 }
 
 const upsertTopLevelInlineScalars = (value: string, entries: Array<[string, string]>) => {
@@ -1580,28 +1914,102 @@ const upsertTopLevelInlineScalars = (value: string, entries: Array<[string, stri
   return joined ? `${joined}\n` : ''
 }
 
+const upsertNestedInlineScalars = (value: string, section: 'tun' | 'dns', entries: Array<[string, string]>) => {
+  const normalized = normalizeDiffText(value)
+  const lines = normalized.length ? normalized.split('\n') : []
+  const findSectionIndex = () => lines.findIndex((line) => new RegExp(`^${escapeRegExp(section)}:\\s*(?:#.*)?$`).test(line))
+  const findSectionEnd = (start: number) => {
+    let end = lines.length
+    for (let i = start + 1; i < lines.length; i += 1) {
+      const line = lines[i] || ''
+      if (!line.trim().length || /^\s*#/.test(line)) continue
+      if (!/^\s/.test(line)) {
+        end = i
+        break
+      }
+    }
+    return end
+  }
+  const hasAnyValue = entries.some(([, rawValue]) => String(rawValue || '').trim().length > 0)
+  const sectionStart = findSectionIndex()
+
+  if (sectionStart < 0) {
+    if (!hasAnyValue) return normalized
+    const preferredAnchors = ['proxies', 'proxy-groups', 'proxy-providers', 'rule-providers', 'rules']
+    let insertAt = lines.findIndex((line) => preferredAnchors.some((key) => new RegExp(`^${escapeRegExp(key)}:\\s*(?:#.*)?$`).test(line)))
+    if (insertAt < 0) {
+      insertAt = lines.length
+      while (insertAt > 0 && !String(lines[insertAt - 1] || '').trim().length) insertAt -= 1
+    }
+    const block = [
+      section + ':',
+      ...entries.filter(([, rawValue]) => String(rawValue || '').trim().length > 0).map(([key, rawValue]) => `  ${key}: ${String(rawValue || '').trim()}`),
+    ]
+    if (insertAt > 0 && String(lines[insertAt - 1] || '').trim().length) block.unshift('')
+    lines.splice(insertAt, 0, ...block)
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n'
+  }
+
+  let sectionEnd = findSectionEnd(sectionStart)
+  const findNestedLineIndex = (key: string) => {
+    for (let i = sectionStart + 1; i < sectionEnd; i += 1) {
+      if (new RegExp(`^\\s+${escapeRegExp(key)}:\\s*.*$`).test(lines[i] || '')) return i
+    }
+    return -1
+  }
+
+  for (const [key, rawValue] of entries) {
+    const cleaned = String(rawValue || '').trim()
+    const idx = findNestedLineIndex(key)
+    if (!cleaned.length) {
+      if (idx >= 0) {
+        lines.splice(idx, 1)
+        sectionEnd -= 1
+      }
+      continue
+    }
+    const nextLine = `  ${key}: ${cleaned}`
+    if (idx >= 0) lines[idx] = nextLine
+    else {
+      lines.splice(sectionEnd, 0, nextLine)
+      sectionEnd += 1
+    }
+  }
+
+  const meaningful = lines.slice(sectionStart + 1, sectionEnd).some((line) => {
+    const trimmed = String(line || '').trim()
+    return trimmed.length > 0 && !trimmed.startsWith('#')
+  })
+  if (!meaningful) {
+    let removeFrom = sectionStart
+    if (removeFrom > 0 && !String(lines[removeFrom - 1] || '').trim().length) removeFrom -= 1
+    lines.splice(removeFrom, sectionEnd - removeFrom)
+  }
+
+  const joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+  return joined ? `${joined}\n` : ''
+}
+
 const applyQuickEditorToPayload = () => {
   if (!quickEditorCanApply.value) {
     showNotification({ content: 'configQuickEditorEmptyToast', type: 'alert-warning' })
     return
   }
 
-  payload.value = upsertTopLevelInlineScalars(payload.value, [
-    ['mode', quickEditor.value.mode],
-    ['log-level', quickEditor.value.logLevel],
-    ['allow-lan', quickEditor.value.allowLan],
-    ['ipv6', quickEditor.value.ipv6],
-    ['unified-delay', quickEditor.value.unifiedDelay],
-    ['find-process-mode', quickEditor.value.findProcessMode],
-    ['geodata-mode', quickEditor.value.geodataMode],
-    ['external-controller', quickEditor.value.controller],
-    ['secret', quickEditor.value.secret],
-    ['mixed-port', quickEditor.value.mixedPort],
-    ['port', quickEditor.value.port],
-    ['socks-port', quickEditor.value.socksPort],
-    ['redir-port', quickEditor.value.redirPort],
-    ['tproxy-port', quickEditor.value.tproxyPort],
-  ])
+  const topLevelEntries = quickEditorFieldMeta
+    .filter(isTopLevelQuickEditorField)
+    .map((field) => [field.yamlKey, quickEditor.value[field.key]] as [string, string])
+  const tunEntries = quickEditorFieldMeta
+    .filter((field): field is QuickEditorFieldMetaWithNested => isNestedQuickEditorField(field) && field.section === 'tun')
+    .map((field) => [field.nestedKey, quickEditor.value[field.key]] as [string, string])
+  const dnsEntries = quickEditorFieldMeta
+    .filter((field): field is QuickEditorFieldMetaWithNested => isNestedQuickEditorField(field) && field.section === 'dns')
+    .map((field) => [field.nestedKey, quickEditor.value[field.key]] as [string, string])
+
+  let nextPayload = upsertTopLevelInlineScalars(payload.value, topLevelEntries)
+  nextPayload = upsertNestedInlineScalars(nextPayload, 'tun', tunEntries)
+  nextPayload = upsertNestedInlineScalars(nextPayload, 'dns', dnsEntries)
+  payload.value = nextPayload
 
   showNotification({ content: 'configQuickEditorAppliedToast', type: 'alert-success' })
 }

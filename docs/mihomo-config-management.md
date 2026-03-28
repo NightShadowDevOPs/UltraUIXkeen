@@ -86,3 +86,20 @@
 - форма умеет читать и применять популярные top-level ключи: `mode`, `log-level`, `allow-lan`, `ipv6`, `unified-delay`, `find-process-mode`, `geodata-mode`, `external-controller`, `secret`, `mixed-port`, `port`, `socks-port`, `redir-port`, `tproxy-port`
 - пустое значение в форме удаляет соответствующую top-level строку из редактора; остальная часть YAML не пересобирается и остаётся как была
 - `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`, а safe pipeline `draft / validate / apply / rollback / baseline fallback` остаётся прежним
+
+
+## Что добавлено в v1.2.85
+
+- быстрый редактор частых параметров получил отдельный блок **preview изменений** перед записью в raw YAML
+- UI показывает, какие top-level ключи будут `добавлены / изменены / удалены`, и отдельно выводит группы влияния: `runtime`, `network`, `controller`, `ports`
+- preview работает только поверх текущего содержимого редактора и не меняет safe pipeline `draft / validate / apply / rollback / baseline fallback`
+- `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`
+
+
+## Что добавлено в v1.2.86
+
+- быстрый редактор частых параметров расширен на nested-секции `tun` и `dns`, но только на безопасный набор scalar-полей
+- UI теперь умеет читать, preview-ить и записывать: `tun.enable`, `tun.stack`, `tun.auto-route`, `tun.auto-detect-interface`, `dns.enable`, `dns.ipv6`, `dns.listen`, `dns.enhanced-mode`
+- если секция `tun` или `dns` ещё отсутствует, форма может создать минимальный блок только из выбранных scalar-ключей; если поля очищены, соответствующие строки удаляются без пересборки остального YAML
+- списки `nameserver`, `fallback`, `dns-hijack` и прочие сложные вложенные структуры этим релизом не трогаются
+- `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`, safe pipeline `draft / validate / apply / rollback / baseline fallback` остаётся прежним

@@ -1,19 +1,19 @@
-UI Mihomo / Ultra — обновление переноса v1.2.84
+UI Mihomo / Ultra — обновление переноса v1.2.86
 
 Что изменилось в этом релизе:
-- в `Mihomo → Конфигурация` добавлен **быстрый редактор частых параметров** поверх текущего содержимого редактора
-- форма умеет быстро править популярные top-level ключи: `mode`, `log-level`, `allow-lan`, `ipv6`, `unified-delay`, `find-process-mode`, `geodata-mode`, `external-controller`, `secret`, а также основные порты
-- быстрый редактор не заменяет raw YAML и не трогает `router-agent`: safe managed-config flow, diff, диагностика и last successful остаются прежними
-- пустое значение в форме удаляет соответствующую top-level строку из редактора, а остальной YAML сохраняется как есть
+- быстрый редактор в `Mihomo → Конфигурация` расширен на частые scalar-поля секций `tun` и `dns`
+- форма теперь умеет читать, preview-ить и записывать `tun.enable`, `tun.stack`, `tun.auto-route`, `tun.auto-detect-interface`, `dns.enable`, `dns.ipv6`, `dns.listen`, `dns.enhanced-mode`
+- правки по-прежнему ограничены частыми scalar-ключами: списки `nameserver/fallback`, `dns-hijack` и другие сложные блоки YAML не пересобираются
+- `router-agent` в этом релизе не менялся; линия остаётся `0.6.22`
 
 Текущие версии:
-- UI: v1.2.84
+- UI: v1.2.86
 - router-agent: 0.6.22
 
 Что важно по интерфейсу:
 - `Mihomo` остаётся отдельным рабочим разделом
 - `Settings` держит только интерфейс, поведение и связанные настройки отображения
-- diff, диагностика операций, structured overview и safe managed-config flow сохранены
+- diff, диагностика операций, structured overview, last successful и safe managed-config flow сохранены
 
 Следующий логичный шаг:
-- после v1.2.84 можно идти либо в preview влияния частых top-level изменений на связанные блоки Mihomo, либо уже аккуратно расширять форму на nested-секции вроде `tun` / `dns`
+- после v1.2.86 можно либо идти в более умные формы для списков `dns/tun`, либо возвращаться к другим рабочим функциям Mihomo / Proxy / Traffic
