@@ -149,3 +149,9 @@
 - Из UI теперь можно редактировать `default-nameserver`, `nameserver`, `fallback`, `proxy-server-nameserver`, `fake-ip-filter`, `dns-hijack`, `nameserver-policy` и `fallback-filter` без ручной правки raw YAML.
 - Для `nameserver-policy` поддержан более удобный формат строк `key = value` / `key = value1, value2`, а для `fallback-filter` вынесены частые поля `geoip`, `geoip-code`, `geosite`, `ipcidr`, `domain`.
 - Safe managed-config flow не менялся: новый блок работает поверх текущего редактора/draft и не затрагивает pipeline validate/apply/rollback.
+
+## Update v1.2.93
+
+- `Mihomo → Конфигурация` разбит на внутренние вкладки: редактор YAML, overview, structured editors, diagnostics, diff и history.
+- Это разгружает экран: теперь structured-блоки (`quick editor`, `proxy-providers`, `proxy-groups`, `rule-providers`, `rules`, `dns`) больше не висят под raw-редактором одной длинной простынёй.
+- Страница `Роутер` тоже получила собственные вкладки `Обзор / Трафик / Сеть`, чтобы состояние роутера, traffic-карточки и network details были разнесены по отдельным рабочим зонам.

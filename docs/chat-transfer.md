@@ -1,22 +1,23 @@
-UI Mihomo / Ultra — обновление переноса v1.2.92
+UI Mihomo / Ultra — обновление переноса v1.2.93
 
 Что изменилось в этом релизе:
-- в `Mihomo → Конфигурация` добавлен отдельный structured DNS editor для частых списков и nested-блоков секции `dns`
-- теперь через UI можно редактировать `default-nameserver`, `nameserver`, `fallback`, `proxy-server-nameserver`, `fake-ip-filter`, `dns-hijack`, `nameserver-policy` и `fallback-filter` без ручной правки YAML
-- DNS editor работает поверх текущего черновика/редактора и не ломает safe managed-config flow
-- для `nameserver-policy` поддержан удобный формат строк `ключ = значение` или `ключ = value1, value2`, а для `fallback-filter` вынесены частые поля `geoip / geoip-code / geosite / ipcidr / domain`
+- `Mihomo → Конфигурация` теперь имеет собственные внутренние вкладки: `Редактор / Overview / Structured editors / Diagnostics / Compare / History`
+- raw YAML, обзор конфигурации, structured-редакторы, диагностика операций, diff и история ревизий разнесены по отдельным подэкранам, поэтому раздел больше не растягивается в один длинный скролл
+- вкладка `Роутер` тоже разбита на разделы `Обзор / Трафик / Сеть`
+- блок состояния роутера и версий вынесен в обзор, traffic-карточки живут отдельно, а `NetworkCard` теперь открывается в отдельной вкладке `Сеть`
 - `router-agent` в этом релизе не менялся; линия остаётся `0.6.22`
 
 Текущие версии:
-- UI: v1.2.92
-- v1.2.92: в `Mihomo → Конфигурация` добавлен structured DNS editor для `default-nameserver / nameserver / fallback / proxy-server-nameserver / fake-ip-filter / dns-hijack / nameserver-policy / fallback-filter`
+- UI: v1.2.93
+- v1.2.93: `Mihomo → Конфигурация` разбит на внутренние вкладки, а страница `Роутер` разложена на `Обзор / Трафик / Сеть`
 - router-agent: 0.6.22
 
 Что важно по интерфейсу:
 - `Mihomo` остаётся отдельным рабочим разделом
 - `Settings` держит только интерфейс, поведение и связанные настройки отображения
-- diff, диагностика операций, structured overview, last successful, quick editor `tun/dns`, новый DNS structured editor, `proxy-providers`, `proxy-groups`, `rule-providers`, `rules` и safe managed-config flow сохранены
+- safe managed-config flow сохранён: `draft / validate / apply / rollback / baseline / history`
 - raw YAML-редактор не убирался: structured-блоки работают поверх текущего черновика и не ломают безопасный pipeline
+- вкладка `Роутер` теперь не сваливает состояние, трафик и сетевые детали в одну длинную страницу
 
 Следующий логичный шаг:
-- дальше логично либо сделать внутренние вкладки/навигацию уже внутри самого `Mihomo → Конфигурация`, либо расширять DNS-редактор на более редкие ветки (`nameserver-policy` advanced values, `fallback-filter` extras) и затем переходить к rule options / nested-настройкам `proxy-groups`
+- дальше логично добить structured-редактирование более редких веток `dns` и/или продолжить аудит информационной архитектуры разделов вокруг Mihomo/Router, чтобы крупные технические страницы и дальше дробились по смысловым подблокам, а не снова разрастались в простыни

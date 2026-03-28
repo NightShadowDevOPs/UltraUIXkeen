@@ -78,6 +78,23 @@
               {{ managedMode ? $t('configManagedEditorTip') : $t('mihomoConfigEditorTip') }}
             </div>
 
+            <div class="overflow-x-auto">
+              <div class="tabs tabs-boxed inline-flex min-w-max gap-1 bg-base-200/60 p-1">
+                <button
+                  v-for="section in configWorkspaceSections"
+                  :key="section.id"
+                  type="button"
+                  class="tab whitespace-nowrap border-0"
+                  :class="[configWorkspaceSection === section.id ? 'tab-active !bg-base-100 shadow-sm' : 'opacity-80 hover:opacity-100', section.disabled ? 'pointer-events-none opacity-40' : '']"
+                  :disabled="section.disabled"
+                  @click="setConfigWorkspaceSection(section.id)"
+                >
+                  {{ $t(section.labelKey) }}
+                </button>
+              </div>
+            </div>
+
+            <section v-show="configWorkspaceSection === 'editor'" class="space-y-3">
             <div v-if="managedMode" class="flex flex-wrap items-center gap-2">
               <button class="btn btn-sm" @click="copyFromManaged('active')" :disabled="busyAny">{{ $t('configLoadActiveToDraft') }}</button>
               <button class="btn btn-sm" @click="copyFromManaged('baseline')" :disabled="busyAny || !managedState?.baseline?.exists">{{ $t('configLoadBaselineToDraft') }}</button>
@@ -160,6 +177,9 @@
               </div>
             </div>
 
+            </section>
+
+            <section v-show="configWorkspaceSection === 'overview'" class="space-y-3">
             <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -309,6 +329,9 @@
               </div>
             </div>
 
+            </section>
+
+            <section v-show="configWorkspaceSection === 'structured'" class="space-y-3">
             <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -1346,7 +1369,10 @@
             </div>
 
 
-            <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            </section>
+
+            <section v-show="configWorkspaceSection === 'diagnostics'" class="space-y-3">
+              <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configDiagnosticsTitle') }}</div>
@@ -1434,6 +1460,12 @@
               </div>
             </div>
 
+              <div v-else class="rounded-box border border-dashed border-base-content/15 bg-base-100/50 p-3 text-xs opacity-70">
+                {{ $t('configDiagnosticsEmpty') }}
+              </div>
+            </section>
+
+            <section v-show="configWorkspaceSection === 'compare'" class="space-y-3">
             <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1508,6 +1540,9 @@
               </div>
             </div>
 
+            </section>
+
+            <section v-show="configWorkspaceSection === 'history'" class="space-y-3">
             <div v-if="managedMode" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div class="font-semibold">{{ $t('configHistoryTitle') }}</div>
@@ -1536,7 +1571,9 @@
               </div>
             </div>
 
-            <div class="text-xs opacity-60">
+            </section>
+
+            <div v-show="configWorkspaceSection === 'editor'" class="text-xs opacity-60">
               {{ managedMode ? $t('configManagedFallbackNote') : $t('mihomoConfigLoadNote') }}
             </div>
           </div>
@@ -1639,6 +1676,9 @@ const proxyProviderSelectedName = useStorage('config/mihomo-config-provider-sele
 const proxyGroupSelectedName = useStorage('config/mihomo-config-group-selected', '')
 const ruleProviderSelectedName = useStorage('config/mihomo-config-rule-provider-selected', '')
 const ruleSelectedIndex = useStorage('config/mihomo-config-rule-selected', '')
+
+type ConfigWorkspaceSectionId = 'editor' | 'overview' | 'structured' | 'diagnostics' | 'compare' | 'history'
+const configWorkspaceSection = useStorage<ConfigWorkspaceSectionId>('config/mihomo-config-workspace-section', 'editor')
 
 const { t } = useI18n()
 
@@ -1836,6 +1876,21 @@ const legacyRestartBusy = ref(false)
 
 const currentPath = computed(() => managedMode.value ? (managedState.value?.active?.path || path.value) : path.value)
 const managedMode = computed(() => agentEnabled.value && Boolean(managedState.value?.ok))
+const configWorkspaceSections = computed(() => [
+  { id: 'editor' as const, labelKey: 'mihomoConfigEditor', disabled: false },
+  { id: 'overview' as const, labelKey: 'configOverviewTitle', disabled: false },
+  { id: 'structured' as const, labelKey: 'configWorkspaceStructuredTitle', disabled: false },
+  { id: 'diagnostics' as const, labelKey: 'configDiagnosticsTitle', disabled: false },
+  { id: 'compare' as const, labelKey: 'configDiffTitle', disabled: !managedMode.value },
+  { id: 'history' as const, labelKey: 'configHistoryTitle', disabled: !managedMode.value },
+])
+
+const setConfigWorkspaceSection = (id: ConfigWorkspaceSectionId) => {
+  if (configWorkspaceSections.value.find((section) => section.id === id && !section.disabled)) {
+    configWorkspaceSection.value = id
+  }
+}
+
 const busyAny = computed(() => refreshBusy.value || historyBusy.value || actionBusy.value)
 const lastSuccessfulExists = computed(() => Boolean(managedState.value?.lastSuccessful?.exists))
 
@@ -3531,6 +3586,17 @@ watch(parsedRules, (entries) => {
     ruleForm.value = emptyRuleForm()
   }
 }, { immediate: true, deep: true })
+
+watch(
+  [managedMode, configWorkspaceSections],
+  () => {
+    const current = configWorkspaceSections.value.find((section) => section.id === configWorkspaceSection.value)
+    if (current && !current.disabled) return
+    const fallback = configWorkspaceSections.value.find((section) => !section.disabled)?.id || 'editor'
+    if (configWorkspaceSection.value !== fallback) configWorkspaceSection.value = fallback
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   await refreshAll(true)

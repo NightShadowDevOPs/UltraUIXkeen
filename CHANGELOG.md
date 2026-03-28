@@ -1,3 +1,10 @@
+## [1.2.93] (2026-03-28)
+
+### Features
+
+- `Mihomo → Конфигурация` now has its own internal workspace tabs so the editor, overview, structured forms, diagnostics, compare view, and history no longer live in one endless scroll
+- `Router` page is reorganized into `Overview / Traffic / Network` tabs, separating health/resources, traffic charts, and optional network details while keeping quick access to host priorities in Traffic
+
 ## [1.2.92] (2026-03-28)
 
 ### Features
