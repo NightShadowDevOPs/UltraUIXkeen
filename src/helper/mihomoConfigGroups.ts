@@ -7,6 +7,7 @@ export type ProxyGroupFormModel = {
   strategy: string
   lazy: string
   disableUdp: string
+  includeAll: string
   tolerance: string
   timeout: string
   proxiesText: string
@@ -36,6 +37,7 @@ export type ParsedProxyGroupEntry = {
   strategy: string
   lazy: string
   disableUdp: string
+  includeAll: string
   tolerance: string
   timeout: string
   proxies: string[]
@@ -358,6 +360,7 @@ const extractGroupManagedFields = (blockLines: string[]) => {
     strategy: '',
     lazy: '',
     disableUdp: '',
+    includeAll: '',
     tolerance: '',
     timeout: '',
     proxiesText: '',
@@ -374,6 +377,7 @@ const extractGroupManagedFields = (blockLines: string[]) => {
     strategy: 'strategy',
     lazy: 'lazy',
     'disable-udp': 'disableUdp',
+    'include-all': 'includeAll',
     tolerance: 'tolerance',
     timeout: 'timeout',
   }
@@ -454,6 +458,7 @@ const parseProxyGroupEntriesRaw = (value: string) => {
       strategy: form.strategy,
       lazy: form.lazy,
       disableUdp: form.disableUdp,
+      includeAll: form.includeAll,
       tolerance: form.tolerance,
       timeout: form.timeout,
       proxies: parseListText(form.proxiesText),
@@ -490,6 +495,7 @@ const buildGroupBlockLines = (form: ProxyGroupFormModel) => {
   appendScalar('strategy', form.strategy)
   appendScalar('lazy', form.lazy, 'boolean')
   appendScalar('disable-udp', form.disableUdp, 'boolean')
+  appendScalar('include-all', form.includeAll, 'boolean')
   appendScalar('tolerance', form.tolerance, 'number')
   appendScalar('timeout', form.timeout, 'number')
   appendList('proxies', form.proxiesText)
@@ -529,6 +535,7 @@ export const emptyProxyGroupForm = (): ProxyGroupFormModel => ({
   strategy: '',
   lazy: '',
   disableUdp: '',
+  includeAll: '',
   tolerance: '',
   timeout: '',
   proxiesText: 'DIRECT',
@@ -546,6 +553,7 @@ export const proxyGroupFormFromEntry = (entry: ParsedProxyGroupEntry): ProxyGrou
   strategy: entry.strategy,
   lazy: entry.lazy,
   disableUdp: entry.disableUdp,
+  includeAll: entry.includeAll,
   tolerance: entry.tolerance,
   timeout: entry.timeout,
   proxiesText: formatListText(entry.proxies),
@@ -616,6 +624,7 @@ export const upsertProxyGroupInConfig = (value: string, form: ProxyGroupFormMode
     strategy: String(form.strategy || '').trim(),
     lazy: String(form.lazy || '').trim(),
     disableUdp: String(form.disableUdp || '').trim(),
+    includeAll: String(form.includeAll || '').trim(),
     tolerance: String(form.tolerance || '').trim(),
     timeout: String(form.timeout || '').trim(),
     proxiesText: formatListText(parseListText(form.proxiesText)),

@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.92
-- v1.2.92: в `Mihomo → Конфигурация` добавлен structured DNS editor для `default-nameserver / nameserver / fallback / proxy-server-nameserver / fake-ip-filter / dns-hijack / nameserver-policy / fallback-filter`; router-agent не менялся
+- UI: v1.2.91
+- v1.2.91: страница `Mihomo` разложена на вкладки `Обзор / Runtime / Providers / Rules / Config`; в `Mihomo → Конфигурация` редактор `proxy-providers` получил nested-поля `health-check/override`, `proxy-groups` — поле `include-all`, а `rules` — structured-форму поверх raw-режима
 - router-agent: 0.6.22
 
 Правила по проекту:
@@ -36,7 +36,6 @@
 - v1.2.88: добавлен отдельный редактор `proxy-groups`: теперь группы можно редактировать по одной, дублировать и добавлять из шаблона; переименование обновляет ссылки в других `proxy-groups` и целевые группы в `rules`, а отключение безопасно удаляет блок, чистит входящие ссылки, подставляет `DIRECT` в опустевшие группы и переводит затронутые `rules` на `DIRECT`
 - v1.2.90: добавлены редакторы `rule-providers` и `rules`; `rule-providers` умеют редактирование/добавление/дублирование/отключение с удалением связанных `RULE-SET`-строк из `rules`, а `rules` получили отдельный построчный редактор с безопасным сохранением и удалением отдельных правил
 - v1.2.91: страница `Mihomo` больше не простыня — сделаны отдельные вкладки рабочего пространства; в structured-редакторах добавлены nested `health-check/override` для `proxy-providers`, `include-all` для `proxy-groups` и structured-форма для `rules`
-- v1.2.92: добавлен structured DNS editor для частых списков и nested-фильтров секции `dns`, чтобы править upstream/resolver policy/hijack уже без ручной правки YAML
 - левое меню разбито на логические группы: `Мониторинг / Сеть и Mihomo / Управление`
 - Settings разгружен и разбит на подблоки: `Интерфейс / Бэкенды / Трафик и подписи / Страницы и карточки`
 - baseline не должен перезаписываться обычным сохранением черновика; он меняется только через отдельное действие «Сделать активную конфигурацию эталонной»
@@ -57,4 +56,4 @@ wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_cfg_history"
 ```
 
 Следующий логичный шаг:
-- после v1.2.92 логично либо сделать внутренние вкладки/якорную навигацию внутри самого `Mihomo → Конфигурация`, либо расширять DNS editor на более редкие ветки и затем переходить к rule options / nested-настройкам `proxy-groups`
+- после v1.2.91 логично добивать structured-списки `dns.nameserver / dns.fallback / dns-hijack`, а затем по необходимости расширять nested-настройки `proxy-groups` и rule options уже без возврата к длинной странице

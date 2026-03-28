@@ -1,6 +1,10 @@
 export type RuleFormModel = {
   originalIndex: string
   raw: string
+  type: string
+  payload: string
+  target: string
+  paramsText: string
 }
 
 export type ParsedRuleEntry = {
@@ -11,9 +15,19 @@ export type ParsedRuleEntry = {
   payload: string
   target: string
   provider: string
+  params: string[]
 }
 
 type SectionRange = { start: number; end: number }
+
+type ParsedRuleParts = {
+  raw: string
+  type: string
+  payload: string
+  target: string
+  provider: string
+  params: string[]
+}
 
 const normalizeText = (value: string) => String(value || '').replace(/\r\n/g, '\n')
 const escapeRegExp = (value: string) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -33,14 +47,44 @@ const findTopLevelSectionRange = (lines: string[], section: string): SectionRang
   return { start, end }
 }
 
-const parseRuleBody = (line: string) => {
-  const body = String(line || '').replace(/^\s{2}-\s*/, '').replace(/\s+#.*$/, '').trim()
-  const parts = body.split(',').map((part) => part.trim()).filter(Boolean)
+const splitRuleParts = (value: string) => String(value || '')
+  .split(/\r?\n|,/)
+  .map((part) => part.trim())
+  .filter(Boolean)
+
+export const parseRuleRaw = (value: string): ParsedRuleParts => {
+  const body = String(value || '').replace(/^\s{2}-\s*/, '').replace(/\s+#.*$/, '').trim()
+  const parts = splitRuleParts(body)
   const type = parts[0] || ''
-  const payload = type === 'MATCH' ? '' : (parts[1] || '')
+  const upperType = type.toUpperCase()
+  const isMatchLike = upperType === 'MATCH' || upperType === 'FINAL'
+  const payload = isMatchLike ? '' : (parts[1] || '')
   const provider = /^RULE-SET/i.test(type) ? payload : ''
-  const target = type === 'MATCH' ? (parts[1] || '') : /^RULE-SET/i.test(type) ? (parts[2] || '') : (parts[2] || parts[parts.length - 1] || '')
-  return { raw: body, type, payload, target, provider }
+  const target = isMatchLike ? (parts[1] || '') : (parts[2] || '')
+  const params = isMatchLike ? parts.slice(2) : parts.slice(3)
+  return { raw: body, type, payload, target, provider, params }
+}
+
+const formatParamsText = (params: string[]) => params.join('\n')
+const parseParamsText = (value: string) => splitRuleParts(value)
+
+export const buildRuleRaw = (form: Pick<RuleFormModel, 'type' | 'payload' | 'target' | 'paramsText'>) => {
+  const type = String(form.type || '').trim()
+  if (!type.length) return ''
+  const upperType = type.toUpperCase()
+  const isMatchLike = upperType === 'MATCH' || upperType === 'FINAL'
+  const payload = String(form.payload || '').trim()
+  const target = String(form.target || '').trim()
+  const params = parseParamsText(form.paramsText)
+  const parts = [type]
+  if (isMatchLike) {
+    if (target.length) parts.push(target)
+  } else {
+    if (payload.length) parts.push(payload)
+    if (target.length) parts.push(target)
+  }
+  parts.push(...params)
+  return parts.filter(Boolean).join(',')
 }
 
 const parseRulesRaw = (value: string) => {
@@ -53,7 +97,7 @@ const parseRulesRaw = (value: string) => {
   for (let i = range.start + 1; i < range.end; i += 1) {
     const line = String(lines[i] || '')
     if (!/^\s{2}-\s*/.test(line)) continue
-    const parsed = parseRuleBody(line)
+    const parsed = parseRuleRaw(line)
     entries.push({ index, lineNo: i + 1, ...parsed })
     index += 1
   }
@@ -69,9 +113,40 @@ const insertRulesSectionIfMissing = (lines: string[], blockLine: string) => {
   lines.splice(insertAt, 0, ...sectionLines)
 }
 
-export const emptyRuleForm = (): RuleFormModel => ({ originalIndex: '', raw: 'MATCH,DIRECT' })
+export const emptyRuleForm = (): RuleFormModel => ({
+  originalIndex: '',
+  raw: 'MATCH,DIRECT',
+  type: 'MATCH',
+  payload: '',
+  target: 'DIRECT',
+  paramsText: '',
+})
 
-export const ruleFormFromEntry = (entry: ParsedRuleEntry): RuleFormModel => ({ originalIndex: String(entry.index), raw: entry.raw })
+export const syncRuleFormFromRaw = (form: RuleFormModel): RuleFormModel => {
+  const parsed = parseRuleRaw(form.raw)
+  return {
+    ...form,
+    raw: parsed.raw,
+    type: parsed.type,
+    payload: parsed.payload,
+    target: parsed.target,
+    paramsText: formatParamsText(parsed.params),
+  }
+}
+
+export const syncRuleRawFromForm = (form: RuleFormModel): RuleFormModel => ({
+  ...form,
+  raw: buildRuleRaw(form),
+})
+
+export const ruleFormFromEntry = (entry: ParsedRuleEntry): RuleFormModel => ({
+  originalIndex: String(entry.index),
+  raw: entry.raw,
+  type: entry.type,
+  payload: entry.payload,
+  target: entry.target,
+  paramsText: formatParamsText(entry.params),
+})
 
 export const parseRulesFromConfig = (value: string): ParsedRuleEntry[] => parseRulesRaw(value).entries
 
@@ -90,7 +165,7 @@ export const upsertRuleInConfig = (value: string, form: RuleFormModel) => {
     if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalIndex < ruleLines.length) lines[ruleLines[originalIndex]] = ruleLine
     else lines.splice(parsed.range.end, 0, ruleLine)
   }
-  let joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+  const joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
   return joined ? `${joined}\n` : ''
 }
 
@@ -107,10 +182,10 @@ export const removeRuleFromConfig = (value: string, ruleIndex: number) => {
       const lines2 = lines.join('\n').split('\n')
       const range2 = findTopLevelSectionRange(lines2, 'rules')
       if (range2) lines2.splice(range2.start, Math.max(1, range2.end - range2.start), 'rules: []')
-      let joined = lines2.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+      const joined = lines2.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
       return joined ? `${joined}\n` : ''
     }
   }
-  let joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+  const joined = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
   return joined ? `${joined}\n` : ''
 }

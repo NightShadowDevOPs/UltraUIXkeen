@@ -626,6 +626,8 @@
                         <span v-if="item.interval" class="badge badge-ghost badge-sm">{{ $t('configProxyProvidersIntervalShort') }}: {{ item.interval }}</span>
                         <span v-if="item.filter" class="badge badge-ghost badge-sm">filter</span>
                         <span v-if="item.excludeFilter" class="badge badge-ghost badge-sm">exclude-filter</span>
+                        <span v-if="item.healthCheckUrl || item.healthCheckEnable" class="badge badge-success badge-outline badge-sm">health-check</span>
+                        <span v-if="item.overrideBody" class="badge badge-warning badge-outline badge-sm">override</span>
                       </div>
                     </button>
                   </div>
@@ -681,12 +683,63 @@
                     </label>
                   </div>
 
+                  <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configProxyProvidersHealthCheckTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersHealthCheckTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckEnable') }}</span>
+                        <select v-model="proxyProviderForm.healthCheckEnable" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">true</option>
+                          <option value="false">false</option>
+                        </select>
+                      </label>
+                      <label class="form-control xl:col-span-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckUrl') }}</span>
+                        <input v-model="proxyProviderForm.healthCheckUrl" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersHealthCheckUrlPlaceholder')" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckInterval') }}</span>
+                        <input v-model="proxyProviderForm.healthCheckInterval" type="text" inputmode="numeric" class="input input-sm" placeholder="600" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckLazy') }}</span>
+                        <select v-model="proxyProviderForm.healthCheckLazy" class="select select-sm">
+                          <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                          <option value="true">true</option>
+                          <option value="false">false</option>
+                        </select>
+                      </label>
+                      <label class="form-control md:col-span-2 xl:col-span-4">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckExtra') }}</span>
+                        <textarea
+                          v-model="proxyProviderForm.healthCheckExtraBody"
+                          class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                          wrap="off"
+                          :placeholder="$t('configProxyProvidersHealthCheckExtraPlaceholder')"
+                        ></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configProxyProvidersOverrideTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyProvidersOverrideTip') }}</div>
+                    <textarea
+                      v-model="proxyProviderForm.overrideBody"
+                      class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                      wrap="off"
+                      :placeholder="$t('configProxyProvidersOverridePlaceholder')"
+                    ></textarea>
+                  </div>
+
                   <div class="mt-3">
                     <div class="mb-1 font-semibold">{{ $t('configProxyProvidersExtraYamlTitle') }}</div>
                     <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyProvidersExtraYamlTip') }}</div>
                     <textarea
                       v-model="proxyProviderForm.extraBody"
-                      class="textarea textarea-sm h-40 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                      class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
                       wrap="off"
                       :placeholder="$t('configProxyProvidersExtraYamlPlaceholder')"
                     ></textarea>
@@ -781,6 +834,7 @@
                         <span v-if="item.providers.length" class="badge badge-ghost badge-sm">providers: {{ item.providers.length }}</span>
                         <span v-if="item.url" class="badge badge-ghost badge-sm">url</span>
                         <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
+                        <span v-if="item.includeAll" class="badge badge-success badge-outline badge-sm">include-all</span>
                       </div>
                     </button>
                   </div>
@@ -839,6 +893,14 @@
                     <label class="form-control">
                       <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldDisableUdp') }}</span>
                       <select v-model="proxyGroupForm.disableUdp" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldIncludeAll') }}</span>
+                      <select v-model="proxyGroupForm.includeAll" class="select select-sm">
                         <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
                         <option value="true">true</option>
                         <option value="false">false</option>
@@ -1088,18 +1150,201 @@
                       <button class="btn btn-xs btn-warning" @click="disableSelectedRule" :disabled="!selectedRuleEntry">{{ $t('configRulesDisable') }}</button>
                     </div>
                   </div>
-                  <label class="form-control">
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldType') }}</span>
+                      <input
+                        v-model="ruleForm.type"
+                        type="text"
+                        class="input input-sm"
+                        list="mihomo-rule-types"
+                        :placeholder="$t('configRulesFieldTypePlaceholder')"
+                        @input="syncRuleRawFromStructuredForm"
+                      />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldPayload') }}</span>
+                      <input
+                        v-model="ruleForm.payload"
+                        type="text"
+                        class="input input-sm"
+                        :placeholder="$t('configRulesFieldPayloadPlaceholder')"
+                        @input="syncRuleRawFromStructuredForm"
+                      />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldTarget') }}</span>
+                      <input
+                        v-model="ruleForm.target"
+                        type="text"
+                        class="input input-sm"
+                        :placeholder="$t('configRulesFieldTargetPlaceholder')"
+                        @input="syncRuleRawFromStructuredForm"
+                      />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldParams') }}</span>
+                      <textarea
+                        v-model="ruleForm.paramsText"
+                        class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                        :placeholder="$t('configRulesFieldParamsPlaceholder')"
+                        @input="syncRuleRawFromStructuredForm"
+                      ></textarea>
+                    </label>
+                  </div>
+
+                  <datalist id="mihomo-rule-types">
+                    <option value="MATCH"></option>
+                    <option value="FINAL"></option>
+                    <option value="RULE-SET"></option>
+                    <option value="DOMAIN"></option>
+                    <option value="DOMAIN-SUFFIX"></option>
+                    <option value="DOMAIN-KEYWORD"></option>
+                    <option value="GEOSITE"></option>
+                    <option value="GEOIP"></option>
+                    <option value="IP-CIDR"></option>
+                    <option value="IP-CIDR6"></option>
+                    <option value="SRC-IP-CIDR"></option>
+                    <option value="SRC-PORT"></option>
+                    <option value="DST-PORT"></option>
+                    <option value="NETWORK"></option>
+                    <option value="PROCESS-NAME"></option>
+                    <option value="PROCESS-PATH"></option>
+                  </datalist>
+
+                  <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-80">
+                    <span class="badge badge-outline">{{ $t('configRulesStructuredMode') }}</span>
+                    <button class="btn btn-xs btn-ghost" @click="syncRuleFormFromRawLine">{{ $t('configRulesParseRaw') }}</button>
+                    <button class="btn btn-xs btn-ghost" @click="syncRuleRawFromStructuredForm">{{ $t('configRulesBuildRaw') }}</button>
+                    <span class="opacity-70">{{ $t('configRulesStructuredTip') }}</span>
+                  </div>
+
+                  <label class="form-control mt-3">
                     <span class="label-text text-xs opacity-70">{{ $t('configRulesRawField') }}</span>
-                    <textarea v-model="ruleForm.raw" class="textarea textarea-sm h-40 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRulesRawPlaceholder')"></textarea>
+                    <textarea v-model="ruleForm.raw" class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRulesRawPlaceholder')"></textarea>
                   </label>
                   <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldType') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.type || '—' }}</div></div>
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldPayload') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.payload || '—' }}</div></div>
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldTarget') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.target || '—' }}</div></div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesPreviewType') }}</div><div class="mt-1 break-all">{{ ruleForm.type || '—' }}</div></div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesPreviewPayload') }}</div><div class="mt-1 break-all">{{ ruleForm.payload || '—' }}</div></div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesPreviewTarget') }}</div><div class="mt-1 break-all">{{ ruleForm.target || '—' }}</div></div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configDnsStructuredTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configDnsStructuredTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configDnsStructuredCount', { count: dnsStructuredSummary.totalItems }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="syncDnsEditorFromPayload">{{ $t('configDnsStructuredReadFromEditor') }}</button>
+                  <button class="btn btn-xs" @click="applyDnsEditorToPayload" :disabled="!dnsEditorCanApply">{{ $t('configDnsStructuredApplyToEditor') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configDnsStructuredEmptyEditor') }}</div>
+              <div v-else class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                  <span class="badge badge-outline">dns</span>
+                  <span>{{ $t('configDnsStructuredScopeTip') }}</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configDnsStructuredResolversTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredDefaultNameserver') }}</span>
+                        <textarea v-model="dnsEditorForm.defaultNameserverText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredDefaultNameserverPlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredNameserver') }}</span>
+                        <textarea v-model="dnsEditorForm.nameserverText" class="textarea textarea-sm h-28 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredNameserverPlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallback') }}</span>
+                        <textarea v-model="dnsEditorForm.fallbackText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredFallbackPlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredProxyNameserver') }}</span>
+                        <textarea v-model="dnsEditorForm.proxyServerNameserverText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredProxyNameserverPlaceholder')"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configDnsStructuredPolicyTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredNameserverPolicy') }}</span>
+                        <textarea v-model="dnsEditorForm.nameserverPolicyText" class="textarea textarea-sm h-28 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredNameserverPolicyPlaceholder')"></textarea>
+                      </label>
+
+                      <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallbackGeoip') }}</span>
+                          <select v-model="dnsEditorForm.fallbackFilterGeoip" class="select select-sm">
+                            <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                          </select>
+                        </label>
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallbackGeoipCode') }}</span>
+                          <input v-model="dnsEditorForm.fallbackFilterGeoipCode" type="text" class="input input-sm" :placeholder="$t('configDnsStructuredFallbackGeoipCodePlaceholder')" />
+                        </label>
+                      </div>
+
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallbackGeosite') }}</span>
+                        <textarea v-model="dnsEditorForm.fallbackFilterGeositeText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredFallbackGeositePlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallbackIpcidr') }}</span>
+                        <textarea v-model="dnsEditorForm.fallbackFilterIpcidrText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredFallbackIpcidrPlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFallbackDomain') }}</span>
+                        <textarea v-model="dnsEditorForm.fallbackFilterDomainText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredFallbackDomainPlaceholder')"></textarea>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configDnsStructuredFiltersTitle') }}</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredFakeIpFilter') }}</span>
+                        <textarea v-model="dnsEditorForm.fakeIpFilterText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredFakeIpFilterPlaceholder')"></textarea>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configDnsStructuredDnsHijack') }}</span>
+                        <textarea v-model="dnsEditorForm.dnsHijackText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configDnsStructuredDnsHijackPlaceholder')"></textarea>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configDnsStructuredSummaryTitle') }}</div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryDefaultNameserver', { count: dnsStructuredSummary.defaultNameserver }) }}</span>
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryNameserver', { count: dnsStructuredSummary.nameserver }) }}</span>
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryFallback', { count: dnsStructuredSummary.fallback }) }}</span>
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryFakeIpFilter', { count: dnsStructuredSummary.fakeIpFilter }) }}</span>
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryDnsHijack', { count: dnsStructuredSummary.dnsHijack }) }}</span>
+                      <span class="badge badge-ghost">{{ $t('configDnsStructuredSummaryPolicy', { count: dnsStructuredSummary.nameserverPolicy }) }}</span>
+                    </div>
+                    <div class="mt-3 text-[11px] opacity-70">{{ $t('configDnsStructuredPolicyFormatTip') }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
 
             <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
@@ -1327,6 +1572,7 @@ import { decodeB64Utf8 } from '@/helper/b64'
 import {
   type ParsedProxyProviderEntry,
   type ProviderDisableImpact,
+  type ProxyProviderFormModel,
   emptyProxyProviderForm,
   parseProxyProvidersFromConfig,
   proxyProviderFormFromEntry,
@@ -1337,6 +1583,7 @@ import {
 import {
   type ParsedProxyGroupEntry,
   type ProxyGroupDisableImpact,
+  type ProxyGroupFormModel,
   type ProxyGroupReferenceInfo,
   emptyProxyGroupForm,
   parseProxyGroupsFromConfig,
@@ -1363,8 +1610,16 @@ import {
   parseRulesFromConfig,
   removeRuleFromConfig,
   ruleFormFromEntry,
+  syncRuleFormFromRaw,
+  syncRuleRawFromForm,
   upsertRuleInConfig,
 } from '@/helper/mihomoConfigRules'
+import {
+  type DnsEditorFormModel,
+  dnsEditorFormFromConfig,
+  emptyDnsEditorForm,
+  upsertDnsEditorInConfig,
+} from '@/helper/mihomoConfigDns'
 import { showNotification } from '@/helper/notification'
 import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
@@ -1457,35 +1712,6 @@ type ConfigQuickEditorModel = {
   dnsIpv6: string
   dnsListen: string
   dnsEnhancedMode: string
-}
-
-type ProxyProviderFormModel = {
-  originalName: string
-  name: string
-  type: string
-  url: string
-  path: string
-  interval: string
-  filter: string
-  excludeFilter: string
-  extraBody: string
-}
-
-type ProxyGroupFormModel = {
-  originalName: string
-  name: string
-  type: string
-  url: string
-  interval: string
-  strategy: string
-  lazy: string
-  disableUdp: string
-  tolerance: string
-  timeout: string
-  proxiesText: string
-  useText: string
-  providersText: string
-  extraBody: string
 }
 
 type QuickEditorFieldKey = keyof ConfigQuickEditorModel
@@ -1598,6 +1824,7 @@ const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
 })
 
 const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
+const dnsEditorForm = ref<DnsEditorFormModel>(emptyDnsEditorForm())
 const proxyProviderForm = ref<ProxyProviderFormModel>(emptyProxyProviderForm())
 const proxyGroupForm = ref<ProxyGroupFormModel>(emptyProxyGroupForm())
 const ruleProviderForm = ref<RuleProviderFormModel>(emptyRuleProviderForm())
@@ -2288,6 +2515,32 @@ const quickEditorPreviewSummary = computed(() => quickEditorPreviewChanges.value
 
 const quickEditorAffectedGroups = computed<QuickEditorGroup[]>(() => Array.from(new Set(quickEditorPreviewChanges.value.map((item) => item.group))))
 const quickEditorCanApply = computed(() => quickEditorHasPayload.value && quickEditorPreviewChanges.value.length > 0)
+const dnsEditorAppliedPreview = computed(() => upsertDnsEditorInConfig(payload.value, dnsEditorForm.value))
+const dnsEditorCanApply = computed(() => quickEditorHasPayload.value && normalizeDiffText(dnsEditorAppliedPreview.value) !== normalizeDiffText(payload.value))
+const dnsStructuredSummary = computed(() => {
+  const countLines = (value: string) => normalizeDiffText(value).split('\n').map((line) => line.trim()).filter(Boolean).length
+  return {
+    defaultNameserver: countLines(dnsEditorForm.value.defaultNameserverText),
+    nameserver: countLines(dnsEditorForm.value.nameserverText),
+    fallback: countLines(dnsEditorForm.value.fallbackText),
+    fakeIpFilter: countLines(dnsEditorForm.value.fakeIpFilterText),
+    dnsHijack: countLines(dnsEditorForm.value.dnsHijackText),
+    nameserverPolicy: countLines(dnsEditorForm.value.nameserverPolicyText),
+    totalItems:
+      countLines(dnsEditorForm.value.defaultNameserverText)
+      + countLines(dnsEditorForm.value.nameserverText)
+      + countLines(dnsEditorForm.value.fallbackText)
+      + countLines(dnsEditorForm.value.proxyServerNameserverText)
+      + countLines(dnsEditorForm.value.fakeIpFilterText)
+      + countLines(dnsEditorForm.value.dnsHijackText)
+      + countLines(dnsEditorForm.value.nameserverPolicyText)
+      + countLines(dnsEditorForm.value.fallbackFilterGeositeText)
+      + countLines(dnsEditorForm.value.fallbackFilterIpcidrText)
+      + countLines(dnsEditorForm.value.fallbackFilterDomainText)
+      + (String(dnsEditorForm.value.fallbackFilterGeoip || '').trim().length ? 1 : 0)
+      + (String(dnsEditorForm.value.fallbackFilterGeoipCode || '').trim().length ? 1 : 0),
+  }
+})
 const parsedProxyProviders = computed<ParsedProxyProviderEntry[]>(() => parseProxyProvidersFromConfig(payload.value))
 const selectedProxyProviderEntry = computed(() => parsedProxyProviders.value.find((item) => item.name === proxyProviderSelectedName.value) || null)
 const proxyProviderFormCanSave = computed(() => String(proxyProviderForm.value.name || '').trim().length > 0)
@@ -2655,6 +2908,24 @@ const applyQuickEditorToPayload = () => {
   showNotification({ content: 'configQuickEditorAppliedToast', type: 'alert-success' })
 }
 
+const syncDnsEditorFromPayload = () => {
+  dnsEditorForm.value = dnsEditorFormFromConfig(payload.value)
+}
+
+const applyDnsEditorToPayload = () => {
+  if (!quickEditorHasPayload.value) {
+    showNotification({ content: 'configDnsStructuredEmptyEditor', type: 'alert-warning' })
+    return
+  }
+  if (!dnsEditorCanApply.value) {
+    showNotification({ content: 'configDnsStructuredNoChangesToast', type: 'alert-warning' })
+    return
+  }
+  payload.value = dnsEditorAppliedPreview.value
+  dnsEditorForm.value = dnsEditorFormFromConfig(payload.value)
+  showNotification({ content: 'configDnsStructuredAppliedToast', type: 'alert-success' })
+}
+
 const providerReferenceBadgeClass = (count: number) => {
   if (count <= 0) return 'badge-ghost'
   if (count <= 2) return 'badge-warning badge-outline'
@@ -2808,6 +3079,14 @@ const disableSelectedRuleProvider = () => {
 const prepareNewRule = () => {
   ruleSelectedIndex.value = ''
   ruleForm.value = emptyRuleForm()
+}
+
+const syncRuleFormFromRawLine = () => {
+  ruleForm.value = syncRuleFormFromRaw(ruleForm.value)
+}
+
+const syncRuleRawFromStructuredForm = () => {
+  ruleForm.value = syncRuleRawFromForm(ruleForm.value)
 }
 
 const loadRuleIntoForm = (ruleIndex: number) => {
@@ -3190,6 +3469,7 @@ const legacyRestart = async () => {
 
 const clearDraft = () => {
   payload.value = ''
+  dnsEditorForm.value = emptyDnsEditorForm()
 }
 
 watch(payload, () => {
@@ -3224,7 +3504,36 @@ watch(parsedProxyGroups, (entries) => {
   }
 }, { immediate: true, deep: true })
 
+watch(parsedRuleProviders, (entries) => {
+  const selectedName = String(ruleProviderSelectedName.value || '').trim()
+  if (selectedName) {
+    const entry = entries.find((item) => item.name === selectedName)
+    if (entry) {
+      ruleProviderForm.value = ruleProviderFormFromEntry(entry)
+      return
+    }
+  }
+  if (!selectedName && !String(ruleProviderForm.value.name || '').trim().length) {
+    ruleProviderForm.value = emptyRuleProviderForm()
+  }
+}, { immediate: true, deep: true })
+
+watch(parsedRules, (entries) => {
+  const selectedIndex = Number.parseInt(String(ruleSelectedIndex.value || ''), 10)
+  if (Number.isFinite(selectedIndex)) {
+    const entry = entries.find((item) => item.index === selectedIndex)
+    if (entry) {
+      ruleForm.value = ruleFormFromEntry(entry)
+      return
+    }
+  }
+  if (!String(ruleSelectedIndex.value || '').trim().length && !String(ruleForm.value.raw || '').trim().length) {
+    ruleForm.value = emptyRuleForm()
+  }
+}, { immediate: true, deep: true })
+
 onMounted(async () => {
   await refreshAll(true)
+  syncDnsEditorFromPayload()
 })
 </script>

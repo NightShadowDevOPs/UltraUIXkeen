@@ -133,3 +133,19 @@
 - Added dedicated editors for `rule-providers` and `rules` inside `Mihomo → Конфигурация`.
 - `rule-providers` can now be edited, duplicated, created from a template, renamed with `RULE-SET` references rewritten, and disabled with dependent `RULE-SET` rules removed from `rules`.
 - `rules` now has a line-based editor that preserves raw rule rows while still allowing per-rule add / edit / duplicate / remove flows.
+
+## Update v1.2.91
+
+- страница `Mihomo` приведена к реальным вкладкам рабочего пространства: `Обзор / Runtime / Providers / Rules / Config`, чтобы секции не превращались в одну длинную страницу со скроллом
+- редактор `proxy-providers` теперь умеет structured-редактирование nested-блоков `health-check` и `override`, сохраняя отдельные textarea для редких YAML-полей
+- редактор `proxy-groups` получил поле `include-all`
+- редактор `rules` получил structured-форму поверх raw-строки: можно отдельно править `type`, `payload`, `target` и дополнительные параметры, а затем собирать raw обратно без ручной правки всей строки
+- `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`
+
+
+## Update v1.2.92
+
+- Добавлен structured DNS editor внутри `Mihomo → Конфигурация` для частых списков и nested-веток секции `dns`.
+- Из UI теперь можно редактировать `default-nameserver`, `nameserver`, `fallback`, `proxy-server-nameserver`, `fake-ip-filter`, `dns-hijack`, `nameserver-policy` и `fallback-filter` без ручной правки raw YAML.
+- Для `nameserver-policy` поддержан более удобный формат строк `key = value` / `key = value1, value2`, а для `fallback-filter` вынесены частые поля `geoip`, `geoip-code`, `geosite`, `ipcidr`, `domain`.
+- Safe managed-config flow не менялся: новый блок работает поверх текущего редактора/draft и не затрагивает pipeline validate/apply/rollback.

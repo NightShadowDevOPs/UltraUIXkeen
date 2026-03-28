@@ -7,6 +7,12 @@ export type ProxyProviderFormModel = {
   interval: string
   filter: string
   excludeFilter: string
+  healthCheckEnable: string
+  healthCheckUrl: string
+  healthCheckInterval: string
+  healthCheckLazy: string
+  healthCheckExtraBody: string
+  overrideBody: string
   extraBody: string
 }
 
@@ -29,6 +35,12 @@ export type ParsedProxyProviderEntry = {
   interval: string
   filter: string
   excludeFilter: string
+  healthCheckEnable: string
+  healthCheckUrl: string
+  healthCheckInterval: string
+  healthCheckLazy: string
+  healthCheckExtraBody: string
+  overrideBody: string
   extraBody: string
   rawBlock: string
   references: ProviderReferenceInfo[]
@@ -44,7 +56,6 @@ type GroupRewriteResult = {
 }
 
 const SIMPLE_YAML_KEY_RE = /^[A-Za-z0-9_.@-]+$/
-const MANAGED_PROVIDER_KEYS = ['type', 'url', 'path', 'interval', 'filter', 'exclude-filter'] as const
 
 const normalizeText = (value: string) => String(value || '').replace(/\r\n/g, '\n')
 
@@ -301,6 +312,12 @@ const extractProviderManagedFields = (blockLines: string[]) => {
     interval: '',
     filter: '',
     excludeFilter: '',
+    healthCheckEnable: '',
+    healthCheckUrl: '',
+    healthCheckInterval: '',
+    healthCheckLazy: '',
+    healthCheckExtraBody: '',
+    overrideBody: '',
     extraBody: '',
   }
   const extraLines: string[] = []
@@ -312,12 +329,72 @@ const extractProviderManagedFields = (blockLines: string[]) => {
     filter: 'filter',
     'exclude-filter': 'excludeFilter',
   }
-  for (const line of blockLines.slice(1)) {
-    const match = String(line || '').match(/^\s{4}([A-Za-z0-9_.@-]+):\s*(.*?)\s*$/)
+  const healthFieldMap: Record<string, keyof ProxyProviderFormModel> = {
+    enable: 'healthCheckEnable',
+    url: 'healthCheckUrl',
+    interval: 'healthCheckInterval',
+    lazy: 'healthCheckLazy',
+  }
+
+  for (let index = 1; index < blockLines.length; index += 1) {
+    const line = String(blockLines[index] || '')
+    const match = line.match(/^\s{4}([A-Za-z0-9_.@-]+):\s*(.*?)\s*$/)
     if (match && match[1] in fieldMap) {
       form[fieldMap[match[1]]] = unquoteYamlValue(match[2])
       continue
     }
+
+    if (/^\s{4}health-check:\s*(?:#.*)?$/.test(line)) {
+      const nestedLines: string[] = []
+      let j = index + 1
+      for (; j < blockLines.length; j += 1) {
+        const nestedLine = String(blockLines[j] || '')
+        if (!nestedLine.trim().length) {
+          nestedLines.push(nestedLine)
+          continue
+        }
+        if (/^\s{4}#/.test(nestedLine)) {
+          nestedLines.push(nestedLine)
+          continue
+        }
+        if (!/^\s{6}/.test(nestedLine)) break
+        nestedLines.push(nestedLine)
+      }
+      const extraHealthLines: string[] = []
+      for (const nestedLine of nestedLines) {
+        const nestedMatch = String(nestedLine || '').match(/^\s{6}([A-Za-z0-9_.@-]+):\s*(.*?)\s*$/)
+        if (nestedMatch && nestedMatch[1] in healthFieldMap) {
+          form[healthFieldMap[nestedMatch[1]]] = unquoteYamlValue(nestedMatch[2])
+          continue
+        }
+        extraHealthLines.push(nestedLine)
+      }
+      form.healthCheckExtraBody = dedentBlock(extraHealthLines.join('\n'))
+      index = j - 1
+      continue
+    }
+
+    if (/^\s{4}override:\s*(?:#.*)?$/.test(line)) {
+      const nestedLines: string[] = []
+      let j = index + 1
+      for (; j < blockLines.length; j += 1) {
+        const nestedLine = String(blockLines[j] || '')
+        if (!nestedLine.trim().length) {
+          nestedLines.push(nestedLine)
+          continue
+        }
+        if (/^\s{4}#/.test(nestedLine)) {
+          nestedLines.push(nestedLine)
+          continue
+        }
+        if (!/^\s{6}/.test(nestedLine)) break
+        nestedLines.push(nestedLine)
+      }
+      form.overrideBody = dedentBlock(nestedLines.join('\n'))
+      index = j - 1
+      continue
+    }
+
     extraLines.push(line)
   }
   form.extraBody = dedentBlock(extraLines.join('\n'))
@@ -357,6 +434,12 @@ const parseProxyProviderEntriesRaw = (value: string) => {
       interval: form.interval,
       filter: form.filter,
       excludeFilter: form.excludeFilter,
+      healthCheckEnable: form.healthCheckEnable,
+      healthCheckUrl: form.healthCheckUrl,
+      healthCheckInterval: form.healthCheckInterval,
+      healthCheckLazy: form.healthCheckLazy,
+      healthCheckExtraBody: form.healthCheckExtraBody,
+      overrideBody: form.overrideBody,
       extraBody: form.extraBody,
       rawBlock: blockLines.join('\n'),
       references: [],
@@ -382,6 +465,29 @@ const buildProviderBlockLines = (form: ProxyProviderFormModel) => {
   appendScalar('interval', form.interval, 'number')
   appendScalar('filter', form.filter)
   appendScalar('exclude-filter', form.excludeFilter)
+
+  const healthCheckLines: string[] = []
+  const appendHealthScalar = (key: string, value: string, mode: 'string' | 'number' = 'string') => {
+    const cleaned = String(value || '').trim()
+    if (!cleaned.length) return
+    healthCheckLines.push(`      ${key}: ${quoteYamlScalar(cleaned, mode)}`)
+  }
+  appendHealthScalar('enable', form.healthCheckEnable)
+  appendHealthScalar('url', form.healthCheckUrl)
+  appendHealthScalar('interval', form.healthCheckInterval, 'number')
+  appendHealthScalar('lazy', form.healthCheckLazy)
+  healthCheckLines.push(...indentBlock(form.healthCheckExtraBody, 6))
+  if (healthCheckLines.length) {
+    lines.push('    health-check:')
+    lines.push(...healthCheckLines)
+  }
+
+  const overrideLines = indentBlock(form.overrideBody, 6)
+  if (overrideLines.length) {
+    lines.push('    override:')
+    lines.push(...overrideLines)
+  }
+
   const extraLines = indentBlock(form.extraBody, 4)
   if (extraLines.length) {
     if (lines.length > 1 && extraLines[0]) lines.push('')
@@ -416,7 +522,13 @@ export const emptyProxyProviderForm = (): ProxyProviderFormModel => ({
   interval: '86400',
   filter: '',
   excludeFilter: '',
-  extraBody: 'health-check:\n  enable: true\n  url: https://www.gstatic.com/generate_204\n  interval: 600',
+  healthCheckEnable: 'true',
+  healthCheckUrl: 'https://www.gstatic.com/generate_204',
+  healthCheckInterval: '600',
+  healthCheckLazy: '',
+  healthCheckExtraBody: '',
+  overrideBody: '',
+  extraBody: '',
 })
 
 export const proxyProviderFormFromEntry = (entry: ParsedProxyProviderEntry): ProxyProviderFormModel => ({
@@ -428,6 +540,12 @@ export const proxyProviderFormFromEntry = (entry: ParsedProxyProviderEntry): Pro
   interval: entry.interval,
   filter: entry.filter,
   excludeFilter: entry.excludeFilter,
+  healthCheckEnable: entry.healthCheckEnable,
+  healthCheckUrl: entry.healthCheckUrl,
+  healthCheckInterval: entry.healthCheckInterval,
+  healthCheckLazy: entry.healthCheckLazy,
+  healthCheckExtraBody: entry.healthCheckExtraBody,
+  overrideBody: entry.overrideBody,
   extraBody: entry.extraBody,
 })
 
@@ -480,6 +598,12 @@ export const upsertProxyProviderInConfig = (value: string, form: ProxyProviderFo
     interval: String(form.interval || '').trim(),
     filter: String(form.filter || '').trim(),
     excludeFilter: String(form.excludeFilter || '').trim(),
+    healthCheckEnable: String(form.healthCheckEnable || '').trim(),
+    healthCheckUrl: String(form.healthCheckUrl || '').trim(),
+    healthCheckInterval: String(form.healthCheckInterval || '').trim(),
+    healthCheckLazy: String(form.healthCheckLazy || '').trim(),
+    healthCheckExtraBody: dedentBlock(form.healthCheckExtraBody || ''),
+    overrideBody: dedentBlock(form.overrideBody || ''),
     extraBody: dedentBlock(form.extraBody || ''),
   }
   const blockLines = buildProviderBlockLines(nextForm)

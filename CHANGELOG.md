@@ -1,3 +1,18 @@
+## [1.2.92] (2026-03-28)
+
+### Features
+
+- Mihomo config workspace: add a structured DNS editor for common `dns` lists and nested filters so `default-nameserver`, `nameserver`, `fallback`, `proxy-server-nameserver`, `fake-ip-filter`, `dns-hijack`, `nameserver-policy`, and `fallback-filter` can be edited without manual YAML surgery
+- The DNS editor now reads current values from the draft/editor, previews a compact per-block summary, and writes changes back into the safe managed-config flow while leaving router-agent on 0.6.22
+
+## [1.2.91] (2026-03-28)
+
+### Features
+
+- Mihomo page is reorganized into real tabs (`Overview / Runtime / Providers / Rules / Config`) so the workspace is no longer one long scroll and each block now has its own focused entry point
+- `proxy-providers` editor now surfaces nested `health-check` and `override` fields in structured form while still keeping extra YAML for advanced keys
+- `proxy-groups` editor now exposes `include-all`, and `rules` gets a structured form (`type / payload / target / params`) on top of raw mode so common rule edits no longer require hand-editing the whole line; router-agent stays on 0.6.22
+
 ## [1.2.90] (2026-03-28)
 
 ### Features
