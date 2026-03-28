@@ -792,6 +792,11 @@
                         <span v-if="item.udp === 'true'" class="badge badge-info badge-outline badge-sm">UDP</span>
                         <span v-if="item.wsPath" class="badge badge-ghost badge-sm">ws</span>
                         <span v-if="item.grpcServiceName" class="badge badge-ghost badge-sm">grpc</span>
+                        <span v-if="item.httpMethod || item.httpPath.length || item.httpHeadersBody" class="badge badge-ghost badge-sm">http-opts</span>
+                        <span v-if="item.smuxEnabled || item.smuxProtocol || item.smuxMaxConnections" class="badge badge-ghost badge-sm">smux</span>
+                        <span v-if="item.wireguardPrivateKey || item.wireguardIp.length || item.wireguardReserved.length" class="badge badge-info badge-outline badge-sm">wireguard</span>
+                        <span v-if="item.hysteriaUp || item.hysteriaDown || item.hysteriaObfs" class="badge badge-secondary badge-outline badge-sm">hysteria2</span>
+                        <span v-if="item.tuicCongestionController || item.tuicUdpRelayMode || item.tuicHeartbeatInterval" class="badge badge-accent badge-outline badge-sm">tuic</span>
                         <span v-if="item.plugin" class="badge badge-warning badge-outline badge-sm">plugin</span>
                         <span v-if="item.realityPublicKey" class="badge badge-secondary badge-outline badge-sm">reality</span>
                       </div>
@@ -920,6 +925,78 @@
                       <div class="mt-3 space-y-3">
                         <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPlugin') }}</span><input v-model="proxyForm.plugin" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldPluginPlaceholder')" /></label>
                         <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPluginOpts') }}</span><textarea v-model="proxyForm.pluginOptsBody" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldPluginOptsPlaceholder')"></textarea></label>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesHttpOptsTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesHttpOptsTip') }}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-3">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHttpMethod') }}</span><input v-model="proxyForm.httpMethod" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHttpMethodPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHttpPath') }}</span><textarea v-model="proxyForm.httpPathText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldHttpPathPlaceholder')"></textarea></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHttpHeaders') }}</span><textarea v-model="proxyForm.httpHeadersBody" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldHttpHeadersPlaceholder')"></textarea></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesSmuxTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesSmuxTip') }}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxEnabled') }}</span><select v-model="proxyForm.smuxEnabled" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxProtocol') }}</span><input v-model="proxyForm.smuxProtocol" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldSmuxProtocolPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxMaxConnections') }}</span><input v-model="proxyForm.smuxMaxConnections" type="text" inputmode="numeric" class="input input-sm" placeholder="4" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxMinStreams') }}</span><input v-model="proxyForm.smuxMinStreams" type="text" inputmode="numeric" class="input input-sm" placeholder="4" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxMaxStreams') }}</span><input v-model="proxyForm.smuxMaxStreams" type="text" inputmode="numeric" class="input input-sm" placeholder="16" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxPadding') }}</span><select v-model="proxyForm.smuxPadding" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSmuxStatistic') }}</span><select v-model="proxyForm.smuxStatistic" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 xl:col-span-2">
+                      <div class="font-semibold">{{ $t('configProxiesWireguardTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesWireguardTip') }}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardIp') }}</span><textarea v-model="proxyForm.wireguardIpText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardIpPlaceholder')"></textarea></label>
+                        <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardIpv6') }}</span><textarea v-model="proxyForm.wireguardIpv6Text" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardIpv6Placeholder')"></textarea></label>
+                        <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardPrivateKey') }}</span><input v-model="proxyForm.wireguardPrivateKey" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldWireguardPrivateKeyPlaceholder')" /></label>
+                        <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardPublicKey') }}</span><input v-model="proxyForm.wireguardPublicKey" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldWireguardPublicKeyPlaceholder')" /></label>
+                        <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardPresharedKey') }}</span><input v-model="proxyForm.wireguardPresharedKey" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldWireguardPresharedKeyPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardMtu') }}</span><input v-model="proxyForm.wireguardMtu" type="text" inputmode="numeric" class="input input-sm" placeholder="1420" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardWorkers') }}</span><input v-model="proxyForm.wireguardWorkers" type="text" inputmode="numeric" class="input input-sm" placeholder="2" /></label>
+                        <label class="form-control xl:col-span-4"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardReserved') }}</span><textarea v-model="proxyForm.wireguardReservedText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardReservedPlaceholder')"></textarea></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesProtocolExtrasTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesProtocolExtrasTip') }}</div>
+                      <div class="mt-3 space-y-3">
+                        <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                          <div class="text-xs font-semibold opacity-80">hysteria2</div>
+                          <div class="mt-2 grid grid-cols-1 gap-3">
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaUp') }}</span><input v-model="proxyForm.hysteriaUp" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaUpPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaDown') }}</span><input v-model="proxyForm.hysteriaDown" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaDownPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaObfs') }}</span><input v-model="proxyForm.hysteriaObfs" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaObfsPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaObfsPassword') }}</span><input v-model="proxyForm.hysteriaObfsPassword" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaObfsPasswordPlaceholder')" /></label>
+                          </div>
+                        </div>
+                        <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                          <div class="text-xs font-semibold opacity-80">tuic</div>
+                          <div class="mt-2 grid grid-cols-1 gap-3">
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicCongestionController') }}</span><input v-model="proxyForm.tuicCongestionController" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicCongestionControllerPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicUdpRelayMode') }}</span><input v-model="proxyForm.tuicUdpRelayMode" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicUdpRelayModePlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicHeartbeatInterval') }}</span><input v-model="proxyForm.tuicHeartbeatInterval" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicHeartbeatIntervalPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicRequestTimeout') }}</span><input v-model="proxyForm.tuicRequestTimeout" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicRequestTimeoutPlaceholder')" /></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicFastOpen') }}</span><select v-model="proxyForm.tuicFastOpen" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicReduceRtt') }}</span><select v-model="proxyForm.tuicReduceRtt" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                            <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicDisableSni') }}</span><select v-model="proxyForm.tuicDisableSni" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -1,3 +1,10 @@
+# Mihomo config management
+
+## Update v1.2.97
+- structured `proxies` editor now covers `http-opts`, `smux`, and common wireguard/hysteria2/tuic fields
+- the proxy list surfaces those advanced branches with quick badges so unusual proxy types are easier to spot
+- raw YAML remains available for rare vendor-specific keys, but the common nested branches now have explicit form fields
+
 # Управление конфигурацией Mihomo (безопасный фундамент)
 
 В релизе v1.2.75 добавлен первый безопасный этап управления `config.yaml` через `router-agent`.

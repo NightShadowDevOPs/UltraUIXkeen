@@ -1,3 +1,11 @@
+# Changelog
+
+## v1.2.97 — 2026-03-28
+- expanded the structured `proxies` editor with `http-opts`, `smux`, and common wireguard/hysteria2/tuic fields
+- added dedicated form blocks for `http-opts`, `smux`, WireGuard lists/keys, and common `hysteria2` / `tuic` protocol extras
+- proxy list badges now surface `http-opts`, `smux`, wireguard, hysteria2, and tuic presence at a glance
+- refreshed transfer docs for the next chat handoff
+
 ## [1.2.96] (2026-03-28)
 
 ### Features

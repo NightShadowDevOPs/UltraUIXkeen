@@ -26,6 +26,35 @@ export type ProxyFormModel = {
   wsHeadersBody: string
   grpcServiceName: string
   grpcMultiMode: string
+  httpMethod: string
+  httpPathText: string
+  httpHeadersBody: string
+  smuxEnabled: string
+  smuxProtocol: string
+  smuxMaxConnections: string
+  smuxMinStreams: string
+  smuxMaxStreams: string
+  smuxPadding: string
+  smuxStatistic: string
+  wireguardIpText: string
+  wireguardIpv6Text: string
+  wireguardPrivateKey: string
+  wireguardPublicKey: string
+  wireguardPresharedKey: string
+  wireguardMtu: string
+  wireguardReservedText: string
+  wireguardWorkers: string
+  hysteriaUp: string
+  hysteriaDown: string
+  hysteriaObfs: string
+  hysteriaObfsPassword: string
+  tuicCongestionController: string
+  tuicUdpRelayMode: string
+  tuicHeartbeatInterval: string
+  tuicRequestTimeout: string
+  tuicFastOpen: string
+  tuicReduceRtt: string
+  tuicDisableSni: string
   plugin: string
   pluginOptsBody: string
   realityPublicKey: string
@@ -76,6 +105,35 @@ export type ParsedProxyEntry = {
   wsHeadersBody: string
   grpcServiceName: string
   grpcMultiMode: string
+  httpMethod: string
+  httpPath: string[]
+  httpHeadersBody: string
+  smuxEnabled: string
+  smuxProtocol: string
+  smuxMaxConnections: string
+  smuxMinStreams: string
+  smuxMaxStreams: string
+  smuxPadding: string
+  smuxStatistic: string
+  wireguardIp: string[]
+  wireguardIpv6: string[]
+  wireguardPrivateKey: string
+  wireguardPublicKey: string
+  wireguardPresharedKey: string
+  wireguardMtu: string
+  wireguardReserved: string[]
+  wireguardWorkers: string
+  hysteriaUp: string
+  hysteriaDown: string
+  hysteriaObfs: string
+  hysteriaObfsPassword: string
+  tuicCongestionController: string
+  tuicUdpRelayMode: string
+  tuicHeartbeatInterval: string
+  tuicRequestTimeout: string
+  tuicFastOpen: string
+  tuicReduceRtt: string
+  tuicDisableSni: string
   plugin: string
   pluginOptsBody: string
   realityPublicKey: string
@@ -335,6 +393,42 @@ const parseProxyEntry = (blockLines: string[]): ParsedProxyEntry => {
   form.grpcServiceName = extractNestedScalar(grpcBody, 'grpc-service-name')
   form.grpcMultiMode = extractNestedScalar(grpcBody, 'multi-mode')
 
+  const httpBody = nestedBlockToBody(blockLines, 'http-opts')
+  form.httpMethod = extractNestedScalar(httpBody, 'method')
+  form.httpPathText = formatListText(parseListText(extractNestedMapBody(httpBody, 'path')))
+  form.httpHeadersBody = extractNestedMapBody(httpBody, 'headers')
+
+  const smuxBody = nestedBlockToBody(blockLines, 'smux')
+  form.smuxEnabled = extractNestedScalar(smuxBody, 'enabled')
+  form.smuxProtocol = extractNestedScalar(smuxBody, 'protocol')
+  form.smuxMaxConnections = extractNestedScalar(smuxBody, 'max-connections')
+  form.smuxMinStreams = extractNestedScalar(smuxBody, 'min-streams')
+  form.smuxMaxStreams = extractNestedScalar(smuxBody, 'max-streams')
+  form.smuxPadding = extractNestedScalar(smuxBody, 'padding')
+  form.smuxStatistic = extractNestedScalar(smuxBody, 'statistic')
+
+  form.wireguardIpText = formatListText(collectTopLevelList(blockLines, 'ip'))
+  form.wireguardIpv6Text = formatListText(collectTopLevelList(blockLines, 'ipv6'))
+  form.wireguardPrivateKey = extractScalarFromBlock(blockLines, 'private-key')
+  form.wireguardPublicKey = extractScalarFromBlock(blockLines, 'public-key')
+  form.wireguardPresharedKey = extractScalarFromBlock(blockLines, 'pre-shared-key')
+  form.wireguardMtu = extractScalarFromBlock(blockLines, 'mtu')
+  form.wireguardReservedText = formatListText(collectTopLevelList(blockLines, 'reserved'))
+  form.wireguardWorkers = extractScalarFromBlock(blockLines, 'workers')
+
+  form.hysteriaUp = extractScalarFromBlock(blockLines, 'up')
+  form.hysteriaDown = extractScalarFromBlock(blockLines, 'down')
+  form.hysteriaObfs = extractScalarFromBlock(blockLines, 'obfs')
+  form.hysteriaObfsPassword = extractScalarFromBlock(blockLines, 'obfs-password')
+
+  form.tuicCongestionController = extractScalarFromBlock(blockLines, 'congestion-controller')
+  form.tuicUdpRelayMode = extractScalarFromBlock(blockLines, 'udp-relay-mode')
+  form.tuicHeartbeatInterval = extractScalarFromBlock(blockLines, 'heartbeat-interval')
+  form.tuicRequestTimeout = extractScalarFromBlock(blockLines, 'request-timeout')
+  form.tuicFastOpen = extractScalarFromBlock(blockLines, 'fast-open')
+  form.tuicReduceRtt = extractScalarFromBlock(blockLines, 'reduce-rtt')
+  form.tuicDisableSni = extractScalarFromBlock(blockLines, 'disable-sni')
+
   form.plugin = extractScalarFromBlock(blockLines, 'plugin')
   form.pluginOptsBody = nestedBlockToBody(blockLines, 'plugin-opts')
 
@@ -368,7 +462,9 @@ const parseProxyEntry = (blockLines: string[]): ParsedProxyEntry => {
     if ([
       'name', 'type', 'server', 'port', 'udp', 'tfo', 'tls', 'skip-cert-verify', 'sni', 'servername', 'client-fingerprint', 'network',
       'dialer-proxy', 'interface-name', 'packet-encoding', 'uuid', 'password', 'cipher', 'flow', 'alpn', 'ws-opts', 'grpc-opts',
-      'plugin', 'plugin-opts', 'reality-opts',
+      'http-opts', 'smux', 'ip', 'ipv6', 'private-key', 'public-key', 'pre-shared-key', 'mtu', 'reserved', 'workers',
+      'up', 'down', 'obfs', 'obfs-password', 'congestion-controller', 'udp-relay-mode', 'heartbeat-interval', 'request-timeout',
+      'fast-open', 'reduce-rtt', 'disable-sni', 'plugin', 'plugin-opts', 'reality-opts',
     ].includes(key)) {
       i = end
       continue
@@ -403,6 +499,35 @@ const parseProxyEntry = (blockLines: string[]): ParsedProxyEntry => {
     wsHeadersBody: dedentBlock(form.wsHeadersBody),
     grpcServiceName: form.grpcServiceName,
     grpcMultiMode: form.grpcMultiMode,
+    httpMethod: form.httpMethod,
+    httpPath: parseListText(form.httpPathText),
+    httpHeadersBody: dedentBlock(form.httpHeadersBody),
+    smuxEnabled: form.smuxEnabled,
+    smuxProtocol: form.smuxProtocol,
+    smuxMaxConnections: form.smuxMaxConnections,
+    smuxMinStreams: form.smuxMinStreams,
+    smuxMaxStreams: form.smuxMaxStreams,
+    smuxPadding: form.smuxPadding,
+    smuxStatistic: form.smuxStatistic,
+    wireguardIp: parseListText(form.wireguardIpText),
+    wireguardIpv6: parseListText(form.wireguardIpv6Text),
+    wireguardPrivateKey: form.wireguardPrivateKey,
+    wireguardPublicKey: form.wireguardPublicKey,
+    wireguardPresharedKey: form.wireguardPresharedKey,
+    wireguardMtu: form.wireguardMtu,
+    wireguardReserved: parseListText(form.wireguardReservedText),
+    wireguardWorkers: form.wireguardWorkers,
+    hysteriaUp: form.hysteriaUp,
+    hysteriaDown: form.hysteriaDown,
+    hysteriaObfs: form.hysteriaObfs,
+    hysteriaObfsPassword: form.hysteriaObfsPassword,
+    tuicCongestionController: form.tuicCongestionController,
+    tuicUdpRelayMode: form.tuicUdpRelayMode,
+    tuicHeartbeatInterval: form.tuicHeartbeatInterval,
+    tuicRequestTimeout: form.tuicRequestTimeout,
+    tuicFastOpen: form.tuicFastOpen,
+    tuicReduceRtt: form.tuicReduceRtt,
+    tuicDisableSni: form.tuicDisableSni,
     plugin: form.plugin,
     pluginOptsBody: dedentBlock(form.pluginOptsBody),
     realityPublicKey: form.realityPublicKey,
@@ -423,6 +548,18 @@ const buildProxyBlock = (form: ProxyFormModel) => {
     const cleaned = String(rawValue || '').trim()
     if (!cleaned.length) return
     lines.push(`    ${key}: ${quoteYamlScalar(cleaned, mode)}`)
+  }
+  const appendList = (key: string, rawValue: string) => {
+    const items = parseListText(rawValue)
+    if (!items.length) return
+    lines.push(`    ${key}:`)
+    lines.push(...items.map((item) => `      - ${quoteYamlScalar(item)}`))
+  }
+  const appendNestedMap = (key: string, body: string, indent = 6) => {
+    const normalized = dedentBlock(body)
+    if (!normalized.length) return
+    lines.push(`    ${key}:`)
+    lines.push(...indentBlock(normalized, indent))
   }
   appendScalar('type', form.type)
   appendScalar('server', form.server)
@@ -466,9 +603,60 @@ const buildProxyBlock = (form: ProxyFormModel) => {
   if (grpcMultiMode.length) grpcBody.push(`      multi-mode: ${quoteYamlScalar(grpcMultiMode, 'boolean')}`)
   if (grpcBody.length) lines.push('    grpc-opts:', ...grpcBody)
 
+  const httpBody: string[] = []
+  const httpMethod = String(form.httpMethod || '').trim()
+  const httpPaths = parseListText(form.httpPathText)
+  if (httpMethod.length) httpBody.push(`      method: ${quoteYamlScalar(httpMethod)}`)
+  if (httpPaths.length) {
+    httpBody.push('      path:')
+    httpBody.push(...httpPaths.map((item) => `        - ${quoteYamlScalar(item)}`))
+  }
+  const httpHeaders = dedentBlock(form.httpHeadersBody)
+  if (httpHeaders.length) {
+    httpBody.push('      headers:')
+    httpBody.push(...indentBlock(httpHeaders, 8))
+  }
+  if (httpBody.length) lines.push('    http-opts:', ...httpBody)
+
+  const smuxBody: string[] = []
+  const appendSmuxScalar = (key: string, rawValue: string, mode: 'string' | 'number' | 'boolean' | 'auto' = 'string') => {
+    const cleaned = String(rawValue || '').trim()
+    if (!cleaned.length) return
+    smuxBody.push(`      ${key}: ${quoteYamlScalar(cleaned, mode)}`)
+  }
+  appendSmuxScalar('enabled', form.smuxEnabled, 'boolean')
+  appendSmuxScalar('protocol', form.smuxProtocol)
+  appendSmuxScalar('max-connections', form.smuxMaxConnections, 'auto')
+  appendSmuxScalar('min-streams', form.smuxMinStreams, 'auto')
+  appendSmuxScalar('max-streams', form.smuxMaxStreams, 'auto')
+  appendSmuxScalar('padding', form.smuxPadding, 'boolean')
+  appendSmuxScalar('statistic', form.smuxStatistic, 'boolean')
+  if (smuxBody.length) lines.push('    smux:', ...smuxBody)
+
+  appendList('ip', form.wireguardIpText)
+  appendList('ipv6', form.wireguardIpv6Text)
+  appendScalar('private-key', form.wireguardPrivateKey)
+  appendScalar('public-key', form.wireguardPublicKey)
+  appendScalar('pre-shared-key', form.wireguardPresharedKey)
+  appendScalar('mtu', form.wireguardMtu, 'auto')
+  appendList('reserved', form.wireguardReservedText)
+  appendScalar('workers', form.wireguardWorkers, 'auto')
+
+  appendScalar('up', form.hysteriaUp)
+  appendScalar('down', form.hysteriaDown)
+  appendScalar('obfs', form.hysteriaObfs)
+  appendScalar('obfs-password', form.hysteriaObfsPassword)
+
+  appendScalar('congestion-controller', form.tuicCongestionController)
+  appendScalar('udp-relay-mode', form.tuicUdpRelayMode)
+  appendScalar('heartbeat-interval', form.tuicHeartbeatInterval)
+  appendScalar('request-timeout', form.tuicRequestTimeout)
+  appendScalar('fast-open', form.tuicFastOpen, 'boolean')
+  appendScalar('reduce-rtt', form.tuicReduceRtt, 'boolean')
+  appendScalar('disable-sni', form.tuicDisableSni, 'boolean')
+
   appendScalar('plugin', form.plugin)
-  const pluginOpts = dedentBlock(form.pluginOptsBody)
-  if (pluginOpts.length) lines.push('    plugin-opts:', ...indentBlock(pluginOpts, 6))
+  appendNestedMap('plugin-opts', form.pluginOptsBody)
 
   const realityBody: string[] = []
   const realityPublicKey = String(form.realityPublicKey || '').trim()
@@ -703,6 +891,35 @@ export const emptyProxyForm = (): ProxyFormModel => ({
   wsHeadersBody: '',
   grpcServiceName: '',
   grpcMultiMode: '',
+  httpMethod: '',
+  httpPathText: '',
+  httpHeadersBody: '',
+  smuxEnabled: '',
+  smuxProtocol: '',
+  smuxMaxConnections: '',
+  smuxMinStreams: '',
+  smuxMaxStreams: '',
+  smuxPadding: '',
+  smuxStatistic: '',
+  wireguardIpText: '',
+  wireguardIpv6Text: '',
+  wireguardPrivateKey: '',
+  wireguardPublicKey: '',
+  wireguardPresharedKey: '',
+  wireguardMtu: '',
+  wireguardReservedText: '',
+  wireguardWorkers: '',
+  hysteriaUp: '',
+  hysteriaDown: '',
+  hysteriaObfs: '',
+  hysteriaObfsPassword: '',
+  tuicCongestionController: '',
+  tuicUdpRelayMode: '',
+  tuicHeartbeatInterval: '',
+  tuicRequestTimeout: '',
+  tuicFastOpen: '',
+  tuicReduceRtt: '',
+  tuicDisableSni: '',
   plugin: '',
   pluginOptsBody: '',
   realityPublicKey: '',
@@ -736,6 +953,35 @@ export const proxyFormFromEntry = (entry: ParsedProxyEntry): ProxyFormModel => (
   wsHeadersBody: entry.wsHeadersBody,
   grpcServiceName: entry.grpcServiceName,
   grpcMultiMode: entry.grpcMultiMode,
+  httpMethod: entry.httpMethod,
+  httpPathText: formatListText(entry.httpPath),
+  httpHeadersBody: entry.httpHeadersBody,
+  smuxEnabled: entry.smuxEnabled,
+  smuxProtocol: entry.smuxProtocol,
+  smuxMaxConnections: entry.smuxMaxConnections,
+  smuxMinStreams: entry.smuxMinStreams,
+  smuxMaxStreams: entry.smuxMaxStreams,
+  smuxPadding: entry.smuxPadding,
+  smuxStatistic: entry.smuxStatistic,
+  wireguardIpText: formatListText(entry.wireguardIp),
+  wireguardIpv6Text: formatListText(entry.wireguardIpv6),
+  wireguardPrivateKey: entry.wireguardPrivateKey,
+  wireguardPublicKey: entry.wireguardPublicKey,
+  wireguardPresharedKey: entry.wireguardPresharedKey,
+  wireguardMtu: entry.wireguardMtu,
+  wireguardReservedText: formatListText(entry.wireguardReserved),
+  wireguardWorkers: entry.wireguardWorkers,
+  hysteriaUp: entry.hysteriaUp,
+  hysteriaDown: entry.hysteriaDown,
+  hysteriaObfs: entry.hysteriaObfs,
+  hysteriaObfsPassword: entry.hysteriaObfsPassword,
+  tuicCongestionController: entry.tuicCongestionController,
+  tuicUdpRelayMode: entry.tuicUdpRelayMode,
+  tuicHeartbeatInterval: entry.tuicHeartbeatInterval,
+  tuicRequestTimeout: entry.tuicRequestTimeout,
+  tuicFastOpen: entry.tuicFastOpen,
+  tuicReduceRtt: entry.tuicReduceRtt,
+  tuicDisableSni: entry.tuicDisableSni,
   plugin: entry.plugin,
   pluginOptsBody: entry.pluginOptsBody,
   realityPublicKey: entry.realityPublicKey,
