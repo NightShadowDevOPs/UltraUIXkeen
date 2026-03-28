@@ -945,6 +945,162 @@
               </div>
             </div>
 
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configRuleProvidersTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configRuleProvidersTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configRuleProvidersCount', { count: parsedRuleProviders.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewRuleProvider">{{ $t('configRuleProvidersNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configRuleProvidersEmptyEditor') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="font-semibold">{{ $t('configRuleProvidersListTitle') }}</div>
+                    <span class="badge badge-outline">{{ parsedRuleProviders.length }}</span>
+                  </div>
+                  <div v-if="!parsedRuleProviders.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRuleProvidersListEmpty') }}</div>
+                  <div v-else class="max-h-[28rem] space-y-2 overflow-auto pr-1">
+                    <button v-for="item in parsedRuleProviders" :key="item.name" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="ruleProviderSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleProviderIntoForm(item.name)">
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ item.name }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url) }}</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="badge badge-outline">{{ item.behavior || '—' }}</span>
+                          <span class="badge" :class="providerReferenceBadgeClass(item.references.length)">{{ $t('configRuleProvidersReferencesCount', { count: item.references.length }) }}</span>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1">
+                        <span v-if="item.path" class="badge badge-ghost badge-sm">path: {{ item.path }}</span>
+                        <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
+                        <span v-if="item.format" class="badge badge-ghost badge-sm">format: {{ item.format }}</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedRuleProviderEntry ? $t('configRuleProvidersEditSelected') : $t('configRuleProvidersEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configRuleProvidersEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewRuleProvider">{{ $t('configRuleProvidersResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedRuleProvider" :disabled="!selectedRuleProviderEntry">{{ $t('configRuleProvidersDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveRuleProviderToPayload" :disabled="!ruleProviderFormCanSave">{{ $t('configRuleProvidersSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedRuleProvider" :disabled="!selectedRuleProviderEntry">{{ $t('configRuleProvidersDisable') }}</button>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldName') }}</span><input v-model="ruleProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldNamePlaceholder')" /></label>
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldType') }}</span><select v-model="ruleProviderForm.type" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="http">http</option><option value="file">file</option><option value="inline">inline</option></select></label>
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldBehavior') }}</span><select v-model="ruleProviderForm.behavior" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="classical">classical</option><option value="domain">domain</option><option value="ipcidr">ipcidr</option></select></label>
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldFormat') }}</span><select v-model="ruleProviderForm.format" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="yaml">yaml</option><option value="text">text</option><option value="mrs">mrs</option></select></label>
+                    <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldUrl') }}</span><input v-model="ruleProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldUrlPlaceholder')" /></label>
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldPath') }}</span><input v-model="ruleProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldPathPlaceholder')" /></label>
+                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldInterval') }}</span><input v-model="ruleProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" /></label>
+                  </div>
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configRuleProvidersExtraYamlTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configRuleProvidersExtraYamlTip') }}</div>
+                    <textarea v-model="ruleProviderForm.extraBody" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRuleProvidersExtraYamlPlaceholder')"></textarea>
+                  </div>
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configRuleProvidersReferencesTitle') }}</div>
+                      <div v-if="!selectedRuleProviderEntry" class="mt-2 opacity-70">{{ $t('configRuleProvidersReferencesSelect') }}</div>
+                      <template v-else>
+                        <div v-if="!selectedRuleProviderEntry.references.length" class="mt-2 opacity-70">{{ $t('configRuleProvidersReferencesEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-1">
+                          <div v-for="refItem in selectedRuleProviderEntry.references.slice(0, 8)" :key="`rp-${refItem.lineNo}-${refItem.text}`" class="font-mono text-[11px] break-all">L{{ refItem.lineNo }} · {{ refItem.text }}</div>
+                          <div v-if="selectedRuleProviderEntry.references.length > 8" class="opacity-60">+{{ selectedRuleProviderEntry.references.length - 8 }}</div>
+                        </div>
+                      </template>
+                    </div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configRuleProvidersDisableImpactTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configRuleProvidersDisableImpactTip') }}</div>
+                      <div v-if="!selectedRuleProviderEntry" class="mt-2 opacity-70">{{ $t('configRuleProvidersDisableImpactSelect') }}</div>
+                      <template v-else>
+                        <div class="mt-2 flex flex-wrap gap-2"><span class="badge badge-ghost">{{ $t('configRuleProvidersDisableImpactRules', { count: ruleProviderDisableImpact.rulesRemoved }) }}</span></div>
+                        <div v-if="!ruleProviderDisableImpact.rulesRemoved" class="mt-2 opacity-70">{{ $t('configRuleProvidersDisableImpactEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-1"><div v-for="sample in ruleProviderDisableImpact.samples" :key="`rp-sample-${sample.lineNo}-${sample.text}`" class="font-mono text-[11px] break-all">L{{ sample.lineNo }} · {{ sample.text }}</div></div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configRulesTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configRulesTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configRulesCount', { count: parsedRules.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewRule">{{ $t('configRulesNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesEmptyEditor') }}</div>
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2"><div class="font-semibold">{{ $t('configRulesListTitle') }}</div><span class="badge badge-outline">{{ parsedRules.length }}</span></div>
+                  <div v-if="!parsedRules.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesListEmpty') }}</div>
+                  <div v-else class="max-h-[28rem] space-y-2 overflow-auto pr-1">
+                    <button v-for="item in parsedRules" :key="`rule-${item.index}-${item.lineNo}`" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="String(ruleSelectedIndex) === String(item.index) ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleIntoForm(item.index)">
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">L{{ item.lineNo }} · {{ item.type || '—' }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ item.raw }}</div>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                          <span v-if="item.provider" class="badge badge-outline">{{ item.provider }}</span>
+                          <span v-if="item.target" class="badge badge-ghost">{{ item.target }}</span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedRuleEntry ? $t('configRulesEditSelected') : $t('configRulesEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configRulesEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewRule">{{ $t('configRulesResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedRule" :disabled="!selectedRuleEntry">{{ $t('configRulesDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveRuleToPayload" :disabled="!ruleFormCanSave">{{ $t('configRulesSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedRule" :disabled="!selectedRuleEntry">{{ $t('configRulesDisable') }}</button>
+                    </div>
+                  </div>
+                  <label class="form-control">
+                    <span class="label-text text-xs opacity-70">{{ $t('configRulesRawField') }}</span>
+                    <textarea v-model="ruleForm.raw" class="textarea textarea-sm h-40 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRulesRawPlaceholder')"></textarea>
+                  </label>
+                  <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldType') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.type || '—' }}</div></div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldPayload') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.payload || '—' }}</div></div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-2"><div class="opacity-60">{{ $t('configRulesFieldTarget') }}</div><div class="mt-1 break-all">{{ selectedRuleEntry?.target || '—' }}</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -1189,6 +1345,26 @@ import {
   simulateProxyGroupDisableImpact,
   upsertProxyGroupInConfig,
 } from '@/helper/mihomoConfigGroups'
+import {
+  type ParsedRuleProviderEntry,
+  type RuleProviderDisableImpact,
+  type RuleProviderFormModel,
+  emptyRuleProviderForm,
+  parseRuleProvidersFromConfig,
+  removeRuleProviderFromConfig,
+  ruleProviderFormFromEntry,
+  simulateRuleProviderDisableImpact,
+  upsertRuleProviderInConfig,
+} from '@/helper/mihomoConfigRuleProviders'
+import {
+  type ParsedRuleEntry,
+  type RuleFormModel,
+  emptyRuleForm,
+  parseRulesFromConfig,
+  removeRuleFromConfig,
+  ruleFormFromEntry,
+  upsertRuleInConfig,
+} from '@/helper/mihomoConfigRules'
 import { showNotification } from '@/helper/notification'
 import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
@@ -1206,6 +1382,8 @@ const compareChangesOnly = useStorage('config/mihomo-config-diff-only-changes', 
 const overviewSource = useStorage<DiffSourceKind>('config/mihomo-config-overview-source', 'draft')
 const proxyProviderSelectedName = useStorage('config/mihomo-config-provider-selected', '')
 const proxyGroupSelectedName = useStorage('config/mihomo-config-group-selected', '')
+const ruleProviderSelectedName = useStorage('config/mihomo-config-rule-provider-selected', '')
+const ruleSelectedIndex = useStorage('config/mihomo-config-rule-selected', '')
 
 const { t } = useI18n()
 
@@ -1422,6 +1600,8 @@ const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
 const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
 const proxyProviderForm = ref<ProxyProviderFormModel>(emptyProxyProviderForm())
 const proxyGroupForm = ref<ProxyGroupFormModel>(emptyProxyGroupForm())
+const ruleProviderForm = ref<RuleProviderFormModel>(emptyRuleProviderForm())
+const ruleForm = ref<RuleFormModel>(emptyRuleForm())
 
 const legacyLoadBusy = ref(false)
 const legacyApplyBusy = ref(false)
@@ -2132,6 +2312,17 @@ const proxyGroupReferencesSummary = computed(() => {
     ruleRefs: entry.references.filter((item) => item.kind === 'rule'),
   }
 })
+const parsedRuleProviders = computed<ParsedRuleProviderEntry[]>(() => parseRuleProvidersFromConfig(payload.value))
+const selectedRuleProviderEntry = computed(() => parsedRuleProviders.value.find((item) => item.name === ruleProviderSelectedName.value) || null)
+const ruleProviderFormCanSave = computed(() => String(ruleProviderForm.value.name || '').trim().length > 0)
+const ruleProviderDisableImpact = computed<RuleProviderDisableImpact>(() => {
+  const name = String(selectedRuleProviderEntry.value?.name || '').trim()
+  if (!name) return { rulesRemoved: 0, samples: [] }
+  return simulateRuleProviderDisableImpact(payload.value, name)
+})
+const parsedRules = computed<ParsedRuleEntry[]>(() => parseRulesFromConfig(payload.value))
+const selectedRuleEntry = computed(() => parsedRules.value.find((item) => String(item.index) == String(ruleSelectedIndex.value)) || null)
+const ruleFormCanSave = computed(() => String(ruleForm.value.raw || '').trim().length > 0)
 
 const previewGroupLabel = (group: QuickEditorGroup) => {
   switch (group) {
@@ -2567,6 +2758,92 @@ const disableSelectedProxyGroup = () => {
       : 'configProxyGroupsDisabledToast',
     type: 'alert-success',
   })
+}
+
+const prepareNewRuleProvider = () => {
+  ruleProviderSelectedName.value = ''
+  ruleProviderForm.value = emptyRuleProviderForm()
+}
+
+const loadRuleProviderIntoForm = (providerName: string) => {
+  const entry = parsedRuleProviders.value.find((item) => item.name === providerName)
+  if (!entry) return
+  ruleProviderSelectedName.value = entry.name
+  ruleProviderForm.value = ruleProviderFormFromEntry(entry)
+}
+
+const duplicateSelectedRuleProvider = () => {
+  const entry = selectedRuleProviderEntry.value
+  if (!entry) return
+  const next = ruleProviderFormFromEntry(entry)
+  next.originalName = ''
+  next.name = `${entry.name}-copy`
+  ruleProviderSelectedName.value = ''
+  ruleProviderForm.value = next
+}
+
+const saveRuleProviderToPayload = () => {
+  if (!ruleProviderFormCanSave.value) {
+    showNotification({ content: 'configRuleProvidersSaveNameRequired', type: 'alert-warning' })
+    return
+  }
+  payload.value = upsertRuleProviderInConfig(payload.value, ruleProviderForm.value)
+  ruleProviderSelectedName.value = String(ruleProviderForm.value.name || '').trim()
+  showNotification({ content: 'configRuleProvidersSavedToast', type: 'alert-success' })
+}
+
+const disableSelectedRuleProvider = () => {
+  const entry = selectedRuleProviderEntry.value
+  if (!entry) return
+  const result = removeRuleProviderFromConfig(payload.value, entry.name)
+  payload.value = result.yaml
+  ruleProviderSelectedName.value = ''
+  ruleProviderForm.value = emptyRuleProviderForm()
+  showNotification({
+    content: result.rulesRemoved > 0 ? 'configRuleProvidersDisabledWithCleanupToast' : 'configRuleProvidersDisabledToast',
+    type: 'alert-success',
+  })
+}
+
+const prepareNewRule = () => {
+  ruleSelectedIndex.value = ''
+  ruleForm.value = emptyRuleForm()
+}
+
+const loadRuleIntoForm = (ruleIndex: number) => {
+  const entry = parsedRules.value.find((item) => item.index === ruleIndex)
+  if (!entry) return
+  ruleSelectedIndex.value = String(entry.index)
+  ruleForm.value = ruleFormFromEntry(entry)
+}
+
+const duplicateSelectedRule = () => {
+  const entry = selectedRuleEntry.value
+  if (!entry) return
+  const next = ruleFormFromEntry(entry)
+  next.originalIndex = ''
+  ruleSelectedIndex.value = ''
+  ruleForm.value = next
+}
+
+const saveRuleToPayload = () => {
+  if (!ruleFormCanSave.value) {
+    showNotification({ content: 'configRulesSaveRequired', type: 'alert-warning' })
+    return
+  }
+  const wasNew = !String(ruleForm.value.originalIndex || '').trim().length
+  payload.value = upsertRuleInConfig(payload.value, ruleForm.value)
+  ruleSelectedIndex.value = wasNew ? '' : String(ruleForm.value.originalIndex || ruleSelectedIndex.value)
+  showNotification({ content: 'configRulesSavedToast', type: 'alert-success' })
+}
+
+const disableSelectedRule = () => {
+  const entry = selectedRuleEntry.value
+  if (!entry) return
+  payload.value = removeRuleFromConfig(payload.value, entry.index)
+  ruleSelectedIndex.value = ''
+  ruleForm.value = emptyRuleForm()
+  showNotification({ content: 'configRulesDisabledToast', type: 'alert-success' })
 }
 
 const splitDiffLines = (value: string) => {

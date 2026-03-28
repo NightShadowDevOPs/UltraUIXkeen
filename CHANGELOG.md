@@ -1,3 +1,11 @@
+## [1.2.90] (2026-03-28)
+
+### Features
+
+- Mihomo config workspace: add dedicated `rule-providers` and `rules` editors on top of the YAML editor so both sections can now be managed one entry at a time without touching the live `config.yaml`
+- `rule-providers` can be edited, duplicated, created from a template, renamed with linked `RULE-SET` references updated, and disabled with dependent `RULE-SET` rules removed from `rules`
+- `rules` now has its own line-based editor with list browsing, per-rule editing, duplication, quick add/remove flow, and raw-line preservation for the rest of the section while router-agent stays on 0.6.22
+
 ## [1.2.89] (2026-03-28)
 
 - fix build-breaking multiline i18n placeholders in proxy-groups translations (`en`, `ru`, `zh`) so Vite/TypeScript no longer fails with `Unterminated string literal`

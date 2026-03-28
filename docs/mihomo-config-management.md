@@ -127,3 +127,9 @@
 
 - исправлены placeholder-строки переводов блока `proxy-groups`, в которых реальные переносы строк были записаны внутри обычных строковых литералов
 - теперь примеры многострочных значений (`proxies`, `use/providers`, `extra YAML`) хранятся как экранированные `\n`, поэтому `vite build` больше не должен падать с `Unterminated string literal`
+
+## Update v1.2.90
+
+- Added dedicated editors for `rule-providers` and `rules` inside `Mihomo → Конфигурация`.
+- `rule-providers` can now be edited, duplicated, created from a template, renamed with `RULE-SET` references rewritten, and disabled with dependent `RULE-SET` rules removed from `rules`.
+- `rules` now has a line-based editor that preserves raw rule rows while still allowing per-rule add / edit / duplicate / remove flows.
