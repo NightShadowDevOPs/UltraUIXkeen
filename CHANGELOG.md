@@ -1,3 +1,7 @@
+## [1.2.89] (2026-03-28)
+
+- fix build-breaking multiline i18n placeholders in proxy-groups translations (`en`, `ru`, `zh`) so Vite/TypeScript no longer fails with `Unterminated string literal`
+
 ## [1.2.88] (2026-03-28)
 
 ### Features

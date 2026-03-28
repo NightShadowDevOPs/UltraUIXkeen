@@ -1271,19 +1271,14 @@ usersDbChanged: 'Changed',
   configProxyGroupsFieldTolerance: 'tolerance',
   configProxyGroupsFieldTimeout: 'timeout',
   configProxyGroupsFieldProxies: 'proxies (one per line)',
-  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT
-REJECT
-AUTO',
+  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT\nREJECT\nAUTO',
   configProxyGroupsFieldUse: 'use (providers, one per line)',
-  configProxyGroupsFieldUsePlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldUsePlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsFieldProviders: 'providers (one per line)',
-  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsExtraYamlTitle: 'Extra group YAML',
   configProxyGroupsExtraYamlTip: 'Use this area for hidden, icon, include-all, and other advanced keys. Paste YAML without the base 4-space indent — the UI will add it for you.',
-  configProxyGroupsExtraYamlPlaceholder: 'hidden: false
-include-all: true',
+  configProxyGroupsExtraYamlPlaceholder: 'hidden: false\ninclude-all: true',
   configProxyGroupsReferencesTitle: 'Where this group is used',
   configProxyGroupsReferencesTip: 'Shows which other proxy-groups reference this group and whether any rules target it.',
   configProxyGroupsReferencesSelect: 'Select a group on the left to inspect its links.',

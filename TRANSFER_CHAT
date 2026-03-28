@@ -7,7 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.88
+- UI: v1.2.89
+- v1.2.89: исправлен build-breaking дефект переводов `proxy-groups` — placeholder-строки с переносами в `src/i18n/en.ts`, `ru.ts`, `zh.ts` переведены в экранированный формат `\n`; сборка больше не должна падать с `Unterminated string literal`
 - router-agent: 0.6.22
 
 Правила по проекту:

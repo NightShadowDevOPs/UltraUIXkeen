@@ -1273,19 +1273,14 @@ usersDbChanged: 'Изменено',
   configProxyGroupsFieldTolerance: 'tolerance',
   configProxyGroupsFieldTimeout: 'timeout',
   configProxyGroupsFieldProxies: 'proxies (по одному на строку)',
-  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT
-REJECT
-AUTO',
+  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT\nREJECT\nAUTO',
   configProxyGroupsFieldUse: 'use (провайдеры, по одному на строку)',
-  configProxyGroupsFieldUsePlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldUsePlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsFieldProviders: 'providers (по одному на строку)',
-  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsExtraYamlTitle: 'Дополнительный YAML группы',
   configProxyGroupsExtraYamlTip: 'Сюда можно положить hidden, icon, include-all и другие нестандартные ключи. Вставляйте YAML без базового отступа в 4 пробела — UI добавит его сам.',
-  configProxyGroupsExtraYamlPlaceholder: 'hidden: false
-include-all: true',
+  configProxyGroupsExtraYamlPlaceholder: 'hidden: false\ninclude-all: true',
   configProxyGroupsReferencesTitle: 'Где используется группа',
   configProxyGroupsReferencesTip: 'Показывает, какие другие proxy-groups ссылаются на эту группу, и есть ли на неё правила в секции rules.',
   configProxyGroupsReferencesSelect: 'Выберите группу из списка слева, чтобы увидеть её связи.',

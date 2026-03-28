@@ -1168,19 +1168,14 @@ usersDbChanged: '已更改',
   configProxyGroupsFieldTolerance: 'tolerance',
   configProxyGroupsFieldTimeout: 'timeout',
   configProxyGroupsFieldProxies: 'proxies（每行一个）',
-  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT
-REJECT
-AUTO',
+  configProxyGroupsFieldProxiesPlaceholder: 'DIRECT\nREJECT\nAUTO',
   configProxyGroupsFieldUse: 'use（provider，每行一个）',
-  configProxyGroupsFieldUsePlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldUsePlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsFieldProviders: 'providers（每行一个）',
-  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS
-BackupProvider',
+  configProxyGroupsFieldProvidersPlaceholder: 'AdminVPS\nBackupProvider',
   configProxyGroupsExtraYamlTitle: '额外 group YAML',
   configProxyGroupsExtraYamlTip: '这里可以填写 hidden、icon、include-all 等高级键。粘贴时不用带最外层 4 个空格，UI 会自动补上。',
-  configProxyGroupsExtraYamlPlaceholder: 'hidden: false
-include-all: true',
+  configProxyGroupsExtraYamlPlaceholder: 'hidden: false\ninclude-all: true',
   configProxyGroupsReferencesTitle: '此分组的使用位置',
   configProxyGroupsReferencesTip: '显示哪些其他 proxy-groups 引用了该分组，以及 rules 里是否有规则指向它。',
   configProxyGroupsReferencesSelect: '先在左侧选择一个分组，查看它的关联。',
