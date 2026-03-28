@@ -573,6 +573,378 @@
               </div>
             </div>
 
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configProxyProvidersTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configProxyProvidersTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configProxyProvidersCount', { count: parsedProxyProviders.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewProxyProvider">{{ $t('configProxyProvidersNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configProxyProvidersEmptyEditor') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="font-semibold">{{ $t('configProxyProvidersListTitle') }}</div>
+                    <span class="badge badge-outline">{{ parsedProxyProviders.length }}</span>
+                  </div>
+
+                  <div v-if="!parsedProxyProviders.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configProxyProvidersListEmpty') }}
+                  </div>
+
+                  <div v-else class="max-h-[32rem] space-y-2 overflow-auto pr-1">
+                    <button
+                      v-for="item in parsedProxyProviders"
+                      :key="item.name"
+                      type="button"
+                      class="w-full rounded-lg border p-3 text-left transition"
+                      :class="proxyProviderSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'"
+                      @click="loadProxyProviderIntoForm(item.name)"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ item.name }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url) }}</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="badge badge-outline">{{ proxyProviderDisplayValue(item.type) }}</span>
+                          <span class="badge" :class="providerReferenceBadgeClass(item.references.length)">
+                            {{ $t('configProxyProvidersReferencesCount', { count: item.references.length }) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1">
+                        <span v-if="item.path" class="badge badge-ghost badge-sm">{{ $t('configProxyProvidersPathShort') }}: {{ item.path }}</span>
+                        <span v-if="item.interval" class="badge badge-ghost badge-sm">{{ $t('configProxyProvidersIntervalShort') }}: {{ item.interval }}</span>
+                        <span v-if="item.filter" class="badge badge-ghost badge-sm">filter</span>
+                        <span v-if="item.excludeFilter" class="badge badge-ghost badge-sm">exclude-filter</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedProxyProviderEntry ? $t('configProxyProvidersEditSelected') : $t('configProxyProvidersEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configProxyProvidersEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewProxyProvider">{{ $t('configProxyProvidersResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxyProvider" :disabled="!selectedProxyProviderEntry">{{ $t('configProxyProvidersDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveProxyProviderToPayload" :disabled="!proxyProviderFormCanSave">{{ $t('configProxyProvidersSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedProxyProvider" :disabled="!selectedProxyProviderEntry">{{ $t('configProxyProvidersDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldName') }}</span>
+                      <input v-model="proxyProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldNamePlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldType') }}</span>
+                      <select v-model="proxyProviderForm.type" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="http">http</option>
+                        <option value="file">file</option>
+                        <option value="inline">inline</option>
+                      </select>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldUrl') }}</span>
+                      <input v-model="proxyProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldUrlPlaceholder')" />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldPath') }}</span>
+                      <input v-model="proxyProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldPathPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldInterval') }}</span>
+                      <input v-model="proxyProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldFilter') }}</span>
+                      <input v-model="proxyProviderForm.filter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldFilterPlaceholder')" />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldExcludeFilter') }}</span>
+                      <input v-model="proxyProviderForm.excludeFilter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldExcludeFilterPlaceholder')" />
+                    </label>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configProxyProvidersExtraYamlTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyProvidersExtraYamlTip') }}</div>
+                    <textarea
+                      v-model="proxyProviderForm.extraBody"
+                      class="textarea textarea-sm h-40 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                      wrap="off"
+                      :placeholder="$t('configProxyProvidersExtraYamlPlaceholder')"
+                    ></textarea>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyProvidersReferencesTitle') }}</div>
+                      <div v-if="!selectedProxyProviderEntry" class="mt-2 opacity-70">{{ $t('configProxyProvidersReferencesSelect') }}</div>
+                      <div v-else-if="!selectedProxyProviderEntry.references.length" class="mt-2 opacity-70">{{ $t('configProxyProvidersReferencesEmpty') }}</div>
+                      <div v-else class="mt-2 flex flex-wrap gap-2">
+                        <span v-for="refItem in selectedProxyProviderEntry.references" :key="`${refItem.group}-${refItem.key}`" class="badge badge-outline">
+                          {{ refItem.group }} · {{ refItem.key }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyProvidersDisableImpactTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersDisableImpactTip') }}</div>
+                      <div v-if="!selectedProxyProviderEntry" class="mt-2 opacity-70">{{ $t('configProxyProvidersDisableImpactSelect') }}</div>
+                      <div v-else-if="!proxyProviderDisableImpact.length" class="mt-2 opacity-70">{{ $t('configProxyProvidersDisableImpactEmpty') }}</div>
+                      <div v-else class="mt-2 space-y-2">
+                        <div v-for="impact in proxyProviderDisableImpact" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="font-semibold">{{ impact.group }}</div>
+                            <div class="flex flex-wrap gap-2">
+                              <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
+                              <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
+                            </div>
+                          </div>
+                          <div class="mt-1 text-[11px] opacity-70">
+                            {{ impact.fallbackInjected ? $t('configProxyProvidersDisableImpactFallback') : $t('configProxyProvidersDisableImpactClean') }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configProxyGroupsTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configProxyGroupsTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configProxyGroupsCount', { count: parsedProxyGroups.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configProxyGroupsEmptyEditor') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[24rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="font-semibold">{{ $t('configProxyGroupsListTitle') }}</div>
+                    <span class="badge badge-outline">{{ parsedProxyGroups.length }}</span>
+                  </div>
+
+                  <div v-if="!parsedProxyGroups.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configProxyGroupsListEmpty') }}
+                  </div>
+
+                  <div v-else class="max-h-[36rem] space-y-2 overflow-auto pr-1">
+                    <button
+                      v-for="item in parsedProxyGroups"
+                      :key="item.name"
+                      type="button"
+                      class="w-full rounded-lg border p-3 text-left transition"
+                      :class="proxyGroupSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'"
+                      @click="loadProxyGroupIntoForm(item.name)"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ item.name }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ item.type || '—' }}</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="badge badge-outline">{{ item.type || '—' }}</span>
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsRefsShort', { count: item.references.length }) }}</span>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1">
+                        <span v-if="item.proxies.length" class="badge badge-ghost badge-sm">proxies: {{ item.proxies.length }}</span>
+                        <span v-if="item.use.length" class="badge badge-ghost badge-sm">use: {{ item.use.length }}</span>
+                        <span v-if="item.providers.length" class="badge badge-ghost badge-sm">providers: {{ item.providers.length }}</span>
+                        <span v-if="item.url" class="badge badge-ghost badge-sm">url</span>
+                        <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedProxyGroupEntry ? $t('configProxyGroupsEditSelected') : $t('configProxyGroupsEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configProxyGroupsEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveProxyGroupToPayload" :disabled="!proxyGroupFormCanSave">{{ $t('configProxyGroupsSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldName') }}</span>
+                      <input v-model="proxyGroupForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldNamePlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldType') }}</span>
+                      <select v-model="proxyGroupForm.type" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="select">select</option>
+                        <option value="url-test">url-test</option>
+                        <option value="fallback">fallback</option>
+                        <option value="load-balance">load-balance</option>
+                        <option value="relay">relay</option>
+                      </select>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUrl') }}</span>
+                      <input v-model="proxyGroupForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldUrlPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldInterval') }}</span>
+                      <input v-model="proxyGroupForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="300" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldStrategy') }}</span>
+                      <input v-model="proxyGroupForm.strategy" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldStrategyPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldLazy') }}</span>
+                      <select v-model="proxyGroupForm.lazy" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldDisableUdp') }}</span>
+                      <select v-model="proxyGroupForm.disableUdp" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTolerance') }}</span>
+                      <input v-model="proxyGroupForm.tolerance" type="text" inputmode="numeric" class="input input-sm" placeholder="50" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTimeout') }}</span>
+                      <input v-model="proxyGroupForm.timeout" type="text" inputmode="numeric" class="input input-sm" placeholder="3000" />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProxies') }}</span>
+                      <textarea v-model="proxyGroupForm.proxiesText" class="textarea textarea-sm h-24 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProxiesPlaceholder')"></textarea>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUse') }}</span>
+                      <textarea v-model="proxyGroupForm.useText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldUsePlaceholder')"></textarea>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProviders') }}</span>
+                      <textarea v-model="proxyGroupForm.providersText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProvidersPlaceholder')"></textarea>
+                    </label>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configProxyGroupsExtraYamlTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyGroupsExtraYamlTip') }}</div>
+                    <textarea
+                      v-model="proxyGroupForm.extraBody"
+                      class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                      wrap="off"
+                      :placeholder="$t('configProxyGroupsExtraYamlPlaceholder')"
+                    ></textarea>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyGroupsReferencesTitle') }}</div>
+                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesSelect') }}</div>
+                      <template v-else>
+                        <div class="mt-2 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesTip') }}</div>
+                        <div v-if="!proxyGroupReferencesSummary.groupRefs.length && !proxyGroupReferencesSummary.ruleRefs.length" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-2">
+                          <div v-if="proxyGroupReferencesSummary.groupRefs.length">
+                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesGroups') }}</div>
+                            <div class="flex flex-wrap gap-2">
+                              <span v-for="refItem in proxyGroupReferencesSummary.groupRefs" :key="`group-${refItem.text}-${refItem.key}`" class="badge badge-outline">
+                                {{ refItem.text }} · {{ refItem.key }}
+                              </span>
+                            </div>
+                          </div>
+                          <div v-if="proxyGroupReferencesSummary.ruleRefs.length">
+                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesRules') }}</div>
+                            <div class="flex flex-wrap gap-2">
+                              <span v-for="refItem in proxyGroupReferencesSummary.ruleRefs.slice(0, 8)" :key="`rule-${refItem.lineNo}-${refItem.text}`" class="badge badge-ghost">
+                                L{{ refItem.lineNo }}
+                              </span>
+                              <span v-if="proxyGroupReferencesSummary.ruleRefs.length > 8" class="badge badge-outline">+{{ proxyGroupReferencesSummary.ruleRefs.length - 8 }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyGroupsDisableImpactTip') }}</div>
+                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactSelect') }}</div>
+                      <template v-else>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactRules', { count: proxyGroupDisablePlan.rulesTouched }) }}</span>
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactGroups', { count: proxyGroupDisablePlan.impacts.length }) }}</span>
+                        </div>
+                        <div v-if="!proxyGroupDisablePlan.impacts.length && !proxyGroupDisablePlan.rulesTouched" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-2">
+                          <div v-for="impact in proxyGroupDisablePlan.impacts" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <div class="font-semibold">{{ impact.group }}</div>
+                              <div class="flex flex-wrap gap-2">
+                                <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
+                                <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
+                              </div>
+                            </div>
+                            <div class="mt-1 text-[11px] opacity-70">
+                              {{ impact.fallbackInjected ? $t('configProxyGroupsDisableImpactFallback') : $t('configProxyGroupsDisableImpactClean') }}
+                            </div>
+                          </div>
+                          <div v-if="proxyGroupDisablePlan.ruleSamples.length" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                            <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactRulesTitle') }}</div>
+                            <div class="mt-2 space-y-1">
+                              <div v-for="sample in proxyGroupDisablePlan.ruleSamples" :key="`rule-sample-${sample.lineNo}-${sample.text}`" class="font-mono text-[11px] break-all">
+                                L{{ sample.lineNo }} · {{ sample.text }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div v-if="lastAction" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -796,6 +1168,27 @@ import {
 } from '@/api/agent'
 import { getConfigsAPI, getConfigsRawAPI, reloadConfigsAPI, restartCoreAPI } from '@/api'
 import { decodeB64Utf8 } from '@/helper/b64'
+import {
+  type ParsedProxyProviderEntry,
+  type ProviderDisableImpact,
+  emptyProxyProviderForm,
+  parseProxyProvidersFromConfig,
+  proxyProviderFormFromEntry,
+  removeProxyProviderFromConfig,
+  simulateProxyProviderDisableImpact,
+  upsertProxyProviderInConfig,
+} from '@/helper/mihomoConfigProviders'
+import {
+  type ParsedProxyGroupEntry,
+  type ProxyGroupDisableImpact,
+  type ProxyGroupReferenceInfo,
+  emptyProxyGroupForm,
+  parseProxyGroupsFromConfig,
+  proxyGroupFormFromEntry,
+  removeProxyGroupFromConfig,
+  simulateProxyGroupDisableImpact,
+  upsertProxyGroupInConfig,
+} from '@/helper/mihomoConfigGroups'
 import { showNotification } from '@/helper/notification'
 import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
@@ -811,6 +1204,8 @@ const compareLeft = useStorage<DiffSourceKind>('config/mihomo-config-diff-left',
 const compareRight = useStorage<DiffSourceKind>('config/mihomo-config-diff-right', 'draft')
 const compareChangesOnly = useStorage('config/mihomo-config-diff-only-changes', true)
 const overviewSource = useStorage<DiffSourceKind>('config/mihomo-config-overview-source', 'draft')
+const proxyProviderSelectedName = useStorage('config/mihomo-config-provider-selected', '')
+const proxyGroupSelectedName = useStorage('config/mihomo-config-group-selected', '')
 
 const { t } = useI18n()
 
@@ -884,6 +1279,35 @@ type ConfigQuickEditorModel = {
   dnsIpv6: string
   dnsListen: string
   dnsEnhancedMode: string
+}
+
+type ProxyProviderFormModel = {
+  originalName: string
+  name: string
+  type: string
+  url: string
+  path: string
+  interval: string
+  filter: string
+  excludeFilter: string
+  extraBody: string
+}
+
+type ProxyGroupFormModel = {
+  originalName: string
+  name: string
+  type: string
+  url: string
+  interval: string
+  strategy: string
+  lazy: string
+  disableUdp: string
+  tolerance: string
+  timeout: string
+  proxiesText: string
+  useText: string
+  providersText: string
+  extraBody: string
 }
 
 type QuickEditorFieldKey = keyof ConfigQuickEditorModel
@@ -996,6 +1420,8 @@ const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
 })
 
 const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
+const proxyProviderForm = ref<ProxyProviderFormModel>(emptyProxyProviderForm())
+const proxyGroupForm = ref<ProxyGroupFormModel>(emptyProxyGroupForm())
 
 const legacyLoadBusy = ref(false)
 const legacyApplyBusy = ref(false)
@@ -1682,6 +2108,30 @@ const quickEditorPreviewSummary = computed(() => quickEditorPreviewChanges.value
 
 const quickEditorAffectedGroups = computed<QuickEditorGroup[]>(() => Array.from(new Set(quickEditorPreviewChanges.value.map((item) => item.group))))
 const quickEditorCanApply = computed(() => quickEditorHasPayload.value && quickEditorPreviewChanges.value.length > 0)
+const parsedProxyProviders = computed<ParsedProxyProviderEntry[]>(() => parseProxyProvidersFromConfig(payload.value))
+const selectedProxyProviderEntry = computed(() => parsedProxyProviders.value.find((item) => item.name === proxyProviderSelectedName.value) || null)
+const proxyProviderFormCanSave = computed(() => String(proxyProviderForm.value.name || '').trim().length > 0)
+const proxyProviderDisableImpact = computed<ProviderDisableImpact[]>(() => {
+  const name = String(selectedProxyProviderEntry.value?.name || '').trim()
+  if (!name) return []
+  return simulateProxyProviderDisableImpact(payload.value, name)
+})
+const parsedProxyGroups = computed<ParsedProxyGroupEntry[]>(() => parseProxyGroupsFromConfig(payload.value))
+const selectedProxyGroupEntry = computed(() => parsedProxyGroups.value.find((item) => item.name === proxyGroupSelectedName.value) || null)
+const proxyGroupFormCanSave = computed(() => String(proxyGroupForm.value.name || '').trim().length > 0)
+const proxyGroupDisablePlan = computed(() => {
+  const name = String(selectedProxyGroupEntry.value?.name || '').trim()
+  if (!name) return { impacts: [] as ProxyGroupDisableImpact[], rulesTouched: 0, ruleSamples: [] as ProxyGroupReferenceInfo[] }
+  return simulateProxyGroupDisableImpact(payload.value, name)
+})
+const proxyGroupReferencesSummary = computed(() => {
+  const entry = selectedProxyGroupEntry.value
+  if (!entry) return { groupRefs: [] as ProxyGroupReferenceInfo[], ruleRefs: [] as ProxyGroupReferenceInfo[] }
+  return {
+    groupRefs: entry.references.filter((item) => item.kind === 'group'),
+    ruleRefs: entry.references.filter((item) => item.kind === 'rule'),
+  }
+})
 
 const previewGroupLabel = (group: QuickEditorGroup) => {
   switch (group) {
@@ -2012,6 +2462,111 @@ const applyQuickEditorToPayload = () => {
   payload.value = nextPayload
 
   showNotification({ content: 'configQuickEditorAppliedToast', type: 'alert-success' })
+}
+
+const providerReferenceBadgeClass = (count: number) => {
+  if (count <= 0) return 'badge-ghost'
+  if (count <= 2) return 'badge-warning badge-outline'
+  return 'badge-error badge-outline'
+}
+
+const proxyProviderDisplayValue = (value?: string) => {
+  const s = String(value || '').trim()
+  return s.length ? s : '—'
+}
+
+const prepareNewProxyProvider = () => {
+  proxyProviderSelectedName.value = ''
+  proxyProviderForm.value = emptyProxyProviderForm()
+}
+
+const loadProxyProviderIntoForm = (providerName: string) => {
+  const entry = parsedProxyProviders.value.find((item) => item.name === providerName)
+  if (!entry) return
+  proxyProviderSelectedName.value = entry.name
+  proxyProviderForm.value = proxyProviderFormFromEntry(entry)
+}
+
+const duplicateSelectedProxyProvider = () => {
+  const entry = selectedProxyProviderEntry.value
+  if (!entry) return
+  const next = proxyProviderFormFromEntry(entry)
+  next.originalName = ''
+  next.name = `${entry.name}-copy`
+  proxyProviderSelectedName.value = ''
+  proxyProviderForm.value = next
+}
+
+const saveProxyProviderToPayload = () => {
+  if (!proxyProviderFormCanSave.value) {
+    showNotification({ content: 'configProxyProvidersSaveNameRequired', type: 'alert-warning' })
+    return
+  }
+  payload.value = upsertProxyProviderInConfig(payload.value, proxyProviderForm.value)
+  proxyProviderSelectedName.value = String(proxyProviderForm.value.name || '').trim()
+  showNotification({ content: 'configProxyProvidersSavedToast', type: 'alert-success' })
+}
+
+const disableSelectedProxyProvider = () => {
+  const entry = selectedProxyProviderEntry.value
+  if (!entry) return
+  const result = removeProxyProviderFromConfig(payload.value, entry.name)
+  payload.value = result.yaml
+  proxyProviderSelectedName.value = ''
+  proxyProviderForm.value = emptyProxyProviderForm()
+  showNotification({
+    content: result.impacts.some((item) => item.fallbackInjected)
+      ? 'configProxyProvidersDisabledWithFallbackToast'
+      : 'configProxyProvidersDisabledToast',
+    type: 'alert-success',
+  })
+}
+
+const prepareNewProxyGroup = () => {
+  proxyGroupSelectedName.value = ''
+  proxyGroupForm.value = emptyProxyGroupForm()
+}
+
+const loadProxyGroupIntoForm = (groupName: string) => {
+  const entry = parsedProxyGroups.value.find((item) => item.name === groupName)
+  if (!entry) return
+  proxyGroupSelectedName.value = entry.name
+  proxyGroupForm.value = proxyGroupFormFromEntry(entry)
+}
+
+const duplicateSelectedProxyGroup = () => {
+  const entry = selectedProxyGroupEntry.value
+  if (!entry) return
+  const next = proxyGroupFormFromEntry(entry)
+  next.originalName = ''
+  next.name = `${entry.name}-copy`
+  proxyGroupSelectedName.value = ''
+  proxyGroupForm.value = next
+}
+
+const saveProxyGroupToPayload = () => {
+  if (!proxyGroupFormCanSave.value) {
+    showNotification({ content: 'configProxyGroupsSaveNameRequired', type: 'alert-warning' })
+    return
+  }
+  payload.value = upsertProxyGroupInConfig(payload.value, proxyGroupForm.value)
+  proxyGroupSelectedName.value = String(proxyGroupForm.value.name || '').trim()
+  showNotification({ content: 'configProxyGroupsSavedToast', type: 'alert-success' })
+}
+
+const disableSelectedProxyGroup = () => {
+  const entry = selectedProxyGroupEntry.value
+  if (!entry) return
+  const result = removeProxyGroupFromConfig(payload.value, entry.name)
+  payload.value = result.yaml
+  proxyGroupSelectedName.value = ''
+  proxyGroupForm.value = emptyProxyGroupForm()
+  showNotification({
+    content: result.rulesTouched > 0 || result.impacts.some((item) => item.fallbackInjected)
+      ? 'configProxyGroupsDisabledWithFallbackToast'
+      : 'configProxyGroupsDisabledToast',
+    type: 'alert-success',
+  })
 }
 
 const splitDiffLines = (value: string) => {
@@ -2363,6 +2918,34 @@ const clearDraft = () => {
 watch(payload, () => {
   syncQuickEditorFromPayload()
 }, { immediate: true })
+
+watch(parsedProxyProviders, (entries) => {
+  const selectedName = String(proxyProviderSelectedName.value || '').trim()
+  if (selectedName) {
+    const entry = entries.find((item) => item.name === selectedName)
+    if (entry) {
+      proxyProviderForm.value = proxyProviderFormFromEntry(entry)
+      return
+    }
+  }
+  if (!selectedName && !String(proxyProviderForm.value.name || '').trim().length) {
+    proxyProviderForm.value = emptyProxyProviderForm()
+  }
+}, { immediate: true, deep: true })
+
+watch(parsedProxyGroups, (entries) => {
+  const selectedName = String(proxyGroupSelectedName.value || '').trim()
+  if (selectedName) {
+    const entry = entries.find((item) => item.name === selectedName)
+    if (entry) {
+      proxyGroupForm.value = proxyGroupFormFromEntry(entry)
+      return
+    }
+  }
+  if (!selectedName && !String(proxyGroupForm.value.name || '').trim().length) {
+    proxyGroupForm.value = emptyProxyGroupForm()
+  }
+}, { immediate: true, deep: true })
 
 onMounted(async () => {
   await refreshAll(true)

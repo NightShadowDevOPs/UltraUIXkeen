@@ -1,3 +1,19 @@
+## [1.2.88] (2026-03-28)
+
+### Features
+
+- Mihomo config workspace: add a dedicated `proxy-groups` editor so groups can be edited one by one, duplicated, created from a template, and saved back into the editor without touching the live `config.yaml`
+- Group rename now rewrites references from other `proxy-groups` and updates matching targets in `rules`; disable flow removes the block, cleans inbound references, injects `DIRECT` into emptied groups, and redirects affected rules to `DIRECT`
+- The new block shows where a group is used, previews disable impacts for both groups and rules, and keeps room for advanced nested YAML while router-agent stays on 0.6.22
+
+## [1.2.87] (2026-03-28)
+
+### Features
+
+- Mihomo config workspace: add a dedicated `proxy-providers` editor on top of the YAML editor so providers can be edited one by one, duplicated, or created from a template
+- The new block can save provider changes back into the editor, keeps room for advanced nested YAML like `health-check`, and shows where each provider is referenced from `proxy-groups`
+- Disabling a provider now removes its block from `proxy-providers`, cleans `use/providers` references inside `proxy-groups`, and injects a safe `DIRECT` placeholder into groups that would otherwise become empty; router-agent stays on 0.6.22
+
 ## [1.2.86] (2026-03-28)
 
 ### Features

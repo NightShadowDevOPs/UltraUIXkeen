@@ -1,19 +1,20 @@
-UI Mihomo / Ultra — обновление переноса v1.2.86
+UI Mihomo / Ultra — обновление переноса v1.2.88
 
 Что изменилось в этом релизе:
-- быстрый редактор в `Mihomo → Конфигурация` расширен на частые scalar-поля секций `tun` и `dns`
-- форма теперь умеет читать, preview-ить и записывать `tun.enable`, `tun.stack`, `tun.auto-route`, `tun.auto-detect-interface`, `dns.enable`, `dns.ipv6`, `dns.listen`, `dns.enhanced-mode`
-- правки по-прежнему ограничены частыми scalar-ключами: списки `nameserver/fallback`, `dns-hijack` и другие сложные блоки YAML не пересобираются
+- в `Mihomo → Конфигурация` добавлен отдельный редактор `proxy-groups` поверх текущего YAML в редакторе
+- можно редактировать группу по одной, дублировать, добавлять новую из шаблона и сохранять изменения обратно в editor flow без прямого изменения боевого `config.yaml`
+- переименование группы теперь обновляет ссылки на неё в других `proxy-groups` и целевые группы в `rules`
+- при отключении группы UI удаляет её блок, очищает входящие ссылки из других `proxy-groups`, при необходимости подставляет `DIRECT` в опустевшие группы и переводит затронутые `rules` на `DIRECT`
 - `router-agent` в этом релизе не менялся; линия остаётся `0.6.22`
 
 Текущие версии:
-- UI: v1.2.86
+- UI: v1.2.88
 - router-agent: 0.6.22
 
 Что важно по интерфейсу:
 - `Mihomo` остаётся отдельным рабочим разделом
 - `Settings` держит только интерфейс, поведение и связанные настройки отображения
-- diff, диагностика операций, structured overview, last successful и safe managed-config flow сохранены
+- diff, диагностика операций, structured overview, last successful, quick editor `tun/dns` и safe managed-config flow сохранены
 
 Следующий логичный шаг:
-- после v1.2.86 можно либо идти в более умные формы для списков `dns/tun`, либо возвращаться к другим рабочим функциям Mihomo / Proxy / Traffic
+- после v1.2.88 логично углублять редакторы `proxy-groups` / `proxy-providers`: nested `health-check`, `include-all`, `filter/exclude-type`, продвинутые списки `dns.nameserver/fallback`, а затем идти в редакторы `rules` и `rule-providers`
