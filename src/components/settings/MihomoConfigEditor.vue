@@ -333,6 +333,35 @@
 
             <section v-show="configWorkspaceSection === 'structured'" class="space-y-3">
             <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configWorkspaceStructuredTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configWorkspaceStructuredTabTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-outline">{{ $t('configWorkspaceStructuredTitle') }}</span>
+                  <span class="badge badge-ghost">{{ structuredEditorSections.find((item) => item.id === structuredEditorSection)?.count ?? 0 }}</span>
+                </div>
+              </div>
+
+              <div class="mt-3 overflow-x-auto">
+                <div class="tabs tabs-boxed inline-flex min-w-max gap-1 bg-base-100/60 p-1">
+                  <button
+                    v-for="item in structuredEditorSections"
+                    :key="item.id"
+                    type="button"
+                    class="tab whitespace-nowrap border-0"
+                    :class="structuredEditorSection === item.id ? 'tab-active !bg-base-100 shadow-sm' : 'opacity-80 hover:opacity-100'"
+                    @click="setStructuredEditorSection(item.id)"
+                  >
+                    <span>{{ $t(item.labelKey) }}</span>
+                    <span class="ml-2 badge badge-ghost badge-sm">{{ item.count }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-show="structuredEditorSection === 'quick'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configQuickEditorTitle') }}</div>
@@ -596,7 +625,362 @@
               </div>
             </div>
 
-            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            <div v-show="structuredEditorSection === 'runtime-sections'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configAdvancedSectionsTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configAdvancedSectionsTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configAdvancedSectionsCount', { count: advancedSectionsSummary.totalItems }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="syncAdvancedSectionsFromPayload">{{ $t('configAdvancedSectionsReadFromEditor') }}</button>
+                  <button class="btn btn-xs" @click="applyAdvancedSectionsToPayload" :disabled="!advancedSectionsCanApply">{{ $t('configAdvancedSectionsApplyToEditor') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configAdvancedSectionsEmptyEditor') }}</div>
+              <div v-else class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                  <span class="badge badge-outline">tun</span>
+                  <span class="badge badge-outline">profile</span>
+                  <span class="badge badge-outline">sniffer</span>
+                  <span>{{ $t('configAdvancedSectionsScopeTip') }}</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.2fr),minmax(0,0.8fr)]">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="font-semibold">{{ $t('configAdvancedTunTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configAdvancedTunTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunEnable') }}</span>
+                        <select v-model="advancedSectionsForm.tunEnable" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunStack') }}</span>
+                        <input v-model="advancedSectionsForm.tunStack" type="text" class="input input-sm" :placeholder="$t('configAdvancedTunStackPlaceholder')" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunDevice') }}</span>
+                        <input v-model="advancedSectionsForm.tunDevice" type="text" class="input input-sm" :placeholder="$t('configAdvancedTunDevicePlaceholder')" />
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunAutoRoute') }}</span>
+                        <select v-model="advancedSectionsForm.tunAutoRoute" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunAutoDetectInterface') }}</span>
+                        <select v-model="advancedSectionsForm.tunAutoDetectInterface" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                      </label>
+                      <label class="form-control">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunMtu') }}</span>
+                        <input v-model="advancedSectionsForm.tunMtu" type="text" class="input input-sm" :placeholder="$t('configAdvancedTunMtuPlaceholder')" />
+                      </label>
+                      <label class="form-control md:col-span-2 xl:col-span-3">
+                        <span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunStrictRoute') }}</span>
+                        <select v-model="advancedSectionsForm.tunStrictRoute" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                      </label>
+                    </div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 xl:grid-cols-2">
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunDnsHijack') }}</span><textarea v-model="advancedSectionsForm.tunDnsHijackText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedTunDnsHijackPlaceholder')"></textarea></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunIncludeAddress') }}</span><textarea v-model="advancedSectionsForm.tunRouteIncludeAddressText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedTunIncludeAddressPlaceholder')"></textarea></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunExcludeAddress') }}</span><textarea v-model="advancedSectionsForm.tunRouteExcludeAddressText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedTunExcludeAddressPlaceholder')"></textarea></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunIncludeInterface') }}</span><textarea v-model="advancedSectionsForm.tunIncludeInterfaceText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedTunIncludeInterfacePlaceholder')"></textarea></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedTunExcludeInterface') }}</span><textarea v-model="advancedSectionsForm.tunExcludeInterfaceText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedTunExcludeInterfacePlaceholder')"></textarea></label>
+                    </div>
+                  </div>
+
+                  <div class="space-y-3">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                      <div class="font-semibold">{{ $t('configAdvancedProfileTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configAdvancedProfileTip') }}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedProfileStoreSelected') }}</span><select v-model="advancedSectionsForm.profileStoreSelected" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedProfileStoreFakeIp') }}</span><select v-model="advancedSectionsForm.profileStoreFakeIp" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                      <div class="font-semibold">{{ $t('configAdvancedSnifferTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configAdvancedSnifferTip') }}</div>
+                      <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferEnable') }}</span><select v-model="advancedSectionsForm.snifferEnable" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferParsePureIp') }}</span><select v-model="advancedSectionsForm.snifferParsePureIp" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferOverrideDestination') }}</span><select v-model="advancedSectionsForm.snifferOverrideDestination" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferSniffProtocols') }}</span><textarea v-model="advancedSectionsForm.snifferSniffText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedSnifferSniffProtocolsPlaceholder')"></textarea></label>
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferForceDomain') }}</span><textarea v-model="advancedSectionsForm.snifferForceDomainText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedSnifferForceDomainPlaceholder')"></textarea></label>
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configAdvancedSnifferSkipDomain') }}</span><textarea v-model="advancedSectionsForm.snifferSkipDomainText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configAdvancedSnifferSkipDomainPlaceholder')"></textarea></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                      <div class="font-semibold">{{ $t('configAdvancedSectionsSummaryTitle') }}</div>
+                      <div class="mt-2 flex flex-wrap gap-2">
+                        <span class="badge badge-ghost">{{ $t('configAdvancedSectionsSummaryTun', { count: advancedSectionsSummary.tun }) }}</span>
+                        <span class="badge badge-ghost">{{ $t('configAdvancedSectionsSummaryProfile', { count: advancedSectionsSummary.profile }) }}</span>
+                        <span class="badge badge-ghost">{{ $t('configAdvancedSectionsSummarySniffer', { count: advancedSectionsSummary.sniffer }) }}</span>
+                      </div>
+                      <div class="mt-3 text-[11px] opacity-70">{{ $t('configAdvancedSectionsSummaryTip') }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <div v-show="structuredEditorSection === 'proxies'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configProxiesTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configProxiesTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configProxiesCount', { count: parsedProxies.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewProxy">{{ $t('configProxiesNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configProxiesEmptyEditor') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="font-semibold">{{ $t('configProxiesListTitle') }}</div>
+                    <span class="badge badge-outline">{{ filteredProxies.length }}</span>
+                  </div>
+
+                  <label class="form-control mb-2">
+                    <span class="label-text text-xs opacity-70">{{ $t('configProxiesFilterLabel') }}</span>
+                    <div class="flex items-center gap-2">
+                      <input v-model="proxyListQuery" type="text" class="input input-sm w-full" :placeholder="$t('configProxiesFilterPlaceholder')" />
+                      <button class="btn btn-xs btn-ghost" @click="clearProxyFilter" :disabled="!proxyListQuery">{{ $t('clear') }}</button>
+                    </div>
+                  </label>
+
+                  <div class="mb-2 flex flex-wrap gap-1">
+                    <span v-for="item in topProxyTypeCounts" :key="item.type" class="badge badge-ghost badge-sm">{{ item.type }} · {{ item.count }}</span>
+                  </div>
+
+                  <div v-if="!filteredProxies.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configProxiesListEmpty') }}
+                  </div>
+
+                  <div v-else class="max-h-[32rem] space-y-2 overflow-auto pr-1">
+                    <button
+                      v-for="item in filteredProxies"
+                      :key="item.name"
+                      type="button"
+                      class="w-full rounded-lg border p-3 text-left transition"
+                      :class="proxySelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'"
+                      @click="loadProxyIntoForm(item.name)"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold break-all">{{ item.name }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ item.server || '—' }}<span v-if="item.port">:{{ item.port }}</span></div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="badge badge-outline">{{ item.type || '—' }}</span>
+                          <span class="badge" :class="providerReferenceBadgeClass(item.references.length)">{{ $t('configProxiesRefsShort', { count: item.references.length }) }}</span>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1">
+                        <span v-if="item.network" class="badge badge-ghost badge-sm">network: {{ item.network }}</span>
+                        <span v-if="item.tls === 'true'" class="badge badge-success badge-outline badge-sm">TLS</span>
+                        <span v-if="item.udp === 'true'" class="badge badge-info badge-outline badge-sm">UDP</span>
+                        <span v-if="item.wsPath" class="badge badge-ghost badge-sm">ws</span>
+                        <span v-if="item.grpcServiceName" class="badge badge-ghost badge-sm">grpc</span>
+                        <span v-if="item.plugin" class="badge badge-warning badge-outline badge-sm">plugin</span>
+                        <span v-if="item.realityPublicKey" class="badge badge-secondary badge-outline badge-sm">reality</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedProxyEntry ? $t('configProxiesEditSelected') : $t('configProxiesEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configProxiesEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewProxy">{{ $t('configProxiesResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxy" :disabled="!selectedProxyEntry">{{ $t('configProxiesDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveProxyToPayload" :disabled="!proxyFormCanSave">{{ $t('configProxiesSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedProxy" :disabled="!selectedProxyEntry">{{ $t('configProxiesDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <label class="form-control md:col-span-2 xl:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldName') }}</span>
+                      <input v-model="proxyForm.name" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldNamePlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldType') }}</span>
+                      <select v-model="proxyForm.type" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="ss">ss</option>
+                        <option value="vmess">vmess</option>
+                        <option value="vless">vless</option>
+                        <option value="trojan">trojan</option>
+                        <option value="socks5">socks5</option>
+                        <option value="http">http</option>
+                        <option value="wireguard">wireguard</option>
+                        <option value="hysteria2">hysteria2</option>
+                        <option value="tuic">tuic</option>
+                        <option value="direct">direct</option>
+                        <option value="reject">reject</option>
+                      </select>
+                    </label>
+                    <label class="form-control md:col-span-2 xl:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldServer') }}</span>
+                      <input v-model="proxyForm.server" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldServerPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPort') }}</span>
+                      <input v-model="proxyForm.port" type="text" inputmode="numeric" class="input input-sm" placeholder="443" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldNetwork') }}</span>
+                      <select v-model="proxyForm.network" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="tcp">tcp</option>
+                        <option value="ws">ws</option>
+                        <option value="grpc">grpc</option>
+                        <option value="http">http</option>
+                        <option value="h2">h2</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldUdp') }}</span>
+                      <select v-model="proxyForm.udp" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTfo') }}</span>
+                      <select v-model="proxyForm.tfo" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldDialerProxy') }}</span>
+                      <input v-model="proxyForm.dialerProxy" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldDialerProxyPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldInterfaceName') }}</span>
+                      <input v-model="proxyForm.interfaceName" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldInterfaceNamePlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPacketEncoding') }}</span>
+                      <input v-model="proxyForm.packetEncoding" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldPacketEncodingPlaceholder')" />
+                    </label>
+                  </div>
+
+                  <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configProxiesSecurityTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesSecurityTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTls') }}</span><select v-model="proxyForm.tls" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSkipCertVerify') }}</span><select v-model="proxyForm.skipCertVerify" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldSni') }}</span><input v-model="proxyForm.sni" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldSniPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldServername') }}</span><input v-model="proxyForm.servername" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldServernamePlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldClientFingerprint') }}</span><input v-model="proxyForm.clientFingerprint" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldClientFingerprintPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-4"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldAlpn') }}</span><textarea v-model="proxyForm.alpnText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldAlpnPlaceholder')"></textarea></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldRealityPublicKey') }}</span><input v-model="proxyForm.realityPublicKey" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldRealityPublicKeyPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldRealityShortId') }}</span><input v-model="proxyForm.realityShortId" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldRealityShortIdPlaceholder')" /></label>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configProxiesAuthTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesAuthTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldUuid') }}</span><input v-model="proxyForm.uuid" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldUuidPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPassword') }}</span><input v-model="proxyForm.password" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldPasswordPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldCipher') }}</span><input v-model="proxyForm.cipher" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldCipherPlaceholder')" /></label>
+                      <label class="form-control xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldFlow') }}</span><input v-model="proxyForm.flow" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldFlowPlaceholder')" /></label>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesTransportTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesTransportTip') }}</div>
+                      <div class="mt-3 space-y-3">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWsPath') }}</span><input v-model="proxyForm.wsPath" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldWsPathPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWsHeaders') }}</span><textarea v-model="proxyForm.wsHeadersBody" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWsHeadersPlaceholder')"></textarea></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldGrpcServiceName') }}</span><input v-model="proxyForm.grpcServiceName" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldGrpcServiceNamePlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldGrpcMultiMode') }}</span><select v-model="proxyForm.grpcMultiMode" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesPluginTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesPluginTip') }}</div>
+                      <div class="mt-3 space-y-3">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPlugin') }}</span><input v-model="proxyForm.plugin" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldPluginPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPluginOpts') }}</span><textarea v-model="proxyForm.pluginOptsBody" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldPluginOptsPlaceholder')"></textarea></label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configProxiesExtraYamlTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxiesExtraYamlTip') }}</div>
+                    <textarea v-model="proxyForm.extraBody" class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configProxiesExtraYamlPlaceholder')"></textarea>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesReferencesTitle') }}</div>
+                      <div v-if="!selectedProxyEntry" class="mt-2 opacity-70">{{ $t('configProxiesReferencesSelect') }}</div>
+                      <div v-else-if="!selectedProxyEntry.references.length" class="mt-2 opacity-70">{{ $t('configProxiesReferencesEmpty') }}</div>
+                      <div v-else class="mt-2 space-y-2">
+                        <div v-if="proxyReferencesSummary.groupRefs.length" class="space-y-1">
+                          <div class="text-[11px] font-semibold opacity-70">{{ $t('configProxiesReferencesGroups') }}</div>
+                          <div class="flex flex-wrap gap-2">
+                            <span v-for="refItem in proxyReferencesSummary.groupRefs" :key="`g-${refItem.text}-${refItem.key}`" class="badge badge-outline">{{ refItem.text }} · {{ refItem.key }}</span>
+                          </div>
+                        </div>
+                        <div v-if="proxyReferencesSummary.ruleRefs.length" class="space-y-1">
+                          <div class="text-[11px] font-semibold opacity-70">{{ $t('configProxiesReferencesRules') }}</div>
+                          <div class="space-y-1">
+                            <div v-for="refItem in proxyReferencesSummary.ruleRefs" :key="`r-${refItem.lineNo}-${refItem.text}`" class="rounded border border-base-content/10 bg-base-100/80 px-2 py-1 font-mono text-[11px]">
+                              line {{ refItem.lineNo }} · {{ refItem.text }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxiesDisableImpactTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesDisableImpactTip') }}</div>
+                      <div v-if="!selectedProxyEntry" class="mt-2 opacity-70">{{ $t('configProxiesDisableImpactSelect') }}</div>
+                      <div v-else-if="!proxyDisablePlan.impacts.length && !proxyDisablePlan.rulesTouched" class="mt-2 opacity-70">{{ $t('configProxiesDisableImpactEmpty') }}</div>
+                      <div v-else class="mt-2 space-y-2">
+                        <div v-for="impact in proxyDisablePlan.impacts" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="font-semibold">{{ impact.group }}</div>
+                            <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
+                          </div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ impact.fallbackInjected ? $t('configProxiesDisableImpactFallback') : $t('configProxiesDisableImpactClean') }}</div>
+                        </div>
+                        <div v-if="proxyDisablePlan.rulesTouched" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                          <div class="font-semibold">{{ $t('configProxiesDisableImpactRules', { count: proxyDisablePlan.rulesTouched }) }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesDisableImpactRulesTip') }}</div>
+                          <div class="mt-2 space-y-1">
+                            <div v-for="sample in proxyDisablePlan.ruleSamples" :key="`sample-${sample.lineNo}-${sample.text}`" class="rounded border border-base-content/10 bg-base-100 px-2 py-1 font-mono text-[11px]">line {{ sample.lineNo }} · {{ sample.text }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-show="structuredEditorSection === 'proxy-providers'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configProxyProvidersTitle') }}</div>
@@ -805,7 +1189,7 @@
               </div>
             </div>
 
-            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            <div v-show="structuredEditorSection === 'proxy-groups'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configProxyGroupsTitle') }}</div>
@@ -1030,7 +1414,7 @@
               </div>
             </div>
 
-            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            <div v-show="structuredEditorSection === 'rule-providers'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configRuleProvidersTitle') }}</div>
@@ -1128,7 +1512,7 @@
               </div>
             </div>
 
-            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            <div v-show="structuredEditorSection === 'rules'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configRulesTitle') }}</div>
@@ -1141,26 +1525,53 @@
               </div>
 
               <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesEmptyEditor') }}</div>
-              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+              <div v-else class="space-y-3">
                 <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
-                  <div class="mb-2 flex items-center justify-between gap-2"><div class="font-semibold">{{ $t('configRulesListTitle') }}</div><span class="badge badge-outline">{{ parsedRules.length }}</span></div>
-                  <div v-if="!parsedRules.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesListEmpty') }}</div>
-                  <div v-else class="max-h-[28rem] space-y-2 overflow-auto pr-1">
-                    <button v-for="item in parsedRules" :key="`rule-${item.index}-${item.lineNo}`" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="String(ruleSelectedIndex) === String(item.index) ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleIntoForm(item.index)">
-                      <div class="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <div class="font-semibold">L{{ item.lineNo }} · {{ item.type || '—' }}</div>
-                          <div class="mt-1 break-all text-[11px] opacity-70">{{ item.raw }}</div>
-                        </div>
-                        <div class="flex flex-wrap gap-1">
-                          <span v-if="item.provider" class="badge badge-outline">{{ item.provider }}</span>
-                          <span v-if="item.target" class="badge badge-ghost">{{ item.target }}</span>
-                        </div>
-                      </div>
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <label class="input input-sm input-bordered flex min-w-[16rem] flex-1 items-center gap-2">
+                      <span class="opacity-60">#</span>
+                      <input v-model="ruleListQuery" type="text" class="grow" :placeholder="$t('configRulesFilterPlaceholder')" />
+                    </label>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="badge badge-outline">{{ filteredRules.length }} / {{ parsedRules.length }}</span>
+                      <button v-if="ruleListQuery" class="btn btn-xs btn-ghost" @click="clearRuleFilter">×</button>
+                    </div>
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <button
+                      v-for="item in topRuleTypeCounts"
+                      :key="`rule-type-${item.type}`"
+                      type="button"
+                      class="badge badge-outline cursor-pointer"
+                      :class="normalizedRuleListFilter === item.type ? 'badge-primary' : ''"
+                      @click="filterRulesByType(item.type)"
+                    >
+                      {{ item.type }} · {{ item.count }}
                     </button>
                   </div>
                 </div>
-                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                    <div class="mb-2 flex items-center justify-between gap-2"><div class="font-semibold">{{ $t('configRulesListTitle') }}</div><span class="badge badge-outline">{{ filteredRules.length }}</span></div>
+                    <div v-if="!parsedRules.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesListEmpty') }}</div>
+                    <div v-else-if="!filteredRules.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRulesFilterEmpty') }}</div>
+                    <div v-else class="max-h-[28rem] space-y-2 overflow-auto pr-1">
+                      <button v-for="item in filteredRules" :key="`rule-${item.index}-${item.lineNo}`" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="String(ruleSelectedIndex) === String(item.index) ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleIntoForm(item.index)">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div class="font-semibold">L{{ item.lineNo }} · {{ item.type || '—' }}</div>
+                            <div class="mt-1 break-all text-[11px] opacity-70">{{ item.raw }}</div>
+                          </div>
+                          <div class="flex flex-wrap gap-1">
+                            <span v-if="item.provider" class="badge badge-outline">{{ item.provider }}</span>
+                            <span v-if="item.target" class="badge badge-ghost">{{ item.target }}</span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                   <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div class="font-semibold">{{ selectedRuleEntry ? $t('configRulesEditSelected') : $t('configRulesEditNew') }}</div>
@@ -1191,7 +1602,8 @@
                         v-model="ruleForm.payload"
                         type="text"
                         class="input input-sm"
-                        :placeholder="$t('configRulesFieldPayloadPlaceholder')"
+                        list="mihomo-rule-payloads"
+                        :placeholder="rulePayloadPlaceholder"
                         @input="syncRuleRawFromStructuredForm"
                       />
                     </label>
@@ -1201,7 +1613,8 @@
                         v-model="ruleForm.target"
                         type="text"
                         class="input input-sm"
-                        :placeholder="$t('configRulesFieldTargetPlaceholder')"
+                        list="mihomo-rule-targets"
+                        :placeholder="ruleTargetPlaceholder"
                         @input="syncRuleRawFromStructuredForm"
                       />
                     </label>
@@ -1214,6 +1627,17 @@
                         @input="syncRuleRawFromStructuredForm"
                       ></textarea>
                     </label>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-2 font-semibold">{{ $t('configRulesTemplatesTitle') }}</div>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" class="btn btn-xs btn-ghost" @click="applyRuleTemplate('match-direct')">MATCH → DIRECT</button>
+                      <button type="button" class="btn btn-xs btn-ghost" @click="applyRuleTemplate('rule-set')">RULE-SET</button>
+                      <button type="button" class="btn btn-xs btn-ghost" @click="applyRuleTemplate('geoip-cn')">GEOIP CN</button>
+                      <button type="button" class="btn btn-xs btn-ghost" @click="applyRuleTemplate('geosite-ads')">GEOSITE ads</button>
+                      <button type="button" class="btn btn-xs btn-ghost" @click="applyRuleTemplate('domain-suffix')">DOMAIN-SUFFIX</button>
+                    </div>
                   </div>
 
                   <datalist id="mihomo-rule-types">
@@ -1234,12 +1658,27 @@
                     <option value="PROCESS-NAME"></option>
                     <option value="PROCESS-PATH"></option>
                   </datalist>
+                  <datalist id="mihomo-rule-payloads">
+                    <option v-for="item in rulePayloadSuggestions" :key="`rule-payload-${item}`" :value="item"></option>
+                  </datalist>
+                  <datalist id="mihomo-rule-targets">
+                    <option v-for="item in ruleTargetSuggestions" :key="`rule-target-${item}`" :value="item"></option>
+                  </datalist>
 
                   <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-80">
                     <span class="badge badge-outline">{{ $t('configRulesStructuredMode') }}</span>
+                    <span class="badge badge-ghost">{{ normalizedRuleType || '—' }}</span>
+                    <span v-if="ruleForm.paramsText.trim().length" class="badge badge-ghost">{{ ruleFormParamsCount }}</span>
                     <button class="btn btn-xs btn-ghost" @click="syncRuleFormFromRawLine">{{ $t('configRulesParseRaw') }}</button>
                     <button class="btn btn-xs btn-ghost" @click="syncRuleRawFromStructuredForm">{{ $t('configRulesBuildRaw') }}</button>
                     <span class="opacity-70">{{ $t('configRulesStructuredTip') }}</span>
+                  </div>
+
+                  <div v-if="ruleFormHints.length" class="mt-3 rounded-lg border border-warning/20 bg-warning/5 p-3">
+                    <div class="mb-2 font-semibold text-warning">{{ $t('configRulesHintsTitle') }}</div>
+                    <div class="flex flex-wrap gap-2">
+                      <span v-for="hint in ruleFormHints" :key="hint" class="badge badge-warning badge-outline">{{ hint }}</span>
+                    </div>
                   </div>
 
                   <label class="form-control mt-3">
@@ -1254,8 +1693,9 @@
                 </div>
               </div>
             </div>
+            </div>
 
-            <div class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+            <div v-show="structuredEditorSection === 'dns'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configDnsStructuredTitle') }}</div>
@@ -1607,6 +2047,18 @@ import {
 import { getConfigsAPI, getConfigsRawAPI, reloadConfigsAPI, restartCoreAPI } from '@/api'
 import { decodeB64Utf8 } from '@/helper/b64'
 import {
+  type ParsedProxyEntry,
+  type ProxyDisableImpact,
+  type ProxyFormModel,
+  type ProxyReferenceInfo,
+  emptyProxyForm,
+  parseProxiesFromConfig,
+  proxyFormFromEntry,
+  removeProxyFromConfig,
+  simulateProxyDisableImpact,
+  upsertProxyInConfig,
+} from '@/helper/mihomoConfigProxies'
+import {
   type ParsedProxyProviderEntry,
   type ProviderDisableImpact,
   type ProxyProviderFormModel,
@@ -1657,6 +2109,12 @@ import {
   emptyDnsEditorForm,
   upsertDnsEditorInConfig,
 } from '@/helper/mihomoConfigDns'
+import {
+  type AdvancedSectionsFormModel,
+  advancedSectionsFormFromConfig,
+  emptyAdvancedSectionsForm,
+  upsertAdvancedSectionsInConfig,
+} from '@/helper/mihomoConfigAdvanced'
 import { showNotification } from '@/helper/notification'
 import { agentEnabled } from '@/store/agent'
 import { useStorage } from '@vueuse/core'
@@ -1672,13 +2130,18 @@ const compareLeft = useStorage<DiffSourceKind>('config/mihomo-config-diff-left',
 const compareRight = useStorage<DiffSourceKind>('config/mihomo-config-diff-right', 'draft')
 const compareChangesOnly = useStorage('config/mihomo-config-diff-only-changes', true)
 const overviewSource = useStorage<DiffSourceKind>('config/mihomo-config-overview-source', 'draft')
+const proxySelectedName = useStorage('config/mihomo-config-proxy-selected', '')
+const proxyListQuery = useStorage('config/mihomo-config-proxy-query', '')
 const proxyProviderSelectedName = useStorage('config/mihomo-config-provider-selected', '')
 const proxyGroupSelectedName = useStorage('config/mihomo-config-group-selected', '')
 const ruleProviderSelectedName = useStorage('config/mihomo-config-rule-provider-selected', '')
 const ruleSelectedIndex = useStorage('config/mihomo-config-rule-selected', '')
+const ruleListQuery = useStorage('config/mihomo-config-rule-query', '')
 
 type ConfigWorkspaceSectionId = 'editor' | 'overview' | 'structured' | 'diagnostics' | 'compare' | 'history'
+type StructuredEditorSectionId = 'quick' | 'runtime-sections' | 'proxies' | 'proxy-providers' | 'proxy-groups' | 'rule-providers' | 'rules' | 'dns'
 const configWorkspaceSection = useStorage<ConfigWorkspaceSectionId>('config/mihomo-config-workspace-section', 'editor')
+const structuredEditorSection = useStorage<StructuredEditorSectionId>('config/mihomo-config-structured-section', 'quick')
 
 const { t } = useI18n()
 
@@ -1864,7 +2327,9 @@ const emptyQuickEditorModel = (): ConfigQuickEditorModel => ({
 })
 
 const quickEditor = ref<ConfigQuickEditorModel>(emptyQuickEditorModel())
+const advancedSectionsForm = ref<AdvancedSectionsFormModel>(emptyAdvancedSectionsForm())
 const dnsEditorForm = ref<DnsEditorFormModel>(emptyDnsEditorForm())
+const proxyForm = ref<ProxyFormModel>(emptyProxyForm())
 const proxyProviderForm = ref<ProxyProviderFormModel>(emptyProxyProviderForm())
 const proxyGroupForm = ref<ProxyGroupFormModel>(emptyProxyGroupForm())
 const ruleProviderForm = ref<RuleProviderFormModel>(emptyRuleProviderForm())
@@ -1888,6 +2353,23 @@ const configWorkspaceSections = computed(() => [
 const setConfigWorkspaceSection = (id: ConfigWorkspaceSectionId) => {
   if (configWorkspaceSections.value.find((section) => section.id === id && !section.disabled)) {
     configWorkspaceSection.value = id
+  }
+}
+
+const structuredEditorSections = computed(() => [
+  { id: 'quick' as const, labelKey: 'configQuickEditorTitle', count: quickEditorPreviewChanges.value.length },
+  { id: 'runtime-sections' as const, labelKey: 'configAdvancedSectionsTitle', count: advancedSectionsSummary.value.totalItems },
+  { id: 'proxies' as const, labelKey: 'configProxiesTitle', count: parsedProxies.value.length },
+  { id: 'proxy-providers' as const, labelKey: 'configProxyProvidersTitle', count: parsedProxyProviders.value.length },
+  { id: 'proxy-groups' as const, labelKey: 'configProxyGroupsTitle', count: parsedProxyGroups.value.length },
+  { id: 'rule-providers' as const, labelKey: 'configRuleProvidersTitle', count: parsedRuleProviders.value.length },
+  { id: 'rules' as const, labelKey: 'configRulesTitle', count: parsedRules.value.length },
+  { id: 'dns' as const, labelKey: 'configDnsStructuredTitle', count: dnsStructuredSummary.value.totalItems },
+])
+
+const setStructuredEditorSection = (id: StructuredEditorSectionId) => {
+  if (structuredEditorSections.value.find((section) => section.id === id)) {
+    structuredEditorSection.value = id
   }
 }
 
@@ -2570,6 +3052,43 @@ const quickEditorPreviewSummary = computed(() => quickEditorPreviewChanges.value
 
 const quickEditorAffectedGroups = computed<QuickEditorGroup[]>(() => Array.from(new Set(quickEditorPreviewChanges.value.map((item) => item.group))))
 const quickEditorCanApply = computed(() => quickEditorHasPayload.value && quickEditorPreviewChanges.value.length > 0)
+const advancedSectionsAppliedPreview = computed(() => upsertAdvancedSectionsInConfig(payload.value, advancedSectionsForm.value))
+const advancedSectionsCanApply = computed(() => quickEditorHasPayload.value && normalizeDiffText(advancedSectionsAppliedPreview.value) !== normalizeDiffText(payload.value))
+const advancedSectionsSummary = computed(() => {
+  const countLines = (value: string) => normalizeDiffText(value).split('\n').map((line) => line.trim()).filter(Boolean).length
+  const tun = [
+    advancedSectionsForm.value.tunEnable,
+    advancedSectionsForm.value.tunStack,
+    advancedSectionsForm.value.tunAutoRoute,
+    advancedSectionsForm.value.tunAutoDetectInterface,
+    advancedSectionsForm.value.tunDevice,
+    advancedSectionsForm.value.tunMtu,
+    advancedSectionsForm.value.tunStrictRoute,
+  ].filter((item) => String(item || '').trim().length).length
+    + countLines(advancedSectionsForm.value.tunDnsHijackText)
+    + countLines(advancedSectionsForm.value.tunRouteIncludeAddressText)
+    + countLines(advancedSectionsForm.value.tunRouteExcludeAddressText)
+    + countLines(advancedSectionsForm.value.tunIncludeInterfaceText)
+    + countLines(advancedSectionsForm.value.tunExcludeInterfaceText)
+  const profile = [
+    advancedSectionsForm.value.profileStoreSelected,
+    advancedSectionsForm.value.profileStoreFakeIp,
+  ].filter((item) => String(item || '').trim().length).length
+  const sniffer = [
+    advancedSectionsForm.value.snifferEnable,
+    advancedSectionsForm.value.snifferParsePureIp,
+    advancedSectionsForm.value.snifferOverrideDestination,
+  ].filter((item) => String(item || '').trim().length).length
+    + countLines(advancedSectionsForm.value.snifferForceDomainText)
+    + countLines(advancedSectionsForm.value.snifferSkipDomainText)
+    + countLines(advancedSectionsForm.value.snifferSniffText)
+  return {
+    tun,
+    profile,
+    sniffer,
+    totalItems: tun + profile + sniffer,
+  }
+})
 const dnsEditorAppliedPreview = computed(() => upsertDnsEditorInConfig(payload.value, dnsEditorForm.value))
 const dnsEditorCanApply = computed(() => quickEditorHasPayload.value && normalizeDiffText(dnsEditorAppliedPreview.value) !== normalizeDiffText(payload.value))
 const dnsStructuredSummary = computed(() => {
@@ -2595,6 +3114,54 @@ const dnsStructuredSummary = computed(() => {
       + (String(dnsEditorForm.value.fallbackFilterGeoip || '').trim().length ? 1 : 0)
       + (String(dnsEditorForm.value.fallbackFilterGeoipCode || '').trim().length ? 1 : 0),
   }
+})
+const parsedProxies = computed<ParsedProxyEntry[]>(() => parseProxiesFromConfig(payload.value))
+const selectedProxyEntry = computed(() => parsedProxies.value.find((item) => item.name === proxySelectedName.value) || null)
+const normalizedProxyListQuery = computed(() => String(proxyListQuery.value || '').trim().toLowerCase())
+const filteredProxies = computed(() => {
+  const query = normalizedProxyListQuery.value
+  if (!query) return parsedProxies.value
+  const parts = query.split(/\s+/).filter(Boolean)
+  if (!parts.length) return parsedProxies.value
+  return parsedProxies.value.filter((item) => {
+    const haystack = [
+      item.name,
+      item.type,
+      item.server,
+      item.port,
+      item.network,
+      item.uuid,
+      item.password,
+      item.cipher,
+      item.dialerProxy,
+    ].join(' ').toLowerCase()
+    return parts.every((part) => haystack.includes(part))
+  })
+})
+const topProxyTypeCounts = computed(() => {
+  const counts = new Map<string, number>()
+  for (const item of parsedProxies.value) {
+    const key = String(item.type || '').trim() || '—'
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))
+    .slice(0, 8)
+})
+const proxyFormCanSave = computed(() => String(proxyForm.value.name || '').trim().length > 0 && String(proxyForm.value.type || '').trim().length > 0)
+const proxyReferencesSummary = computed(() => {
+  const entry = selectedProxyEntry.value
+  if (!entry) return { groupRefs: [] as ProxyReferenceInfo[], ruleRefs: [] as ProxyReferenceInfo[] }
+  return {
+    groupRefs: entry.references.filter((item) => item.kind === 'group'),
+    ruleRefs: entry.references.filter((item) => item.kind === 'rule'),
+  }
+})
+const proxyDisablePlan = computed<ProxyDisableImpact>(() => {
+  const name = String(selectedProxyEntry.value?.name || '').trim()
+  if (!name) return { impacts: [], rulesTouched: 0, ruleSamples: [] }
+  return simulateProxyDisableImpact(payload.value, name)
 })
 const parsedProxyProviders = computed<ParsedProxyProviderEntry[]>(() => parseProxyProvidersFromConfig(payload.value))
 const selectedProxyProviderEntry = computed(() => parsedProxyProviders.value.find((item) => item.name === proxyProviderSelectedName.value) || null)
@@ -2631,6 +3198,114 @@ const ruleProviderDisableImpact = computed<RuleProviderDisableImpact>(() => {
 const parsedRules = computed<ParsedRuleEntry[]>(() => parseRulesFromConfig(payload.value))
 const selectedRuleEntry = computed(() => parsedRules.value.find((item) => String(item.index) == String(ruleSelectedIndex.value)) || null)
 const ruleFormCanSave = computed(() => String(ruleForm.value.raw || '').trim().length > 0)
+const normalizedRuleType = computed(() => String(ruleForm.value.type || '').trim().toUpperCase())
+const normalizedRuleListFilter = computed(() => String(ruleListQuery.value || '').trim().toUpperCase())
+const ruleTargetSuggestions = computed(() => Array.from(new Set([
+  'DIRECT',
+  'REJECT',
+  'REJECT-DROP',
+  'GLOBAL',
+  ...parsedProxyGroups.value.map((item) => String(item.name || '').trim()).filter(Boolean),
+  ...parsedProxies.value.map((item) => String(item.name || '').trim()).filter(Boolean),
+  ...parsedProxyProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean),
+])).filter(Boolean))
+const rulePayloadSuggestions = computed(() => {
+  const type = normalizedRuleType.value
+  const dynamic = new Set<string>()
+  if (type === 'RULE-SET') {
+    parsedRuleProviders.value.forEach((item) => {
+      const name = String(item.name || '').trim()
+      if (name) dynamic.add(name)
+    })
+  } else if (type === 'GEOIP') {
+    ;['CN', 'RU', 'PRIVATE', 'LAN'].forEach((item) => dynamic.add(item))
+  } else if (type === 'GEOSITE') {
+    ;['category-ads-all', 'cn', 'private', 'geolocation-!cn'].forEach((item) => dynamic.add(item))
+  } else if (type === 'NETWORK') {
+    ;['tcp', 'udp', 'tcp,udp'].forEach((item) => dynamic.add(item))
+  }
+  const current = String(ruleForm.value.payload || '').trim()
+  if (current) dynamic.add(current)
+  return Array.from(dynamic)
+})
+const filteredRules = computed(() => {
+  const query = String(ruleListQuery.value || '').trim().toLowerCase()
+  if (!query) return parsedRules.value
+  const parts = query.split(/\s+/).filter(Boolean)
+  if (!parts.length) return parsedRules.value
+  return parsedRules.value.filter((item) => {
+    const haystack = [item.raw, item.type, item.payload, item.target, item.provider, String(item.lineNo)].join(' ').toLowerCase()
+    return parts.every((part) => haystack.includes(part))
+  })
+})
+const topRuleTypeCounts = computed(() => {
+  const counts = new Map<string, number>()
+  for (const item of parsedRules.value) {
+    const key = String(item.type || '').trim().toUpperCase() || '—'
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .map(([type, count]) => ({ type, count }))
+    .sort((a, b) => b.count - a.count || a.type.localeCompare(b.type))
+    .slice(0, 8)
+})
+const preferredRuleTarget = computed(() => String(ruleForm.value.target || '').trim() || parsedProxyGroups.value[0]?.name || 'DIRECT')
+const rulePayloadPlaceholder = computed(() => {
+  switch (normalizedRuleType.value) {
+    case 'RULE-SET':
+      return parsedRuleProviders.value[0]?.name || 'social-media'
+    case 'DOMAIN':
+    case 'DOMAIN-SUFFIX':
+      return 'example.com'
+    case 'DOMAIN-KEYWORD':
+      return 'google'
+    case 'GEOIP':
+      return 'CN'
+    case 'GEOSITE':
+      return 'category-ads-all'
+    case 'IP-CIDR':
+      return '1.1.1.0/24'
+    case 'IP-CIDR6':
+      return '2001:db8::/32'
+    case 'SRC-IP-CIDR':
+      return '192.168.0.0/16'
+    case 'SRC-PORT':
+      return '443'
+    case 'DST-PORT':
+      return '53'
+    case 'NETWORK':
+      return 'tcp'
+    case 'PROCESS-NAME':
+      return 'curl.exe'
+    case 'PROCESS-PATH':
+      return '/usr/bin/curl'
+    default:
+      return t('configRulesFieldPayloadPlaceholder')
+  }
+})
+const ruleTargetPlaceholder = computed(() => preferredRuleTarget.value || t('configRulesFieldTargetPlaceholder'))
+const ruleFormParamsCount = computed(() => {
+  const count = String(ruleForm.value.paramsText || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean).length
+  return `params: ${count}`
+})
+const ruleFormHints = computed(() => {
+  const hints: string[] = []
+  const type = normalizedRuleType.value
+  const payload = String(ruleForm.value.payload || '').trim()
+  const target = String(ruleForm.value.target || '').trim()
+  if (!type) hints.push(t('configRulesHintTypeMissing'))
+  if (type && !['MATCH', 'FINAL'].includes(type) && !payload) hints.push(t('configRulesHintPayloadMissing'))
+  if (!target) hints.push(t('configRulesHintTargetMissing'))
+  if (type === 'RULE-SET' && payload) {
+    const hasProvider = parsedRuleProviders.value.some((item) => String(item.name || '').trim().toLowerCase() === payload.toLowerCase())
+    if (!hasProvider) hints.push(t('configRulesHintMissingProvider', { name: payload }))
+  }
+  if (target) {
+    const knownTarget = ruleTargetSuggestions.value.some((item) => item.toLowerCase() === target.toLowerCase())
+    if (!knownTarget) hints.push(t('configRulesHintCustomTarget', { name: target }))
+  }
+  return Array.from(new Set(hints))
+})
 
 const previewGroupLabel = (group: QuickEditorGroup) => {
   switch (group) {
@@ -2963,6 +3638,24 @@ const applyQuickEditorToPayload = () => {
   showNotification({ content: 'configQuickEditorAppliedToast', type: 'alert-success' })
 }
 
+const syncAdvancedSectionsFromPayload = () => {
+  advancedSectionsForm.value = advancedSectionsFormFromConfig(payload.value)
+}
+
+const applyAdvancedSectionsToPayload = () => {
+  if (!quickEditorHasPayload.value) {
+    showNotification({ content: 'configAdvancedSectionsEmptyEditor', type: 'alert-warning' })
+    return
+  }
+  if (!advancedSectionsCanApply.value) {
+    showNotification({ content: 'configAdvancedSectionsNoChangesToast', type: 'alert-warning' })
+    return
+  }
+  payload.value = advancedSectionsAppliedPreview.value
+  advancedSectionsForm.value = advancedSectionsFormFromConfig(payload.value)
+  showNotification({ content: 'configAdvancedSectionsAppliedToast', type: 'alert-success' })
+}
+
 const syncDnsEditorFromPayload = () => {
   dnsEditorForm.value = dnsEditorFormFromConfig(payload.value)
 }
@@ -2979,6 +3672,57 @@ const applyDnsEditorToPayload = () => {
   payload.value = dnsEditorAppliedPreview.value
   dnsEditorForm.value = dnsEditorFormFromConfig(payload.value)
   showNotification({ content: 'configDnsStructuredAppliedToast', type: 'alert-success' })
+}
+
+const prepareNewProxy = () => {
+  proxySelectedName.value = ''
+  proxyForm.value = emptyProxyForm()
+}
+
+const loadProxyIntoForm = (proxyName: string) => {
+  const entry = parsedProxies.value.find((item) => item.name === proxyName)
+  if (!entry) return
+  proxySelectedName.value = entry.name
+  proxyForm.value = proxyFormFromEntry(entry)
+}
+
+const duplicateSelectedProxy = () => {
+  const entry = selectedProxyEntry.value
+  if (!entry) return
+  const next = proxyFormFromEntry(entry)
+  next.originalName = ''
+  next.name = `${entry.name}-copy`
+  proxySelectedName.value = ''
+  proxyForm.value = next
+}
+
+const saveProxyToPayload = () => {
+  if (!proxyFormCanSave.value) {
+    showNotification({ content: 'configProxiesSaveNameRequired', type: 'alert-warning' })
+    return
+  }
+  payload.value = upsertProxyInConfig(payload.value, proxyForm.value)
+  proxySelectedName.value = String(proxyForm.value.name || '').trim()
+  showNotification({ content: 'configProxiesSavedToast', type: 'alert-success' })
+}
+
+const disableSelectedProxy = () => {
+  const entry = selectedProxyEntry.value
+  if (!entry) return
+  const result = removeProxyFromConfig(payload.value, entry.name)
+  payload.value = result.yaml
+  proxySelectedName.value = ''
+  proxyForm.value = emptyProxyForm()
+  showNotification({
+    content: result.rulesTouched > 0 || result.impacts.some((item) => item.fallbackInjected)
+      ? 'configProxiesDisabledWithCleanupToast'
+      : 'configProxiesDisabledToast',
+    type: 'alert-success',
+  })
+}
+
+const clearProxyFilter = () => {
+  proxyListQuery.value = ''
 }
 
 const providerReferenceBadgeClass = (count: number) => {
@@ -3136,6 +3880,37 @@ const prepareNewRule = () => {
   ruleForm.value = emptyRuleForm()
 }
 
+const clearRuleFilter = () => {
+  ruleListQuery.value = ''
+}
+
+const filterRulesByType = (type: string) => {
+  const normalized = String(type || '').trim().toUpperCase()
+  ruleListQuery.value = normalizedRuleListFilter.value === normalized ? '' : normalized
+}
+
+const applyRuleTemplate = (templateId: 'match-direct' | 'rule-set' | 'geoip-cn' | 'geosite-ads' | 'domain-suffix') => {
+  const target = preferredRuleTarget.value || 'DIRECT'
+  if (templateId === 'match-direct') {
+    ruleForm.value = syncRuleFormFromRaw({ ...emptyRuleForm(), raw: 'MATCH,DIRECT' })
+    return
+  }
+  if (templateId === 'rule-set') {
+    const provider = parsedRuleProviders.value[0]?.name || 'provider-name'
+    ruleForm.value = syncRuleFormFromRaw({ ...emptyRuleForm(), raw: `RULE-SET,${provider},${target}` })
+    return
+  }
+  if (templateId === 'geoip-cn') {
+    ruleForm.value = syncRuleFormFromRaw({ ...emptyRuleForm(), raw: 'GEOIP,CN,DIRECT' })
+    return
+  }
+  if (templateId === 'geosite-ads') {
+    ruleForm.value = syncRuleFormFromRaw({ ...emptyRuleForm(), raw: 'GEOSITE,category-ads-all,REJECT' })
+    return
+  }
+  ruleForm.value = syncRuleFormFromRaw({ ...emptyRuleForm(), raw: `DOMAIN-SUFFIX,example.com,${target}` })
+}
+
 const syncRuleFormFromRawLine = () => {
   ruleForm.value = syncRuleFormFromRaw(ruleForm.value)
 }
@@ -3166,8 +3941,23 @@ const saveRuleToPayload = () => {
     return
   }
   const wasNew = !String(ruleForm.value.originalIndex || '').trim().length
-  payload.value = upsertRuleInConfig(payload.value, ruleForm.value)
-  ruleSelectedIndex.value = wasNew ? '' : String(ruleForm.value.originalIndex || ruleSelectedIndex.value)
+  const originalIndex = String(ruleForm.value.originalIndex || '').trim()
+  const nextPayload = upsertRuleInConfig(payload.value, ruleForm.value)
+  payload.value = nextPayload
+  const nextEntries = parseRulesFromConfig(nextPayload)
+  if (wasNew) {
+    const created = nextEntries[nextEntries.length - 1]
+    if (created) {
+      ruleSelectedIndex.value = String(created.index)
+      ruleForm.value = ruleFormFromEntry(created)
+    }
+  } else {
+    const selected = nextEntries.find((item) => String(item.index) === originalIndex)
+    if (selected) {
+      ruleSelectedIndex.value = String(selected.index)
+      ruleForm.value = ruleFormFromEntry(selected)
+    }
+  }
   showNotification({ content: 'configRulesSavedToast', type: 'alert-success' })
 }
 
@@ -3179,6 +3969,7 @@ const disableSelectedRule = () => {
   ruleForm.value = emptyRuleForm()
   showNotification({ content: 'configRulesDisabledToast', type: 'alert-success' })
 }
+
 
 const splitDiffLines = (value: string) => {
   const normalized = normalizeDiffText(value)
@@ -3524,12 +4315,29 @@ const legacyRestart = async () => {
 
 const clearDraft = () => {
   payload.value = ''
+  advancedSectionsForm.value = emptyAdvancedSectionsForm()
   dnsEditorForm.value = emptyDnsEditorForm()
 }
 
 watch(payload, () => {
   syncQuickEditorFromPayload()
+  syncAdvancedSectionsFromPayload()
+  syncDnsEditorFromPayload()
 }, { immediate: true })
+
+watch(parsedProxies, (entries) => {
+  const selectedName = String(proxySelectedName.value || '').trim()
+  if (selectedName) {
+    const entry = entries.find((item) => item.name === selectedName)
+    if (entry) {
+      proxyForm.value = proxyFormFromEntry(entry)
+      return
+    }
+  }
+  if (!selectedName && !String(proxyForm.value.name || '').trim().length) {
+    proxyForm.value = emptyProxyForm()
+  }
+}, { immediate: true, deep: true })
 
 watch(parsedProxyProviders, (entries) => {
   const selectedName = String(proxyProviderSelectedName.value || '').trim()
@@ -3600,6 +4408,7 @@ watch(
 
 onMounted(async () => {
   await refreshAll(true)
+  syncAdvancedSectionsFromPayload()
   syncDnsEditorFromPayload()
 })
 </script>

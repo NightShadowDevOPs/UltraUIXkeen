@@ -1,3 +1,27 @@
+## [1.2.96] (2026-03-28)
+
+### Features
+
+- `Mihomo → Конфигурация → Structured editors` now adds a dedicated `proxies` editor so individual proxies can be browsed, filtered, edited, duplicated, and disabled without hand-editing the whole raw YAML section
+- The new `proxies` form covers common identity/server/port fields, transport helpers (`ws-opts`, `grpc-opts`), security fields (`tls`, `sni`, `alpn`, `reality-opts`), auth fields (`uuid`, `password`, `cipher`, `flow`), and still keeps an extra YAML area for protocol-specific keys like `smux`, `wireguard`, `hysteria2`, or other rare options
+- Proxy rename now rewrites references inside `proxy-groups` and direct rule targets in `rules`; disabling a proxy cleans those references and safely rewrites impacted direct rule targets to `DIRECT` while keeping router-agent on 0.6.22
+
+## [1.2.95] (2026-03-28)
+
+### Features
+
+- `Mihomo → Конфигурация → Structured editors` now adds a dedicated `Tun / profile / sniffer` workspace so more nested runtime branches move from raw YAML into readable forms
+- The new block can read/apply common `tun` fields (`enable`, `stack`, `device`, `mtu`, `strict-route`, route include/exclude lists, interface include/exclude lists, `dns-hijack`), `profile` toggles, and basic `sniffer` controls (`enable`, `parse-pure-ip`, `override-destination`, protocol keys, and `force-domain` / `skip-domain`)
+- This continues the same safe pattern as the existing providers/rules editors: structured forms write back into the current draft/editor, while the raw YAML editor remains available as a fallback and router-agent stays on 0.6.22
+
+## [1.2.94] (2026-03-28)
+
+### Features
+
+- `Mihomo → Конфигурация → Structured editors` now has its own inner tabs (`Quick / Proxy providers / Proxy groups / Rule providers / Rules / DNS`) so the form workspace stays focused instead of growing back into a long scroll
+- `rules` editor now supports filter/search by type, provider, target, text and line number, shows quick per-type chips, adds template buttons for common rule patterns, and suggests payload/target values from the current config
+- rule editing now surfaces lightweight hints for missing payload/target or unknown `rule-provider` / custom target, and a newly created rule stays selected right after save instead of disappearing from the form context
+
 ## [1.2.93] (2026-03-28)
 
 ### Features

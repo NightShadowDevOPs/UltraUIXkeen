@@ -155,3 +155,35 @@
 - `Mihomo → Конфигурация` разбит на внутренние вкладки: редактор YAML, overview, structured editors, diagnostics, diff и history.
 - Это разгружает экран: теперь structured-блоки (`quick editor`, `proxy-providers`, `proxy-groups`, `rule-providers`, `rules`, `dns`) больше не висят под raw-редактором одной длинной простынёй.
 - Страница `Роутер` тоже получила собственные вкладки `Обзор / Трафик / Сеть`, чтобы состояние роутера, traffic-карточки и network details были разнесены по отдельным рабочим зонам.
+
+
+
+## Update v1.2.95
+
+- в `Structured editors` добавлен отдельный блок `Tun / profile / sniffer`
+- `tun` получил structured-форму для common nested-полей: `enable`, `stack`, `device`, `mtu`, `strict-route`, `auto-route`, `auto-detect-interface`, а также списков `dns-hijack`, `route-include-address`, `route-exclude-address`, `include-interface`, `exclude-interface`
+- `profile` вынесен в отдельную компактную форму с `store-selected` и `store-fake-ip`
+- `sniffer` получил базовые form-поля для `enable`, `parse-pure-ip`, `override-destination`, списка protocol keys в `sniff`, а также списков `force-domain` / `skip-domain`
+- новый блок продолжает ту же идею, что и editors для providers/rules/dns: structured-форма работает поверх текущего черновика, а raw YAML остаётся как fallback
+- `router-agent` в релизе не менялся: остаётся линия `0.6.22`
+
+## Update v1.2.94
+
+- блок `Structured editors` внутри `Mihomo → Конфигурация` получил собственные внутренние вкладки: `Quick`, `Proxy providers`, `Proxy groups`, `Rule providers`, `Rules`, `DNS`
+- это дополнительно разгрузило экран: теперь формовые редакторы не висят одной длинной колонкой, а открываются как отдельные рабочие подэкраны внутри structured workspace
+- `rules` получил фильтр/поиск по типу, target, provider, тексту и номеру строки
+- добавлены быстрые чипы по типам правил, шаблоны для частых паттернов (`MATCH`, `RULE-SET`, `GEOIP`, `GEOSITE`, `DOMAIN-SUFFIX`) и datalist-подсказки по payload/target из текущего конфига
+- редактор `rules` теперь показывает мягкие подсказки для типовых проблем: отсутствующий payload, отсутствующий target, неизвестный `rule-provider`, кастомный target вне текущих groups/providers
+- после сохранения новой rule UI оставляет её выбранной в форме, чтобы можно было сразу продолжить правку, а не искать только что созданную запись в списке
+- `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`
+
+
+## Update v1.2.96
+
+- в `Structured editors` добавлен отдельный редактор `proxies`
+- теперь common-поля прокси вынесены в форму: имя, тип, сервер, порт, `udp`, `tfo`, `network`, `dialer-proxy`, `interface-name`, `packet-encoding`
+- отдельно вынесены блоки `TLS / Security / Reality`, `Auth / Identity`, а также transport helpers для `ws-opts`, `grpc-opts` и `plugin-opts`
+- при rename прокси UI обновляет ссылки на него внутри `proxy-groups` и прямые target в `rules`
+- при disable прокси UI показывает план последствий, чистит зависимости и переводит затронутые direct-target rules на `DIRECT`
+- raw YAML остаётся fallback-режимом для более редких веток вроде `smux`, `http-opts`, `wireguard`, `hysteria2`, `tuic`
+- `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`
