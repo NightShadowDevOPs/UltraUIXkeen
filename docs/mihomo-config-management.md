@@ -1,5 +1,10 @@
 # Mihomo config management
 
+## Update v1.2.101
+- reworked the `proxy-providers` editor into a clearer form workspace: list search, type profile (`http / file / inline`), quick presets, and separate blocks for identity, source/filtering, health-check, override, and extra YAML
+- reworked the `rule-providers` editor in the same style: list search, behavior profile (`classical / domain / ipcidr`), quick presets, and clearer blocks for identity/behavior, source/refresh, and advanced YAML
+- raw YAML still remains as the fallback lane, but these two provider sections now read much more like structured entities and much less like one long flat slab of inputs
+
 ## Update v1.2.100
 - fixed the broken `splitFormList` / `joinFormList` fragment inside `MihomoConfigEditor.vue` where a regex and newline join literal had been split across real line breaks, breaking production builds with `Unterminated regular expression`
 - this is a build-fix release on top of `v1.2.99`: the newer form-driven `proxy-groups` and quick `rules` chips stay in place, but the workspace now ships in a state that actually compiles

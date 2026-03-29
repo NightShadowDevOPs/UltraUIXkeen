@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.101 — 2026-03-29
+- made the `proxy-providers` editor easier to work with in practice: added list search, a type profile (`http / file / inline`), quick source presets, and clearer blocks for identity, source/filtering, health-check, override, and extra YAML
+- made the `rule-providers` editor less of a flat wall of inputs: added list search, a behavior profile (`classical / domain / ipcidr`), quick presets, and clearer split blocks for identity/behavior, source/refresh, and advanced YAML
+- this keeps the same safe managed-config flow and raw YAML fallback, but moves another step toward readable form-driven editing instead of making users decode everything from one long settings slab
+- refreshed transfer docs for the next chat handoff
+
 ## v1.2.100 — 2026-03-29
 - fixed the broken `splitFormList` / `joinFormList` string-regex fragment inside `src/components/settings/MihomoConfigEditor.vue` that was emitted across real line breaks and caused the production Vite build to fail with `Unterminated regular expression`
 - kept the `v1.2.99` UX changes for `proxy-groups` and `rules`, but turned them into an actually buildable release instead of a beautiful landmine in CI

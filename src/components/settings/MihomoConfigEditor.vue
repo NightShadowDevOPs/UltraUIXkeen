@@ -1106,16 +1106,24 @@
                 <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                   <div class="mb-2 flex items-center justify-between gap-2">
                     <div class="font-semibold">{{ $t('configProxyProvidersListTitle') }}</div>
-                    <span class="badge badge-outline">{{ parsedProxyProviders.length }}</span>
+                    <span class="badge badge-outline">{{ filteredProxyProviders.length }} / {{ parsedProxyProviders.length }}</span>
                   </div>
 
-                  <div v-if="!parsedProxyProviders.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                  <label class="input input-sm input-bordered flex items-center gap-2">
+                    <span class="opacity-60">#</span>
+                    <input v-model="proxyProviderListQuery" type="text" class="grow" :placeholder="$t('configProxyProvidersFilterPlaceholder')" />
+                    <button v-if="proxyProviderListQuery" type="button" class="btn btn-ghost btn-xs" @click="clearProxyProviderFilter">×</button>
+                  </label>
+
+                  <div v-if="!parsedProxyProviders.length" class="mt-3 rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
                     {{ $t('configProxyProvidersListEmpty') }}
                   </div>
-
-                  <div v-else class="max-h-[32rem] space-y-2 overflow-auto pr-1">
+                  <div v-else-if="!filteredProxyProviders.length" class="mt-3 rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configProxyProvidersFilteredEmpty') }}
+                  </div>
+                  <div v-else class="mt-3 max-h-[32rem] space-y-2 overflow-auto pr-1">
                     <button
-                      v-for="item in parsedProxyProviders"
+                      v-for="item in filteredProxyProviders"
                       :key="item.name"
                       type="button"
                       class="w-full rounded-lg border p-3 text-left transition"
@@ -1125,7 +1133,7 @@
                       <div class="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <div class="font-semibold">{{ item.name }}</div>
-                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url) }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url || item.path) }}</div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                           <span class="badge badge-outline">{{ proxyProviderDisplayValue(item.type) }}</span>
@@ -1146,7 +1154,7 @@
                   </div>
                 </div>
 
-                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                <div class="space-y-3 rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                   <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div class="font-semibold">{{ selectedProxyProviderEntry ? $t('configProxyProvidersEditSelected') : $t('configProxyProvidersEditNew') }}</div>
@@ -1160,45 +1168,89 @@
                     </div>
                   </div>
 
-                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldName') }}</span>
-                      <input v-model="proxyProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldNamePlaceholder')" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldType') }}</span>
-                      <select v-model="proxyProviderForm.type" class="select select-sm">
-                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
-                        <option value="http">http</option>
-                        <option value="file">file</option>
-                        <option value="inline">inline</option>
-                      </select>
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldUrl') }}</span>
-                      <input v-model="proxyProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldUrlPlaceholder')" />
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldPath') }}</span>
-                      <input v-model="proxyProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldPathPlaceholder')" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldInterval') }}</span>
-                      <input v-model="proxyProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldFilter') }}</span>
-                      <input v-model="proxyProviderForm.filter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldFilterPlaceholder')" />
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldExcludeFilter') }}</span>
-                      <input v-model="proxyProviderForm.excludeFilter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldExcludeFilterPlaceholder')" />
-                    </label>
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div class="font-semibold">{{ $t('configProxyProvidersTypeAwareTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersTypeAwareTip') }}</div>
+                      </div>
+                      <span class="badge" :class="proxyProviderTypeProfile.accent">{{ proxyProviderDisplayValue(proxyProviderForm.type) }}</span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <button
+                        v-for="type in proxyProviderTypePresets"
+                        :key="`proxy-provider-type-${type}`"
+                        type="button"
+                        class="badge badge-outline cursor-pointer"
+                        :class="normalizedProxyProviderType === type ? 'badge-primary' : ''"
+                        @click="applyProxyProviderTypePreset(type)"
+                      >
+                        {{ type }}
+                      </button>
+                    </div>
+                    <div class="mt-3 rounded-lg border border-base-content/10 bg-base-200/50 p-3 text-[11px] opacity-80">
+                      {{ proxyProviderTypeProfile.summary }}
+                    </div>
                   </div>
 
-                  <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-                    <div class="font-semibold">{{ $t('configProxyProvidersHealthCheckTitle') }}</div>
-                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersHealthCheckTip') }}</div>
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2">
+                      <div class="mb-3 font-semibold">{{ $t('configProxyProvidersSectionIdentity') }}</div>
+                      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldName') }}</span>
+                          <input v-model="proxyProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldNamePlaceholder')" />
+                        </label>
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldType') }}</span>
+                          <select v-model="proxyProviderForm.type" class="select select-sm">
+                            <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                            <option value="http">http</option>
+                            <option value="file">file</option>
+                            <option value="inline">inline</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2">
+                      <div class="mb-3 font-semibold">{{ $t('configProxyProvidersSectionSource') }}</div>
+                      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="form-control md:col-span-2">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldUrl') }}</span>
+                          <input v-model="proxyProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldUrlPlaceholder')" />
+                        </label>
+                        <label class="form-control md:col-span-2">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldPath') }}</span>
+                          <input v-model="proxyProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldPathPlaceholder')" />
+                        </label>
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldInterval') }}</span>
+                          <input v-model="proxyProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" />
+                        </label>
+                        <label class="form-control">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldFilter') }}</span>
+                          <input v-model="proxyProviderForm.filter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldFilterPlaceholder')" />
+                        </label>
+                        <label class="form-control md:col-span-2">
+                          <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldExcludeFilter') }}</span>
+                          <input v-model="proxyProviderForm.excludeFilter" type="text" class="input input-sm" :placeholder="$t('configProxyProvidersFieldExcludeFilterPlaceholder')" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div class="font-semibold">{{ $t('configProxyProvidersHealthCheckTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersHealthCheckTip') }}</div>
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <button type="button" class="badge badge-outline cursor-pointer" @click="applyProxyProviderHealthPreset('https://www.gstatic.com/generate_204')">gstatic 204</button>
+                        <button type="button" class="badge badge-outline cursor-pointer" @click="applyProxyProviderHealthPreset('https://connectivitycheck.gstatic.com/generate_204')">connectivitycheck</button>
+                      </div>
+                    </div>
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                       <label class="form-control">
                         <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckEnable') }}</span>
@@ -1214,7 +1266,7 @@
                       </label>
                       <label class="form-control">
                         <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckInterval') }}</span>
-                        <input v-model="proxyProviderForm.healthCheckInterval" type="text" inputmode="numeric" class="input input-sm" placeholder="600" />
+                        <input v-model="proxyProviderForm.healthCheckInterval" type="text" inputmode="numeric" class="input input-sm" placeholder="300" />
                       </label>
                       <label class="form-control">
                         <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckLazy') }}</span>
@@ -1224,41 +1276,27 @@
                           <option value="false">false</option>
                         </select>
                       </label>
-                      <label class="form-control md:col-span-2 xl:col-span-4">
+                      <label class="form-control xl:col-span-3">
                         <span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersHealthCheckExtra') }}</span>
-                        <textarea
-                          v-model="proxyProviderForm.healthCheckExtraBody"
-                          class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
-                          wrap="off"
-                          :placeholder="$t('configProxyProvidersHealthCheckExtraPlaceholder')"
-                        ></textarea>
+                        <textarea v-model="proxyProviderForm.healthCheckExtraBody" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configProxyProvidersHealthCheckExtraPlaceholder')"></textarea>
                       </label>
                     </div>
                   </div>
 
-                  <div class="mt-3">
-                    <div class="mb-1 font-semibold">{{ $t('configProxyProvidersOverrideTitle') }}</div>
-                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyProvidersOverrideTip') }}</div>
-                    <textarea
-                      v-model="proxyProviderForm.overrideBody"
-                      class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
-                      wrap="off"
-                      :placeholder="$t('configProxyProvidersOverridePlaceholder')"
-                    ></textarea>
+                  <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyProvidersOverrideTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersOverrideTip') }}</div>
+                      <textarea v-model="proxyProviderForm.overrideBody" class="mt-3 textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configProxyProvidersOverridePlaceholder')"></textarea>
+                    </div>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyProvidersExtraYamlTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersExtraYamlTip') }}</div>
+                      <textarea v-model="proxyProviderForm.extraBody" class="mt-3 textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configProxyProvidersExtraYamlPlaceholder')"></textarea>
+                    </div>
                   </div>
 
-                  <div class="mt-3">
-                    <div class="mb-1 font-semibold">{{ $t('configProxyProvidersExtraYamlTitle') }}</div>
-                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyProvidersExtraYamlTip') }}</div>
-                    <textarea
-                      v-model="proxyProviderForm.extraBody"
-                      class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
-                      wrap="off"
-                      :placeholder="$t('configProxyProvidersExtraYamlPlaceholder')"
-                    ></textarea>
-                  </div>
-
-                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                  <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
                     <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxyProvidersReferencesTitle') }}</div>
                       <div v-if="!selectedProxyProviderEntry" class="mt-2 opacity-70">{{ $t('configProxyProvidersReferencesSelect') }}</div>
@@ -1269,305 +1307,20 @@
                         </span>
                       </div>
                     </div>
-
                     <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxyProvidersDisableImpactTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersDisableImpactTip') }}</div>
                       <div v-if="!selectedProxyProviderEntry" class="mt-2 opacity-70">{{ $t('configProxyProvidersDisableImpactSelect') }}</div>
-                      <div v-else-if="!proxyProviderDisableImpact.length" class="mt-2 opacity-70">{{ $t('configProxyProvidersDisableImpactEmpty') }}</div>
-                      <div v-else class="mt-2 space-y-2">
-                        <div v-for="impact in proxyProviderDisableImpact" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
-                          <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div class="font-semibold">{{ impact.group }}</div>
-                            <div class="flex flex-wrap gap-2">
-                              <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
-                              <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
-                            </div>
-                          </div>
-                          <div class="mt-1 text-[11px] opacity-70">
-                            {{ impact.fallbackInjected ? $t('configProxyProvidersDisableImpactFallback') : $t('configProxyProvidersDisableImpactClean') }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-show="structuredEditorSection === 'proxy-groups'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
-              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div class="font-semibold">{{ $t('configProxyGroupsTitle') }}</div>
-                  <div class="opacity-70">{{ $t('configProxyGroupsTip') }}</div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="badge badge-ghost">{{ $t('configProxyGroupsCount', { count: parsedProxyGroups.length }) }}</span>
-                  <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsNew') }}</button>
-                </div>
-              </div>
-
-              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
-                {{ $t('configProxyGroupsEmptyEditor') }}
-              </div>
-
-              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[24rem,minmax(0,1fr)]">
-                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
-                  <div class="mb-2 flex items-center justify-between gap-2">
-                    <div class="font-semibold">{{ $t('configProxyGroupsListTitle') }}</div>
-                    <span class="badge badge-outline">{{ parsedProxyGroups.length }}</span>
-                  </div>
-
-                  <div v-if="!parsedProxyGroups.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
-                    {{ $t('configProxyGroupsListEmpty') }}
-                  </div>
-
-                  <div v-else class="max-h-[36rem] space-y-2 overflow-auto pr-1">
-                    <button
-                      v-for="item in parsedProxyGroups"
-                      :key="item.name"
-                      type="button"
-                      class="w-full rounded-lg border p-3 text-left transition"
-                      :class="proxyGroupSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'"
-                      @click="loadProxyGroupIntoForm(item.name)"
-                    >
-                      <div class="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <div class="font-semibold">{{ item.name }}</div>
-                          <div class="mt-1 text-[11px] opacity-70">{{ item.type || '—' }}</div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                          <span class="badge badge-outline">{{ item.type || '—' }}</span>
-                          <span class="badge badge-ghost">{{ $t('configProxyGroupsRefsShort', { count: item.references.length }) }}</span>
-                        </div>
-                      </div>
-                      <div class="mt-2 flex flex-wrap gap-1">
-                        <span v-if="item.proxies.length" class="badge badge-ghost badge-sm">proxies: {{ item.proxies.length }}</span>
-                        <span v-if="item.use.length" class="badge badge-ghost badge-sm">use: {{ item.use.length }}</span>
-                        <span v-if="item.providers.length" class="badge badge-ghost badge-sm">providers: {{ item.providers.length }}</span>
-                        <span v-if="item.url" class="badge badge-ghost badge-sm">url</span>
-                        <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
-                        <span v-if="item.includeAll" class="badge badge-success badge-outline badge-sm">include-all</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
-                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <div class="font-semibold">{{ selectedProxyGroupEntry ? $t('configProxyGroupsEditSelected') : $t('configProxyGroupsEditNew') }}</div>
-                      <div class="opacity-70">{{ $t('configProxyGroupsEditTip') }}</div>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                      <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsResetForm') }}</button>
-                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDuplicate') }}</button>
-                      <button class="btn btn-xs" @click="saveProxyGroupToPayload" :disabled="!proxyGroupFormCanSave">{{ $t('configProxyGroupsSaveToEditor') }}</button>
-                      <button class="btn btn-xs btn-warning" @click="disableSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDisable') }}</button>
-                    </div>
-                  </div>
-
-                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldName') }}</span>
-                      <input v-model="proxyGroupForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldNamePlaceholder')" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldType') }}</span>
-                      <select v-model="proxyGroupForm.type" class="select select-sm">
-                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
-                        <option value="select">select</option>
-                        <option value="url-test">url-test</option>
-                        <option value="fallback">fallback</option>
-                        <option value="load-balance">load-balance</option>
-                        <option value="relay">relay</option>
-                      </select>
-                    </label>
-                    <div class="md:col-span-2 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-                      <div class="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <div class="font-semibold">{{ $t('configProxyGroupsTypeAwareTitle') }}</div>
-                          <div class="mt-1 text-[11px] opacity-70">{{ proxyGroupTypeProfile.summary }}</div>
-                        </div>
-                        <span class="badge" :class="proxyGroupTypeProfile.accent">{{ normalizedProxyGroupType || 'select' }}</span>
-                      </div>
-                      <div class="mt-3 flex flex-wrap gap-2">
-                        <button
-                          v-for="preset in proxyGroupTypePresets"
-                          :key="`proxy-group-preset-${preset}`"
-                          type="button"
-                          class="btn btn-xs"
-                          :class="normalizedProxyGroupType === preset ? 'btn-primary' : 'btn-ghost'"
-                          @click="applyProxyGroupTypePreset(preset)"
-                        >
-                          {{ preset }}
-                        </button>
-                      </div>
-                      <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
-                        <span class="badge badge-outline">{{ $t('configProxyGroupsTypeAwareFields') }}</span>
-                        <span v-for="field in proxyGroupTypeProfile.fields" :key="`proxy-group-field-${field}`" class="badge badge-ghost">{{ field }}</span>
-                      </div>
-                    </div>
-                    <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUrl') }}</span>
-                      <input v-model="proxyGroupForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldUrlPlaceholder')" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldInterval') }}</span>
-                      <input v-model="proxyGroupForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="300" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldStrategy') }}</span>
-                      <input v-model="proxyGroupForm.strategy" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldStrategyPlaceholder')" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldLazy') }}</span>
-                      <select v-model="proxyGroupForm.lazy" class="select select-sm">
-                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </select>
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldDisableUdp') }}</span>
-                      <select v-model="proxyGroupForm.disableUdp" class="select select-sm">
-                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </select>
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldIncludeAll') }}</span>
-                      <select v-model="proxyGroupForm.includeAll" class="select select-sm">
-                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </select>
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTolerance') }}</span>
-                      <input v-model="proxyGroupForm.tolerance" type="text" inputmode="numeric" class="input input-sm" placeholder="50" />
-                    </label>
-                    <label class="form-control">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTimeout') }}</span>
-                      <input v-model="proxyGroupForm.timeout" type="text" inputmode="numeric" class="input input-sm" placeholder="3000" />
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProxies') }}</span>
-                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsMembersHint') }}</span>
-                      </div>
-                      <textarea v-model="proxyGroupForm.proxiesText" class="textarea textarea-sm h-24 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProxiesPlaceholder')"></textarea>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.proxies.length">
-                        <button v-for="item in proxyGroupSelectedLists.proxies" :key="`selected-group-proxy-${item}`" type="button" class="badge badge-primary badge-outline gap-1" @click="toggleProxyGroupListValue('proxiesText', item)">
-                          <span>{{ item }}</span><span>×</span>
-                        </button>
-                      </div>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProxyMembers.length">
-                        <button v-for="item in proxyGroupSuggestedProxyMembers" :key="`suggest-group-proxy-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('proxiesText', item)">+ {{ item }}</button>
-                      </div>
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUse') }}</span>
-                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
-                      </div>
-                      <textarea v-model="proxyGroupForm.useText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldUsePlaceholder')"></textarea>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.use.length">
-                        <button v-for="item in proxyGroupSelectedLists.use" :key="`selected-group-use-${item}`" type="button" class="badge badge-secondary badge-outline gap-1" @click="toggleProxyGroupListValue('useText', item)">
-                          <span>{{ item }}</span><span>×</span>
-                        </button>
-                      </div>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedUseMembers.length">
-                        <button v-for="item in proxyGroupSuggestedUseMembers" :key="`suggest-group-use-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('useText', item)">+ {{ item }}</button>
-                      </div>
-                    </label>
-                    <label class="form-control md:col-span-2">
-                      <div class="flex items-center justify-between gap-2">
-                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProviders') }}</span>
-                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
-                      </div>
-                      <textarea v-model="proxyGroupForm.providersText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProvidersPlaceholder')"></textarea>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.providers.length">
-                        <button v-for="item in proxyGroupSelectedLists.providers" :key="`selected-group-provider-${item}`" type="button" class="badge badge-accent badge-outline gap-1" @click="toggleProxyGroupListValue('providersText', item)">
-                          <span>{{ item }}</span><span>×</span>
-                        </button>
-                      </div>
-                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProviderMembers.length">
-                        <button v-for="item in proxyGroupSuggestedProviderMembers" :key="`suggest-group-provider-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('providersText', item)">+ {{ item }}</button>
-                      </div>
-                    </label>
-                  </div>
-
-                  <div class="mt-3">
-                    <div class="mb-1 font-semibold">{{ $t('configProxyGroupsExtraYamlTitle') }}</div>
-                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyGroupsExtraYamlTip') }}</div>
-                    <textarea
-                      v-model="proxyGroupForm.extraBody"
-                      class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
-                      wrap="off"
-                      :placeholder="$t('configProxyGroupsExtraYamlPlaceholder')"
-                    ></textarea>
-                  </div>
-
-                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-                      <div class="font-semibold">{{ $t('configProxyGroupsReferencesTitle') }}</div>
-                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesSelect') }}</div>
                       <template v-else>
-                        <div class="mt-2 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesTip') }}</div>
-                        <div v-if="!proxyGroupReferencesSummary.groupRefs.length && !proxyGroupReferencesSummary.ruleRefs.length" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesEmpty') }}</div>
+                        <div v-if="!proxyProviderDisableImpact.length" class="mt-2 opacity-70">{{ $t('configProxyProvidersDisableImpactEmpty') }}</div>
                         <div v-else class="mt-2 space-y-2">
-                          <div v-if="proxyGroupReferencesSummary.groupRefs.length">
-                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesGroups') }}</div>
-                            <div class="flex flex-wrap gap-2">
-                              <span v-for="refItem in proxyGroupReferencesSummary.groupRefs" :key="`group-${refItem.text}-${refItem.key}`" class="badge badge-outline">
-                                {{ refItem.text }} · {{ refItem.key }}
-                              </span>
-                            </div>
-                          </div>
-                          <div v-if="proxyGroupReferencesSummary.ruleRefs.length">
-                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesRules') }}</div>
-                            <div class="flex flex-wrap gap-2">
-                              <span v-for="refItem in proxyGroupReferencesSummary.ruleRefs.slice(0, 8)" :key="`rule-${refItem.lineNo}-${refItem.text}`" class="badge badge-ghost">
-                                L{{ refItem.lineNo }}
-                              </span>
-                              <span v-if="proxyGroupReferencesSummary.ruleRefs.length > 8" class="badge badge-outline">+{{ proxyGroupReferencesSummary.ruleRefs.length - 8 }}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </template>
-                    </div>
-
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-                      <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactTitle') }}</div>
-                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyGroupsDisableImpactTip') }}</div>
-                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactSelect') }}</div>
-                      <template v-else>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactRules', { count: proxyGroupDisablePlan.rulesTouched }) }}</span>
-                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactGroups', { count: proxyGroupDisablePlan.impacts.length }) }}</span>
-                        </div>
-                        <div v-if="!proxyGroupDisablePlan.impacts.length && !proxyGroupDisablePlan.rulesTouched" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactEmpty') }}</div>
-                        <div v-else class="mt-2 space-y-2">
-                          <div v-for="impact in proxyGroupDisablePlan.impacts" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                          <div v-for="impact in proxyProviderDisableImpact" :key="`${impact.group}-${impact.keys.join('-')}`" class="rounded-lg border border-base-content/10 bg-base-200/50 p-2">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                              <div class="font-semibold">{{ impact.group }}</div>
-                              <div class="flex flex-wrap gap-2">
-                                <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
-                                <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
-                              </div>
+                              <span class="font-semibold">{{ impact.group }}</span>
+                              <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
                             </div>
                             <div class="mt-1 text-[11px] opacity-70">
-                              {{ impact.fallbackInjected ? $t('configProxyGroupsDisableImpactFallback') : $t('configProxyGroupsDisableImpactClean') }}
-                            </div>
-                          </div>
-                          <div v-if="proxyGroupDisablePlan.ruleSamples.length" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
-                            <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactRulesTitle') }}</div>
-                            <div class="mt-2 space-y-1">
-                              <div v-for="sample in proxyGroupDisablePlan.ruleSamples" :key="`rule-sample-${sample.lineNo}-${sample.text}`" class="font-mono text-[11px] break-all">
-                                L{{ sample.lineNo }} · {{ sample.text }}
-                              </div>
+                              {{ impact.fallbackInjected ? $t('configProxyProvidersDisableImpactFallback') : $t('configProxyProvidersDisableImpactClean') }}
                             </div>
                           </div>
                         </div>
@@ -1590,23 +1343,26 @@
                 </div>
               </div>
 
-              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
-                {{ $t('configRuleProvidersEmptyEditor') }}
-              </div>
-
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRuleProvidersEmptyEditor') }}</div>
               <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[22rem,minmax(0,1fr)]">
                 <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                   <div class="mb-2 flex items-center justify-between gap-2">
                     <div class="font-semibold">{{ $t('configRuleProvidersListTitle') }}</div>
-                    <span class="badge badge-outline">{{ parsedRuleProviders.length }}</span>
+                    <span class="badge badge-outline">{{ filteredRuleProviders.length }} / {{ parsedRuleProviders.length }}</span>
                   </div>
-                  <div v-if="!parsedRuleProviders.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRuleProvidersListEmpty') }}</div>
-                  <div v-else class="max-h-[28rem] space-y-2 overflow-auto pr-1">
-                    <button v-for="item in parsedRuleProviders" :key="item.name" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="ruleProviderSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleProviderIntoForm(item.name)">
+                  <label class="input input-sm input-bordered flex items-center gap-2">
+                    <span class="opacity-60">#</span>
+                    <input v-model="ruleProviderListQuery" type="text" class="grow" :placeholder="$t('configRuleProvidersFilterPlaceholder')" />
+                    <button v-if="ruleProviderListQuery" type="button" class="btn btn-ghost btn-xs" @click="clearRuleProviderFilter">×</button>
+                  </label>
+                  <div v-if="!parsedRuleProviders.length" class="mt-3 rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRuleProvidersListEmpty') }}</div>
+                  <div v-else-if="!filteredRuleProviders.length" class="mt-3 rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">{{ $t('configRuleProvidersFilteredEmpty') }}</div>
+                  <div v-else class="mt-3 max-h-[32rem] space-y-2 overflow-auto pr-1">
+                    <button v-for="item in filteredRuleProviders" :key="item.name" type="button" class="w-full rounded-lg border p-3 text-left transition" :class="ruleProviderSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'" @click="loadRuleProviderIntoForm(item.name)">
                       <div class="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <div class="font-semibold">{{ item.name }}</div>
-                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url) }}</div>
+                          <div class="mt-1 break-all text-[11px] opacity-70">{{ proxyProviderDisplayValue(item.url || item.path) }}</div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                           <span class="badge badge-outline">{{ item.behavior || '—' }}</span>
@@ -1617,12 +1373,13 @@
                         <span v-if="item.path" class="badge badge-ghost badge-sm">path: {{ item.path }}</span>
                         <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
                         <span v-if="item.format" class="badge badge-ghost badge-sm">format: {{ item.format }}</span>
+                        <span v-if="item.type" class="badge badge-ghost badge-sm">{{ item.type }}</span>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                <div class="space-y-3 rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                   <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div class="font-semibold">{{ selectedRuleProviderEntry ? $t('configRuleProvidersEditSelected') : $t('configRuleProvidersEditNew') }}</div>
@@ -1635,21 +1392,60 @@
                       <button class="btn btn-xs btn-warning" @click="disableSelectedRuleProvider" :disabled="!selectedRuleProviderEntry">{{ $t('configRuleProvidersDisable') }}</button>
                     </div>
                   </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div class="font-semibold">{{ $t('configRuleProvidersBehaviorAwareTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configRuleProvidersBehaviorAwareTip') }}</div>
+                      </div>
+                      <span class="badge" :class="ruleProviderBehaviorProfile.accent">{{ ruleProviderForm.behavior || '—' }}</span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <button
+                        v-for="behavior in ruleProviderBehaviorPresets"
+                        :key="`rule-provider-behavior-${behavior}`"
+                        type="button"
+                        class="badge badge-outline cursor-pointer"
+                        :class="normalizedRuleProviderBehavior === behavior ? 'badge-primary' : ''"
+                        @click="applyRuleProviderBehaviorPreset(behavior)"
+                      >
+                        {{ behavior }}
+                      </button>
+                    </div>
+                    <div class="mt-3 rounded-lg border border-base-content/10 bg-base-200/50 p-3 text-[11px] opacity-80">
+                      {{ ruleProviderBehaviorProfile.summary }}
+                    </div>
+                  </div>
+
                   <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldName') }}</span><input v-model="ruleProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldNamePlaceholder')" /></label>
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldType') }}</span><select v-model="ruleProviderForm.type" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="http">http</option><option value="file">file</option><option value="inline">inline</option></select></label>
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldBehavior') }}</span><select v-model="ruleProviderForm.behavior" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="classical">classical</option><option value="domain">domain</option><option value="ipcidr">ipcidr</option></select></label>
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldFormat') }}</span><select v-model="ruleProviderForm.format" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="yaml">yaml</option><option value="text">text</option><option value="mrs">mrs</option></select></label>
-                    <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldUrl') }}</span><input v-model="ruleProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldUrlPlaceholder')" /></label>
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldPath') }}</span><input v-model="ruleProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldPathPlaceholder')" /></label>
-                    <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldInterval') }}</span><input v-model="ruleProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" /></label>
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2">
+                      <div class="mb-3 font-semibold">{{ $t('configRuleProvidersSectionIdentity') }}</div>
+                      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldName') }}</span><input v-model="ruleProviderForm.name" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldNamePlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldType') }}</span><select v-model="ruleProviderForm.type" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="http">http</option><option value="file">file</option><option value="inline">inline</option></select></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldBehavior') }}</span><select v-model="ruleProviderForm.behavior" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="classical">classical</option><option value="domain">domain</option><option value="ipcidr">ipcidr</option></select></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldFormat') }}</span><select v-model="ruleProviderForm.format" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="yaml">yaml</option><option value="text">text</option><option value="mrs">mrs</option></select></label>
+                      </div>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2">
+                      <div class="mb-3 font-semibold">{{ $t('configRuleProvidersSectionSource') }}</div>
+                      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldUrl') }}</span><input v-model="ruleProviderForm.url" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldUrlPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldPath') }}</span><input v-model="ruleProviderForm.path" type="text" class="input input-sm" :placeholder="$t('configRuleProvidersFieldPathPlaceholder')" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldInterval') }}</span><input v-model="ruleProviderForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="86400" /></label>
+                      </div>
+                    </div>
                   </div>
-                  <div class="mt-3">
-                    <div class="mb-1 font-semibold">{{ $t('configRuleProvidersExtraYamlTitle') }}</div>
-                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configRuleProvidersExtraYamlTip') }}</div>
-                    <textarea v-model="ruleProviderForm.extraBody" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRuleProvidersExtraYamlPlaceholder')"></textarea>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configRuleProvidersExtraYamlTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configRuleProvidersExtraYamlTip') }}</div>
+                    <textarea v-model="ruleProviderForm.extraBody" class="mt-3 textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" wrap="off" :placeholder="$t('configRuleProvidersExtraYamlPlaceholder')"></textarea>
                   </div>
-                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+
+                  <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
                     <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configRuleProvidersReferencesTitle') }}</div>
                       <div v-if="!selectedRuleProviderEntry" class="mt-2 opacity-70">{{ $t('configRuleProvidersReferencesSelect') }}</div>
@@ -2306,8 +2102,10 @@ const overviewSource = useStorage<DiffSourceKind>('config/mihomo-config-overview
 const proxySelectedName = useStorage('config/mihomo-config-proxy-selected', '')
 const proxyListQuery = useStorage('config/mihomo-config-proxy-query', '')
 const proxyProviderSelectedName = useStorage('config/mihomo-config-provider-selected', '')
+const proxyProviderListQuery = useStorage('config/mihomo-config-provider-query', '')
 const proxyGroupSelectedName = useStorage('config/mihomo-config-group-selected', '')
 const ruleProviderSelectedName = useStorage('config/mihomo-config-rule-provider-selected', '')
+const ruleProviderListQuery = useStorage('config/mihomo-config-rule-provider-query', '')
 const ruleSelectedIndex = useStorage('config/mihomo-config-rule-selected', '')
 const ruleListQuery = useStorage('config/mihomo-config-rule-query', '')
 
@@ -3405,6 +3203,45 @@ const proxyDisablePlan = computed<ProxyDisableImpact>(() => {
 const parsedProxyProviders = computed<ParsedProxyProviderEntry[]>(() => parseProxyProvidersFromConfig(payload.value))
 const selectedProxyProviderEntry = computed(() => parsedProxyProviders.value.find((item) => item.name === proxyProviderSelectedName.value) || null)
 const proxyProviderFormCanSave = computed(() => String(proxyProviderForm.value.name || '').trim().length > 0)
+const normalizedProxyProviderListFilter = computed(() => String(proxyProviderListQuery.value || '').trim().toLowerCase())
+const filteredProxyProviders = computed(() => {
+  const query = normalizedProxyProviderListFilter.value
+  if (!query) return parsedProxyProviders.value
+  return parsedProxyProviders.value.filter((item) => {
+    const haystack = [
+      item.name,
+      item.type,
+      item.url,
+      item.path,
+      item.filter,
+      item.excludeFilter,
+      item.interval,
+      item.rawBlock,
+    ].join(' ').toLowerCase()
+    return haystack.includes(query)
+  })
+})
+const normalizedProxyProviderType = computed(() => String(proxyProviderForm.value.type || '').trim().toLowerCase())
+const proxyProviderTypePresets = ['http', 'file', 'inline'] as const
+const proxyProviderTypeProfile = computed(() => {
+  switch (normalizedProxyProviderType.value) {
+    case 'file':
+      return {
+        accent: 'badge-secondary',
+        summary: t('configProxyProvidersTypeSummaryFile'),
+      }
+    case 'inline':
+      return {
+        accent: 'badge-accent',
+        summary: t('configProxyProvidersTypeSummaryInline'),
+      }
+    default:
+      return {
+        accent: 'badge-info',
+        summary: t('configProxyProvidersTypeSummaryHttp'),
+      }
+  }
+})
 const proxyProviderDisableImpact = computed<ProviderDisableImpact[]>(() => {
   const name = String(selectedProxyProviderEntry.value?.name || '').trim()
   if (!name) return []
@@ -3540,6 +3377,45 @@ const applyProxyGroupTypePreset = (type: typeof proxyGroupTypePresets[number]) =
 const parsedRuleProviders = computed<ParsedRuleProviderEntry[]>(() => parseRuleProvidersFromConfig(payload.value))
 const selectedRuleProviderEntry = computed(() => parsedRuleProviders.value.find((item) => item.name === ruleProviderSelectedName.value) || null)
 const ruleProviderFormCanSave = computed(() => String(ruleProviderForm.value.name || '').trim().length > 0)
+const normalizedRuleProviderListFilter = computed(() => String(ruleProviderListQuery.value || '').trim().toLowerCase())
+const filteredRuleProviders = computed(() => {
+  const query = normalizedRuleProviderListFilter.value
+  if (!query) return parsedRuleProviders.value
+  return parsedRuleProviders.value.filter((item) => {
+    const haystack = [
+      item.name,
+      item.type,
+      item.behavior,
+      item.format,
+      item.url,
+      item.path,
+      item.interval,
+      item.rawBlock,
+    ].join(' ').toLowerCase()
+    return haystack.includes(query)
+  })
+})
+const normalizedRuleProviderBehavior = computed(() => String(ruleProviderForm.value.behavior || '').trim().toLowerCase())
+const ruleProviderBehaviorPresets = ['classical', 'domain', 'ipcidr'] as const
+const ruleProviderBehaviorProfile = computed(() => {
+  switch (normalizedRuleProviderBehavior.value) {
+    case 'domain':
+      return {
+        accent: 'badge-info',
+        summary: t('configRuleProvidersBehaviorSummaryDomain'),
+      }
+    case 'ipcidr':
+      return {
+        accent: 'badge-warning',
+        summary: t('configRuleProvidersBehaviorSummaryIpcidr'),
+      }
+    default:
+      return {
+        accent: 'badge-success',
+        summary: t('configRuleProvidersBehaviorSummaryClassical'),
+      }
+  }
+})
 const ruleProviderDisableImpact = computed<RuleProviderDisableImpact>(() => {
   const name = String(selectedRuleProviderEntry.value?.name || '').trim()
   if (!name) return { rulesRemoved: 0, samples: [] }
@@ -4108,6 +3984,27 @@ const proxyProviderDisplayValue = (value?: string) => {
   return s.length ? s : '—'
 }
 
+const clearProxyProviderFilter = () => {
+  proxyProviderListQuery.value = ''
+}
+
+const applyProxyProviderTypePreset = (type: typeof proxyProviderTypePresets[number]) => {
+  proxyProviderForm.value.type = type
+  if (type === 'http' && !String(proxyProviderForm.value.interval || '').trim().length) proxyProviderForm.value.interval = '86400'
+  if (type === 'http' && !String(proxyProviderForm.value.healthCheckEnable || '').trim().length) proxyProviderForm.value.healthCheckEnable = 'true'
+  if (type === 'http' && !String(proxyProviderForm.value.healthCheckUrl || '').trim().length) proxyProviderForm.value.healthCheckUrl = 'https://www.gstatic.com/generate_204'
+  if (type === 'http' && !String(proxyProviderForm.value.healthCheckInterval || '').trim().length) proxyProviderForm.value.healthCheckInterval = '300'
+  showNotification({ content: 'configProxyProvidersTypePresetAppliedToast', type: 'alert-success' })
+}
+
+const applyProxyProviderHealthPreset = (url: string) => {
+  const normalized = String(url || '').trim()
+  if (!normalized) return
+  proxyProviderForm.value.healthCheckEnable = 'true'
+  proxyProviderForm.value.healthCheckUrl = normalized
+  if (!String(proxyProviderForm.value.healthCheckInterval || '').trim().length) proxyProviderForm.value.healthCheckInterval = '300'
+}
+
 const prepareNewProxyProvider = () => {
   proxyProviderSelectedName.value = ''
   proxyProviderForm.value = emptyProxyProviderForm()
@@ -4200,6 +4097,16 @@ const disableSelectedProxyGroup = () => {
       : 'configProxyGroupsDisabledToast',
     type: 'alert-success',
   })
+}
+
+const clearRuleProviderFilter = () => {
+  ruleProviderListQuery.value = ''
+}
+
+const applyRuleProviderBehaviorPreset = (behavior: typeof ruleProviderBehaviorPresets[number]) => {
+  ruleProviderForm.value.behavior = behavior
+  if (!String(ruleProviderForm.value.format || '').trim().length) ruleProviderForm.value.format = 'yaml'
+  showNotification({ content: 'configRuleProvidersBehaviorPresetAppliedToast', type: 'alert-success' })
 }
 
 const prepareNewRuleProvider = () => {
