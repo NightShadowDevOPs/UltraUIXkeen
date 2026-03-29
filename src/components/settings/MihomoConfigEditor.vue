@@ -882,6 +882,35 @@
                   </div>
 
                   <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold">{{ $t('configProxiesTypeAwareTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ proxyTypeSummary }}</div>
+                      </div>
+                      <div class="space-y-1 text-right">
+                        <div class="text-[11px] opacity-60">{{ $t('configProxiesTypePresetLabel') }}</div>
+                        <div class="flex flex-wrap justify-end gap-1">
+                          <button
+                            v-for="preset in proxyTypePresets"
+                            :key="preset.id"
+                            type="button"
+                            class="badge cursor-pointer border-0 px-2 py-2 transition"
+                            :class="normalizedProxyType === preset.id ? 'badge-primary' : 'badge-ghost hover:badge-outline'"
+                            @click="applyProxyTypePreset(preset.id)"
+                          >
+                            {{ preset.label }}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      <span class="badge badge-outline">{{ proxyTypeProfileLabel }}</span>
+                      <span v-for="focus in proxyTypeFocusBadges" :key="focus" class="badge badge-ghost">{{ focus }}</span>
+                    </div>
+                    <div class="mt-2 text-[11px] opacity-60">{{ $t('configProxiesTypeAwareTip') }}</div>
+                  </div>
+
+                  <div v-show="proxyTypeVisibility.security" class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                     <div class="font-semibold">{{ $t('configProxiesSecurityTitle') }}</div>
                     <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesSecurityTip') }}</div>
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -896,7 +925,7 @@
                     </div>
                   </div>
 
-                  <div class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                  <div v-show="proxyTypeVisibility.auth" class="mt-3 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                     <div class="font-semibold">{{ $t('configProxiesAuthTitle') }}</div>
                     <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesAuthTip') }}</div>
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -908,7 +937,7 @@
                   </div>
 
                   <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div v-show="proxyTypeVisibility.transport" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxiesTransportTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesTransportTip') }}</div>
                       <div class="mt-3 space-y-3">
@@ -919,7 +948,7 @@
                       </div>
                     </div>
 
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div v-show="proxyTypeVisibility.plugin" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxiesPluginTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesPluginTip') }}</div>
                       <div class="mt-3 space-y-3">
@@ -931,7 +960,7 @@
 
 
                   <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div v-show="proxyTypeVisibility.httpOpts" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxiesHttpOptsTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesHttpOptsTip') }}</div>
                       <div class="mt-3 grid grid-cols-1 gap-3">
@@ -941,7 +970,7 @@
                       </div>
                     </div>
 
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div v-show="proxyTypeVisibility.smux" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxiesSmuxTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesSmuxTip') }}</div>
                       <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -957,7 +986,7 @@
                   </div>
 
                   <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 xl:col-span-2">
+                    <div v-show="proxyTypeVisibility.wireguard" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 xl:col-span-2">
                       <div class="font-semibold">{{ $t('configProxiesWireguardTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesWireguardTip') }}</div>
                       <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -972,11 +1001,11 @@
                       </div>
                     </div>
 
-                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div v-show="proxyTypeVisibility.protocolExtras" class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
                       <div class="font-semibold">{{ $t('configProxiesProtocolExtrasTitle') }}</div>
                       <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesProtocolExtrasTip') }}</div>
                       <div class="mt-3 space-y-3">
-                        <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                        <div v-show="proxyTypeVisibility.hysteria2" class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                           <div class="text-xs font-semibold opacity-80">hysteria2</div>
                           <div class="mt-2 grid grid-cols-1 gap-3">
                             <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaUp') }}</span><input v-model="proxyForm.hysteriaUp" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaUpPlaceholder')" /></label>
@@ -985,7 +1014,7 @@
                             <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaObfsPassword') }}</span><input v-model="proxyForm.hysteriaObfsPassword" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaObfsPasswordPlaceholder')" /></label>
                           </div>
                         </div>
-                        <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                        <div v-show="proxyTypeVisibility.tuic" class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
                           <div class="text-xs font-semibold opacity-80">tuic</div>
                           <div class="mt-2 grid grid-cols-1 gap-3">
                             <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicCongestionController') }}</span><input v-model="proxyForm.tuicCongestionController" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicCongestionControllerPlaceholder')" /></label>
@@ -1354,6 +1383,31 @@
                         <option value="relay">relay</option>
                       </select>
                     </label>
+                    <div class="md:col-span-2 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ $t('configProxyGroupsTypeAwareTitle') }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ proxyGroupTypeProfile.summary }}</div>
+                        </div>
+                        <span class="badge" :class="proxyGroupTypeProfile.accent">{{ normalizedProxyGroupType || 'select' }}</span>
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <button
+                          v-for="preset in proxyGroupTypePresets"
+                          :key="`proxy-group-preset-${preset}`"
+                          type="button"
+                          class="btn btn-xs"
+                          :class="normalizedProxyGroupType === preset ? 'btn-primary' : 'btn-ghost'"
+                          @click="applyProxyGroupTypePreset(preset)"
+                        >
+                          {{ preset }}
+                        </button>
+                      </div>
+                      <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                        <span class="badge badge-outline">{{ $t('configProxyGroupsTypeAwareFields') }}</span>
+                        <span v-for="field in proxyGroupTypeProfile.fields" :key="`proxy-group-field-${field}`" class="badge badge-ghost">{{ field }}</span>
+                      </div>
+                    </div>
                     <label class="form-control md:col-span-2">
                       <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUrl') }}</span>
                       <input v-model="proxyGroupForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldUrlPlaceholder')" />
@@ -1399,16 +1453,49 @@
                       <input v-model="proxyGroupForm.timeout" type="text" inputmode="numeric" class="input input-sm" placeholder="3000" />
                     </label>
                     <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProxies') }}</span>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProxies') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsMembersHint') }}</span>
+                      </div>
                       <textarea v-model="proxyGroupForm.proxiesText" class="textarea textarea-sm h-24 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProxiesPlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.proxies.length">
+                        <button v-for="item in proxyGroupSelectedLists.proxies" :key="`selected-group-proxy-${item}`" type="button" class="badge badge-primary badge-outline gap-1" @click="toggleProxyGroupListValue('proxiesText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProxyMembers.length">
+                        <button v-for="item in proxyGroupSuggestedProxyMembers" :key="`suggest-group-proxy-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('proxiesText', item)">+ {{ item }}</button>
+                      </div>
                     </label>
                     <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUse') }}</span>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUse') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
+                      </div>
                       <textarea v-model="proxyGroupForm.useText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldUsePlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.use.length">
+                        <button v-for="item in proxyGroupSelectedLists.use" :key="`selected-group-use-${item}`" type="button" class="badge badge-secondary badge-outline gap-1" @click="toggleProxyGroupListValue('useText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedUseMembers.length">
+                        <button v-for="item in proxyGroupSuggestedUseMembers" :key="`suggest-group-use-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('useText', item)">+ {{ item }}</button>
+                      </div>
                     </label>
                     <label class="form-control md:col-span-2">
-                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProviders') }}</span>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProviders') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
+                      </div>
                       <textarea v-model="proxyGroupForm.providersText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProvidersPlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.providers.length">
+                        <button v-for="item in proxyGroupSelectedLists.providers" :key="`selected-group-provider-${item}`" type="button" class="badge badge-accent badge-outline gap-1" @click="toggleProxyGroupListValue('providersText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProviderMembers.length">
+                        <button v-for="item in proxyGroupSuggestedProviderMembers" :key="`suggest-group-provider-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('providersText', item)">+ {{ item }}</button>
+                      </div>
                     </label>
                   </div>
 
@@ -1683,6 +1770,9 @@
                         :placeholder="rulePayloadPlaceholder"
                         @input="syncRuleRawFromStructuredForm"
                       />
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="ruleQuickPayloads.length">
+                        <button v-for="item in ruleQuickPayloads" :key="`rule-payload-chip-${item}`" type="button" class="badge badge-ghost" @click="setRulePayloadSuggestion(item)">{{ item }}</button>
+                      </div>
                     </label>
                     <label class="form-control md:col-span-2">
                       <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldTarget') }}</span>
@@ -1694,6 +1784,9 @@
                         :placeholder="ruleTargetPlaceholder"
                         @input="syncRuleRawFromStructuredForm"
                       />
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="ruleQuickTargets.length">
+                        <button v-for="item in ruleQuickTargets" :key="`rule-target-chip-${item}`" type="button" class="badge badge-ghost" @click="setRuleTargetSuggestion(item)">{{ item }}</button>
+                      </div>
                     </label>
                     <label class="form-control md:col-span-2">
                       <span class="label-text text-xs opacity-70">{{ $t('configRulesFieldParams') }}</span>
@@ -1703,6 +1796,9 @@
                         :placeholder="$t('configRulesFieldParamsPlaceholder')"
                         @input="syncRuleRawFromStructuredForm"
                       ></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="ruleQuickParams.length">
+                        <button v-for="item in ruleQuickParams" :key="`rule-param-chip-${item}`" type="button" class="badge badge-ghost" @click="appendRuleParamSuggestion(item)">{{ item }}</button>
+                      </div>
                     </label>
                   </div>
 
@@ -3215,6 +3311,72 @@ const filteredProxies = computed(() => {
     return parts.every((part) => haystack.includes(part))
   })
 })
+const normalizedProxyType = computed(() => String(proxyForm.value.type || '').trim().toLowerCase())
+const proxyTypePresets = computed(() => [
+  { id: 'ss', label: 'ss' },
+  { id: 'vmess', label: 'vmess' },
+  { id: 'vless', label: 'vless' },
+  { id: 'trojan', label: 'trojan' },
+  { id: 'wireguard', label: 'wireguard' },
+  { id: 'hysteria2', label: 'hysteria2' },
+  { id: 'tuic', label: 'tuic' },
+])
+const proxyFormHasSecurityValues = computed(() => [proxyForm.value.tls, proxyForm.value.skipCertVerify, proxyForm.value.sni, proxyForm.value.servername, proxyForm.value.clientFingerprint, proxyForm.value.alpnText, proxyForm.value.realityPublicKey, proxyForm.value.realityShortId].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasAuthValues = computed(() => [proxyForm.value.uuid, proxyForm.value.password, proxyForm.value.cipher, proxyForm.value.flow].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasTransportValues = computed(() => [proxyForm.value.network, proxyForm.value.wsPath, proxyForm.value.wsHeadersBody, proxyForm.value.grpcServiceName, proxyForm.value.grpcMultiMode].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasPluginValues = computed(() => [proxyForm.value.plugin, proxyForm.value.pluginOptsBody].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasHttpOptsValues = computed(() => [proxyForm.value.httpMethod, proxyForm.value.httpPathText, proxyForm.value.httpHeadersBody].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasSmuxValues = computed(() => [proxyForm.value.smuxEnabled, proxyForm.value.smuxProtocol, proxyForm.value.smuxMaxConnections, proxyForm.value.smuxMinStreams, proxyForm.value.smuxMaxStreams, proxyForm.value.smuxPadding, proxyForm.value.smuxStatistic].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasWireguardValues = computed(() => [proxyForm.value.wireguardIpText, proxyForm.value.wireguardIpv6Text, proxyForm.value.wireguardPrivateKey, proxyForm.value.wireguardPublicKey, proxyForm.value.wireguardPresharedKey, proxyForm.value.wireguardMtu, proxyForm.value.wireguardReservedText, proxyForm.value.wireguardWorkers].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasHysteria2Values = computed(() => [proxyForm.value.hysteriaUp, proxyForm.value.hysteriaDown, proxyForm.value.hysteriaObfs, proxyForm.value.hysteriaObfsPassword].some((value) => String(value || '').trim().length > 0))
+const proxyFormHasTuicValues = computed(() => [proxyForm.value.tuicCongestionController, proxyForm.value.tuicUdpRelayMode, proxyForm.value.tuicHeartbeatInterval, proxyForm.value.tuicRequestTimeout, proxyForm.value.tuicFastOpen, proxyForm.value.tuicReduceRtt, proxyForm.value.tuicDisableSni].some((value) => String(value || '').trim().length > 0))
+const proxyTypeVisibility = computed(() => {
+  const type = normalizedProxyType.value
+  const network = String(proxyForm.value.network || '').trim().toLowerCase()
+  const securityTypes = ['vmess', 'vless', 'trojan', 'http', 'hysteria2', 'tuic']
+  const authTypes = ['ss', 'vmess', 'vless', 'trojan', 'socks5', 'http', 'hysteria2', 'tuic']
+  const transportTypes = ['vmess', 'vless', 'trojan']
+  const pluginTypes = ['ss', 'trojan']
+  const smuxTypes = ['vmess', 'vless', 'trojan', 'hysteria2', 'tuic']
+  return {
+    security: securityTypes.includes(type) || proxyFormHasSecurityValues.value,
+    auth: authTypes.includes(type) || proxyFormHasAuthValues.value,
+    transport: transportTypes.includes(type) || ['ws', 'grpc'].includes(network) || proxyFormHasTransportValues.value,
+    plugin: pluginTypes.includes(type) || proxyFormHasPluginValues.value,
+    httpOpts: type === 'http' || ['http', 'h2'].includes(network) || proxyFormHasHttpOptsValues.value,
+    smux: smuxTypes.includes(type) || proxyFormHasSmuxValues.value,
+    wireguard: type === 'wireguard' || proxyFormHasWireguardValues.value,
+    protocolExtras: ['hysteria2', 'tuic'].includes(type) || proxyFormHasHysteria2Values.value || proxyFormHasTuicValues.value,
+    hysteria2: type === 'hysteria2' || proxyFormHasHysteria2Values.value,
+    tuic: type === 'tuic' || proxyFormHasTuicValues.value,
+  }
+})
+const proxyTypeSummary = computed(() => {
+  switch (normalizedProxyType.value) {
+    case 'ss': return t('configProxiesTypeSummarySs')
+    case 'vmess': return t('configProxiesTypeSummaryVmess')
+    case 'vless': return t('configProxiesTypeSummaryVless')
+    case 'trojan': return t('configProxiesTypeSummaryTrojan')
+    case 'wireguard': return t('configProxiesTypeSummaryWireguard')
+    case 'hysteria2': return t('configProxiesTypeSummaryHysteria2')
+    case 'tuic': return t('configProxiesTypeSummaryTuic')
+    default: return t('configProxiesTypeSummaryDefault')
+  }
+})
+const proxyTypeProfileLabel = computed(() => `${t('configProxiesFieldType')}: ${String(proxyForm.value.type || '').trim() || t('configQuickEditorKeepEmpty')}`)
+const proxyTypeFocusBadges = computed(() => {
+  const out: string[] = []
+  if (proxyTypeVisibility.value.security) out.push(t('configProxiesSecurityTitle'))
+  if (proxyTypeVisibility.value.auth) out.push(t('configProxiesAuthTitle'))
+  if (proxyTypeVisibility.value.transport) out.push(t('configProxiesTransportTitle'))
+  if (proxyTypeVisibility.value.plugin) out.push(t('configProxiesPluginTitle'))
+  if (proxyTypeVisibility.value.httpOpts) out.push(t('configProxiesHttpOptsTitle'))
+  if (proxyTypeVisibility.value.smux) out.push(t('configProxiesSmuxTitle'))
+  if (proxyTypeVisibility.value.wireguard) out.push(t('configProxiesWireguardTitle'))
+  if (proxyTypeVisibility.value.hysteria2) out.push('hysteria2')
+  if (proxyTypeVisibility.value.tuic) out.push('tuic')
+  return Array.from(new Set(out))
+})
 const topProxyTypeCounts = computed(() => {
   const counts = new Map<string, number>()
   for (const item of parsedProxies.value) {
@@ -3264,6 +3426,119 @@ const proxyGroupReferencesSummary = computed(() => {
     ruleRefs: entry.references.filter((item) => item.kind === 'rule'),
   }
 })
+
+const splitFormList = (value: string) => String(value || '')
+  .split(/?
+|,/)
+  .map((item) => item.trim())
+  .filter(Boolean)
+
+const joinFormList = (items: string[]) => Array.from(new Set(items.map((item) => String(item || '').trim()).filter(Boolean))).join('
+')
+
+const toggleProxyGroupListValue = (field: 'proxiesText' | 'useText' | 'providersText', item: string) => {
+  const normalized = String(item || '').trim()
+  if (!normalized) return
+  const current = splitFormList(proxyGroupForm.value[field])
+  const next = current.includes(normalized)
+    ? current.filter((entry) => entry !== normalized)
+    : [...current, normalized]
+  proxyGroupForm.value[field] = joinFormList(next)
+}
+
+const setRulePayloadSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  ruleForm.value.payload = normalized
+  syncRuleRawFromStructuredForm()
+}
+
+const setRuleTargetSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  ruleForm.value.target = normalized
+  syncRuleRawFromStructuredForm()
+}
+
+const appendRuleParamSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  const current = splitFormList(ruleForm.value.paramsText)
+  if (!current.includes(normalized)) ruleForm.value.paramsText = joinFormList([...current, normalized])
+  syncRuleRawFromStructuredForm()
+}
+
+const normalizedProxyGroupType = computed(() => String(proxyGroupForm.value.type || '').trim().toLowerCase())
+const proxyGroupTypePresets = [
+  'select',
+  'url-test',
+  'fallback',
+  'load-balance',
+  'relay',
+] as const
+const proxyGroupTypeProfile = computed(() => {
+  switch (normalizedProxyGroupType.value) {
+    case 'url-test':
+      return {
+        accent: 'badge-info',
+        summary: t('configProxyGroupsTypeAwareSummaryUrlTest'),
+        fields: ['url', 'interval', 'tolerance'],
+      }
+    case 'fallback':
+      return {
+        accent: 'badge-warning',
+        summary: t('configProxyGroupsTypeAwareSummaryFallback'),
+        fields: ['url', 'interval'],
+      }
+    case 'load-balance':
+      return {
+        accent: 'badge-secondary',
+        summary: t('configProxyGroupsTypeAwareSummaryLoadBalance'),
+        fields: ['strategy', 'url', 'interval', 'tolerance'],
+      }
+    case 'relay':
+      return {
+        accent: 'badge-accent',
+        summary: t('configProxyGroupsTypeAwareSummaryRelay'),
+        fields: ['proxies'],
+      }
+    default:
+      return {
+        accent: 'badge-success',
+        summary: t('configProxyGroupsTypeAwareSummarySelect'),
+        fields: ['proxies'],
+      }
+  }
+})
+const proxyGroupSelectedLists = computed(() => ({
+  proxies: splitFormList(proxyGroupForm.value.proxiesText),
+  use: splitFormList(proxyGroupForm.value.useText),
+  providers: splitFormList(proxyGroupForm.value.providersText),
+}))
+const proxyGroupAvailableProxyMembers = computed(() => Array.from(new Set([
+  'DIRECT',
+  'REJECT',
+  'REJECT-DROP',
+  ...parsedProxyGroups.value
+    .map((item) => String(item.name || '').trim())
+    .filter((name) => name && name !== String(proxyGroupForm.value.name || '').trim()),
+  ...parsedProxies.value.map((item) => String(item.name || '').trim()).filter(Boolean),
+])).filter(Boolean))
+const proxyGroupAvailableProviderRefs = computed(() => Array.from(new Set(parsedProxyProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean))))
+const proxyGroupSuggestedProxyMembers = computed(() => proxyGroupAvailableProxyMembers.value.filter((item) => !proxyGroupSelectedLists.value.proxies.includes(item)).slice(0, 24))
+const proxyGroupSuggestedUseMembers = computed(() => proxyGroupAvailableProviderRefs.value.filter((item) => !proxyGroupSelectedLists.value.use.includes(item)).slice(0, 16))
+const proxyGroupSuggestedProviderMembers = computed(() => proxyGroupAvailableProviderRefs.value.filter((item) => !proxyGroupSelectedLists.value.providers.includes(item)).slice(0, 16))
+
+const applyProxyGroupTypePreset = (type: typeof proxyGroupTypePresets[number]) => {
+  proxyGroupForm.value.type = type
+  if (['url-test', 'fallback', 'load-balance'].includes(type) && !String(proxyGroupForm.value.url || '').trim().length) proxyGroupForm.value.url = 'http://www.gstatic.com/generate_204'
+  if (['url-test', 'fallback', 'load-balance'].includes(type) && !String(proxyGroupForm.value.interval || '').trim().length) proxyGroupForm.value.interval = '300'
+  if (type === 'load-balance' && !String(proxyGroupForm.value.strategy || '').trim().length) proxyGroupForm.value.strategy = 'consistent-hashing'
+  if (type === 'url-test' && !String(proxyGroupForm.value.tolerance || '').trim().length) proxyGroupForm.value.tolerance = '50'
+  if (type === 'relay' && !proxyGroupSelectedLists.value.proxies.length) proxyGroupForm.value.proxiesText = joinFormList(['DIRECT'])
+  showNotification({ content: 'configProxyGroupsTypePresetAppliedToast', type: 'alert-success' })
+}
+
 const parsedRuleProviders = computed<ParsedRuleProviderEntry[]>(() => parseRuleProvidersFromConfig(payload.value))
 const selectedRuleProviderEntry = computed(() => parsedRuleProviders.value.find((item) => item.name === ruleProviderSelectedName.value) || null)
 const ruleProviderFormCanSave = computed(() => String(ruleProviderForm.value.name || '').trim().length > 0)
@@ -3361,6 +3636,19 @@ const rulePayloadPlaceholder = computed(() => {
   }
 })
 const ruleTargetPlaceholder = computed(() => preferredRuleTarget.value || t('configRulesFieldTargetPlaceholder'))
+const ruleQuickTargets = computed(() => ruleTargetSuggestions.value.slice(0, 18))
+const ruleQuickPayloads = computed(() => rulePayloadSuggestions.value.slice(0, 12))
+const ruleQuickParams = computed(() => {
+  const type = normalizedRuleType.value
+  const suggestions = new Set<string>()
+  if (['RULE-SET', 'GEOIP', 'IP-CIDR', 'IP-CIDR6', 'SRC-IP-CIDR'].includes(type)) suggestions.add('no-resolve')
+  if (type === 'NETWORK') {
+    suggestions.add('tcp')
+    suggestions.add('udp')
+  }
+  splitFormList(ruleForm.value.paramsText).forEach((item) => suggestions.add(item))
+  return Array.from(suggestions).filter(Boolean).slice(0, 10)
+})
 const ruleFormParamsCount = computed(() => {
   const count = String(ruleForm.value.paramsText || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean).length
   return `params: ${count}`
@@ -3761,6 +4049,15 @@ const loadProxyIntoForm = (proxyName: string) => {
   if (!entry) return
   proxySelectedName.value = entry.name
   proxyForm.value = proxyFormFromEntry(entry)
+}
+
+const applyProxyTypePreset = (type: string) => {
+  const normalizedType = String(type || '').trim().toLowerCase()
+  if (!normalizedType.length) return
+  proxyForm.value.type = normalizedType
+  if (['vmess', 'vless', 'trojan', 'hysteria2', 'tuic'].includes(normalizedType) && !String(proxyForm.value.tls || '').trim().length) proxyForm.value.tls = 'true'
+  if (['wireguard', 'hysteria2', 'tuic'].includes(normalizedType) && !String(proxyForm.value.udp || '').trim().length) proxyForm.value.udp = 'true'
+  showNotification({ content: 'configProxiesTypePresetAppliedToast', type: 'alert-success' })
 }
 
 const duplicateSelectedProxy = () => {

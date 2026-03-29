@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.99 — 2026-03-28
+- made the structured `proxy-groups` editor much more form-driven with a type-aware group profile (`select / url-test / fallback / load-balance / relay`), quick presets, and contextual summaries for the fields that matter most per group type
+- replaced the old “three lonely textareas and good luck” flow with chip-assisted member editing for `proxies`, `use`, and `providers`, so group composition can now be toggled from existing proxies/groups/providers without rewriting full lists by hand
+- upgraded the structured `rules` editor with quick payload/target/params chips, so common `RULE-SET`, target, and `no-resolve` style edits are faster and more explicit inside the form
+- refreshed transfer docs for the next chat handoff
+
+## v1.2.98 — 2026-03-28
+- upgraded the structured `proxies` editor into a type-aware workspace for `ss / vmess / vless / trojan / wireguard / hysteria2 / tuic`
+- added a proxy-type profile card with quick presets, per-type summaries, and dynamic visibility for the most relevant blocks (`security`, `auth`, `transport`, `plugin`, `http-opts`, `smux`, `wireguard`, protocol extras)
+- kept raw YAML as the fallback lane while making the main form much easier to read for common proxy families
+- refreshed transfer docs for the next chat handoff
+
 ## v1.2.97 — 2026-03-28
 - expanded the structured `proxies` editor with `http-opts`, `smux`, and common wireguard/hysteria2/tuic fields
 - added dedicated form blocks for `http-opts`, `smux`, WireGuard lists/keys, and common `hysteria2` / `tuic` protocol extras

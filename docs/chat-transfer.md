@@ -1,16 +1,15 @@
-UI Mihomo / Ultra — обновление переноса v1.2.97
+UI Mihomo / Ultra — обновление переноса v1.2.99
 
 Что изменилось в этом релизе:
-- structured editor `proxies` расширен на более редкие ветки, чтобы не держать `http-opts`, `smux`, часть wireguard/hysteria2/tuic только в raw YAML
-- добавлены отдельные form-блоки для `http-opts` (`method`, `path`, `headers`) и `smux` (`enabled`, `protocol`, `max-connections`, `min/max-streams`, `padding`, `statistic`)
-- вынесены в отдельные поля частые wireguard-параметры: `ip`, `ipv6`, `private-key`, `public-key`, `pre-shared-key`, `mtu`, `reserved`, `workers`
-- добавлены отдельные поля для частых `hysteria2`/`tuic` параметров: `up`, `down`, `obfs`, `obfs-password`, `congestion-controller`, `udp-relay-mode`, `heartbeat-interval`, `request-timeout`, `fast-open`, `reduce-rtt`, `disable-sni`
-- список прокси теперь подсвечивает наличие `http-opts`, `smux`, wireguard/hysteria2/tuic параметров отдельными бейджами
+- structured editor `proxy-groups` стал заметно более form-driven: добавлен type-aware профиль группы для `select / url-test / fallback / load-balance / relay`, быстрые пресеты и короткие подсказки по тому, какие поля реально важны
+- состав группы (`proxies`, `use`, `providers`) теперь можно редактировать не только руками в textarea, но и через чипы добавления/удаления из уже существующих proxies/groups/providers
+- structured editor `rules` получил быстрые чипы-подсказки для `payload`, `target` и common params вроде `no-resolve`, чтобы типовые правки меньше требовали ручного набора
+- raw YAML не убирался: он остаётся fallback-режимом для редких и vendor-specific ключей
 - `router-agent` в этом релизе не менялся; линия остаётся `0.6.22`
 
 Текущие версии:
-- UI: v1.2.97
-- v1.2.97: structured editor `proxies` расширен на `http-opts`, `smux` и частые поля wireguard/hysteria2/tuic; router-agent не менялся
+- UI: v1.2.99
+- v1.2.99: structured editor `proxy-groups` стал заметно более формовым — появились type-aware профиль группы, быстрые пресеты и чипы для состава `proxies/use/providers`; `rules` получили быстрые подсказки по payload/target/params; router-agent не менялся
 - router-agent: 0.6.22
 
 Что важно по интерфейсу:
@@ -21,4 +20,4 @@ UI Mihomo / Ultra — обновление переноса v1.2.97
 - вкладка `Роутер` по-прежнему разбита на `Обзор / Трафик / Сеть`
 
 Следующий логичный шаг:
-- после v1.2.97 логично либо продолжать углублять structured editor `proxies` на совсем экзотические ветки и шаблоны по типам прокси, либо добавить отдельные type-aware формы/подсказки для конкретных proxy-типов (`vmess/vless/trojan/wireguard/hysteria2/tuic`)
+- после v1.2.99 логично сделать ещё более явные form-сценарии для `rule-providers / proxy-providers` (включая type-aware поведение и подбор полей по типу), а затем добивать шаблоны создания новых сущностей с готовыми пресетами

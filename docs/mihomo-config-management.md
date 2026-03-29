@@ -1,9 +1,14 @@
 # Mihomo config management
 
-## Update v1.2.97
-- structured `proxies` editor now covers `http-opts`, `smux`, and common wireguard/hysteria2/tuic fields
-- the proxy list surfaces those advanced branches with quick badges so unusual proxy types are easier to spot
-- raw YAML remains available for rare vendor-specific keys, but the common nested branches now have explicit form fields
+## Update v1.2.99
+- the structured `proxy-groups` editor is now more form-driven: it adds a type-aware profile card for `select / url-test / fallback / load-balance / relay`, quick presets, and short per-type guidance for the fields that usually matter most
+- group composition is no longer just three raw textareas: `proxies`, `use`, and `providers` now get chip-assisted add/remove flows based on the current config, so existing members can be toggled without retyping the whole list
+- the structured `rules` editor now also offers quick chips for suggested payloads, targets, and common params such as `no-resolve`, so common routing edits stay inside the form instead of bouncing back to raw YAML
+
+## Update v1.2.98
+- the structured `proxies` editor is now type-aware for `ss / vmess / vless / trojan / wireguard / hysteria2 / tuic`
+- a new proxy-type profile card adds quick presets, short guidance, and dynamic visibility for the most relevant blocks instead of showing every protocol branch at once
+- raw YAML still stays available as the fallback path, but the main proxy form is now much easier to read for common proxy families
 
 # Управление конфигурацией Mihomo (безопасный фундамент)
 

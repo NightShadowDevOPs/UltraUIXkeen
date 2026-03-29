@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.99
-- v1.2.99: structured editor `proxy-groups` стал заметно более form-driven; добавлены type-aware профиль группы, быстрые пресеты и чипы для состава `proxies/use/providers`, а `rules` получили быстрые подсказки по `payload/target/params`; router-agent не менялся
+- UI: v1.2.98
+- v1.2.98: structured editor `proxies` стал type-aware; форма теперь подсказывает и показывает релевантные блоки по типам прокси (`ss / vmess / vless / trojan / wireguard / hysteria2 / tuic`), но raw YAML остаётся fallback-режимом; router-agent не менялся
 - router-agent: 0.6.22
 
 Правила по проекту:
@@ -43,7 +43,6 @@
 - v1.2.96: добавлен отдельный редактор `proxies`; common-поля прокси теперь редактируются по параметрам, а UI умеет переписывать связанные `proxy-groups` и direct-target `rules` при rename/disable
 - v1.2.97: structured editor `proxies` расширен на `http-opts`, `smux` и частые поля wireguard/hysteria2/tuic; форма покрывает больше nested-веток и всё меньше заставляет лезть в raw YAML
 - v1.2.98: structured editor `proxies` стал type-aware; UI теперь показывает и прячет блоки по типам прокси, добавляет профиль типа с quick-переключателями и делает форму заметно читабельнее для типовых сценариев
-- v1.2.99: structured editor `proxy-groups` стал заметно более form-driven; группа теперь имеет type-aware профиль (`select / url-test / fallback / load-balance / relay`), быстрые пресеты и чипы для редактирования состава `proxies/use/providers`, а `rules` получили быстрые chips-подсказки для `payload`, `target` и common params
 - левое меню разбито на логические группы: `Мониторинг / Сеть и Mihomo / Управление`
 - Settings разгружен и разбит на подблоки: `Интерфейс / Бэкенды / Трафик и подписи / Страницы и карточки`
 - baseline не должен перезаписываться обычным сохранением черновика; он меняется только через отдельное действие «Сделать активную конфигурацию эталонной»
@@ -64,4 +63,4 @@ wget -T 5 -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=mihomo_cfg_history"
 ```
 
 Следующий логичный шаг:
-- после v1.2.99 логично сделать ещё более явные form-сценарии для `rule-providers / proxy-providers` (включая type-aware поведение и подбор полей по типу), а затем добивать шаблоны создания новых сущностей с готовыми пресетами
+- после v1.2.98 логично либо добавлять ещё более глубокие type-specific поля и проверки обязательных параметров для отдельных протоколов, либо идти в шаблоны создания новых прокси с готовыми пресетами transport/security для типовых сценариев
