@@ -1,3 +1,9 @@
+## 1.2.106 (2026-03-29)
+
+### Bug Fixes
+
+* fix broken closing tags in Mihomo proxy-providers section that caused production build failure
+
 ## v1.2.105
 
 - Mihomo proxy creation wizard now supports more concrete connection scenarios instead of only broad proxy families: added `VLESS WS + TLS`, `Trojan gRPC`, and `WireGuard peer` quick profiles on top of the existing `VLESS Reality`, `VMess WS + TLS`, `Trojan TLS`, `Hysteria2`, and `TUIC` starts.

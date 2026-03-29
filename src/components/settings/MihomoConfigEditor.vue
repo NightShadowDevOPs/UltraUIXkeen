@@ -1492,7 +1492,14 @@
                             </div>
                           </div>
                         </div>
-                     <div v-show="structuredEditorSection === 'proxy-groups'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-show="structuredEditorSection === 'proxy-groups'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
               <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div class="font-semibold">{{ $t('configProxyGroupsTitle') }}</div>

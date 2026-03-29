@@ -230,3 +230,9 @@
 - при disable прокси UI показывает план последствий, чистит зависимости и переводит затронутые direct-target rules на `DIRECT`
 - raw YAML остаётся fallback-режимом для более редких веток вроде `smux`, `http-opts`, `wireguard`, `hysteria2`, `tuic`
 - `router-agent` в этом релизе не менялся: остаётся линия `0.6.22`
+
+## Build stability note (v1.2.106)
+
+- Fixed missing closing tags in the `proxy-providers` panel inside `MihomoConfigEditor.vue`.
+- This patch does not change the managed-config flow; it only restores a valid Vue template so production build succeeds again.
+
