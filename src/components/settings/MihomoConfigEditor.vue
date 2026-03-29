@@ -811,10 +811,124 @@
                       <div class="opacity-70">{{ $t('configProxiesEditTip') }}</div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="startProxyCreationWizard">{{ $t('configWizardStart') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="prepareNewProxy">{{ $t('configProxiesResetForm') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxy" :disabled="!selectedProxyEntry">{{ $t('configProxiesDuplicate') }}</button>
                       <button class="btn btn-xs" @click="saveProxyToPayload" :disabled="!proxyFormCanSave">{{ $t('configProxiesSaveToEditor') }}</button>
                       <button class="btn btn-xs btn-warning" @click="disableSelectedProxy" :disabled="!selectedProxyEntry">{{ $t('configProxiesDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div v-if="proxyCreationWizard.active" class="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold">{{ $t('configWizardTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesWizardTip') }}</div>
+                      </div>
+                      <button class="btn btn-xs btn-ghost" @click="cancelProxyCreationWizard">{{ $t('configWizardCancel') }}</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span class="badge" :class="proxyCreationWizard.step === 1 ? 'badge-primary' : 'badge-ghost'">1 · {{ $t('configWizardStepChooseTemplate') }}</span>
+                      <span class="badge" :class="proxyCreationWizard.step === 2 ? 'badge-primary' : 'badge-ghost'">2 · {{ $t('configWizardStepFillBasics') }}</span>
+                      <span class="badge" :class="proxyCreationWizard.step === 3 ? 'badge-primary' : 'badge-ghost'">3 · {{ $t('configWizardStepReview') }}</span>
+                    </div>
+                    <div v-if="proxyCreationWizard.step === 1" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button
+                        v-for="template in proxyCreationTemplates"
+                        :key="`proxy-wizard-template-${template.id}`"
+                        type="button"
+                        class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                        @click="selectProxyCreationWizardTemplate(template.id)"
+                      >
+                        <div class="font-semibold">{{ $t(template.labelKey) }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div>
+                      </button>
+                    </div>
+                    <div v-else-if="proxyCreationWizard.step === 2" class="mt-3 space-y-3">
+                      <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                        <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2 xl:col-span-2">
+                          <div class="text-[11px] opacity-60">{{ $t('configProxiesTypeAwareTitle') }}</div>
+                          <div class="mt-1 flex flex-wrap items-center gap-2">
+                            <span class="badge badge-outline">{{ normalizedProxyCreationWizardType || '—' }}</span>
+                            <span class="font-semibold">{{ proxyCreationWizardTypeSummary }}</span>
+                          </div>
+                        </div>
+                        <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3 md:col-span-2 xl:col-span-2">
+                          <div class="text-[11px] opacity-60">{{ $t('configWizardSummaryTemplate') }}</div>
+                          <div class="mt-1 font-semibold">{{ activeProxyCreationWizardTemplate ? $t(activeProxyCreationWizardTemplate.labelKey) : '—' }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ proxyCreationWizardScenarioSummary }}</div>
+                          <div class="mt-2 flex flex-wrap gap-2">
+                            <span v-for="badge in proxyCreationWizardScenarioBadges" :key="`wizard-scenario-${badge}`" class="badge badge-ghost">{{ badge }}</span>
+                            <span v-if="!proxyCreationWizardScenarioBadges.length" class="badge badge-ghost">{{ normalizedProxyCreationWizardType || 'proxy' }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="proxyCreationWizardMissingFieldLabels.length" class="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+                        <div class="font-semibold">{{ $t('configWizardTitle') }}</div>
+                        <div class="mt-1 opacity-80">{{ $t('configProxiesWizardTip') }}</div>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                          <span v-for="label in proxyCreationWizardMissingFieldLabels" :key="`wizard-missing-${label}`" class="badge badge-warning badge-outline">{{ label }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="rounded-lg border border-success/20 bg-success/10 p-3 text-sm opacity-90">
+                        {{ $t('configProxiesTemplatesTip') }}
+                      </div>
+                      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <label class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldName') }}</span><input v-model="proxyCreationWizard.name" type="text" class="input input-sm" /></label>
+                        <label class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldServer') }}</span><input v-model="proxyCreationWizard.server" type="text" class="input input-sm" /></label>
+                        <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPort') }}</span><input v-model="proxyCreationWizard.port" type="text" inputmode="numeric" class="input input-sm" /></label>
+                        <label v-if="proxyCreationWizardVisibility.transport" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldNetwork') }}</span><select v-model="proxyCreationWizard.network" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="tcp">tcp</option><option value="ws">ws</option><option value="grpc">grpc</option><option value="http">http</option><option value="h2">h2</option></select></label>
+                        <label v-if="proxyCreationWizardVisibility.security" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTls') }}</span><select v-model="proxyCreationWizard.tls" class="select select-sm"><option value="">{{ $t('configQuickEditorKeepEmpty') }}</option><option value="true">true</option><option value="false">false</option></select></label>
+                        <label v-if="proxyCreationWizardVisibility.security" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldServername') }}</span><input v-model="proxyCreationWizard.servername" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldServernamePlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.security && normalizedProxyCreationWizardType !== 'hysteria2'" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldClientFingerprint') }}</span><input v-model="proxyCreationWizard.clientFingerprint" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldClientFingerprintPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.uuid" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldUuid') }}</span><input v-model="proxyCreationWizard.uuid" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldUuidPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.password" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldPassword') }}</span><input v-model="proxyCreationWizard.password" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldPasswordPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.cipher" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldCipher') }}</span><input v-model="proxyCreationWizard.cipher" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldCipherPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.flow" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldFlow') }}</span><input v-model="proxyCreationWizard.flow" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldFlowPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.wsPath" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWsPath') }}</span><input v-model="proxyCreationWizard.wsPath" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldWsPathPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.grpcServiceName" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldGrpcServiceName') }}</span><input v-model="proxyCreationWizard.grpcServiceName" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldGrpcServiceNamePlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.reality" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldRealityPublicKey') }}</span><input v-model="proxyCreationWizard.realityPublicKey" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldRealityPublicKeyPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.reality" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldRealityShortId') }}</span><input v-model="proxyCreationWizard.realityShortId" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldRealityShortIdPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.wireguard" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardIp') }}</span><textarea v-model="proxyCreationWizard.wireguardIpText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardIpPlaceholder')"></textarea></label>
+                        <label v-if="proxyCreationWizardVisibility.wireguard" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardPrivateKey') }}</span><textarea v-model="proxyCreationWizard.wireguardPrivateKey" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardPrivateKeyPlaceholder')"></textarea></label>
+                        <label v-if="proxyCreationWizardVisibility.wireguard" class="form-control md:col-span-2 xl:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardPublicKey') }}</span><textarea v-model="proxyCreationWizard.wireguardPublicKey" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxiesFieldWireguardPublicKeyPlaceholder')"></textarea></label>
+                        <label v-if="proxyCreationWizardVisibility.wireguard" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldWireguardMtu') }}</span><input v-model="proxyCreationWizard.wireguardMtu" type="text" inputmode="numeric" class="input input-sm" placeholder="1420" /></label>
+                        <label v-if="proxyCreationWizardVisibility.hysteria2" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaObfs') }}</span><input v-model="proxyCreationWizard.hysteriaObfs" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaObfsPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.hysteria2" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldHysteriaObfsPassword') }}</span><input v-model="proxyCreationWizard.hysteriaObfsPassword" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldHysteriaObfsPasswordPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.tuic" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicCongestionController') }}</span><input v-model="proxyCreationWizard.tuicCongestionController" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicCongestionControllerPlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.tuic" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicUdpRelayMode') }}</span><input v-model="proxyCreationWizard.tuicUdpRelayMode" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicUdpRelayModePlaceholder')" /></label>
+                        <label v-if="proxyCreationWizardVisibility.tuic" class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxiesFieldTuicHeartbeatInterval') }}</span><input v-model="proxyCreationWizard.tuicHeartbeatInterval" type="text" class="input input-sm" :placeholder="$t('configProxiesFieldTuicHeartbeatIntervalPlaceholder')" /></label>
+                      </div>
+                    </div>
+                    <div v-else class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3 text-sm">
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryTemplate') }}</div><div class="mt-1 font-semibold">{{ $t(proxyCreationTemplates.find((item) => item.id === proxyCreationWizard.templateId)?.labelKey || 'configProxiesTitle') }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryName') }}</div><div class="mt-1 font-semibold break-all">{{ proxyCreationWizard.name || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryAddress') }}</div><div class="mt-1 font-semibold break-all">{{ proxyCreationWizard.server || '—' }}<span v-if="proxyCreationWizard.port">:{{ proxyCreationWizard.port }}</span></div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configProxiesFieldType') }}</div><div class="mt-1 flex flex-wrap items-center gap-2"><span class="badge badge-outline">{{ normalizedProxyCreationWizardType || '—' }}</span><span class="font-semibold">{{ proxyCreationWizardTypeSummary }}</span></div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configProxiesTransportTitle') }}</div><div class="mt-1 font-semibold break-all">{{ proxyCreationWizardTransportSummary }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configProxiesAuthTitle') }}</div><div class="mt-1 font-semibold break-all">{{ proxyCreationWizardAuthSummary }}</div></div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap justify-between gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prevProxyCreationWizardStep">{{ $t('configWizardBack') }}</button>
+                      <button v-if="proxyCreationWizard.step < 3" class="btn btn-xs" :disabled="(proxyCreationWizard.step === 1 && !proxyCreationWizard.templateId) || (proxyCreationWizard.step === 2 && !proxyCreationWizardCanProceed)" @click="nextProxyCreationWizardStep">{{ $t('configWizardNext') }}</button>
+                      <button v-else class="btn btn-xs" @click="finalizeProxyCreationWizard">{{ $t('configWizardApplyToForm') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configTemplateCardsTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxiesTemplatesTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button
+                        v-for="template in proxyCreationTemplates"
+                        :key="`proxy-template-${template.id}`"
+                        type="button"
+                        class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                        @click="applyProxyCreationTemplate(template.id)"
+                      >
+                        <div class="font-semibold">{{ $t(template.labelKey) }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div>
+                      </button>
                     </div>
                   </div>
 
@@ -1161,10 +1275,64 @@
                       <div class="opacity-70">{{ $t('configProxyProvidersEditTip') }}</div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="startProxyProviderCreationWizard">{{ $t('configWizardStart') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="prepareNewProxyProvider">{{ $t('configProxyProvidersResetForm') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxyProvider" :disabled="!selectedProxyProviderEntry">{{ $t('configProxyProvidersDuplicate') }}</button>
                       <button class="btn btn-xs" @click="saveProxyProviderToPayload" :disabled="!proxyProviderFormCanSave">{{ $t('configProxyProvidersSaveToEditor') }}</button>
                       <button class="btn btn-xs btn-warning" @click="disableSelectedProxyProvider" :disabled="!selectedProxyProviderEntry">{{ $t('configProxyProvidersDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div v-if="proxyProviderCreationWizard.active" class="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold">{{ $t('configWizardTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersWizardTip') }}</div>
+                      </div>
+                      <button class="btn btn-xs btn-ghost" @click="cancelProxyProviderCreationWizard">{{ $t('configWizardCancel') }}</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span class="badge" :class="proxyProviderCreationWizard.step === 1 ? 'badge-primary' : 'badge-ghost'">1 · {{ $t('configWizardStepChooseTemplate') }}</span>
+                      <span class="badge" :class="proxyProviderCreationWizard.step === 2 ? 'badge-primary' : 'badge-ghost'">2 · {{ $t('configWizardStepFillBasics') }}</span>
+                      <span class="badge" :class="proxyProviderCreationWizard.step === 3 ? 'badge-primary' : 'badge-ghost'">3 · {{ $t('configWizardStepReview') }}</span>
+                    </div>
+                    <div v-if="proxyProviderCreationWizard.step === 1" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button v-for="template in proxyProviderCreationTemplates" :key="`provider-wizard-template-${template.id}`" type="button" class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5" @click="selectProxyProviderCreationWizardTemplate(template.id)"><div class="font-semibold">{{ $t(template.labelKey) }}</div><div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div></button>
+                    </div>
+                    <div v-else-if="proxyProviderCreationWizard.step === 2" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldName') }}</span><input v-model="proxyProviderCreationWizard.name" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldType') }}</span><select v-model="proxyProviderCreationWizard.type" class="select select-sm"><option value="http">http</option><option value="file">file</option><option value="inline">inline</option></select></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldUrl') }}</span><input v-model="proxyProviderCreationWizard.url" type="text" class="input input-sm" /></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldPath') }}</span><input v-model="proxyProviderCreationWizard.path" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyProvidersFieldInterval') }}</span><input v-model="proxyProviderCreationWizard.interval" type="text" inputmode="numeric" class="input input-sm" /></label>
+                    </div>
+                    <div v-else class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryTemplate') }}</div><div class="mt-1 font-semibold">{{ $t(proxyProviderCreationTemplates.find((item) => item.id === proxyProviderCreationWizard.templateId)?.labelKey || 'configProxyProvidersTitle') }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryName') }}</div><div class="mt-1 font-semibold break-all">{{ proxyProviderCreationWizard.name || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryPath') }}</div><div class="mt-1 font-semibold break-all">{{ proxyProviderCreationWizard.path || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryInterval') }}</div><div class="mt-1 font-semibold">{{ proxyProviderCreationWizard.interval || '—' }}</div></div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap justify-between gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prevProxyProviderCreationWizardStep">{{ $t('configWizardBack') }}</button>
+                      <button v-if="proxyProviderCreationWizard.step < 3" class="btn btn-xs" :disabled="proxyProviderCreationWizard.step === 1 && !proxyProviderCreationWizard.templateId" @click="nextProxyProviderCreationWizardStep">{{ $t('configWizardNext') }}</button>
+                      <button v-else class="btn btn-xs" @click="finalizeProxyProviderCreationWizard">{{ $t('configWizardApplyToForm') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configTemplateCardsTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyProvidersTemplatesTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button
+                        v-for="template in proxyProviderCreationTemplates"
+                        :key="`proxy-provider-template-${template.id}`"
+                        type="button"
+                        class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                        @click="applyProxyProviderCreationTemplate(template.id)"
+                      >
+                        <div class="font-semibold">{{ $t(template.labelKey) }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div>
+                      </button>
                     </div>
                   </div>
 
@@ -1324,6 +1492,337 @@
                             </div>
                           </div>
                         </div>
+                     <div v-show="structuredEditorSection === 'proxy-groups'" class="rounded-box border border-base-content/10 bg-base-200/40 p-3 text-xs">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div class="font-semibold">{{ $t('configProxyGroupsTitle') }}</div>
+                  <div class="opacity-70">{{ $t('configProxyGroupsTip') }}</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="badge badge-ghost">{{ $t('configProxyGroupsCount', { count: parsedProxyGroups.length }) }}</span>
+                  <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsNew') }}</button>
+                </div>
+              </div>
+
+              <div v-if="!quickEditorHasPayload" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                {{ $t('configProxyGroupsEmptyEditor') }}
+              </div>
+
+              <div v-else class="grid grid-cols-1 gap-3 xl:grid-cols-[24rem,minmax(0,1fr)]">
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="font-semibold">{{ $t('configProxyGroupsListTitle') }}</div>
+                    <span class="badge badge-outline">{{ parsedProxyGroups.length }}</span>
+                  </div>
+
+                  <div v-if="!parsedProxyGroups.length" class="rounded-lg border border-dashed border-base-content/15 bg-base-100/50 p-3 opacity-70">
+                    {{ $t('configProxyGroupsListEmpty') }}
+                  </div>
+
+                  <div v-else class="max-h-[36rem] space-y-2 overflow-auto pr-1">
+                    <button
+                      v-for="item in parsedProxyGroups"
+                      :key="item.name"
+                      type="button"
+                      class="w-full rounded-lg border p-3 text-left transition"
+                      :class="proxyGroupSelectedName === item.name ? 'border-primary bg-primary/10' : 'border-base-content/10 bg-base-100/70 hover:border-primary/40'"
+                      @click="loadProxyGroupIntoForm(item.name)"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ item.name }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ item.type || '—' }}</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="badge badge-outline">{{ item.type || '—' }}</span>
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsRefsShort', { count: item.references.length }) }}</span>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1">
+                        <span v-if="item.proxies.length" class="badge badge-ghost badge-sm">proxies: {{ item.proxies.length }}</span>
+                        <span v-if="item.use.length" class="badge badge-ghost badge-sm">use: {{ item.use.length }}</span>
+                        <span v-if="item.providers.length" class="badge badge-ghost badge-sm">providers: {{ item.providers.length }}</span>
+                        <span v-if="item.url" class="badge badge-ghost badge-sm">url</span>
+                        <span v-if="item.interval" class="badge badge-ghost badge-sm">interval: {{ item.interval }}</span>
+                        <span v-if="item.includeAll" class="badge badge-success badge-outline badge-sm">include-all</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-base-content/10 bg-base-100/60 p-3">
+                  <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div class="font-semibold">{{ selectedProxyGroupEntry ? $t('configProxyGroupsEditSelected') : $t('configProxyGroupsEditNew') }}</div>
+                      <div class="opacity-70">{{ $t('configProxyGroupsEditTip') }}</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="startProxyGroupCreationWizard">{{ $t('configWizardStart') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="prepareNewProxyGroup">{{ $t('configProxyGroupsResetForm') }}</button>
+                      <button class="btn btn-xs btn-ghost" @click="duplicateSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDuplicate') }}</button>
+                      <button class="btn btn-xs" @click="saveProxyGroupToPayload" :disabled="!proxyGroupFormCanSave">{{ $t('configProxyGroupsSaveToEditor') }}</button>
+                      <button class="btn btn-xs btn-warning" @click="disableSelectedProxyGroup" :disabled="!selectedProxyGroupEntry">{{ $t('configProxyGroupsDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div v-if="proxyGroupCreationWizard.active" class="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold">{{ $t('configWizardTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyGroupsWizardTip') }}</div>
+                      </div>
+                      <button class="btn btn-xs btn-ghost" @click="cancelProxyGroupCreationWizard">{{ $t('configWizardCancel') }}</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span class="badge" :class="proxyGroupCreationWizard.step === 1 ? 'badge-primary' : 'badge-ghost'">1 · {{ $t('configWizardStepChooseTemplate') }}</span>
+                      <span class="badge" :class="proxyGroupCreationWizard.step === 2 ? 'badge-primary' : 'badge-ghost'">2 · {{ $t('configWizardStepFillBasics') }}</span>
+                      <span class="badge" :class="proxyGroupCreationWizard.step === 3 ? 'badge-primary' : 'badge-ghost'">3 · {{ $t('configWizardStepReview') }}</span>
+                    </div>
+                    <div v-if="proxyGroupCreationWizard.step === 1" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button v-for="template in proxyGroupCreationTemplates" :key="`group-wizard-template-${template.id}`" type="button" class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5" @click="selectProxyGroupCreationWizardTemplate(template.id)"><div class="font-semibold">{{ $t(template.labelKey) }}</div><div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div></button>
+                    </div>
+                    <div v-else-if="proxyGroupCreationWizard.step === 2" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldName') }}</span><input v-model="proxyGroupCreationWizard.name" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldType') }}</span><select v-model="proxyGroupCreationWizard.type" class="select select-sm"><option value="select">select</option><option value="url-test">url-test</option><option value="fallback">fallback</option><option value="load-balance">load-balance</option><option value="relay">relay</option></select></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configWizardSummaryMembers') }}</span><textarea v-model="proxyGroupCreationWizard.membersText" class="textarea textarea-sm h-24 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"></textarea></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">providers / use</span><textarea v-model="proxyGroupCreationWizard.providersText" class="textarea textarea-sm h-20 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"></textarea></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUrl') }}</span><input v-model="proxyGroupCreationWizard.url" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldInterval') }}</span><input v-model="proxyGroupCreationWizard.interval" type="text" inputmode="numeric" class="input input-sm" /></label>
+                    </div>
+                    <div v-else class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryTemplate') }}</div><div class="mt-1 font-semibold">{{ $t(proxyGroupCreationTemplates.find((item) => item.id === proxyGroupCreationWizard.templateId)?.labelKey || 'configProxyGroupsTitle') }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryName') }}</div><div class="mt-1 font-semibold break-all">{{ proxyGroupCreationWizard.name || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryMembers') }}</div><div class="mt-1 font-semibold">{{ splitFormList(proxyGroupCreationWizard.membersText).length }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryInterval') }}</div><div class="mt-1 font-semibold">{{ proxyGroupCreationWizard.interval || '—' }}</div></div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap justify-between gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prevProxyGroupCreationWizardStep">{{ $t('configWizardBack') }}</button>
+                      <button v-if="proxyGroupCreationWizard.step < 3" class="btn btn-xs" :disabled="proxyGroupCreationWizard.step === 1 && !proxyGroupCreationWizard.templateId" @click="nextProxyGroupCreationWizardStep">{{ $t('configWizardNext') }}</button>
+                      <button v-else class="btn btn-xs" @click="finalizeProxyGroupCreationWizard">{{ $t('configWizardApplyToForm') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configTemplateCardsTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyGroupsTemplatesTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button
+                        v-for="template in proxyGroupCreationTemplates"
+                        :key="`proxy-group-template-${template.id}`"
+                        type="button"
+                        class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                        @click="applyProxyGroupCreationTemplate(template.id)"
+                      >
+                        <div class="font-semibold">{{ $t(template.labelKey) }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldName') }}</span>
+                      <input v-model="proxyGroupForm.name" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldNamePlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldType') }}</span>
+                      <select v-model="proxyGroupForm.type" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="select">select</option>
+                        <option value="url-test">url-test</option>
+                        <option value="fallback">fallback</option>
+                        <option value="load-balance">load-balance</option>
+                        <option value="relay">relay</option>
+                      </select>
+                    </label>
+                    <div class="md:col-span-2 rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <div class="font-semibold">{{ $t('configProxyGroupsTypeAwareTitle') }}</div>
+                          <div class="mt-1 text-[11px] opacity-70">{{ proxyGroupTypeProfile.summary }}</div>
+                        </div>
+                        <span class="badge" :class="proxyGroupTypeProfile.accent">{{ normalizedProxyGroupType || 'select' }}</span>
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <button
+                          v-for="preset in proxyGroupTypePresets"
+                          :key="`proxy-group-preset-${preset}`"
+                          type="button"
+                          class="btn btn-xs"
+                          :class="normalizedProxyGroupType === preset ? 'btn-primary' : 'btn-ghost'"
+                          @click="applyProxyGroupTypePreset(preset)"
+                        >
+                          {{ preset }}
+                        </button>
+                      </div>
+                      <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                        <span class="badge badge-outline">{{ $t('configProxyGroupsTypeAwareFields') }}</span>
+                        <span v-for="field in proxyGroupTypeProfile.fields" :key="`proxy-group-field-${field}`" class="badge badge-ghost">{{ field }}</span>
+                      </div>
+                    </div>
+                    <label class="form-control md:col-span-2">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUrl') }}</span>
+                      <input v-model="proxyGroupForm.url" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldUrlPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldInterval') }}</span>
+                      <input v-model="proxyGroupForm.interval" type="text" inputmode="numeric" class="input input-sm" placeholder="300" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldStrategy') }}</span>
+                      <input v-model="proxyGroupForm.strategy" type="text" class="input input-sm" :placeholder="$t('configProxyGroupsFieldStrategyPlaceholder')" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldLazy') }}</span>
+                      <select v-model="proxyGroupForm.lazy" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldDisableUdp') }}</span>
+                      <select v-model="proxyGroupForm.disableUdp" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldIncludeAll') }}</span>
+                      <select v-model="proxyGroupForm.includeAll" class="select select-sm">
+                        <option value="">{{ $t('configQuickEditorKeepEmpty') }}</option>
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTolerance') }}</span>
+                      <input v-model="proxyGroupForm.tolerance" type="text" inputmode="numeric" class="input input-sm" placeholder="50" />
+                    </label>
+                    <label class="form-control">
+                      <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldTimeout') }}</span>
+                      <input v-model="proxyGroupForm.timeout" type="text" inputmode="numeric" class="input input-sm" placeholder="3000" />
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProxies') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsMembersHint') }}</span>
+                      </div>
+                      <textarea v-model="proxyGroupForm.proxiesText" class="textarea textarea-sm h-24 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProxiesPlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.proxies.length">
+                        <button v-for="item in proxyGroupSelectedLists.proxies" :key="`selected-group-proxy-${item}`" type="button" class="badge badge-primary badge-outline gap-1" @click="toggleProxyGroupListValue('proxiesText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProxyMembers.length">
+                        <button v-for="item in proxyGroupSuggestedProxyMembers" :key="`suggest-group-proxy-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('proxiesText', item)">+ {{ item }}</button>
+                      </div>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldUse') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
+                      </div>
+                      <textarea v-model="proxyGroupForm.useText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldUsePlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.use.length">
+                        <button v-for="item in proxyGroupSelectedLists.use" :key="`selected-group-use-${item}`" type="button" class="badge badge-secondary badge-outline gap-1" @click="toggleProxyGroupListValue('useText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedUseMembers.length">
+                        <button v-for="item in proxyGroupSuggestedUseMembers" :key="`suggest-group-use-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('useText', item)">+ {{ item }}</button>
+                      </div>
+                    </label>
+                    <label class="form-control md:col-span-2">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="label-text text-xs opacity-70">{{ $t('configProxyGroupsFieldProviders') }}</span>
+                        <span class="text-[11px] opacity-60">{{ $t('configProxyGroupsProvidersHint') }}</span>
+                      </div>
+                      <textarea v-model="proxyGroupForm.providersText" class="textarea textarea-sm h-20 w-full resize-y font-mono leading-5 [tab-size:2]" :placeholder="$t('configProxyGroupsFieldProvidersPlaceholder')"></textarea>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSelectedLists.providers.length">
+                        <button v-for="item in proxyGroupSelectedLists.providers" :key="`selected-group-provider-${item}`" type="button" class="badge badge-accent badge-outline gap-1" @click="toggleProxyGroupListValue('providersText', item)">
+                          <span>{{ item }}</span><span>×</span>
+                        </button>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-2" v-if="proxyGroupSuggestedProviderMembers.length">
+                        <button v-for="item in proxyGroupSuggestedProviderMembers" :key="`suggest-group-provider-${item}`" type="button" class="badge badge-ghost" @click="toggleProxyGroupListValue('providersText', item)">+ {{ item }}</button>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div class="mt-3">
+                    <div class="mb-1 font-semibold">{{ $t('configProxyGroupsExtraYamlTitle') }}</div>
+                    <div class="mb-2 text-[11px] opacity-70">{{ $t('configProxyGroupsExtraYamlTip') }}</div>
+                    <textarea
+                      v-model="proxyGroupForm.extraBody"
+                      class="textarea textarea-sm h-32 w-full resize-y whitespace-pre font-mono leading-5 [tab-size:2]"
+                      wrap="off"
+                      :placeholder="$t('configProxyGroupsExtraYamlPlaceholder')"
+                    ></textarea>
+                  </div>
+
+                  <div class="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyGroupsReferencesTitle') }}</div>
+                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesSelect') }}</div>
+                      <template v-else>
+                        <div class="mt-2 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesTip') }}</div>
+                        <div v-if="!proxyGroupReferencesSummary.groupRefs.length && !proxyGroupReferencesSummary.ruleRefs.length" class="mt-2 opacity-70">{{ $t('configProxyGroupsReferencesEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-2">
+                          <div v-if="proxyGroupReferencesSummary.groupRefs.length">
+                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesGroups') }}</div>
+                            <div class="flex flex-wrap gap-2">
+                              <span v-for="refItem in proxyGroupReferencesSummary.groupRefs" :key="`group-${refItem.text}-${refItem.key}`" class="badge badge-outline">
+                                {{ refItem.text }} · {{ refItem.key }}
+                              </span>
+                            </div>
+                          </div>
+                          <div v-if="proxyGroupReferencesSummary.ruleRefs.length">
+                            <div class="mb-1 text-[11px] opacity-70">{{ $t('configProxyGroupsReferencesRules') }}</div>
+                            <div class="flex flex-wrap gap-2">
+                              <span v-for="refItem in proxyGroupReferencesSummary.ruleRefs.slice(0, 8)" :key="`rule-${refItem.lineNo}-${refItem.text}`" class="badge badge-ghost">
+                                L{{ refItem.lineNo }}
+                              </span>
+                              <span v-if="proxyGroupReferencesSummary.ruleRefs.length > 8" class="badge badge-outline">+{{ proxyGroupReferencesSummary.ruleRefs.length - 8 }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+
+                    <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                      <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactTitle') }}</div>
+                      <div class="mt-1 text-[11px] opacity-70">{{ $t('configProxyGroupsDisableImpactTip') }}</div>
+                      <div v-if="!selectedProxyGroupEntry" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactSelect') }}</div>
+                      <template v-else>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactRules', { count: proxyGroupDisablePlan.rulesTouched }) }}</span>
+                          <span class="badge badge-ghost">{{ $t('configProxyGroupsDisableImpactGroups', { count: proxyGroupDisablePlan.impacts.length }) }}</span>
+                        </div>
+                        <div v-if="!proxyGroupDisablePlan.impacts.length && !proxyGroupDisablePlan.rulesTouched" class="mt-2 opacity-70">{{ $t('configProxyGroupsDisableImpactEmpty') }}</div>
+                        <div v-else class="mt-2 space-y-2">
+                          <div v-for="impact in proxyGroupDisablePlan.impacts" :key="impact.group" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <div class="font-semibold">{{ impact.group }}</div>
+                              <div class="flex flex-wrap gap-2">
+                                <span class="badge badge-ghost">{{ impact.keys.join(', ') }}</span>
+                                <span v-if="impact.fallbackInjected" class="badge badge-warning badge-outline">DIRECT</span>
+                              </div>
+                            </div>
+                            <div class="mt-1 text-[11px] opacity-70">
+                              {{ impact.fallbackInjected ? $t('configProxyGroupsDisableImpactFallback') : $t('configProxyGroupsDisableImpactClean') }}
+                            </div>
+                          </div>
+                          <div v-if="proxyGroupDisablePlan.ruleSamples.length" class="rounded-lg border border-base-content/10 bg-base-100/80 p-2">
+                            <div class="font-semibold">{{ $t('configProxyGroupsDisableImpactRulesTitle') }}</div>
+                            <div class="mt-2 space-y-1">
+                              <div v-for="sample in proxyGroupDisablePlan.ruleSamples" :key="`rule-sample-${sample.lineNo}-${sample.text}`" class="font-mono text-[11px] break-all">
+                                L{{ sample.lineNo }} · {{ sample.text }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </template>
                     </div>
                   </div>
@@ -1386,10 +1885,64 @@
                       <div class="opacity-70">{{ $t('configRuleProvidersEditTip') }}</div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="startRuleProviderCreationWizard">{{ $t('configWizardStart') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="prepareNewRuleProvider">{{ $t('configRuleProvidersResetForm') }}</button>
                       <button class="btn btn-xs btn-ghost" @click="duplicateSelectedRuleProvider" :disabled="!selectedRuleProviderEntry">{{ $t('configRuleProvidersDuplicate') }}</button>
                       <button class="btn btn-xs" @click="saveRuleProviderToPayload" :disabled="!ruleProviderFormCanSave">{{ $t('configRuleProvidersSaveToEditor') }}</button>
                       <button class="btn btn-xs btn-warning" @click="disableSelectedRuleProvider" :disabled="!selectedRuleProviderEntry">{{ $t('configRuleProvidersDisable') }}</button>
+                    </div>
+                  </div>
+
+                  <div v-if="ruleProviderCreationWizard.active" class="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="font-semibold">{{ $t('configWizardTitle') }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t('configRuleProvidersWizardTip') }}</div>
+                      </div>
+                      <button class="btn btn-xs btn-ghost" @click="cancelRuleProviderCreationWizard">{{ $t('configWizardCancel') }}</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span class="badge" :class="ruleProviderCreationWizard.step === 1 ? 'badge-primary' : 'badge-ghost'">1 · {{ $t('configWizardStepChooseTemplate') }}</span>
+                      <span class="badge" :class="ruleProviderCreationWizard.step === 2 ? 'badge-primary' : 'badge-ghost'">2 · {{ $t('configWizardStepFillBasics') }}</span>
+                      <span class="badge" :class="ruleProviderCreationWizard.step === 3 ? 'badge-primary' : 'badge-ghost'">3 · {{ $t('configWizardStepReview') }}</span>
+                    </div>
+                    <div v-if="ruleProviderCreationWizard.step === 1" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button v-for="template in ruleProviderCreationTemplates" :key="`rule-provider-wizard-template-${template.id}`" type="button" class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5" @click="selectRuleProviderCreationWizardTemplate(template.id)"><div class="font-semibold">{{ $t(template.labelKey) }}</div><div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div></button>
+                    </div>
+                    <div v-else-if="ruleProviderCreationWizard.step === 2" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldName') }}</span><input v-model="ruleProviderCreationWizard.name" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldBehavior') }}</span><select v-model="ruleProviderCreationWizard.behavior" class="select select-sm"><option value="classical">classical</option><option value="domain">domain</option><option value="ipcidr">ipcidr</option></select></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldUrl') }}</span><input v-model="ruleProviderCreationWizard.url" type="text" class="input input-sm" /></label>
+                      <label class="form-control md:col-span-2"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldPath') }}</span><input v-model="ruleProviderCreationWizard.path" type="text" class="input input-sm" /></label>
+                      <label class="form-control"><span class="label-text text-xs opacity-70">{{ $t('configRuleProvidersFieldInterval') }}</span><input v-model="ruleProviderCreationWizard.interval" type="text" inputmode="numeric" class="input input-sm" /></label>
+                    </div>
+                    <div v-else class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryTemplate') }}</div><div class="mt-1 font-semibold">{{ $t(ruleProviderCreationTemplates.find((item) => item.id === ruleProviderCreationWizard.templateId)?.labelKey || 'configRuleProvidersTitle') }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryName') }}</div><div class="mt-1 font-semibold break-all">{{ ruleProviderCreationWizard.name || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryBehavior') }}</div><div class="mt-1 font-semibold">{{ ruleProviderCreationWizard.behavior || '—' }}</div></div>
+                      <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3"><div class="text-[11px] opacity-60">{{ $t('configWizardSummaryPath') }}</div><div class="mt-1 font-semibold break-all">{{ ruleProviderCreationWizard.path || '—' }}</div></div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap justify-between gap-2">
+                      <button class="btn btn-xs btn-ghost" @click="prevRuleProviderCreationWizardStep">{{ $t('configWizardBack') }}</button>
+                      <button v-if="ruleProviderCreationWizard.step < 3" class="btn btn-xs" :disabled="ruleProviderCreationWizard.step === 1 && !ruleProviderCreationWizard.templateId" @click="nextRuleProviderCreationWizardStep">{{ $t('configWizardNext') }}</button>
+                      <button v-else class="btn btn-xs" @click="finalizeRuleProviderCreationWizard">{{ $t('configWizardApplyToForm') }}</button>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
+                    <div class="font-semibold">{{ $t('configTemplateCardsTitle') }}</div>
+                    <div class="mt-1 text-[11px] opacity-70">{{ $t('configRuleProvidersTemplatesTip') }}</div>
+                    <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <button
+                        v-for="template in ruleProviderCreationTemplates"
+                        :key="`rule-provider-template-${template.id}`"
+                        type="button"
+                        class="rounded-lg border border-base-content/10 bg-base-100/80 p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
+                        @click="applyRuleProviderCreationTemplate(template.id)"
+                      >
+                        <div class="font-semibold">{{ $t(template.labelKey) }}</div>
+                        <div class="mt-1 text-[11px] opacity-70">{{ $t(template.descKey) }}</div>
+                      </button>
                     </div>
                   </div>
 
@@ -3271,6 +3824,363 @@ const splitFormList = (value: string) => String(value || '')
 
 const joinFormList = (items: string[]) => Array.from(new Set(items.map((item) => String(item || '').trim()).filter(Boolean))).join('\n')
 
+
+type TemplateCardModel = { id: string; labelKey: string; descKey: string }
+
+const makeUniqueName = (base: string, existing: string[]) => {
+  const normalizedBase = String(base || '').trim() || 'item'
+  const used = new Set(existing.map((item) => String(item || '').trim()).filter(Boolean))
+  if (!used.has(normalizedBase)) return normalizedBase
+  let counter = 2
+  let candidate = `${normalizedBase}-${counter}`
+  while (used.has(candidate)) {
+    counter += 1
+    candidate = `${normalizedBase}-${counter}`
+  }
+  return candidate
+}
+
+const slugifyTemplateValue = (value: string) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '') || 'item'
+
+const proxyCreationTemplates: TemplateCardModel[] = [
+  { id: 'vless-reality', labelKey: 'configProxiesTemplateVlessReality', descKey: 'configProxiesTemplateVlessRealityDesc' },
+  { id: 'vless-ws-tls', labelKey: 'configProxiesTemplateVlessWsTls', descKey: 'configProxiesTemplateVlessWsTlsDesc' },
+  { id: 'vmess-ws-tls', labelKey: 'configProxiesTemplateVmessWsTls', descKey: 'configProxiesTemplateVmessWsTlsDesc' },
+  { id: 'trojan-grpc', labelKey: 'configProxiesTemplateTrojanGrpc', descKey: 'configProxiesTemplateTrojanGrpcDesc' },
+  { id: 'trojan-tls', labelKey: 'configProxiesTemplateTrojanTls', descKey: 'configProxiesTemplateTrojanTlsDesc' },
+  { id: 'wireguard-peer', labelKey: 'configProxiesTemplateWireguardPeer', descKey: 'configProxiesTemplateWireguardPeerDesc' },
+  { id: 'hysteria2-basic', labelKey: 'configProxiesTemplateHysteria2Basic', descKey: 'configProxiesTemplateHysteria2BasicDesc' },
+  { id: 'tuic-basic', labelKey: 'configProxiesTemplateTuicBasic', descKey: 'configProxiesTemplateTuicBasicDesc' },
+]
+
+const proxyProviderCreationTemplates: TemplateCardModel[] = [
+  { id: 'remote-http', labelKey: 'configProxyProvidersTemplateRemoteHttp', descKey: 'configProxyProvidersTemplateRemoteHttpDesc' },
+  { id: 'local-file', labelKey: 'configProxyProvidersTemplateLocalFile', descKey: 'configProxyProvidersTemplateLocalFileDesc' },
+  { id: 'inline-source', labelKey: 'configProxyProvidersTemplateInlineSource', descKey: 'configProxyProvidersTemplateInlineSourceDesc' },
+]
+
+const proxyGroupCreationTemplates: TemplateCardModel[] = [
+  { id: 'select', labelKey: 'configProxyGroupsTemplateSelect', descKey: 'configProxyGroupsTemplateSelectDesc' },
+  { id: 'url-test', labelKey: 'configProxyGroupsTemplateUrlTest', descKey: 'configProxyGroupsTemplateUrlTestDesc' },
+  { id: 'fallback', labelKey: 'configProxyGroupsTemplateFallback', descKey: 'configProxyGroupsTemplateFallbackDesc' },
+  { id: 'load-balance', labelKey: 'configProxyGroupsTemplateLoadBalance', descKey: 'configProxyGroupsTemplateLoadBalanceDesc' },
+  { id: 'relay', labelKey: 'configProxyGroupsTemplateRelay', descKey: 'configProxyGroupsTemplateRelayDesc' },
+]
+
+const ruleProviderCreationTemplates: TemplateCardModel[] = [
+  { id: 'classical-remote', labelKey: 'configRuleProvidersTemplateClassicalRemote', descKey: 'configRuleProvidersTemplateClassicalRemoteDesc' },
+  { id: 'domain-remote', labelKey: 'configRuleProvidersTemplateDomainRemote', descKey: 'configRuleProvidersTemplateDomainRemoteDesc' },
+  { id: 'ipcidr-remote', labelKey: 'configRuleProvidersTemplateIpcidrRemote', descKey: 'configRuleProvidersTemplateIpcidrRemoteDesc' },
+]
+
+type CreationWizardStep = 1 | 2 | 3
+
+type ProxyCreationWizardModel = {
+  active: boolean
+  step: CreationWizardStep
+  templateId: string
+  type: string
+  name: string
+  server: string
+  port: string
+  network: string
+  tls: string
+  servername: string
+  clientFingerprint: string
+  uuid: string
+  password: string
+  cipher: string
+  flow: string
+  wsPath: string
+  grpcServiceName: string
+  realityPublicKey: string
+  realityShortId: string
+  wireguardIpText: string
+  wireguardPrivateKey: string
+  wireguardPublicKey: string
+  wireguardMtu: string
+  hysteriaObfs: string
+  hysteriaObfsPassword: string
+  tuicCongestionController: string
+  tuicUdpRelayMode: string
+  tuicHeartbeatInterval: string
+}
+
+type ProxyProviderCreationWizardModel = {
+  active: boolean
+  step: CreationWizardStep
+  templateId: string
+  name: string
+  type: string
+  url: string
+  path: string
+  interval: string
+}
+
+type ProxyGroupCreationWizardModel = {
+  active: boolean
+  step: CreationWizardStep
+  templateId: string
+  name: string
+  type: string
+  membersText: string
+  providersText: string
+  url: string
+  interval: string
+}
+
+type RuleProviderCreationWizardModel = {
+  active: boolean
+  step: CreationWizardStep
+  templateId: string
+  name: string
+  behavior: string
+  url: string
+  path: string
+  interval: string
+}
+
+const emptyProxyCreationWizard = (): ProxyCreationWizardModel => ({
+  active: false,
+  step: 1,
+  templateId: '',
+  type: '',
+  name: '',
+  server: '',
+  port: '',
+  network: '',
+  tls: '',
+  servername: '',
+  clientFingerprint: '',
+  uuid: '',
+  password: '',
+  cipher: '',
+  flow: '',
+  wsPath: '',
+  grpcServiceName: '',
+  realityPublicKey: '',
+  realityShortId: '',
+  wireguardIpText: '',
+  wireguardPrivateKey: '',
+  wireguardPublicKey: '',
+  wireguardMtu: '',
+  hysteriaObfs: '',
+  hysteriaObfsPassword: '',
+  tuicCongestionController: '',
+  tuicUdpRelayMode: '',
+  tuicHeartbeatInterval: '',
+})
+
+const emptyProxyProviderCreationWizard = (): ProxyProviderCreationWizardModel => ({
+  active: false,
+  step: 1,
+  templateId: '',
+  name: '',
+  type: '',
+  url: '',
+  path: '',
+  interval: '',
+})
+
+const emptyProxyGroupCreationWizard = (): ProxyGroupCreationWizardModel => ({
+  active: false,
+  step: 1,
+  templateId: '',
+  name: '',
+  type: '',
+  membersText: '',
+  providersText: '',
+  url: '',
+  interval: '',
+})
+
+const emptyRuleProviderCreationWizard = (): RuleProviderCreationWizardModel => ({
+  active: false,
+  step: 1,
+  templateId: '',
+  name: '',
+  behavior: '',
+  url: '',
+  path: '',
+  interval: '',
+})
+
+const proxyCreationWizard = ref<ProxyCreationWizardModel>(emptyProxyCreationWizard())
+const proxyProviderCreationWizard = ref<ProxyProviderCreationWizardModel>(emptyProxyProviderCreationWizard())
+const proxyGroupCreationWizard = ref<ProxyGroupCreationWizardModel>(emptyProxyGroupCreationWizard())
+const ruleProviderCreationWizard = ref<RuleProviderCreationWizardModel>(emptyRuleProviderCreationWizard())
+
+const normalizedProxyCreationWizardType = computed(() => String(proxyCreationWizard.value.type || '').trim().toLowerCase())
+const proxyCreationWizardVisibility = computed(() => {
+  const type = normalizedProxyCreationWizardType.value
+  const network = String(proxyCreationWizard.value.network || '').trim().toLowerCase()
+  return {
+    transport: ['vmess', 'vless', 'trojan'].includes(type),
+    security: ['vmess', 'vless', 'trojan', 'hysteria2', 'tuic'].includes(type),
+    uuid: ['vmess', 'vless', 'tuic'].includes(type),
+    password: ['ss', 'trojan', 'hysteria2', 'tuic'].includes(type),
+    cipher: ['ss', 'vmess'].includes(type),
+    flow: type === 'vless',
+    reality: type === 'vless',
+    wsPath: ['vmess', 'vless', 'trojan'].includes(type) && network === 'ws',
+    grpcServiceName: ['vmess', 'vless', 'trojan'].includes(type) && network === 'grpc',
+    wireguard: type === 'wireguard',
+    hysteria2: type === 'hysteria2',
+    tuic: type === 'tuic',
+  }
+})
+const proxyCreationWizardTypeSummary = computed(() => {
+  switch (normalizedProxyCreationWizardType.value) {
+    case 'ss': return t('configProxiesTypeSummarySs')
+    case 'vmess': return t('configProxiesTypeSummaryVmess')
+    case 'vless': return t('configProxiesTypeSummaryVless')
+    case 'trojan': return t('configProxiesTypeSummaryTrojan')
+    case 'wireguard': return t('configProxiesTypeSummaryWireguard')
+    case 'hysteria2': return t('configProxiesTypeSummaryHysteria2')
+    case 'tuic': return t('configProxiesTypeSummaryTuic')
+    default: return t('configProxiesTypeSummaryDefault')
+  }
+})
+const proxyCreationWizardFocusBadges = computed(() => {
+  const out: string[] = []
+  const visibility = proxyCreationWizardVisibility.value
+  if (visibility.security) out.push(t('configProxiesSecurityTitle'))
+  if (visibility.uuid || visibility.password || visibility.cipher || visibility.flow || visibility.wireguard) out.push(t('configProxiesAuthTitle'))
+  if (visibility.transport || visibility.wsPath || visibility.grpcServiceName) out.push(t('configProxiesTransportTitle'))
+  if (visibility.reality) out.push('reality')
+  if (visibility.wireguard) out.push(t('configProxiesWireguardTitle'))
+  if (visibility.hysteria2) out.push('hysteria2')
+  if (visibility.tuic) out.push('tuic')
+  return Array.from(new Set(out))
+})
+
+const activeProxyCreationWizardTemplate = computed(() => proxyCreationTemplates.find((item) => item.id === proxyCreationWizard.value.templateId) || null)
+const proxyCreationWizardScenarioBadges = computed(() => {
+  switch (proxyCreationWizard.value.templateId) {
+    case 'vless-reality':
+      return ['Reality', 'TLS', 'Vision', 'uuid']
+    case 'vless-ws-tls':
+      return ['WS', 'TLS', 'uuid', 'path']
+    case 'vmess-ws-tls':
+      return ['WS', 'TLS', 'uuid', 'vmess']
+    case 'trojan-grpc':
+      return ['gRPC', 'TLS', 'password']
+    case 'trojan-tls':
+      return ['TLS', 'password']
+    case 'wireguard-peer':
+    case 'wireguard-basic':
+      return ['WireGuard', 'peer', 'keys', 'IP']
+    case 'hysteria2-basic':
+      return ['UDP', 'TLS', 'obfs']
+    case 'tuic-basic':
+      return ['UDP', 'TLS', 'uuid', 'password']
+    default:
+      return proxyCreationWizardFocusBadges.value
+  }
+})
+const proxyCreationWizardScenarioSummary = computed(() => {
+  const template = activeProxyCreationWizardTemplate.value
+  return template ? t(template.descKey) : t('configProxiesWizardTip')
+})
+const proxyCreationWizardRequiredFields = computed(() => {
+  const state = proxyCreationWizard.value
+  const text = (value: string) => String(value || '').trim()
+  const fields = [
+    { label: t('configProxiesFieldName'), ok: Boolean(text(state.name)) },
+    { label: t('configProxiesFieldServer'), ok: Boolean(text(state.server)) },
+    { label: t('configProxiesFieldPort'), ok: Boolean(text(state.port)) },
+  ]
+  switch (state.templateId) {
+    case 'vless-reality':
+      fields.push(
+        { label: t('configProxiesFieldUuid'), ok: Boolean(text(state.uuid)) },
+        { label: t('configProxiesFieldServername'), ok: Boolean(text(state.servername)) },
+        { label: t('configProxiesFieldRealityPublicKey'), ok: Boolean(text(state.realityPublicKey)) },
+        { label: t('configProxiesFieldFlow'), ok: Boolean(text(state.flow)) },
+      )
+      break
+    case 'vless-ws-tls':
+    case 'vmess-ws-tls':
+      fields.push(
+        { label: t('configProxiesFieldUuid'), ok: Boolean(text(state.uuid)) },
+        { label: t('configProxiesFieldServername'), ok: Boolean(text(state.servername)) },
+        { label: t('configProxiesFieldWsPath'), ok: Boolean(text(state.wsPath)) },
+      )
+      break
+    case 'trojan-grpc':
+      fields.push(
+        { label: t('configProxiesFieldPassword'), ok: Boolean(text(state.password)) },
+        { label: t('configProxiesFieldServername'), ok: Boolean(text(state.servername)) },
+        { label: t('configProxiesFieldGrpcServiceName'), ok: Boolean(text(state.grpcServiceName)) },
+      )
+      break
+    case 'trojan-tls':
+    case 'hysteria2-basic':
+      fields.push(
+        { label: t('configProxiesFieldPassword'), ok: Boolean(text(state.password)) },
+        { label: t('configProxiesFieldServername'), ok: Boolean(text(state.servername)) },
+      )
+      break
+    case 'wireguard-peer':
+    case 'wireguard-basic':
+      fields.push(
+        { label: t('configProxiesFieldWireguardIp'), ok: Boolean(text(state.wireguardIpText)) },
+        { label: t('configProxiesFieldWireguardPrivateKey'), ok: Boolean(text(state.wireguardPrivateKey)) },
+        { label: t('configProxiesFieldWireguardPublicKey'), ok: Boolean(text(state.wireguardPublicKey)) },
+      )
+      break
+    case 'tuic-basic':
+      fields.push(
+        { label: t('configProxiesFieldUuid'), ok: Boolean(text(state.uuid)) },
+        { label: t('configProxiesFieldPassword'), ok: Boolean(text(state.password)) },
+        { label: t('configProxiesFieldServername'), ok: Boolean(text(state.servername)) },
+      )
+      break
+    default:
+      break
+  }
+  return fields
+})
+const proxyCreationWizardMissingFieldLabels = computed(() => proxyCreationWizardRequiredFields.value.filter((item) => !item.ok).map((item) => item.label))
+const proxyCreationWizardCanProceed = computed(() => proxyCreationWizardMissingFieldLabels.value.length === 0)
+const proxyCreationWizardTransportSummary = computed(() => {
+  const parts: string[] = []
+  const type = normalizedProxyCreationWizardType.value
+  if (String(proxyCreationWizard.value.network || '').trim()) parts.push(String(proxyCreationWizard.value.network || '').trim())
+  if (String(proxyCreationWizard.value.wsPath || '').trim()) parts.push(`ws:${String(proxyCreationWizard.value.wsPath || '').trim()}`)
+  if (String(proxyCreationWizard.value.grpcServiceName || '').trim()) parts.push(`grpc:${String(proxyCreationWizard.value.grpcServiceName || '').trim()}`)
+  if (String(proxyCreationWizard.value.tls || '').trim()) parts.push(`TLS=${String(proxyCreationWizard.value.tls || '').trim()}`)
+  if (type === 'wireguard' && String(proxyCreationWizard.value.wireguardMtu || '').trim()) parts.push(`mtu=${String(proxyCreationWizard.value.wireguardMtu || '').trim()}`)
+  if (type === 'tuic' && String(proxyCreationWizard.value.tuicUdpRelayMode || '').trim()) parts.push(`udp=${String(proxyCreationWizard.value.tuicUdpRelayMode || '').trim()}`)
+  return parts.length ? parts.join(' · ') : '—'
+})
+const proxyCreationWizardAuthSummary = computed(() => {
+  const parts: string[] = []
+  if (String(proxyCreationWizard.value.uuid || '').trim()) parts.push(`uuid:${String(proxyCreationWizard.value.uuid || '').trim()}`)
+  if (String(proxyCreationWizard.value.password || '').trim()) parts.push(`password:${String(proxyCreationWizard.value.password || '').trim()}`)
+  if (String(proxyCreationWizard.value.cipher || '').trim()) parts.push(`cipher:${String(proxyCreationWizard.value.cipher || '').trim()}`)
+  if (String(proxyCreationWizard.value.flow || '').trim()) parts.push(`flow:${String(proxyCreationWizard.value.flow || '').trim()}`)
+  if (normalizedProxyCreationWizardType.value === 'wireguard') {
+    if (String(proxyCreationWizard.value.wireguardIpText || '').trim()) parts.push(`ip:${String(proxyCreationWizard.value.wireguardIpText || '').trim()}`)
+    if (String(proxyCreationWizard.value.wireguardPublicKey || '').trim()) parts.push('public-key')
+    if (String(proxyCreationWizard.value.wireguardPrivateKey || '').trim()) parts.push('private-key')
+  }
+  return parts.length ? parts.join(' · ') : '—'
+})
+
+const buildPreferredGroupMembers = (limit = 3) => {
+  const fromProxies = parsedProxies.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const fromGroups = parsedProxyGroups.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const unique = Array.from(new Set([...fromProxies, ...fromGroups]))
+  return unique.slice(0, Math.max(1, limit))
+}
+
+const buildProviderRefs = (limit = 2) => Array.from(new Set(parsedProxyProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean))).slice(0, limit)
+
 const toggleProxyGroupListValue = (field: 'proxiesText' | 'useText' | 'providersText', item: string) => {
   const normalized = String(item || '').trim()
   if (!normalized) return
@@ -3967,6 +4877,481 @@ const disableSelectedProxy = () => {
       : 'configProxiesDisabledToast',
     type: 'alert-success',
   })
+}
+
+
+const buildProxyCreationTemplateForm = (templateId: string) => {
+  const existingNames = parsedProxies.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const next = emptyProxyForm()
+  switch (templateId) {
+    case 'vless-reality':
+      next.name = makeUniqueName('VLESS-Reality', existingNames)
+      next.type = 'vless'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.clientFingerprint = 'chrome'
+      next.uuid = '<uuid>'
+      next.flow = 'xtls-rprx-vision'
+      next.realityPublicKey = '<public-key>'
+      next.realityShortId = '<short-id>'
+      break
+    case 'vless-ws-tls':
+      next.name = makeUniqueName('VLESS-WS-TLS', existingNames)
+      next.type = 'vless'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.network = 'ws'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.clientFingerprint = 'chrome'
+      next.uuid = '<uuid>'
+      next.wsPath = '/app'
+      break
+    case 'vmess-ws-tls':
+      next.name = makeUniqueName('VMess-WS-TLS', existingNames)
+      next.type = 'vmess'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.network = 'ws'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.clientFingerprint = 'chrome'
+      next.uuid = '<uuid>'
+      next.wsPath = '/'
+      break
+    case 'trojan-grpc':
+      next.name = makeUniqueName('Trojan-gRPC', existingNames)
+      next.type = 'trojan'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.network = 'grpc'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.password = '<password>'
+      next.grpcServiceName = 'trojan-grpc'
+      break
+    case 'trojan-tls':
+      next.name = makeUniqueName('Trojan-TLS', existingNames)
+      next.type = 'trojan'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.password = '<password>'
+      break
+    case 'wireguard-peer':
+    case 'wireguard-basic':
+      next.name = makeUniqueName('WireGuard-Peer', existingNames)
+      next.type = 'wireguard'
+      next.server = '203.0.113.10'
+      next.port = '51820'
+      next.udp = 'true'
+      next.packetEncoding = 'xudp'
+      next.wireguardIpText = '172.16.0.2/32'
+      next.wireguardMtu = '1420'
+      next.wireguardPublicKey = '<server-public-key>'
+      next.wireguardPrivateKey = '<client-private-key>'
+      break
+    case 'hysteria2-basic':
+      next.name = makeUniqueName('Hysteria2', existingNames)
+      next.type = 'hysteria2'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.password = '<password>'
+      next.hysteriaObfs = 'salamander'
+      next.hysteriaObfsPassword = '<obfs-password>'
+      break
+    case 'tuic-basic':
+      next.name = makeUniqueName('TUIC', existingNames)
+      next.type = 'tuic'
+      next.server = 'edge.example.com'
+      next.port = '443'
+      next.tls = 'true'
+      next.udp = 'true'
+      next.servername = next.server
+      next.uuid = '<uuid>'
+      next.password = '<password>'
+      next.tuicCongestionController = 'bbr'
+      next.tuicUdpRelayMode = 'native'
+      next.tuicHeartbeatInterval = '3s'
+      break
+    default:
+      next.name = makeUniqueName('Proxy', existingNames)
+      next.type = 'vless'
+  }
+  return next
+}
+
+const buildProxyProviderCreationTemplateForm = (templateId: string) => {
+  const existingNames = parsedProxyProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const next = emptyProxyProviderForm()
+  switch (templateId) {
+    case 'local-file':
+      next.name = makeUniqueName('LocalProvider', existingNames)
+      next.type = 'file'
+      next.path = `./providers/${slugifyTemplateValue(next.name)}.yaml`
+      next.filter = '(?i)proxy|auto'
+      break
+    case 'inline-source':
+      next.name = makeUniqueName('InlineProvider', existingNames)
+      next.type = 'inline'
+      next.path = `./providers/${slugifyTemplateValue(next.name)}.yaml`
+      next.overrideBody = 'additional-prefix: "INLINE"'
+      break
+    default:
+      next.name = makeUniqueName('RemoteProvider', existingNames)
+      next.type = 'http'
+      next.url = 'https://example.com/subscription.yaml'
+      next.path = `./providers/${slugifyTemplateValue(next.name)}.yaml`
+      next.interval = '86400'
+      next.healthCheckEnable = 'true'
+      next.healthCheckUrl = 'https://www.gstatic.com/generate_204'
+      next.healthCheckInterval = '300'
+      break
+  }
+  return next
+}
+
+const buildProxyGroupCreationTemplateForm = (templateId: string) => {
+  const existingNames = parsedProxyGroups.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const next = emptyProxyGroupForm()
+  const preferredMembers = buildPreferredGroupMembers(3)
+  const providerRefs = buildProviderRefs(2)
+  switch (templateId) {
+    case 'url-test':
+      next.name = makeUniqueName('AUTO', existingNames)
+      next.type = 'url-test'
+      next.url = 'https://www.gstatic.com/generate_204'
+      next.interval = '300'
+      next.tolerance = '50'
+      next.proxiesText = joinFormList(preferredMembers.length ? preferredMembers : ['DIRECT'])
+      break
+    case 'fallback':
+      next.name = makeUniqueName('FAILOVER', existingNames)
+      next.type = 'fallback'
+      next.url = 'https://www.gstatic.com/generate_204'
+      next.interval = '300'
+      next.proxiesText = joinFormList(preferredMembers.length ? preferredMembers : ['DIRECT'])
+      break
+    case 'load-balance':
+      next.name = makeUniqueName('BALANCE', existingNames)
+      next.type = 'load-balance'
+      next.url = 'https://www.gstatic.com/generate_204'
+      next.interval = '300'
+      next.strategy = 'consistent-hashing'
+      next.tolerance = '50'
+      if (providerRefs.length) next.useText = joinFormList(providerRefs)
+      else next.proxiesText = joinFormList(preferredMembers.length ? preferredMembers : ['DIRECT'])
+      break
+    case 'relay':
+      next.name = makeUniqueName('CHAIN', existingNames)
+      next.type = 'relay'
+      next.proxiesText = joinFormList(preferredMembers.length ? preferredMembers.slice(0, 2) : [])
+      break
+    default:
+      next.name = makeUniqueName('PROXY', existingNames)
+      next.type = 'select'
+      next.proxiesText = joinFormList(preferredMembers.length ? ['DIRECT', ...preferredMembers].slice(0, 4) : ['DIRECT'])
+      break
+  }
+  return next
+}
+
+const buildRuleProviderCreationTemplateForm = (templateId: string) => {
+  const existingNames = parsedRuleProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean)
+  const next = emptyRuleProviderForm()
+  next.type = 'http'
+  next.format = 'yaml'
+  next.interval = '86400'
+  switch (templateId) {
+    case 'domain-remote':
+      next.name = makeUniqueName('domains-main', existingNames)
+      next.behavior = 'domain'
+      next.url = 'https://example.com/rules/domain.yaml'
+      break
+    case 'ipcidr-remote':
+      next.name = makeUniqueName('cidr-main', existingNames)
+      next.behavior = 'ipcidr'
+      next.url = 'https://example.com/rules/ipcidr.yaml'
+      break
+    default:
+      next.name = makeUniqueName('rules-main', existingNames)
+      next.behavior = 'classical'
+      next.url = 'https://example.com/rules/classical.yaml'
+      break
+  }
+  next.path = `./rule-providers/${slugifyTemplateValue(next.name)}.yaml`
+  return next
+}
+
+const startProxyCreationWizard = () => {
+  proxyCreationWizard.value = { ...emptyProxyCreationWizard(), active: true }
+}
+
+const selectProxyCreationWizardTemplate = (templateId: string) => {
+  const next = buildProxyCreationTemplateForm(templateId)
+  proxyCreationWizard.value = {
+    active: true,
+    step: 2,
+    templateId,
+    type: next.type,
+    name: next.name,
+    server: next.server,
+    port: next.port,
+    network: next.network,
+    tls: next.tls,
+    servername: next.servername,
+    clientFingerprint: next.clientFingerprint,
+    uuid: next.uuid,
+    password: next.password,
+    cipher: next.cipher,
+    flow: next.flow,
+    wsPath: next.wsPath,
+    grpcServiceName: next.grpcServiceName,
+    realityPublicKey: next.realityPublicKey,
+    realityShortId: next.realityShortId,
+    wireguardIpText: next.wireguardIpText,
+    wireguardPrivateKey: next.wireguardPrivateKey,
+    wireguardPublicKey: next.wireguardPublicKey,
+    wireguardMtu: next.wireguardMtu,
+    hysteriaObfs: next.hysteriaObfs,
+    hysteriaObfsPassword: next.hysteriaObfsPassword,
+    tuicCongestionController: next.tuicCongestionController,
+    tuicUdpRelayMode: next.tuicUdpRelayMode,
+    tuicHeartbeatInterval: next.tuicHeartbeatInterval,
+  }
+}
+
+const finalizeProxyCreationWizard = () => {
+  const state = proxyCreationWizard.value
+  if (!state.templateId) return
+  const next = buildProxyCreationTemplateForm(state.templateId)
+  if (String(state.name || '').trim()) next.name = String(state.name || '').trim()
+  if (String(state.server || '').trim()) next.server = String(state.server || '').trim()
+  if (String(state.port || '').trim()) next.port = String(state.port || '').trim()
+  if (String(state.network || '').trim()) next.network = String(state.network || '').trim()
+  if (String(state.tls || '').trim()) next.tls = String(state.tls || '').trim()
+  if (String(state.servername || '').trim()) next.servername = String(state.servername || '').trim()
+  if (String(state.clientFingerprint || '').trim()) next.clientFingerprint = String(state.clientFingerprint || '').trim()
+  if (String(state.uuid || '').trim()) next.uuid = String(state.uuid || '').trim()
+  if (String(state.password || '').trim()) next.password = String(state.password || '').trim()
+  if (String(state.cipher || '').trim()) next.cipher = String(state.cipher || '').trim()
+  if (String(state.flow || '').trim()) next.flow = String(state.flow || '').trim()
+  if (String(state.wsPath || '').trim()) next.wsPath = String(state.wsPath || '').trim()
+  if (String(state.grpcServiceName || '').trim()) next.grpcServiceName = String(state.grpcServiceName || '').trim()
+  if (String(state.realityPublicKey || '').trim()) next.realityPublicKey = String(state.realityPublicKey || '').trim()
+  if (String(state.realityShortId || '').trim()) next.realityShortId = String(state.realityShortId || '').trim()
+  if (String(state.wireguardIpText || '').trim()) next.wireguardIpText = String(state.wireguardIpText || '').trim()
+  if (String(state.wireguardPrivateKey || '').trim()) next.wireguardPrivateKey = String(state.wireguardPrivateKey || '').trim()
+  if (String(state.wireguardPublicKey || '').trim()) next.wireguardPublicKey = String(state.wireguardPublicKey || '').trim()
+  if (String(state.wireguardMtu || '').trim()) next.wireguardMtu = String(state.wireguardMtu || '').trim()
+  if (String(state.hysteriaObfs || '').trim()) next.hysteriaObfs = String(state.hysteriaObfs || '').trim()
+  if (String(state.hysteriaObfsPassword || '').trim()) next.hysteriaObfsPassword = String(state.hysteriaObfsPassword || '').trim()
+  if (String(state.tuicCongestionController || '').trim()) next.tuicCongestionController = String(state.tuicCongestionController || '').trim()
+  if (String(state.tuicUdpRelayMode || '').trim()) next.tuicUdpRelayMode = String(state.tuicUdpRelayMode || '').trim()
+  if (String(state.tuicHeartbeatInterval || '').trim()) next.tuicHeartbeatInterval = String(state.tuicHeartbeatInterval || '').trim()
+  if (next.server && ['vless', 'vmess', 'trojan', 'hysteria2', 'tuic'].includes(next.type) && !String(next.servername || '').trim()) next.servername = next.server
+  proxySelectedName.value = ''
+  proxyForm.value = next
+  proxyCreationWizard.value = emptyProxyCreationWizard()
+  showNotification({ content: 'configWizardAppliedToast', params: { section: t('configProxiesTitle') }, type: 'alert-success' })
+}
+
+const cancelProxyCreationWizard = () => {
+  proxyCreationWizard.value = emptyProxyCreationWizard()
+}
+
+const prevProxyCreationWizardStep = () => {
+  if (proxyCreationWizard.value.step > 1) proxyCreationWizard.value.step = (proxyCreationWizard.value.step - 1) as CreationWizardStep
+}
+
+const nextProxyCreationWizardStep = () => {
+  if (!proxyCreationWizard.value.templateId || proxyCreationWizard.value.step >= 3) return
+  proxyCreationWizard.value.step = (proxyCreationWizard.value.step + 1) as CreationWizardStep
+}
+
+const applyProxyCreationTemplate = (templateId: string) => {
+  proxySelectedName.value = ''
+  proxyForm.value = buildProxyCreationTemplateForm(templateId)
+  showNotification({ content: 'configTemplateAppliedToast', params: { section: t('configProxiesTitle') }, type: 'alert-success' })
+}
+
+const startProxyProviderCreationWizard = () => {
+  proxyProviderCreationWizard.value = { ...emptyProxyProviderCreationWizard(), active: true }
+}
+
+const selectProxyProviderCreationWizardTemplate = (templateId: string) => {
+  const next = buildProxyProviderCreationTemplateForm(templateId)
+  proxyProviderCreationWizard.value = {
+    active: true,
+    step: 2,
+    templateId,
+    name: next.name,
+    type: next.type,
+    url: next.url,
+    path: next.path,
+    interval: next.interval,
+  }
+}
+
+const finalizeProxyProviderCreationWizard = () => {
+  const state = proxyProviderCreationWizard.value
+  if (!state.templateId) return
+  const next = buildProxyProviderCreationTemplateForm(state.templateId)
+  if (String(state.name || '').trim()) {
+    const normalizedName = String(state.name || '').trim()
+    const previousSlug = slugifyTemplateValue(next.name)
+    next.name = normalizedName
+    if (String(next.path || '').includes(previousSlug)) next.path = `./providers/${slugifyTemplateValue(normalizedName)}.yaml`
+  }
+  if (String(state.type || '').trim()) next.type = String(state.type || '').trim()
+  if (String(state.url || '').trim()) next.url = String(state.url || '').trim()
+  if (String(state.path || '').trim()) next.path = String(state.path || '').trim()
+  if (String(state.interval || '').trim()) next.interval = String(state.interval || '').trim()
+  proxyProviderSelectedName.value = ''
+  proxyProviderForm.value = next
+  proxyProviderCreationWizard.value = emptyProxyProviderCreationWizard()
+  showNotification({ content: 'configWizardAppliedToast', params: { section: t('configProxyProvidersTitle') }, type: 'alert-success' })
+}
+
+const cancelProxyProviderCreationWizard = () => {
+  proxyProviderCreationWizard.value = emptyProxyProviderCreationWizard()
+}
+
+const prevProxyProviderCreationWizardStep = () => {
+  if (proxyProviderCreationWizard.value.step > 1) proxyProviderCreationWizard.value.step = (proxyProviderCreationWizard.value.step - 1) as CreationWizardStep
+}
+
+const nextProxyProviderCreationWizardStep = () => {
+  if (!proxyProviderCreationWizard.value.templateId || proxyProviderCreationWizard.value.step >= 3) return
+  proxyProviderCreationWizard.value.step = (proxyProviderCreationWizard.value.step + 1) as CreationWizardStep
+}
+
+const applyProxyProviderCreationTemplate = (templateId: string) => {
+  proxyProviderSelectedName.value = ''
+  proxyProviderForm.value = buildProxyProviderCreationTemplateForm(templateId)
+  showNotification({ content: 'configTemplateAppliedToast', params: { section: t('configProxyProvidersTitle') }, type: 'alert-success' })
+}
+
+const startProxyGroupCreationWizard = () => {
+  proxyGroupCreationWizard.value = { ...emptyProxyGroupCreationWizard(), active: true }
+}
+
+const selectProxyGroupCreationWizardTemplate = (templateId: string) => {
+  const next = buildProxyGroupCreationTemplateForm(templateId)
+  proxyGroupCreationWizard.value = {
+    active: true,
+    step: 2,
+    templateId,
+    name: next.name,
+    type: next.type,
+    membersText: next.proxiesText,
+    providersText: next.useText,
+    url: next.url,
+    interval: next.interval,
+  }
+}
+
+const finalizeProxyGroupCreationWizard = () => {
+  const state = proxyGroupCreationWizard.value
+  if (!state.templateId) return
+  const next = buildProxyGroupCreationTemplateForm(state.templateId)
+  if (String(state.name || '').trim()) next.name = String(state.name || '').trim()
+  if (String(state.type || '').trim()) next.type = String(state.type || '').trim()
+  if (String(state.membersText || '').trim()) next.proxiesText = joinFormList(splitFormList(state.membersText))
+  if (String(state.providersText || '').trim()) next.useText = joinFormList(splitFormList(state.providersText))
+  if (String(state.url || '').trim()) next.url = String(state.url || '').trim()
+  if (String(state.interval || '').trim()) next.interval = String(state.interval || '').trim()
+  proxyGroupSelectedName.value = ''
+  proxyGroupForm.value = next
+  proxyGroupCreationWizard.value = emptyProxyGroupCreationWizard()
+  showNotification({ content: 'configWizardAppliedToast', params: { section: t('configProxyGroupsTitle') }, type: 'alert-success' })
+}
+
+const cancelProxyGroupCreationWizard = () => {
+  proxyGroupCreationWizard.value = emptyProxyGroupCreationWizard()
+}
+
+const prevProxyGroupCreationWizardStep = () => {
+  if (proxyGroupCreationWizard.value.step > 1) proxyGroupCreationWizard.value.step = (proxyGroupCreationWizard.value.step - 1) as CreationWizardStep
+}
+
+const nextProxyGroupCreationWizardStep = () => {
+  if (!proxyGroupCreationWizard.value.templateId || proxyGroupCreationWizard.value.step >= 3) return
+  proxyGroupCreationWizard.value.step = (proxyGroupCreationWizard.value.step + 1) as CreationWizardStep
+}
+
+const applyProxyGroupCreationTemplate = (templateId: string) => {
+  proxyGroupSelectedName.value = ''
+  proxyGroupForm.value = buildProxyGroupCreationTemplateForm(templateId)
+  showNotification({ content: 'configTemplateAppliedToast', params: { section: t('configProxyGroupsTitle') }, type: 'alert-success' })
+}
+
+const startRuleProviderCreationWizard = () => {
+  ruleProviderCreationWizard.value = { ...emptyRuleProviderCreationWizard(), active: true }
+}
+
+const selectRuleProviderCreationWizardTemplate = (templateId: string) => {
+  const next = buildRuleProviderCreationTemplateForm(templateId)
+  ruleProviderCreationWizard.value = {
+    active: true,
+    step: 2,
+    templateId,
+    name: next.name,
+    behavior: next.behavior,
+    url: next.url,
+    path: next.path,
+    interval: next.interval,
+  }
+}
+
+const finalizeRuleProviderCreationWizard = () => {
+  const state = ruleProviderCreationWizard.value
+  if (!state.templateId) return
+  const next = buildRuleProviderCreationTemplateForm(state.templateId)
+  if (String(state.name || '').trim()) {
+    const normalizedName = String(state.name || '').trim()
+    const previousSlug = slugifyTemplateValue(next.name)
+    next.name = normalizedName
+    if (String(next.path || '').includes(previousSlug)) next.path = `./rule-providers/${slugifyTemplateValue(normalizedName)}.yaml`
+  }
+  if (String(state.behavior || '').trim()) next.behavior = String(state.behavior || '').trim()
+  if (String(state.url || '').trim()) next.url = String(state.url || '').trim()
+  if (String(state.path || '').trim()) next.path = String(state.path || '').trim()
+  if (String(state.interval || '').trim()) next.interval = String(state.interval || '').trim()
+  ruleProviderSelectedName.value = ''
+  ruleProviderForm.value = next
+  ruleProviderCreationWizard.value = emptyRuleProviderCreationWizard()
+  showNotification({ content: 'configWizardAppliedToast', params: { section: t('configRuleProvidersTitle') }, type: 'alert-success' })
+}
+
+const cancelRuleProviderCreationWizard = () => {
+  ruleProviderCreationWizard.value = emptyRuleProviderCreationWizard()
+}
+
+const prevRuleProviderCreationWizardStep = () => {
+  if (ruleProviderCreationWizard.value.step > 1) ruleProviderCreationWizard.value.step = (ruleProviderCreationWizard.value.step - 1) as CreationWizardStep
+}
+
+const nextRuleProviderCreationWizardStep = () => {
+  if (!ruleProviderCreationWizard.value.templateId || ruleProviderCreationWizard.value.step >= 3) return
+  ruleProviderCreationWizard.value.step = (ruleProviderCreationWizard.value.step + 1) as CreationWizardStep
+}
+
+const applyRuleProviderCreationTemplate = (templateId: string) => {
+  ruleProviderSelectedName.value = ''
+  ruleProviderForm.value = buildRuleProviderCreationTemplateForm(templateId)
+  showNotification({ content: 'configTemplateAppliedToast', params: { section: t('configRuleProvidersTitle') }, type: 'alert-success' })
 }
 
 const clearProxyFilter = () => {

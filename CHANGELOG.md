@@ -1,4 +1,27 @@
+## v1.2.105
+
+- Mihomo proxy creation wizard now supports more concrete connection scenarios instead of only broad proxy families: added `VLESS WS + TLS`, `Trojan gRPC`, and `WireGuard peer` quick profiles on top of the existing `VLESS Reality`, `VMess WS + TLS`, `Trojan TLS`, `Hysteria2`, and `TUIC` starts.
+- The proxy wizard `Basics` step now shows the selected scenario summary and badges, then blocks the move to `Review` until the key fields for that scenario are filled (for example Reality public key / flow, WS path, gRPC service name, or WireGuard keys/IP).
+- Added missing i18n entries for the wizard/template workspace so the new guided flows render with normal labels instead of raw translation keys.
+
+## v1.2.104
+
+- Mihomo structured editors: proxy creation wizard is now type-aware on the `Basics` step; `VLESS / VMess / Trojan / WireGuard / Hysteria2 / TUIC` now show different focused fields instead of one generic mini-form.
+- Added per-type wizard review summaries for transport/auth details so the user can sanity-check the draft before opening the full form.
+
 # Changelog
+
+## v1.2.103 — 2026-03-29
+- added guided creation wizards for `proxies`, `proxy-providers`, `proxy-groups`, and `rule-providers`: each flow now walks through `template -> basics -> review` before loading a prepared draft into the full form
+- kept the quick template cards for one-click usage, but added a calmer path for new entities so the user can confirm key fields first instead of jumping straight into a blank or fully expanded form
+- this moves Mihomo creation UX closer to a real admin panel: start from a family, fill the important basics, then finish the rest in the detailed editor with the same safe YAML-backed flow
+- refreshed transfer docs for the next chat handoff
+
+## v1.2.102 — 2026-03-29
+- added quick-start template cards for `proxies`, `proxy-providers`, `proxy-groups`, and `rule-providers`, so new entities can start from sensible prefilled forms instead of blank inputs
+- restored the missing `proxy-groups` structured editor UI that accidentally disappeared in `v1.2.101`, bringing the form-driven group editor back into the Mihomo workspace
+- kept the same safe managed-config flow and raw YAML fallback, but made new-object creation much faster and less error-prone
+- refreshed transfer docs for the next chat handoff
 
 ## v1.2.101 — 2026-03-29
 - made the `proxy-providers` editor easier to work with in practice: added list search, a type profile (`http / file / inline`), quick source presets, and clearer blocks for identity, source/filtering, health-check, override, and extra YAML

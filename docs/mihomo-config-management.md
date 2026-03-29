@@ -1,4 +1,26 @@
+## Update v1.2.105
+
+- the `proxies` creation wizard now works with more concrete connection scenarios instead of only broad families: added `VLESS WS + TLS`, `Trojan gRPC`, and `WireGuard peer` alongside the existing starts
+- the `Basics` step now shows the active scenario summary/badges and blocks the move to `Review` until the fields that really matter for that scenario are filled
+- completed the missing wizard/template i18n keys so the guided creation workspace reads like a real UI instead of exposing raw translation identifiers
+
+## Update v1.2.104
+
+- upgraded the `proxies` guided creation wizard so the `Basics` step is now type-aware: `VLESS / VMess / Trojan / WireGuard / Hysteria2 / TUIC` expose different focused fields instead of the same generic mini-form
+- added smarter review cards for type, transport, and auth details before the prepared draft is opened in the full structured editor
+
 # Mihomo config management
+
+## Update v1.2.103
+
+- added guided creation wizards for `proxies`, `proxy-providers`, `proxy-groups`, and `rule-providers`
+- each wizard now goes through `template -> basics -> review` and then loads the prepared draft into the full structured form instead of dropping the user straight into a blank or fully expanded editor
+- kept the existing quick template cards, so experienced users still have one-click presets while calmer step-by-step creation is available for new entities
+
+## Update v1.2.102
+
+- added quick-start template cards for `proxies`, `proxy-providers`, `proxy-groups`, and `rule-providers`, so new config entities now start from sensible form presets instead of empty forms
+- restored the missing `proxy-groups` structured editor panel that accidentally disappeared in `v1.2.101`; the logic already existed, and the UI is now visible again
 
 ## Update v1.2.101
 - reworked the `proxy-providers` editor into a clearer form workspace: list search, type profile (`http / file / inline`), quick presets, and separate blocks for identity, source/filtering, health-check, override, and extra YAML

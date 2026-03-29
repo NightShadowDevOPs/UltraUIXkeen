@@ -7,8 +7,8 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.105
-- v1.2.105: мастер создания `proxies` стал сценарным (`Reality / WS / gRPC / WireGuard peer`) и начал проверять ключевые поля до шага «Проверка»; router-agent не менялся
+- UI: v1.2.104
+- v1.2.104: мастер создания `proxies` стал type-aware на шаге «Основное»: для `VLESS / VMess / Trojan / WireGuard / Hysteria2 / TUIC` показываются разные ключевые поля; router-agent не менялся
 - router-agent: 0.6.22
 
 Что уже сделано по Mihomo/UI:
@@ -23,15 +23,14 @@
 - `dns`: nameserver, fallback, fake-ip-filter, dns-hijack, nameserver-policy, fallback-filter и связанные поля
 - `rules`: фильтр, шаблоны типовых правил, form-поля для `type / payload / target / params`, quick-chips
 - `tun / profile / sniffer`: базовые structured-формы
-- `proxies`: большой form-driven редактор по полям, type-aware поведение и теперь ещё сценарный мастер создания
+- `proxies`: большой form-driven редактор по полям, включая type-aware поведение для `ss / vmess / vless / trojan / wireguard / hysteria2 / tuic`
 - `proxy-groups`: form-driven редактор состава группы, type-aware профиль, chips для `proxies / use / providers`
 - `proxy-providers` и `rule-providers`: более понятные карточки с поиском, profile/presets и разбиением по смысловым блокам
 
-Что добавлено в v1.2.105:
-- мастер `proxies` теперь умеет не только broad-тип, но и более конкретные сценарии подключения: `VLESS Reality`, `VLESS WS + TLS`, `VMess WS + TLS`, `Trojan gRPC`, `Trojan TLS`, `WireGuard peer`, `Hysteria2`, `TUIC`
-- на шаге `Основное` показывается summary по выбранному сценарию и набор бейджей, чтобы сразу было видно профиль подключения
-- переход к шагу `Проверка` теперь блокируется, если не заполнены обязательные поля для выбранного сценария (например `Reality public-key`, `WS path`, `gRPC service name`, `WireGuard keys/IP`)
-- закрыт хвост с недостающими i18n-ключами для мастер/шаблонов: интерфейс мастеров теперь не должен показывать сырые translation keys
+Что добавлено в v1.2.104:
+- мастер создания `proxies` углублён по типам: на шаге `Основное` для `VLESS / VMess / Trojan / WireGuard / Hysteria2 / TUIC` теперь показываются разные профильные поля, а не один общий мини-набор
+- для транспортных вариантов теперь есть более уместные поля прямо в мастере: например, `ws-opts.path` для `WS`, `grpc-service-name` для `gRPC`, ключи/IP/MTU для `WireGuard`, obfs для `Hysteria2`, базовые transport/auth-поля для `TUIC`
+- на шаге `Проверка` мастер теперь показывает не только адрес, но и тип, transport и auth/keys, чтобы перед открытием полной формы было проще глазами проверить заготовку
 
 Что важно не потерять:
 - если меняется `router-agent`, нужно синхронизировать версии в `install.sh` и в status API
@@ -40,5 +39,5 @@
 - `config.yaml` editing должен всегда сохранять fallback на эталонный/рабочий конфиг, чтобы при невалидной правке можно было откатиться
 
 Что смотреть дальше:
-- следующий логичный шаг после v1.2.105: либо делать ещё более умные мастера по сценариям для `proxy-groups`/`providers`, либо продолжать вытаскивать редкие nested-поля `proxies` из extra YAML в нормальные form-блоки
+- следующий логичный шаг после v1.2.104: либо доводить type-aware мастера до ещё более точных сценариев (например, отдельно под `Reality / WS / gRPC`), либо добивать редкие nested-поля, чтобы raw YAML ещё реже был обязательным путём
 - отдельно продолжать аудит структуры меню/информационной архитектуры, чтобы разделы не разрастались в перегруженные экраны
