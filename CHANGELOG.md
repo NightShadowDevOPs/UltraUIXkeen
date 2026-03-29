@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.100 — 2026-03-29
+- fixed the broken `splitFormList` / `joinFormList` string-regex fragment inside `src/components/settings/MihomoConfigEditor.vue` that was emitted across real line breaks and caused the production Vite build to fail with `Unterminated regular expression`
+- kept the `v1.2.99` UX changes for `proxy-groups` and `rules`, but turned them into an actually buildable release instead of a beautiful landmine in CI
+- refreshed transfer docs for the next chat handoff
+
 ## v1.2.99 — 2026-03-28
 - made the structured `proxy-groups` editor much more form-driven with a type-aware group profile (`select / url-test / fallback / load-balance / relay`), quick presets, and contextual summaries for the fields that matter most per group type
 - replaced the old “three lonely textareas and good luck” flow with chip-assisted member editing for `proxies`, `use`, and `providers`, so group composition can now be toggled from existing proxies/groups/providers without rewriting full lists by hand

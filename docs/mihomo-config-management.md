@@ -1,5 +1,9 @@
 # Mihomo config management
 
+## Update v1.2.100
+- fixed the broken `splitFormList` / `joinFormList` fragment inside `MihomoConfigEditor.vue` where a regex and newline join literal had been split across real line breaks, breaking production builds with `Unterminated regular expression`
+- this is a build-fix release on top of `v1.2.99`: the newer form-driven `proxy-groups` and quick `rules` chips stay in place, but the workspace now ships in a state that actually compiles
+
 ## Update v1.2.99
 - the structured `proxy-groups` editor is now more form-driven: it adds a type-aware profile card for `select / url-test / fallback / load-balance / relay`, quick presets, and short per-type guidance for the fields that usually matter most
 - group composition is no longer just three raw textareas: `proxies`, `use`, and `providers` now get chip-assisted add/remove flows based on the current config, so existing members can be toggled without retyping the whole list

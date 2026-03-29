@@ -1,15 +1,13 @@
-UI Mihomo / Ultra — обновление переноса v1.2.99
+UI Mihomo / Ultra — обновление переноса v1.2.100
 
 Что изменилось в этом релизе:
-- structured editor `proxy-groups` стал заметно более form-driven: добавлен type-aware профиль группы для `select / url-test / fallback / load-balance / relay`, быстрые пресеты и короткие подсказки по тому, какие поля реально важны
-- состав группы (`proxies`, `use`, `providers`) теперь можно редактировать не только руками в textarea, но и через чипы добавления/удаления из уже существующих proxies/groups/providers
-- structured editor `rules` получил быстрые чипы-подсказки для `payload`, `target` и common params вроде `no-resolve`, чтобы типовые правки меньше требовали ручного набора
-- raw YAML не убирался: он остаётся fallback-режимом для редких и vendor-specific ключей
+- релиз `v1.2.100` — это целевой build-fix после `v1.2.99`: исправлен битый фрагмент `splitFormList / joinFormList` в `MihomoConfigEditor.vue`, из-за которого production build падал на `Unterminated regular expression`
+- функциональность `v1.2.99` сохранена: form-driven `proxy-groups`, type-aware профиль группы и быстрые chips-подсказки для `rules` никуда не делись, просто релиз теперь действительно собирается
 - `router-agent` в этом релизе не менялся; линия остаётся `0.6.22`
 
 Текущие версии:
-- UI: v1.2.99
-- v1.2.99: structured editor `proxy-groups` стал заметно более формовым — появились type-aware профиль группы, быстрые пресеты и чипы для состава `proxies/use/providers`; `rules` получили быстрые подсказки по payload/target/params; router-agent не менялся
+- UI: v1.2.100
+- v1.2.100: patch-build-fix для `MihomoConfigEditor.vue`; исправлен сломанный regex/строковый литерал в helper-кусочке split/join списков, из-за которого CI/build падал на `Unterminated regular expression`; router-agent не менялся
 - router-agent: 0.6.22
 
 Что важно по интерфейсу:
@@ -20,4 +18,4 @@ UI Mihomo / Ultra — обновление переноса v1.2.99
 - вкладка `Роутер` по-прежнему разбита на `Обзор / Трафик / Сеть`
 
 Следующий логичный шаг:
-- после v1.2.99 логично сделать ещё более явные form-сценарии для `rule-providers / proxy-providers` (включая type-aware поведение и подбор полей по типу), а затем добивать шаблоны создания новых сущностей с готовыми пресетами
+- после `v1.2.100` логично продолжить form-сценарии для `rule-providers / proxy-providers` (включая type-aware поведение и подбор полей по типу), а затем добивать шаблоны создания новых сущностей с готовыми пресетами

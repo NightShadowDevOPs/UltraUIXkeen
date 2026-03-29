@@ -1224,6 +1224,117 @@ const proxyGroupReferencesSummary = computed(() => {
     ruleRefs: entry.references.filter((item) => item.kind === 'rule'),
   }
 })
+
+const splitFormList = (value: string) => String(value || '')
+  .split(/\r?\n|,/)
+  .map((item) => item.trim())
+  .filter(Boolean)
+
+const joinFormList = (items: string[]) => Array.from(new Set(items.map((item) => String(item || '').trim()).filter(Boolean))).join('\n')
+
+const toggleProxyGroupListValue = (field: 'proxiesText' | 'useText' | 'providersText', item: string) => {
+  const normalized = String(item || '').trim()
+  if (!normalized) return
+  const current = splitFormList(proxyGroupForm.value[field])
+  const next = current.includes(normalized)
+    ? current.filter((entry) => entry !== normalized)
+    : [...current, normalized]
+  proxyGroupForm.value[field] = joinFormList(next)
+}
+
+const setRulePayloadSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  ruleForm.value.payload = normalized
+  syncRuleRawFromStructuredForm()
+}
+
+const setRuleTargetSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  ruleForm.value.target = normalized
+  syncRuleRawFromStructuredForm()
+}
+
+const appendRuleParamSuggestion = (value: string) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return
+  const current = splitFormList(ruleForm.value.paramsText)
+  if (!current.includes(normalized)) ruleForm.value.paramsText = joinFormList([...current, normalized])
+  syncRuleRawFromStructuredForm()
+}
+
+const normalizedProxyGroupType = computed(() => String(proxyGroupForm.value.type || '').trim().toLowerCase())
+const proxyGroupTypePresets = [
+  'select',
+  'url-test',
+  'fallback',
+  'load-balance',
+  'relay',
+] as const
+const proxyGroupTypeProfile = computed(() => {
+  switch (normalizedProxyGroupType.value) {
+    case 'url-test':
+      return {
+        accent: 'badge-info',
+        summary: t('configProxyGroupsTypeAwareSummaryUrlTest'),
+        fields: ['url', 'interval', 'tolerance'],
+      }
+    case 'fallback':
+      return {
+        accent: 'badge-warning',
+        summary: t('configProxyGroupsTypeAwareSummaryFallback'),
+        fields: ['url', 'interval'],
+      }
+    case 'load-balance':
+      return {
+        accent: 'badge-secondary',
+        summary: t('configProxyGroupsTypeAwareSummaryLoadBalance'),
+        fields: ['strategy', 'url', 'interval', 'tolerance'],
+      }
+    case 'relay':
+      return {
+        accent: 'badge-accent',
+        summary: t('configProxyGroupsTypeAwareSummaryRelay'),
+        fields: ['proxies'],
+      }
+    default:
+      return {
+        accent: 'badge-success',
+        summary: t('configProxyGroupsTypeAwareSummarySelect'),
+        fields: ['proxies'],
+      }
+  }
+})
+const proxyGroupSelectedLists = computed(() => ({
+  proxies: splitFormList(proxyGroupForm.value.proxiesText),
+  use: splitFormList(proxyGroupForm.value.useText),
+  providers: splitFormList(proxyGroupForm.value.providersText),
+}))
+const proxyGroupAvailableProxyMembers = computed(() => Array.from(new Set([
+  'DIRECT',
+  'REJECT',
+  'REJECT-DROP',
+  ...parsedProxyGroups.value
+    .map((item) => String(item.name || '').trim())
+    .filter((name) => name && name !== String(proxyGroupForm.value.name || '').trim()),
+  ...parsedProxies.value.map((item) => String(item.name || '').trim()).filter(Boolean),
+])).filter(Boolean))
+const proxyGroupAvailableProviderRefs = computed(() => Array.from(new Set(parsedProxyProviders.value.map((item) => String(item.name || '').trim()).filter(Boolean))))
+const proxyGroupSuggestedProxyMembers = computed(() => proxyGroupAvailableProxyMembers.value.filter((item) => !proxyGroupSelectedLists.value.proxies.includes(item)).slice(0, 24))
+const proxyGroupSuggestedUseMembers = computed(() => proxyGroupAvailableProviderRefs.value.filter((item) => !proxyGroupSelectedLists.value.use.includes(item)).slice(0, 16))
+const proxyGroupSuggestedProviderMembers = computed(() => proxyGroupAvailableProviderRefs.value.filter((item) => !proxyGroupSelectedLists.value.providers.includes(item)).slice(0, 16))
+
+const applyProxyGroupTypePreset = (type: typeof proxyGroupTypePresets[number]) => {
+  proxyGroupForm.value.type = type
+  if (['url-test', 'fallback', 'load-balance'].includes(type) && !String(proxyGroupForm.value.url || '').trim().length) proxyGroupForm.value.url = 'http://www.gstatic.com/generate_204'
+  if (['url-test', 'fallback', 'load-balance'].includes(type) && !String(proxyGroupForm.value.interval || '').trim().length) proxyGroupForm.value.interval = '300'
+  if (type === 'load-balance' && !String(proxyGroupForm.value.strategy || '').trim().length) proxyGroupForm.value.strategy = 'consistent-hashing'
+  if (type === 'url-test' && !String(proxyGroupForm.value.tolerance || '').trim().length) proxyGroupForm.value.tolerance = '50'
+  if (type === 'relay' && !proxyGroupSelectedLists.value.proxies.length) proxyGroupForm.value.proxiesText = joinFormList(['DIRECT'])
+  showNotification({ content: 'configProxyGroupsTypePresetAppliedToast', type: 'alert-success' })
+}
+
 const parsedRuleProviders = computed<ParsedRuleProviderEntry[]>(() => parseRuleProvidersFromConfig(payload.value))
 const selectedRuleProviderEntry = computed(() => parsedRuleProviders.value.find((item) => item.name === ruleProviderSelectedName.value) || null)
 const ruleProviderFormCanSave = computed(() => String(ruleProviderForm.value.name || '').trim().length > 0)
@@ -1321,6 +1432,19 @@ const rulePayloadPlaceholder = computed(() => {
   }
 })
 const ruleTargetPlaceholder = computed(() => preferredRuleTarget.value || t('configRulesFieldTargetPlaceholder'))
+const ruleQuickTargets = computed(() => ruleTargetSuggestions.value.slice(0, 18))
+const ruleQuickPayloads = computed(() => rulePayloadSuggestions.value.slice(0, 12))
+const ruleQuickParams = computed(() => {
+  const type = normalizedRuleType.value
+  const suggestions = new Set<string>()
+  if (['RULE-SET', 'GEOIP', 'IP-CIDR', 'IP-CIDR6', 'SRC-IP-CIDR'].includes(type)) suggestions.add('no-resolve')
+  if (type === 'NETWORK') {
+    suggestions.add('tcp')
+    suggestions.add('udp')
+  }
+  splitFormList(ruleForm.value.paramsText).forEach((item) => suggestions.add(item))
+  return Array.from(suggestions).filter(Boolean).slice(0, 10)
+})
 const ruleFormParamsCount = computed(() => {
   const count = String(ruleForm.value.paramsText || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean).length
   return `params: ${count}`

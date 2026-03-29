@@ -3428,13 +3428,11 @@ const proxyGroupReferencesSummary = computed(() => {
 })
 
 const splitFormList = (value: string) => String(value || '')
-  .split(/?
-|,/)
+  .split(/\r?\n|,/)
   .map((item) => item.trim())
   .filter(Boolean)
 
-const joinFormList = (items: string[]) => Array.from(new Set(items.map((item) => String(item || '').trim()).filter(Boolean))).join('
-')
+const joinFormList = (items: string[]) => Array.from(new Set(items.map((item) => String(item || '').trim()).filter(Boolean))).join('\n')
 
 const toggleProxyGroupListValue = (field: 'proxiesText' | 'useText' | 'providersText', item: string) => {
   const normalized = String(item || '').trim()
