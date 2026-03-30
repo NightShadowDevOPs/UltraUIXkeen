@@ -1,3 +1,7 @@
+# Mihomo config management
+
+> Status note (v1.2.107): the Mihomo config editing block is temporarily disabled in the UI because it increased router CPU load. The safe flow and structured-editor design remain part of the project, but the heavy editor is not mounted until it is optimized.
+
 ## Update v1.2.105
 
 - the `proxies` creation wizard now works with more concrete connection scenarios instead of only broad families: added `VLESS WS + TLS`, `Trojan gRPC`, and `WireGuard peer` alongside the existing starts

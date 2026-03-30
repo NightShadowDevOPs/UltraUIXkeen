@@ -1,3 +1,9 @@
+## v1.2.107 — 2026-03-30
+- Traffic / QoS UI now explains WAN-only shaping in plain language: the bandwidth cell shows `current total traffic` separately from the `uplink/WAN limit`, and the runtime hint warns that download/LAN can look higher than the configured cap without meaning the uplink shaper failed
+- Mihomo `Config` editing is temporarily disabled in the workspace to reduce router CPU load; the page now shows a maintenance notice instead of mounting the heavy editor block
+- router-agent was not changed in this release; line remains `0.6.22`
+- refreshed transfer docs for the next chat handoff
+
 UI Mihomo / Ultra — обновление переноса v1.2.106
 
 Что изменилось в этом релизе:

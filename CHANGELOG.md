@@ -1,3 +1,10 @@
+## 1.2.107 (2026-03-30)
+
+### Changes
+
+* clarified WAN-only QoS / bandwidth shaping in Traffic UI: the row now explicitly shows current total traffic vs uplink/WAN limit and explains why download/LAN can appear higher than the configured cap
+* temporarily disabled the Mihomo config editing block in the Mihomo workspace to reduce router CPU load; navigation stays available and the section now shows a clear maintenance notice
+
 ## 1.2.106 (2026-03-29)
 
 ### Bug Fixes

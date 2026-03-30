@@ -179,13 +179,21 @@
         <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ $t('mihomoConfigSectionTitle') }}</div>
         <div class="text-sm opacity-70">{{ $t('mihomoConfigSectionTip') }}</div>
       </div>
-      <MihomoConfigEditor />
+      <div class="card gap-3 p-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="badge badge-warning">{{ $t('temporarilyDisabled') }}</span>
+          <span class="font-semibold">{{ $t('mihomoConfigEditingDisabledTitle') }}</span>
+        </div>
+        <div class="text-sm opacity-75">{{ $t('mihomoConfigEditingDisabledTip') }}</div>
+        <div class="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+          {{ $t('mihomoConfigEditingDisabledCpuNote') }}
+        </div>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import MihomoConfigEditor from '@/components/settings/MihomoConfigEditor.vue'
 import { ROUTE_NAME } from '@/constant'
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

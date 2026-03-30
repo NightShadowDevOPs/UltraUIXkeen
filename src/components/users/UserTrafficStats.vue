@@ -43,7 +43,7 @@
         </div>
         <div class="mt-1 text-xs opacity-70">
           <template v-if="qosStatus.qosMode === 'wan-only'">
-            Safe mode активен: приоритет хоста применяется только на uplink/WAN и не трогает LAN bridge.
+            {{ $t('hostQosWanOnlyRuntimeTip') }}
           </template>
           <template v-else-if="qosStatus.ok && qosStatus.supported">
             Runtime получен с router-agent. По строкам ниже видно, на какие IP профиль реально подтверждён агентом.
@@ -410,11 +410,13 @@
               <td class="text-right font-mono max-lg:hidden">
                 <template v-if="limitStates[row.user]?.bandwidthLimitBps">
                   <div
-                    class="whitespace-nowrap"
+                    class="flex flex-col items-end gap-0.5 whitespace-nowrap leading-4"
                     :class="limitStates[row.user].enabled ? '' : 'opacity-40'"
+                    :title="bandwidthCellTitle(row)"
                   >
-                    {{ speed(limitStates[row.user].speedBps) }} /
-                    {{ speed(limitStates[row.user].bandwidthLimitBps) }}
+                    <span>{{ bandwidthCurrentLabel(row) }}: {{ speed(limitStates[row.user].speedBps) }}</span>
+                    <span>{{ bandwidthLimitLabel(row) }}: {{ speed(limitStates[row.user].bandwidthLimitBps) }}</span>
+                    <span v-if="isWanOnlyBandwidthRow(row)" class="text-[11px] opacity-65">{{ $t('bandwidthWanOnlyCellNote') }}</span>
                   </div>
                 </template>
                 <template v-else>
@@ -1803,7 +1805,23 @@ const trafficIconTitle = (limitBytes: number, period: UserLimitPeriod, enabled: 
 
 const bandwidthIconTitle = (bps: number, enabled: boolean) => {
   const on = enabled ? '' : ' (выкл)'
-  return `Лимит канала: ${bpsToMbps(bps)} Mbps${on}`
+  const parts = [`${t('bandwidthLimit')}: ${bpsToMbps(bps)} Mbps${on}`]
+  if (qosStatus.value.qosMode === 'wan-only') parts.push(t('bandwidthWanOnlyIconNote'))
+  return parts.join(' · ')
+}
+
+const isWanOnlyBandwidthRow = (row: Row) => !!agentEnabled.value && !!agentEnforceBandwidth.value && qosStatus.value.qosMode === 'wan-only' && (limitStates.value[row.user]?.bandwidthLimitBps || 0) > 0
+const bandwidthCurrentLabel = (row: Row) => isWanOnlyBandwidthRow(row) ? t('bandwidthCurrentTotalLabel') : t('current')
+const bandwidthLimitLabel = (row: Row) => isWanOnlyBandwidthRow(row) ? t('bandwidthWanOnlyLimitLabel') : t('bandwidthLimit')
+const bandwidthCellTitle = (row: Row) => {
+  const state = limitStates.value[row.user]
+  if (!state?.bandwidthLimitBps) return ''
+  const parts = [
+    `${bandwidthCurrentLabel(row)}: ${speed(state.speedBps)}`,
+    `${bandwidthLimitLabel(row)}: ${speed(state.bandwidthLimitBps)}`,
+  ]
+  if (isWanOnlyBandwidthRow(row)) parts.push(t('bandwidthWanOnlyTooltip'))
+  return parts.join('\n')
 }
 
 const clearHistory = () => {
