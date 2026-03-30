@@ -78,6 +78,8 @@ type AgentStatus = {
   shaperConfiguredMode?: string
   shaperIfbDevice?: string
   shaperIfbReady?: boolean
+  shaperPoliceReady?: boolean
+  shaperPoliceBackend?: string
   error?: string
 }
 

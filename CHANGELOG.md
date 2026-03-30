@@ -1,3 +1,11 @@
+## 1.2.109 (2026-03-30)
+
+### Changes
+
+* router-agent `0.6.24`: when IFB downlink shaping is unavailable on the router kernel, hard per-host bandwidth limits now fall back to a real drop-based forwarded WAN→LAN limiter using `iptables hashlimit` instead of only legacy LAN egress shaping
+* diagnostics now expose `shaperPoliceReady` and `shaperPoliceBackend` alongside the configured/effective downlink shaping mode, so it is obvious whether the router is using `ifb`, `wan-police`, or the old `lan-egress` fallback
+* Mihomo config editing stays disabled in the UI to keep router CPU load down while network control and shaping reliability remain the priority
+
 ## 1.2.108 (2026-03-30)
 
 ### Changes

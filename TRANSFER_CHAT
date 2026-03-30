@@ -7,9 +7,9 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.108
-- v1.2.108: router-agent 0.6.23 перевёл hard bandwidth shaping на IFB ingress downlink path с fallback на legacy LAN egress; Mihomo config editor по-прежнему временно отключён в UI ради снижения CPU нагрузки
-- router-agent: 0.6.23
+- UI: v1.2.109
+- v1.2.109: router-agent 0.6.24 теперь при отсутствии IFB переходит не только в legacy LAN egress, а в реальный drop-based fallback через iptables hashlimit на forwarded WAN→LAN трафике; в диагностике появились shaperPoliceReady и shaperPoliceBackend; Mihomo config editor по-прежнему временно отключён в UI ради снижения CPU нагрузки
+- router-agent: 0.6.24
 
 Что уже сделано по Mihomo/UI:
 - страница `Mihomo` выделена в отдельный рабочий раздел
@@ -29,9 +29,10 @@
 
 Что важно по текущему состоянию:
 - Mihomo config editor временно выключен из UI, потому что начал заметно грузить CPU роутера
-- hard bandwidth shaping больше не должен опираться только на legacy LAN egress path: router-agent 0.6.23 пытается поднять IFB ingress redirect и шейпить download через IFB
-- если IFB на конкретной прошивке/ядре недоступен, агент автоматически откатывается на старый режим LAN egress, а в `status` / `qos_status` теперь видно configured/effective mode и готовность IFB
-- UI-объяснение WAN-only для QoS уже добавлено, но следующий акцент теперь именно на реальном ограничении канала, а не на косметике
+- hard bandwidth shaping теперь работает так: сначала IFB ingress, затем drop-based forwarded WAN→LAN fallback через `iptables hashlimit`, и только если это недоступно — старый `LAN egress` режим
+- на живом роутере уже подтверждено, что IFB на прошивке XKeen 1.1.3.9 / kernel 4.9-ndm-5 не поднимается (`ifb4wan not present`), поэтому именно fallback-path стал критичным
+- в `status` / `qos_status` теперь видно не только configured/effective mode и готовность IFB, но и `shaperPoliceReady` / `shaperPoliceBackend`, чтобы понимать, реально ли активен fallback через hashlimit
+- UI-объяснение WAN-only для QoS уже добавлено, но приоритет сейчас не косметика, а реальное ограничение канала
 
 Что важно не потерять:
 - если меняется `router-agent`, нужно синхронизировать версии в `install.sh` и в status API
@@ -40,6 +41,6 @@
 - `config.yaml` editing должен всегда сохранять fallback на эталонный/рабочий конфиг, чтобы при невалидной правке можно было откатиться
 
 Что смотреть дальше:
-- проверить на живом роутере, что `status`/`qos_status` показывают `shaperDownlinkMode=ifb` и `shaperIfbReady=true`
-- если клиент всё ещё высаживает канал даже в IFB режиме, дальше разбирать уже конкретный tc/iptables/offload path на прошивке, а не UI
+- проверить на живом роутере, что после `cmd=shape` при недоступном IFB агент показывает `shaperDownlinkMode=wan-police`, `shaperPoliceReady=true`, `shaperPoliceBackend=hashlimit`
+- если клиент всё ещё высаживает канал уже в `wan-police` режиме, дальше разбирать offload / fastpath / bridge-forwarding path на прошивке и смотреть, не обходит ли часть трафика netfilter
 - вернуть Mihomo config editing только после облегчения логики/нагрузки, возможно в формате ленивой загрузки или выноса части операций с роутера

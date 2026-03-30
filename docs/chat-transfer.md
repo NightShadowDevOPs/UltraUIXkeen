@@ -1,3 +1,10 @@
+## v1.2.109 — 2026-03-30
+- router-agent updated to `0.6.24`
+- when IFB is unavailable, hard per-host bandwidth shaping now falls back to a real forwarded WAN→LAN limiter via `iptables hashlimit` instead of only legacy `LAN egress` shaping
+- agent `status` and `qos_status` now also expose `shaperPoliceReady` and `shaperPoliceBackend`, so diagnostics clearly show whether the router is in `ifb`, `wan-police`, or `lan-egress` mode
+- Mihomo `Config` editing remains disabled in the UI to keep router CPU load down
+- refreshed transfer docs for the next chat handoff
+
 ## v1.2.108 — 2026-03-30
 - router-agent updated to `0.6.23`
 - hard per-host bandwidth shaping now prefers `IFB ingress redirect` for downlink, so limits can clamp the real download path instead of only showing a nicer UI explanation

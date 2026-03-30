@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.23"
+AGENT_VERSION="0.6.24"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -100,10 +100,11 @@ LAN_RATE="1000"
 QOS_MODE="wan-only"
 
 # Hard bandwidth shaping downlink path:
-# auto       = prefer IFB ingress redirect for real download caps, fallback to LAN egress
-# ifb        = try IFB ingress shaping first, fallback to LAN egress if IFB is unavailable
-# lan-egress = legacy LAN egress shaping only
-# wan-only   = shape only upload/WAN (download is not capped)
+# auto        = prefer IFB ingress redirect, then hashlimit police fallback, then LAN egress
+# ifb         = try IFB ingress shaping first, then hashlimit police fallback if IFB is unavailable
+# wan-police  = use drop-based hashlimit fallback on forwarded WAN->LAN traffic
+# lan-egress  = legacy LAN egress shaping only
+# wan-only    = shape only upload/WAN (download is not capped)
 SHAPER_DOWNLINK_MODE="auto"
 SHAPER_IFB_DEV="ifb4wan"
 EOF
@@ -136,7 +137,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.23"
+AGENT_VERSION="0.6.24"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -2684,6 +2685,10 @@ fi
 
 have_tc=0
 command -v tc >/dev/null 2>&1 && have_tc=1
+have_iptables=0
+command -v iptables >/dev/null 2>&1 && have_iptables=1
+have_hashlimit=0
+[ $have_iptables -eq 1 ] && iptables -m hashlimit -h >/dev/null 2>&1 && have_hashlimit=1
 
 ensure_block_chain() {
   iptables -t filter -nL ZASH_BLOCK >/dev/null 2>&1 || iptables -t filter -N ZASH_BLOCK
@@ -2701,6 +2706,14 @@ ensure_iptables_chains() {
   iptables -t mangle -C FORWARD -j ZASH_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_DOWN
   iptables -t mangle -C FORWARD -j ZASH_QOS_UP >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_QOS_UP
   iptables -t mangle -C FORWARD -j ZASH_QOS_DOWN >/dev/null 2>&1 || iptables -t mangle -I FORWARD 1 -j ZASH_QOS_DOWN
+}
+
+ensure_shaper_police_base() {
+  [ $have_iptables -eq 1 ] || return 1
+  [ $have_hashlimit -eq 1 ] || return 1
+  iptables -t filter -nL ZASH_SHAPER_DOWN >/dev/null 2>&1 || iptables -t filter -N ZASH_SHAPER_DOWN
+  iptables -t filter -C FORWARD -j ZASH_SHAPER_DOWN >/dev/null 2>&1 || iptables -t filter -I FORWARD 1 -j ZASH_SHAPER_DOWN
+  return 0
 }
 
 
@@ -3442,19 +3455,43 @@ shaper_configured_downlink_mode() {
   case "$SHAPER_DOWNLINK_MODE" in
     wan-only|off|disabled|none) echo "wan-only" ;;
     ifb) echo "ifb" ;;
+    police|wan-police|hashlimit|drop) echo "wan-police" ;;
     lan|lan-only|lan-egress|legacy) echo "lan-egress" ;;
     auto|"") echo "auto" ;;
     *) echo "auto" ;;
   esac
 }
 
+shaper_hashlimit_name_for_ip() {
+  minor_="$(minor_for_ip "$1")"
+  echo "zashdl_${minor_}"
+}
+
+shaper_hashlimit_rate_for_mbit() {
+  down_="$1"
+  echo "$down_" | grep -qE '^[0-9]+$' || down_=1
+  [ "$down_" -lt 1 ] && down_=1
+  echo $((down_ * 125))
+}
+
+shaper_police_ready() {
+  ensure_shaper_police_base >/dev/null 2>&1
+}
+
 shaper_downlink_mode_effective() {
   mode="$(shaper_configured_downlink_mode)"
   case "$mode" in
     wan-only) echo "wan-only" ;;
-    ifb) shaper_ifb_present && echo "ifb" || echo "lan-egress" ;;
+    ifb)
+      ensure_shaper_ifb_base >/dev/null 2>&1 && echo "ifb" || { shaper_police_ready && echo "wan-police" || echo "lan-egress"; }
+      ;;
+    wan-police)
+      shaper_police_ready && echo "wan-police" || echo "lan-egress"
+      ;;
     lan-egress) echo "lan-egress" ;;
-    auto) shaper_ifb_present && echo "ifb" || echo "lan-egress" ;;
+    auto)
+      ensure_shaper_ifb_base >/dev/null 2>&1 && echo "ifb" || { shaper_police_ready && echo "wan-police" || echo "lan-egress"; }
+      ;;
     *) echo "lan-egress" ;;
   esac
 }
@@ -3463,7 +3500,7 @@ ensure_shaper_ifb_base() {
   [ $have_tc -eq 1 ] || return 1
   mode="$(shaper_configured_downlink_mode)"
   case "$mode" in
-    wan-only|lan-egress) return 1 ;;
+    wan-only|wan-police|lan-egress) return 1 ;;
   esac
 
   if ! shaper_ifb_present; then
@@ -3962,11 +3999,16 @@ qos_status() {
   if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
     ensure_shaper_ifb_base >/dev/null 2>&1 || true
   fi
+  if [ "$shaper_mode_cfg" = "wan-police" ] || [ "$shaper_mode_cfg" = "auto" ] || [ "$shaper_mode_cfg" = "ifb" ]; then
+    ensure_shaper_police_base >/dev/null 2>&1 || true
+  fi
   shaper_mode_effective="$(shaper_downlink_mode_effective)"
   shaper_ifb_ready=false
+  shaper_police_ready_flag=false
   shaper_ifb_present && shaper_ifb_ready=true
+  shaper_police_ready && shaper_police_ready_flag=true
 
-  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
+  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s","defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
   first=1
   if [ -f "$QOS_HOSTS_FILE" ]; then
     while read -r ip profile; do
@@ -3992,9 +4034,17 @@ cleanup_shape_downlink_for_ip() {
   [ -n "$ip_" ] || return 0
   minor_="$(minor_for_ip "$ip_")"
   mark_down_=$((16384 + minor_))
+  hashlimit_name_="$(shaper_hashlimit_name_for_ip "$ip_")"
 
   iptables -t mangle -D ZASH_DOWN -d "$ip_" -o "$LAN_IF" -j MARK --set-xmark "$mark_down_/0xffff" >/dev/null 2>&1 || true
   iptables -t mangle -D ZASH_DOWN -d "$ip_" -i "$WAN_IF" -j MARK --set-xmark "$mark_down_/0xffff" >/dev/null 2>&1 || true
+
+  if [ $have_iptables -eq 1 ]; then
+    iptables -t filter -S ZASH_SHAPER_DOWN 2>/dev/null | grep -F -- "--hashlimit-name ${hashlimit_name_}" | while read -r rule_; do
+      drule_="$(echo "$rule_" | sed 's/^-A /-D /')"
+      iptables -t filter $drule_ >/dev/null 2>&1 || true
+    done
+  fi
 
   if [ $have_tc -eq 1 ]; then
     tc filter del dev "$LAN_IF" parent 2: protocol ip prio 1 handle "$mark_down_" fw 2>/dev/null || true
@@ -4017,11 +4067,32 @@ apply_tc_only() {
   down_mode="lan-egress"
 
   mode_cfg="$(shaper_configured_downlink_mode)"
-  if [ "$mode_cfg" = "ifb" ] || [ "$mode_cfg" = "auto" ]; then
-    ensure_shaper_ifb_base >/dev/null 2>&1 && down_mode="ifb" || down_mode="lan-egress"
-  elif [ "$mode_cfg" = "wan-only" ]; then
-    down_mode="wan-only"
-  fi
+  case "$mode_cfg" in
+    ifb)
+      if ensure_shaper_ifb_base >/dev/null 2>&1; then
+        down_mode="ifb"
+      elif ensure_shaper_police_base >/dev/null 2>&1; then
+        down_mode="wan-police"
+      else
+        down_mode="lan-egress"
+      fi
+      ;;
+    wan-police)
+      ensure_shaper_police_base >/dev/null 2>&1 && down_mode="wan-police" || down_mode="lan-egress"
+      ;;
+    wan-only)
+      down_mode="wan-only"
+      ;;
+    auto|*)
+      if ensure_shaper_ifb_base >/dev/null 2>&1; then
+        down_mode="ifb"
+      elif ensure_shaper_police_base >/dev/null 2>&1; then
+        down_mode="wan-police"
+      else
+        down_mode="lan-egress"
+      fi
+      ;;
+  esac
 
   # iptables marks (idempotent)
   iptables -t mangle -C ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff"
@@ -4040,6 +4111,13 @@ apply_tc_only() {
       tc class show dev "$SHAPER_IFB_DEV" 2>/dev/null | grep -q "2:${minor}" &&         tc class change dev "$SHAPER_IFB_DEV" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null ||         tc class add dev "$SHAPER_IFB_DEV" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null || true
 
       tc filter show dev "$SHAPER_IFB_DEV" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||         tc filter add dev "$SHAPER_IFB_DEV" parent 2: protocol ip prio 1 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+      ;;
+    wan-police)
+      rate_kbps="$(shaper_hashlimit_rate_for_mbit "$down")"
+      burst_kb="$rate_kbps"
+      [ "$burst_kb" -lt 256 ] && burst_kb=256
+      hashlimit_name="$(shaper_hashlimit_name_for_ip "$ip")"
+      iptables -t filter -C ZASH_SHAPER_DOWN -i "$WAN_IF" -o "$LAN_IF" -d "$ip" -m conntrack --ctstate ESTABLISHED,RELATED -m hashlimit --hashlimit-mode dstip --hashlimit-name "$hashlimit_name" --hashlimit-above "${rate_kbps}kb/s" --hashlimit-burst "${burst_kb}kb" -j DROP >/dev/null 2>&1 ||         iptables -t filter -A ZASH_SHAPER_DOWN -i "$WAN_IF" -o "$LAN_IF" -d "$ip" -m conntrack --ctstate ESTABLISHED,RELATED -m hashlimit --hashlimit-mode dstip --hashlimit-name "$hashlimit_name" --hashlimit-above "${rate_kbps}kb/s" --hashlimit-burst "${burst_kb}kb" -j DROP
       ;;
     lan-egress)
       iptables -t mangle -C ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||         iptables -t mangle -A ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff"
@@ -4070,7 +4148,9 @@ shape_ip() {
   mv "$tmp" "$STATE_FILE" 2>/dev/null || true
 
   down_mode="$(shaper_downlink_mode_effective)"
-  reply_ok "$(printf '{"ok":true,"ip":"%s","upMbit":%s,"downMbit":%s,"downlinkMode":"%s","ifbDevice":"%s"}' "$(jesc "$ip")" "$up" "$down" "$(jesc "$down_mode")" "$(jesc "$SHAPER_IFB_DEV")")"
+  police_ready=false
+  shaper_police_ready && police_ready=true
+  reply_ok "$(printf '{"ok":true,"ip":"%s","upMbit":%s,"downMbit":%s,"downlinkMode":"%s","ifbDevice":"%s","policeReady":%s,"policeBackend":"%s"}' "$(jesc "$ip")" "$up" "$down" "$(jesc "$down_mode")" "$(jesc "$SHAPER_IFB_DEV")" "$police_ready" "$(jesc "hashlimit")")"
 }
 
 unshape_ip() {
@@ -4253,11 +4333,16 @@ status() {
   if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
     ensure_shaper_ifb_base >/dev/null 2>&1 || true
   fi
+  if [ "$shaper_mode_cfg" = "wan-police" ] || [ "$shaper_mode_cfg" = "auto" ] || [ "$shaper_mode_cfg" = "ifb" ]; then
+    ensure_shaper_police_base >/dev/null 2>&1 || true
+  fi
   shaper_mode_effective="$(shaper_downlink_mode_effective)"
   shaper_ifb_ready=false
+  shaper_police_ready_flag=false
   shaper_ifb_present && shaper_ifb_ready=true
+  shaper_police_ready && shaper_police_ready_flag=true
 
-  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready")"
+  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")")"
 }
 
 detect_router_firmware_text() {

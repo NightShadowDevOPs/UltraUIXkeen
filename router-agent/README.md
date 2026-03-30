@@ -4,7 +4,7 @@ This is an **optional** helper agent that runs on the router and enables "adult"
 
 - Per-client **bandwidth shaping** (Mbps) via `tc` (recommended)
 - Per-host **QoS priority** (High / Normal / Low) via `tc` HTB class priority + guaranteed minimum share
-- Fallback policing via `iptables` (optional)
+- IFB-first downlink shaping with a real `iptables hashlimit` fallback when IFB is unavailable
 
 Дашборд **UltraUIXkeen** может вызывать этот агент для применения/удаления shaping‑правил по IP.
 
@@ -63,7 +63,7 @@ Host QoS priority is best-effort: it helps under congestion, but if the same IP 
 
 ### status payload
 
-In addition to capability flags (tc/iptables/hashlimit), `status` also reports basic system metrics (best-effort):
+In addition to capability flags (tc/iptables/hashlimit), `status` also reports basic system metrics (best-effort) plus downlink shaping diagnostics such as `shaperDownlinkMode`, `shaperConfiguredMode`, `shaperIfbReady`, `shaperPoliceReady`, and `shaperPoliceBackend`:
 
 - `cpuPct` (0..100)
 - `load1` (1-minute load average)
