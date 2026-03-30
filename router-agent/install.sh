@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.22"
+AGENT_VERSION="0.6.23"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -98,6 +98,14 @@ LAN_RATE="1000"
 # wan-only = apply host QoS only on WAN egress (safer default)
 # wan-lan  = legacy mode with WAN + LAN shaping
 QOS_MODE="wan-only"
+
+# Hard bandwidth shaping downlink path:
+# auto       = prefer IFB ingress redirect for real download caps, fallback to LAN egress
+# ifb        = try IFB ingress shaping first, fallback to LAN egress if IFB is unavailable
+# lan-egress = legacy LAN egress shaping only
+# wan-only   = shape only upload/WAN (download is not capped)
+SHAPER_DOWNLINK_MODE="auto"
+SHAPER_IFB_DEV="ifb4wan"
 EOF
   echo "[zash-agent] created $AGENT_DIR/agent.env (edit if needed)"
 else
@@ -128,7 +136,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.22"
+AGENT_VERSION="0.6.23"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -159,6 +167,8 @@ QOS_NORMAL_PRIO="${QOS_NORMAL_PRIO:-3}"
 QOS_LOW_PRIO="${QOS_LOW_PRIO:-5}"
 QOS_BACKGROUND_PRIO="${QOS_BACKGROUND_PRIO:-7}"
 QOS_MODE="${QOS_MODE:-wan-only}"
+SHAPER_DOWNLINK_MODE="${SHAPER_DOWNLINK_MODE:-auto}"
+SHAPER_IFB_DEV="${SHAPER_IFB_DEV:-ifb4wan}"
 UI_ZIP_URL="${UI_ZIP_URL:-}"
 SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.tsv}"
 SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
@@ -3412,16 +3422,68 @@ host_remote_targets_json() {
 ensure_tc_base() {
   [ $have_tc -eq 1 ] || return 0
 
-  # WAN
+  # WAN egress (upload)
   tc qdisc show dev "$WAN_IF" 2>/dev/null | grep -q "htb 1:" || {
     tc qdisc add dev "$WAN_IF" root handle 1: htb default 1 2>/dev/null || true
     tc class add dev "$WAN_IF" parent 1: classid 1:1 htb rate "${WAN_RATE}mbit" ceil "${WAN_RATE}mbit" 2>/dev/null || true
   }
-  # LAN
+  # LAN egress fallback / legacy downlink path
   tc qdisc show dev "$LAN_IF" 2>/dev/null | grep -q "htb 2:" || {
     tc qdisc add dev "$LAN_IF" root handle 2: htb default 1 2>/dev/null || true
     tc class add dev "$LAN_IF" parent 2: classid 2:1 htb rate "${LAN_RATE}mbit" ceil "${LAN_RATE}mbit" 2>/dev/null || true
   }
+}
+
+shaper_ifb_present() {
+  ip link show dev "$SHAPER_IFB_DEV" >/dev/null 2>&1
+}
+
+shaper_configured_downlink_mode() {
+  case "$SHAPER_DOWNLINK_MODE" in
+    wan-only|off|disabled|none) echo "wan-only" ;;
+    ifb) echo "ifb" ;;
+    lan|lan-only|lan-egress|legacy) echo "lan-egress" ;;
+    auto|"") echo "auto" ;;
+    *) echo "auto" ;;
+  esac
+}
+
+shaper_downlink_mode_effective() {
+  mode="$(shaper_configured_downlink_mode)"
+  case "$mode" in
+    wan-only) echo "wan-only" ;;
+    ifb) shaper_ifb_present && echo "ifb" || echo "lan-egress" ;;
+    lan-egress) echo "lan-egress" ;;
+    auto) shaper_ifb_present && echo "ifb" || echo "lan-egress" ;;
+    *) echo "lan-egress" ;;
+  esac
+}
+
+ensure_shaper_ifb_base() {
+  [ $have_tc -eq 1 ] || return 1
+  mode="$(shaper_configured_downlink_mode)"
+  case "$mode" in
+    wan-only|lan-egress) return 1 ;;
+  esac
+
+  if ! shaper_ifb_present; then
+    command -v modprobe >/dev/null 2>&1 && modprobe ifb numifbs=1 >/dev/null 2>&1 || true
+    ip link add "$SHAPER_IFB_DEV" type ifb >/dev/null 2>&1 || true
+  fi
+  shaper_ifb_present || return 1
+
+  ip link set dev "$SHAPER_IFB_DEV" up >/dev/null 2>&1 || true
+
+  tc qdisc show dev "$WAN_IF" 2>/dev/null | grep -q "ingress ffff:" ||     tc qdisc add dev "$WAN_IF" handle ffff: ingress 2>/dev/null || true
+
+  tc filter show dev "$WAN_IF" parent ffff: 2>/dev/null | grep -q "redirect to device $SHAPER_IFB_DEV" ||     tc filter add dev "$WAN_IF" parent ffff: protocol ip prio 1 u32 match u32 0 0 action mirred egress redirect dev "$SHAPER_IFB_DEV" 2>/dev/null || true
+
+  tc qdisc show dev "$SHAPER_IFB_DEV" 2>/dev/null | grep -q "htb 2:" || {
+    tc qdisc add dev "$SHAPER_IFB_DEV" root handle 2: htb default 1 2>/dev/null || true
+    tc class add dev "$SHAPER_IFB_DEV" parent 2: classid 2:1 htb rate "${LAN_RATE}mbit" ceil "${LAN_RATE}mbit" 2>/dev/null || true
+  }
+
+  tc qdisc show dev "$SHAPER_IFB_DEV" 2>/dev/null | grep -q "htb 2:"
 }
 
 neighbors() {
@@ -3896,7 +3958,15 @@ qos_status() {
   echo "Cache-Control: no-store"
   echo
 
-  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
+  shaper_mode_cfg="$(shaper_configured_downlink_mode)"
+  if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
+    ensure_shaper_ifb_base >/dev/null 2>&1 || true
+  fi
+  shaper_mode_effective="$(shaper_downlink_mode_effective)"
+  shaper_ifb_ready=false
+  shaper_ifb_present && shaper_ifb_ready=true
+
+  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
   first=1
   if [ -f "$QOS_HOSTS_FILE" ]; then
     while read -r ip profile; do
@@ -3917,6 +3987,23 @@ qos_status() {
   printf ']}'
 }
 
+cleanup_shape_downlink_for_ip() {
+  ip_="$1"
+  [ -n "$ip_" ] || return 0
+  minor_="$(minor_for_ip "$ip_")"
+  mark_down_=$((16384 + minor_))
+
+  iptables -t mangle -D ZASH_DOWN -d "$ip_" -o "$LAN_IF" -j MARK --set-xmark "$mark_down_/0xffff" >/dev/null 2>&1 || true
+  iptables -t mangle -D ZASH_DOWN -d "$ip_" -i "$WAN_IF" -j MARK --set-xmark "$mark_down_/0xffff" >/dev/null 2>&1 || true
+
+  if [ $have_tc -eq 1 ]; then
+    tc filter del dev "$LAN_IF" parent 2: protocol ip prio 1 handle "$mark_down_" fw 2>/dev/null || true
+    tc class del dev "$LAN_IF" classid "2:${minor_}" 2>/dev/null || true
+    tc filter del dev "$SHAPER_IFB_DEV" parent 2: protocol ip prio 1 handle "$mark_down_" fw 2>/dev/null || true
+    tc class del dev "$SHAPER_IFB_DEV" classid "2:${minor_}" 2>/dev/null || true
+  fi
+}
+
 apply_tc_only() {
   ip="$1"; up="$2"; down="$3"
   [ $have_tc -eq 1 ] || return 1
@@ -3927,29 +4014,41 @@ apply_tc_only() {
   minor="$(minor_for_ip "$ip")"
   mark_up="$minor"
   mark_down=$((16384 + minor))
+  down_mode="lan-egress"
+
+  mode_cfg="$(shaper_configured_downlink_mode)"
+  if [ "$mode_cfg" = "ifb" ] || [ "$mode_cfg" = "auto" ]; then
+    ensure_shaper_ifb_base >/dev/null 2>&1 && down_mode="ifb" || down_mode="lan-egress"
+  elif [ "$mode_cfg" = "wan-only" ]; then
+    down_mode="wan-only"
+  fi
 
   # iptables marks (idempotent)
-  iptables -t mangle -C ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 || \
-    iptables -t mangle -A ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff"
+  iptables -t mangle -C ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 ||     iptables -t mangle -A ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff"
 
-  iptables -t mangle -C ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 || \
-    iptables -t mangle -A ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff"
+  cleanup_shape_downlink_for_ip "$ip"
 
-  # WAN class/filter
-  tc class show dev "$WAN_IF" 2>/dev/null | grep -q "1:${minor}" && \
-    tc class change dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up}mbit" ceil "${up}mbit" 2>/dev/null || \
-    tc class add dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up}mbit" ceil "${up}mbit" 2>/dev/null || true
+  # WAN class/filter (upload hard cap)
+  tc class show dev "$WAN_IF" 2>/dev/null | grep -q "1:${minor}" &&     tc class change dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up}mbit" ceil "${up}mbit" 2>/dev/null ||     tc class add dev "$WAN_IF" parent 1: classid "1:${minor}" htb rate "${up}mbit" ceil "${up}mbit" 2>/dev/null || true
 
-  tc filter show dev "$WAN_IF" parent 1: 2>/dev/null | grep -q "handle $mark_up" || \
-    tc filter add dev "$WAN_IF" parent 1: protocol ip prio 1 handle "$mark_up" fw flowid "1:${minor}" 2>/dev/null || true
+  tc filter show dev "$WAN_IF" parent 1: 2>/dev/null | grep -q "handle $mark_up" ||     tc filter add dev "$WAN_IF" parent 1: protocol ip prio 1 handle "$mark_up" fw flowid "1:${minor}" 2>/dev/null || true
 
-  # LAN class/filter
-  tc class show dev "$LAN_IF" 2>/dev/null | grep -q "2:${minor}" && \
-    tc class change dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null || \
-    tc class add dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null || true
+  case "$down_mode" in
+    ifb)
+      iptables -t mangle -C ZASH_DOWN -d "$ip" -i "$WAN_IF" -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||         iptables -t mangle -A ZASH_DOWN -d "$ip" -i "$WAN_IF" -j MARK --set-xmark "$mark_down/0xffff"
 
-  tc filter show dev "$LAN_IF" parent 2: 2>/dev/null | grep -q "handle $mark_down" || \
-    tc filter add dev "$LAN_IF" parent 2: protocol ip prio 1 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+      tc class show dev "$SHAPER_IFB_DEV" 2>/dev/null | grep -q "2:${minor}" &&         tc class change dev "$SHAPER_IFB_DEV" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null ||         tc class add dev "$SHAPER_IFB_DEV" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null || true
+
+      tc filter show dev "$SHAPER_IFB_DEV" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||         tc filter add dev "$SHAPER_IFB_DEV" parent 2: protocol ip prio 1 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+      ;;
+    lan-egress)
+      iptables -t mangle -C ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 ||         iptables -t mangle -A ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff"
+
+      tc class show dev "$LAN_IF" 2>/dev/null | grep -q "2:${minor}" &&         tc class change dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null ||         tc class add dev "$LAN_IF" parent 2: classid "2:${minor}" htb rate "${down}mbit" ceil "${down}mbit" 2>/dev/null || true
+
+      tc filter show dev "$LAN_IF" parent 2: 2>/dev/null | grep -q "handle $mark_down" ||         tc filter add dev "$LAN_IF" parent 2: protocol ip prio 1 handle "$mark_down" fw flowid "2:${minor}" 2>/dev/null || true
+      ;;
+  esac
 
   return 0
 }
@@ -3970,25 +4069,23 @@ shape_ip() {
   echo "${ip} ${up} ${down}" >> "$tmp"
   mv "$tmp" "$STATE_FILE" 2>/dev/null || true
 
-  reply_ok '{"ok":true}'
+  down_mode="$(shaper_downlink_mode_effective)"
+  reply_ok "$(printf '{"ok":true,"ip":"%s","upMbit":%s,"downMbit":%s,"downlinkMode":"%s","ifbDevice":"%s"}' "$(jesc "$ip")" "$up" "$down" "$(jesc "$down_mode")" "$(jesc "$SHAPER_IFB_DEV")")"
 }
 
 unshape_ip() {
   ip="$1"
   minor="$(minor_for_ip "$ip")"
   mark_up="$minor"
-  mark_down=$((16384 + minor))
 
   # Remove iptables marks
   iptables -t mangle -D ZASH_UP -s "$ip" -o "$WAN_IF" -j MARK --set-xmark "$mark_up/0xffff" >/dev/null 2>&1 || true
-  iptables -t mangle -D ZASH_DOWN -d "$ip" -o "$LAN_IF" -j MARK --set-xmark "$mark_down/0xffff" >/dev/null 2>&1 || true
+  cleanup_shape_downlink_for_ip "$ip"
 
   if [ $have_tc -eq 1 ]; then
     # Remove tc filters/classes (best effort)
     tc filter del dev "$WAN_IF" parent 1: protocol ip prio 1 handle "$mark_up" fw 2>/dev/null || true
     tc class del dev "$WAN_IF" classid "1:${minor}" 2>/dev/null || true
-    tc filter del dev "$LAN_IF" parent 2: protocol ip prio 1 handle "$mark_down" fw 2>/dev/null || true
-    tc class del dev "$LAN_IF" classid "2:${minor}" 2>/dev/null || true
   fi
 
   # Persist state
@@ -4152,7 +4249,15 @@ status() {
     server_ver="$agent_ver"
   fi
 
-  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")")"
+  shaper_mode_cfg="$(shaper_configured_downlink_mode)"
+  if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
+    ensure_shaper_ifb_base >/dev/null 2>&1 || true
+  fi
+  shaper_mode_effective="$(shaper_downlink_mode_effective)"
+  shaper_ifb_ready=false
+  shaper_ifb_present && shaper_ifb_ready=true
+
+  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready")"
 }
 
 detect_router_firmware_text() {

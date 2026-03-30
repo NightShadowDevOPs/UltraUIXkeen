@@ -1,7 +1,9 @@
-## v1.2.107 — 2026-03-30
-- Traffic / QoS UI now explains WAN-only shaping in plain language: the bandwidth cell shows `current total traffic` separately from the `uplink/WAN limit`, and the runtime hint warns that download/LAN can look higher than the configured cap without meaning the uplink shaper failed
-- Mihomo `Config` editing is temporarily disabled in the workspace to reduce router CPU load; the page now shows a maintenance notice instead of mounting the heavy editor block
-- router-agent was not changed in this release; line remains `0.6.22`
+## v1.2.108 — 2026-03-30
+- router-agent updated to `0.6.23`
+- hard per-host bandwidth shaping now prefers `IFB ingress redirect` for downlink, so limits can clamp the real download path instead of only showing a nicer UI explanation
+- if IFB is unavailable, the agent falls back to legacy `LAN egress` shaping instead of failing completely
+- agent `status` and `qos_status` now expose `shaperDownlinkMode`, `shaperConfiguredMode`, `shaperIfbDevice`, and `shaperIfbReady` for diagnostics
+- Mihomo `Config` editing remains disabled in the UI to keep router CPU load down
 - refreshed transfer docs for the next chat handoff
 
 UI Mihomo / Ultra — обновление переноса v1.2.106

@@ -1,3 +1,11 @@
+## 1.2.108 (2026-03-30)
+
+### Changes
+
+* router-agent `0.6.23`: hard bandwidth shaping now prefers IFB ingress redirect for downlink, so per-host channel limits can actually clamp download instead of only looking correct in the UI
+* shaping falls back to legacy LAN egress mode when IFB is unavailable, and agent status / qos_status now report the configured and effective downlink shaping mode plus IFB readiness
+* kept Mihomo config editing disabled in the UI to avoid extra CPU load on the router while we focus on network control and shaping reliability
+
 ## 1.2.107 (2026-03-30)
 
 ### Changes

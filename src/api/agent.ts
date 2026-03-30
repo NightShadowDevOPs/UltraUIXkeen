@@ -74,6 +74,10 @@ type AgentStatus = {
   arch?: string
   xkeenVersion?: string
   mihomoBinVersion?: string
+  shaperDownlinkMode?: string
+  shaperConfiguredMode?: string
+  shaperIfbDevice?: string
+  shaperIfbReady?: boolean
   error?: string
 }
 
