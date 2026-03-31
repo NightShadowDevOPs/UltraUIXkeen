@@ -1,6 +1,6 @@
 # Mihomo config management
 
-> Status note (v1.2.107): the Mihomo config editing block is temporarily disabled in the UI because it increased router CPU load. The safe flow and structured-editor design remain part of the project, but the heavy editor is not mounted until it is optimized.
+> Status note (v1.2.110): the dedicated `Mihomo` config section is removed from the router UI for now. The router build keeps only Mihomo runtime-related control surfaces; the heavyweight config workspace stays out until the project is optimized for lower CPU load.
 
 ## Update v1.2.105
 

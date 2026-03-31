@@ -1,3 +1,8 @@
+## v1.2.110 — 2026-03-31
+- removed the `Mihomo` section from router UI navigation and routing; the old path now redirects to `Router`
+- stopped positioning the router build as a Mihomo config workspace and updated Settings to point to the lightweight router/runtime view instead
+- current router focus is optimization: traffic, QoS/shaping, host policies, Mihomo runtime status, and lightweight diagnostics stay in scope; heavy config editing stays out
+
 ## v1.2.109 — 2026-03-30
 - router-agent updated to `0.6.24`
 - when IFB is unavailable, hard per-host bandwidth shaping now falls back to a real forwarded WAN→LAN limiter via `iptables hashlimit` instead of only legacy `LAN egress` shaping

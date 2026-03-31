@@ -1,4 +1,4 @@
-30.03.2026 UI Mihomo / Ultra — сообщение для нового чата
+31.03.2026 UI Mihomo / Ultra — сообщение для нового чата
 
 Проект: UI Mihomo / Ultra
 Репозиторий: NightShadowDevOPs/UltraUIXkeen
@@ -7,28 +7,18 @@
 Стек: Vue 3 + TypeScript + router-agent (shell/cgi на роутере)
 
 Текущие версии:
-- UI: v1.2.109
-- v1.2.109: router-agent 0.6.24 теперь при отсутствии IFB переходит не только в legacy LAN egress, а в реальный drop-based fallback через iptables hashlimit на forwarded WAN→LAN трафике; в диагностике появились shaperPoliceReady и shaperPoliceBackend; Mihomo config editor по-прежнему временно отключён в UI ради снижения CPU нагрузки
+- UI: v1.2.110
+- v1.2.110: раздел `Mihomo` убран из роутерного UI и из навигации; старый путь `/mihomo` теперь редиректит на `Router`; в `Settings` больше нет ссылки на отдельное Mihomo workspace, потому что тяжёлый config-раздел снят с роутерной версии до общей оптимизации проекта
 - router-agent: 0.6.24
 
-Что уже сделано по Mihomo/UI:
-- страница `Mihomo` выделена в отдельный рабочий раздел
-- внутри Mihomo страница разбита на вкладки/подразделы, чтобы экран не был бесконечной простынёй
-- внутри `Mihomo → Конфигурация` сделаны внутренние вкладки (`Editor / Overview / Structured editors / Diagnostics / Compare / History`), но сам тяжёлый блок редактирования сейчас временно отключён из-за нагрузки на CPU роутера
+Что уже сделано по роутерному UI:
 - `Router` разбит на разделы `Обзор / Трафик / Сеть`
-- есть safe managed-config flow: `draft / validate / apply / rollback / baseline / history`
-- YAML-редактор оставлен как fallback в кодовой базе, но сейчас не монтируется в UI
-
-Что уже переведено в формы:
-- `dns`: nameserver, fallback, fake-ip-filter, dns-hijack, nameserver-policy, fallback-filter и связанные поля
-- `rules`: фильтр, шаблоны типовых правил, form-поля для `type / payload / target / params`, quick-chips
-- `tun / profile / sniffer`: базовые structured-формы
-- `proxies`: большой form-driven редактор по полям, type-aware поведение и сценарный мастер создания
-- `proxy-groups`: form-driven редактор состава группы, type-aware профиль, chips для `proxies / use / providers`
-- `proxy-providers` и `rule-providers`: более понятные карточки с поиском, profile/presets и разбиением по смысловым блокам
+- UI уже умеет объяснять WAN-only shaping без путаницы между текущим потоком и uplink limit
+- тяжёлый Mihomo config workspace больше не участвует в роутерной навигации: раздел `Mihomo` убран, старый путь `/mihomo` редиректит на `Router`
+- код managed-config и structured-редакторов пока остаётся в репозитории как замороженная ветка, но на роутере этот сценарий больше не считается активной частью продукта
 
 Что важно по текущему состоянию:
-- Mihomo config editor временно выключен из UI, потому что начал заметно грузить CPU роутера
+- тяжёлый раздел конфигурации Mihomo снят с роутерной версии до общей оптимизации проекта
 - hard bandwidth shaping теперь работает так: сначала IFB ingress, затем drop-based forwarded WAN→LAN fallback через `iptables hashlimit`, и только если это недоступно — старый `LAN egress` режим
 - на живом роутере уже подтверждено, что IFB на прошивке XKeen 1.1.3.9 / kernel 4.9-ndm-5 не поднимается (`ifb4wan not present`), поэтому именно fallback-path стал критичным
 - в `status` / `qos_status` теперь видно не только configured/effective mode и готовность IFB, но и `shaperPoliceReady` / `shaperPoliceBackend`, чтобы понимать, реально ли активен fallback через hashlimit

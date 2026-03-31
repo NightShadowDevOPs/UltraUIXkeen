@@ -1,3 +1,8 @@
+## v1.2.110 — 2026-03-31
+- Mihomo config section is removed from the router UI navigation and route flow; old `/mihomo` links now redirect to `Router` instead of mounting the heavyweight workspace
+- Settings no longer advertise a separate Mihomo workspace and now point back to the lightweight router/runtime view
+- refreshed transfer/docs to lock the router project onto the optimization track: runtime control stays, heavy config editing stays out of the router build for now
+
 ## 1.2.109 (2026-03-30)
 
 ### Changes

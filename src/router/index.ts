@@ -15,7 +15,6 @@ import ProxyProvidersRoutePage from '@/views/ProxyProvidersRoutePage.vue'
 import SubscriptionsPage from '@/views/SubscriptionsPage.vue'
 import TrafficPage from '@/views/TrafficPage.vue'
 import RulesPage from '@/views/RulesPage.vue'
-import MihomoPage from '@/views/MihomoPage.vue'
 import SettingsPage from '@/views/SettingsPage.vue'
 import UsersPage from '@/views/UsersPage.vue'
 import SetupPage from '@/views/SetupPage.vue'
@@ -86,8 +85,7 @@ const childrenRouter = [
   },
   {
     path: 'mihomo',
-    name: ROUTE_NAME.mihomo,
-    component: MihomoPage,
+    redirect: { name: ROUTE_NAME.router },
   },
   {
     path: 'settings',

@@ -141,7 +141,6 @@ export const renderRoutes = computed(() => {
     ROUTE_NAME.proxyProviders,
     ROUTE_NAME.subscriptions,
     ROUTE_NAME.rules,
-    ROUTE_NAME.mihomo,
     ROUTE_NAME.tasks,
     ROUTE_NAME.users,
     ROUTE_NAME.policies,
@@ -168,8 +167,7 @@ export const navSections = computed(() => {
         ROUTE_NAME.proxyProviders,
         ROUTE_NAME.subscriptions,
         ROUTE_NAME.rules,
-        ROUTE_NAME.mihomo,
-      ],
+          ],
     },
     {
       key: 'navSectionManagement',

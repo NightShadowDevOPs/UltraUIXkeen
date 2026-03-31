@@ -7,8 +7,8 @@
           <div class="text-sm opacity-70">{{ $t('settingsSectionsTip') }}</div>
         </div>
 
-        <button type="button" class="btn btn-sm" @click="openMihomo">
-          {{ $t('openMihomoSection') }}
+        <button type="button" class="btn btn-sm" @click="openRouterRuntime">
+          {{ $t('openRouterRuntimeSection') }}
         </button>
       </div>
 
@@ -93,7 +93,7 @@ const scrollToSection = (id: string) => {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const openMihomo = () => {
-  router.push({ name: ROUTE_NAME.mihomo, query: { section: 'config' } })
+const openRouterRuntime = () => {
+  router.push({ name: ROUTE_NAME.router })
 }
 </script>
