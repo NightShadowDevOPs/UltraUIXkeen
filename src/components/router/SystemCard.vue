@@ -8,7 +8,7 @@
         <span v-else class="badge badge-ghost">{{ $t('disabled') }}</span>
       </div>
 
-      <button type="button" class="btn btn-sm" @click="refresh" :disabled="!agentEnabled">
+      <button type="button" class="btn btn-sm" @click="handleRefresh" :disabled="!agentEnabled">
         {{ $t('refresh') }}
       </button>
     </div>
@@ -108,41 +108,14 @@
 </template>
 
 <script setup lang="ts">
-import { agentFirmwareCheckAPI, agentStatusAPI } from '@/api/agent'
+import { agentFirmwareCheckAPI, agentStatusAPI, agentStatusDebugAPI, type AgentStatusDebug } from '@/api/agent'
 import { version as backendVersion } from '@/api'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import type { AgentStatus } from '@/api/agent'
 import { useI18n } from 'vue-i18n'
 import { useDocumentVisibility } from '@vueuse/core'
-
-type AgentStatusExt = {
-  ok: boolean
-  version?: string
-  serverVersion?: string
-  cpuPct?: number
-  load1?: string
-  load5?: string
-  load15?: string
-  uptimeSec?: number
-  memTotal?: number
-  memUsed?: number
-  memFree?: number
-  memUsedPct?: number
-  storagePath?: string
-  storageTotal?: number
-  storageUsed?: number
-  storageFree?: number
-  tempC?: string
-  hostname?: string
-  model?: string
-  firmware?: string
-  kernel?: string
-  arch?: string
-  xkeenVersion?: string
-  mihomoBinVersion?: string
-  error?: string
-}
 
 type FirmwareCheckState = {
   ok: boolean
@@ -161,7 +134,8 @@ type FirmwareCheckState = {
 }
 
 const { t } = useI18n()
-const status = ref<AgentStatusExt>({ ok: false })
+const status = ref<AgentStatus>({ ok: false })
+const debugStatus = ref<AgentStatusDebug>({ ok: false })
 const firmwareCheck = ref<FirmwareCheckState>({ ok: false })
 const firmwareLoading = ref(false)
 
@@ -193,7 +167,7 @@ const uptimeText = computed(() => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 })
 
-const firmwareCurrentLabel = computed(() => firmwareCheck.value.currentVersion || status.value.firmware || '—')
+const firmwareCurrentLabel = computed(() => firmwareCheck.value.currentVersion || debugStatus.value.firmware || '—')
 
 const firmwareBadgeClass = computed(() => {
   if (firmwareLoading.value) return 'badge-ghost'
@@ -227,19 +201,19 @@ const refreshFirmware = async (force = false) => {
 const infoItems = computed(() => {
   const backendVer = String(backendVersion.value || '').trim()
   return [
-    { key: 'hostname', label: t('hostname'), value: status.value.hostname || '—' },
-    { key: 'model', label: t('model'), value: status.value.model || '—' },
-    { key: 'agentVersion', label: t('agentVersion'), value: status.value.version || '—' },
-    { key: 'agentServerVersion', label: t('agentServerVersion'), value: status.value.serverVersion || '—' },
-    { key: 'firmware', label: t('firmware'), value: status.value.firmware || firmwareCheck.value.currentVersion || '—' },
-    { key: 'kernel', label: t('kernel'), value: status.value.kernel || '—' },
-    { key: 'arch', label: t('architecture'), value: status.value.arch || '—' },
-    { key: 'mihomo', label: t('mihomoVersion'), value: status.value.mihomoBinVersion || backendVer || '—' },
-    { key: 'xkeen', label: t('xkeenVersion'), value: status.value.xkeenVersion || '—' },
+    { key: 'hostname', label: t('hostname'), value: debugStatus.value.hostname || '—' },
+    { key: 'model', label: t('model'), value: debugStatus.value.model || '—' },
+    { key: 'agentVersion', label: t('agentVersion'), value: status.value.version || debugStatus.value.version || '—' },
+    { key: 'agentServerVersion', label: t('agentServerVersion'), value: status.value.serverVersion || debugStatus.value.serverVersion || '—' },
+    { key: 'firmware', label: t('firmware'), value: debugStatus.value.firmware || firmwareCheck.value.currentVersion || '—' },
+    { key: 'kernel', label: t('kernel'), value: debugStatus.value.kernel || '—' },
+    { key: 'arch', label: t('architecture'), value: debugStatus.value.arch || '—' },
+    { key: 'mihomo', label: t('mihomoVersion'), value: debugStatus.value.mihomoBinVersion || backendVer || '—' },
+    { key: 'xkeen', label: t('xkeenVersion'), value: debugStatus.value.xkeenVersion || '—' },
     { key: 'temperature', label: t('temperature'), value: status.value.tempC ? `${status.value.tempC} °C` : '—' },
     { key: 'memoryFree', label: t('freeMemory'), value: prettyBytes(status.value.memFree) },
-    { key: 'storage', label: t('storage'), value: status.value.storageTotal
-      ? `${prettyBytes(status.value.storageUsed)} / ${prettyBytes(status.value.storageTotal)} · ${t('free')}: ${prettyBytes(status.value.storageFree)}${status.value.storagePath ? ` · ${status.value.storagePath}` : ''}`
+    { key: 'storage', label: t('storage'), value: debugStatus.value.storageTotal
+      ? `${prettyBytes(debugStatus.value.storageUsed)} / ${prettyBytes(debugStatus.value.storageTotal)} · ${t('free')}: ${prettyBytes(debugStatus.value.storageFree)}${debugStatus.value.storagePath ? ` · ${debugStatus.value.storagePath}` : ''}`
       : '—' },
   ]
 })
@@ -247,9 +221,23 @@ const infoItems = computed(() => {
 const refresh = async () => {
   if (!agentEnabled.value) {
     status.value = { ok: false }
+    debugStatus.value = { ok: false }
     return
   }
   status.value = (await agentStatusAPI()) as any
+}
+
+const refreshDebug = async (force = false) => {
+  if (!agentEnabled.value) {
+    debugStatus.value = { ok: false }
+    return
+  }
+  debugStatus.value = (await agentStatusDebugAPI({ force, maxAgeMs: force ? 0 : 60_000 })) as any
+}
+
+const handleRefresh = () => {
+  void refresh()
+  void refreshDebug(true)
 }
 
 const documentVisibility = useDocumentVisibility()
@@ -275,12 +263,16 @@ const startTimer = () => {
 
 onMounted(() => {
   refresh()
+  refreshDebug(false)
   refreshFirmware(false)
   startTimer()
 })
 
 watch([agentEnabled, documentVisibility], () => {
-  if (documentVisibility.value === 'visible' && agentEnabled.value) void refresh()
+  if (documentVisibility.value === 'visible' && agentEnabled.value) {
+    void refresh()
+    void refreshDebug(false)
+  }
   startTimer()
 })
 

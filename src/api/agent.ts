@@ -42,7 +42,7 @@ const parseMaybeCgiJson = (data: any) => {
   }
 }
 
-type AgentStatus = {
+export type AgentStatus = {
   ok: boolean
   version?: string
   serverVersion?: string
@@ -52,7 +52,6 @@ type AgentStatus = {
   iptables?: boolean
   hashlimit?: boolean
   hostQos?: boolean
-  // optional system metrics (agent >= 0.4)
   cpuPct?: number
   load1?: string
   load5?: string
@@ -62,11 +61,24 @@ type AgentStatus = {
   memUsed?: number
   memFree?: number
   memUsedPct?: number
+  tempC?: string
+  error?: string
+}
+
+export type AgentStatusDebug = {
+  ok: boolean
+  version?: string
+  serverVersion?: string
+  wan?: string
+  lan?: string
+  tc?: boolean
+  iptables?: boolean
+  hashlimit?: boolean
+  hostQos?: boolean
   storagePath?: string
   storageTotal?: number
   storageUsed?: number
   storageFree?: number
-  tempC?: string
   hostname?: string
   model?: string
   firmware?: string
@@ -143,7 +155,17 @@ const agentAxios = () => {
 
 const shortLivedAgentCache = {
   status: { ts: 0, data: null as AgentStatus | null, pending: null as Promise<AgentStatus> | null },
+  statusDebug: { ts: 0, data: null as AgentStatusDebug | null, pending: null as Promise<AgentStatusDebug> | null },
   qos: { ts: 0, data: null as AgentQosStatus | null, pending: null as Promise<AgentQosStatus> | null },
+}
+
+const invalidateAgentShortCaches = () => {
+  shortLivedAgentCache.status.ts = 0
+  shortLivedAgentCache.status.data = null
+  shortLivedAgentCache.statusDebug.ts = 0
+  shortLivedAgentCache.statusDebug.data = null
+  shortLivedAgentCache.qos.ts = 0
+  shortLivedAgentCache.qos.data = null
 }
 
 export const agentStatusAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentStatus> => {
@@ -171,6 +193,34 @@ export const agentStatusAPI = async (opts?: { force?: boolean; maxAgeMs?: number
     }
   })()
   shortLivedAgentCache.status.pending = pending
+  return pending
+}
+
+export const agentStatusDebugAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentStatusDebug> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 20_000)
+  const now = Date.now()
+  if (!opts?.force && shortLivedAgentCache.statusDebug.data && now - shortLivedAgentCache.statusDebug.ts <= maxAgeMs) {
+    return shortLivedAgentCache.statusDebug.data
+  }
+  if (!opts?.force && shortLivedAgentCache.statusDebug.pending) {
+    return shortLivedAgentCache.statusDebug.pending
+  }
+  const pending = (async (): Promise<AgentStatusDebug> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'status_debug' },
+      })
+      const parsed = (data || {}) as AgentStatusDebug
+      shortLivedAgentCache.statusDebug.data = parsed
+      shortLivedAgentCache.statusDebug.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'offline' }
+    } finally {
+      shortLivedAgentCache.statusDebug.pending = null
+    }
+  })()
+  shortLivedAgentCache.statusDebug.pending = pending
   return pending
 }
 
@@ -212,7 +262,9 @@ export const agentSetShapeAPI = async (args: {
         down: args.downMbps,
       },
     })
-    return (data || { ok: true }) as any
+    const parsed = (data || { ok: true }) as any
+    invalidateAgentShortCaches()
+    return parsed
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }
@@ -223,7 +275,9 @@ export const agentRemoveShapeAPI = async (ip: string): Promise<{ ok: boolean; er
     const { data } = await agentAxios().get('/cgi-bin/api.sh', {
       params: { cmd: 'unshape', ip },
     })
-    return (data || { ok: true }) as any
+    const parsed = (data || { ok: true }) as any
+    invalidateAgentShortCaches()
+    return parsed
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }
@@ -397,7 +451,9 @@ export const agentSetHostQosAPI = async (args: {
       params: { cmd: 'qos_set', ip: args.ip, profile: args.profile },
       timeout: 6000,
     })
-    return (data || { ok: false }) as any
+    const parsed = (data || { ok: false }) as any
+    invalidateAgentShortCaches()
+    return parsed
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }
@@ -409,7 +465,9 @@ export const agentRemoveHostQosAPI = async (ip: string): Promise<{ ok: boolean; 
       params: { cmd: 'qos_remove', ip },
       timeout: 6000,
     })
-    return (data || { ok: false }) as any
+    const parsed = (data || { ok: false }) as any
+    invalidateAgentShortCaches()
+    return parsed
   } catch (e: any) {
     return { ok: false, error: e?.message || 'failed' }
   }

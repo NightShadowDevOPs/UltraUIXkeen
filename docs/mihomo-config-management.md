@@ -246,3 +246,8 @@ The heavy Mihomo config workspace remains out of the active router product. As o
 - Fixed missing closing tags in the `proxy-providers` panel inside `MihomoConfigEditor.vue`.
 - This patch does not change the managed-config flow; it only restores a valid Vue template so production build succeeds again.
 
+
+
+## Router optimization note — 2026-03-31
+- router build keeps Mihomo config management out of the active navigation and optimization hot-path
+- router-agent now exposes heavy shaping/runtime diagnostics through `status_debug`, while the basic `status` route stays lightweight for normal router overview polling

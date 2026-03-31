@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.25"
+AGENT_VERSION="0.6.26"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -137,7 +137,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.25"
+AGENT_VERSION="0.6.26"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -4245,7 +4245,7 @@ status_cpu_state_file() {
 }
 
 status_cache_clear() {
-  rm -f "$(status_cache_payload_file)" "$(status_cache_ts_file)" >/dev/null 2>&1 || true
+  rm -f "$(status_cache_payload_file)" "$(status_cache_ts_file)" "$(status_debug_payload_file)" "$(status_debug_ts_file)" >/dev/null 2>&1 || true
 }
 
 status_cache_get() {
@@ -4369,6 +4369,77 @@ status() {
   mem_used_b=$((mem_used_kb*1024))
   mem_free_b=$((mem_avail_kb*1024))
 
+  temp_c=""
+  for tf in /sys/class/thermal/thermal_zone*/temp /sys/devices/virtual/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do
+    [ -r "$tf" ] || continue
+    raw_temp="$(cat "$tf" 2>/dev/null | tr -d '
+ ')"
+    echo "$raw_temp" | grep -qE '^-?[0-9]+(\.[0-9]+)?$' || continue
+    temp_c="$(awk -v t="$raw_temp" 'BEGIN { if (t > 1000 || t < -1000) printf "%.1f", t/1000; else printf "%.1f", t }' 2>/dev/null)"
+    [ -n "$temp_c" ] && break
+  done
+
+  agent_ver="$AGENT_VERSION"
+  server_ver="$(status_remote_agent_version_cached 2>/dev/null || true)"
+  if [ -z "$server_ver" ] || [ "$(version_cmp_sh "$server_ver" "$agent_ver")" -lt 0 ]; then
+    server_ver="$agent_ver"
+  fi
+
+  status_payload="$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"tempC":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$temp_c")")"
+  status_cache_put "$status_payload" >/dev/null 2>&1 || true
+  reply_ok "$status_payload"
+}
+
+status_debug_payload_file() {
+  echo "$(status_cache_dir)/status-debug.json"
+}
+
+status_debug_ts_file() {
+  echo "$(status_cache_dir)/status-debug.ts"
+}
+
+status_debug_cache_get() {
+  ttl="$1"
+  [ -n "$ttl" ] || ttl=20
+  payload_f="$(status_debug_payload_file)"
+  ts_f="$(status_debug_ts_file)"
+  [ -f "$payload_f" ] || return 1
+  [ -f "$ts_f" ] || return 1
+  now="$(date +%s 2>/dev/null || echo 0)"
+  ts="$(cat "$ts_f" 2>/dev/null || echo 0)"
+  echo "$now" | grep -qE '^[0-9]+$' || now=0
+  echo "$ts" | grep -qE '^[0-9]+$' || ts=0
+  [ "$now" -gt 0 ] || return 1
+  [ "$ts" -gt 0 ] || return 1
+  age=$((now-ts))
+  [ "$age" -lt 0 ] && age=999999
+  [ "$age" -le "$ttl" ] || return 1
+  cat "$payload_f" 2>/dev/null
+}
+
+status_debug_cache_put() {
+  payload="$1"
+  dir="$(status_cache_dir)"
+  mkdir -p "$dir" >/dev/null 2>&1 || true
+  payload_f="$(status_debug_payload_file)"
+  ts_f="$(status_debug_ts_file)"
+  printf '%s' "$payload" > "$payload_f" 2>/dev/null || return 1
+  date +%s > "$ts_f" 2>/dev/null || true
+  return 0
+}
+
+status_debug() {
+  cached_payload="$(status_debug_cache_get 20 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
+  have_iptables=0
+  command -v iptables >/dev/null 2>&1 && have_iptables=1
+  have_hashlimit=0
+  iptables -m hashlimit -h >/dev/null 2>&1 && have_hashlimit=1
+
   storage_path="/opt"
   storage_total_b=0
   storage_used_b=0
@@ -4389,40 +4460,40 @@ status() {
     storage_free_b=$((st_free_kb*1024))
   fi
 
-  temp_c=""
-  for tf in /sys/class/thermal/thermal_zone*/temp /sys/devices/virtual/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do
-    [ -r "$tf" ] || continue
-    raw_temp="$(cat "$tf" 2>/dev/null | tr -d '\\r\\n ')"
-    echo "$raw_temp" | grep -qE '^-?[0-9]+(\.[0-9]+)?$' || continue
-    temp_c="$(awk -v t="$raw_temp" 'BEGIN { if (t > 1000 || t < -1000) printf "%.1f", t/1000; else printf "%.1f", t }' 2>/dev/null)"
-    [ -n "$temp_c" ] && break
-  done
-
-  hostname="$(uname -n 2>/dev/null | tr -d '\r' | head -n 1)"
+  hostname="$(uname -n 2>/dev/null | tr -d '
+' | head -n 1)"
   [ -n "$hostname" ] || hostname="router"
 
   model=""
-  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d '\000\r' | head -n 1)"
-  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\000\r' | head -n 1)"
-  [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
+  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d ' 
+' | head -n 1)"
+  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d ' 
+' | head -n 1)"
+  [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '
+' | head -n 1)"
 
   firmware="$(detect_router_firmware_text)"
-
-  kernel="$(uname -r 2>/dev/null | tr -d '\r' | head -n 1)"
-  arch="$(uname -m 2>/dev/null | tr -d '\r' | head -n 1)"
+  kernel="$(uname -r 2>/dev/null | tr -d '
+' | head -n 1)"
+  arch="$(uname -m 2>/dev/null | tr -d '
+' | head -n 1)"
 
   xkeen_ver=""
   if command -v xkeen >/dev/null 2>&1; then
-    xkeen_ver="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '\r')"
-    [ -n "$xkeen_ver" ] || xkeen_ver="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '\r')"
+    xkeen_ver="$(xkeen -v 2>/dev/null | head -n 1 | tr -d '
+')"
+    [ -n "$xkeen_ver" ] || xkeen_ver="$(xkeen --version 2>/dev/null | head -n 1 | tr -d '
+')"
     [ -n "$xkeen_ver" ] || xkeen_ver="installed"
   fi
 
   mihomo_ver=""
   if command -v mihomo >/dev/null 2>&1; then
-    mihomo_ver="$(mihomo -v 2>/dev/null | head -n 1 | tr -d '\r')"
+    mihomo_ver="$(mihomo -v 2>/dev/null | head -n 1 | tr -d '
+')"
   elif command -v clash-meta >/dev/null 2>&1; then
-    mihomo_ver="$(clash-meta -v 2>/dev/null | head -n 1 | tr -d '\r')"
+    mihomo_ver="$(clash-meta -v 2>/dev/null | head -n 1 | tr -d '
+')"
   fi
 
   agent_ver="$AGENT_VERSION"
@@ -4438,9 +4509,9 @@ status() {
   shaper_ifb_present && shaper_ifb_ready=true
   shaper_police_ready_passive && shaper_police_ready_flag=true
 
-  status_payload="$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")")"
-  status_cache_put "$status_payload" >/dev/null 2>&1 || true
-  reply_ok "$status_payload"
+  debug_payload="$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")")"
+  status_debug_cache_put "$debug_payload" >/dev/null 2>&1 || true
+  reply_ok "$debug_payload"
 }
 
 detect_router_firmware_text() {
@@ -5385,6 +5456,7 @@ agent_log
 
 case "$cmd" in
   status|"") status ;;
+  status_debug) status_debug ;;
   neighbors) neighbors ;;
   lan_hosts) lan_hosts_json ;;
   host_traffic_live) host_traffic_live_json ;;

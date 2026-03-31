@@ -1,3 +1,11 @@
+# Changelog
+
+## v1.2.113 - 2026-03-31
+- split router-agent hot-path status into lightweight `status` and slower `status_debug`
+- keep CPU/load/memory/temperature in the fast route while moving storage, firmware, model, kernel, Mihomo binary version, and shaping diagnostics to the debug route
+- System card now refreshes live resource metrics separately from heavier router info, so the overview stops paying the full cost on every poll
+- router-agent updated to `0.6.26`
+
 ## v1.2.112 — 2026-03-31
 - router-agent `0.6.25`: `status` / `qos_status` now use passive shaper readiness checks and stop trying to mutate IFB/hashlimit state on every poll
 - router-agent `status` now avoids the old 200ms CPU sleep sample; CPU usage is derived from cached `/proc/stat` deltas instead of blocking each request
