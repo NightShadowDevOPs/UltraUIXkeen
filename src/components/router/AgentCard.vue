@@ -14,6 +14,10 @@
 
       <div class="flex flex-wrap items-center justify-end gap-2">
         <button type="button" class="btn btn-sm" @click="refresh">{{ $t('test') }}</button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="loadMaintenancePanels(true)" :disabled="!agentEnabled || !status.ok || maintenanceLoading">
+          <span v-if="maintenanceLoading" class="loading loading-spinner loading-xs"></span>
+          <span v-else>{{ maintenanceLoaded ? $t('refresh') : $t('load') }}</span>
+        </button>
         <label v-if="configuredCloudRemotes.length" class="flex items-center gap-2 text-xs opacity-80">
           <span>{{ $t('agentBackupTargets') }}</span>
           <select
@@ -74,7 +78,11 @@
           <span v-else-if="isAhead" class="badge badge-info badge-sm">{{ $t('agentAhead') }}</span>
         </div>
 
-        <div class="mt-1">
+        <div v-if="!maintenanceLoaded" class="mt-1 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2 text-xs opacity-70">
+          {{ $t('routerMaintenanceLazyHint') }}
+        </div>
+
+        <div class="mt-1" v-else>
           <div class="flex flex-wrap items-center gap-2">
             <span class="opacity-60">{{ $t('agentBackupLast') }}:</span>
             <span v-if="backup.running" class="badge badge-info badge-sm">{{ $t('agentBackupRunning') }}</span>
@@ -1468,6 +1476,7 @@ const onBackupLogToggle = async (e: any) => {
 const refreshStatus = async () => {
   if (!agentEnabled.value) {
     status.value = { ok: false }
+    maintenanceLoaded.value = false
     return false
   }
   status.value = await agentStatusAPI()
@@ -1477,12 +1486,24 @@ const refreshStatus = async () => {
 const refresh = async () => {
   const ok = await refreshStatus()
   if (!ok) return
-  await refreshCron()
-  await refreshBackup()
-  await refreshBackupList()
-  await ensureCronBootstrap()
-  await refreshCloud()
-  await refreshRestore()
+}
+
+const loadMaintenancePanels = async (force = false) => {
+  const ok = await refreshStatus()
+  if (!ok) return
+  maintenanceLoading.value = true
+  try {
+    await refreshCron()
+    await refreshBackup()
+    await refreshBackupList()
+    await ensureCronBootstrap()
+    await refreshCloud()
+    await refreshRestore()
+    if (force) await refreshCloudHistory()
+    maintenanceLoaded.value = true
+  } finally {
+    maintenanceLoading.value = false
+  }
 }
 
 const documentVisibility = useDocumentVisibility()
@@ -1511,6 +1532,7 @@ const startTimers = () => {
   }, 20_000)
   liveTimer = window.setInterval(() => {
     if (!agentEnabled.value || documentVisibility.value !== 'visible') return
+    if (!maintenanceLoaded.value) return
     if (restore.value?.running) {
       refreshRestore()
     }
@@ -1527,6 +1549,7 @@ onMounted(() => {
 
 watch([agentEnabled, agentUrl, agentToken, documentVisibility], () => {
   if (agentEnabled.value && documentVisibility.value === 'visible') void refreshStatus()
+  if (!agentEnabled.value) maintenanceLoaded.value = false
   startTimers()
 })
 

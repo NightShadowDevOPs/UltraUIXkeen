@@ -1,3 +1,6 @@
+v1.2.114
+- lazy-load overview diagnostics and maintenance panels
+
 # Changelog
 
 ## v1.2.113 - 2026-03-31

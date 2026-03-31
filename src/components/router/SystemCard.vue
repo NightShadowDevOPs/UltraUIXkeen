@@ -64,11 +64,19 @@
             </div>
             <div class="flex items-center gap-2">
               <span v-if="firmwareCheck.checkedAt" class="text-[11px] opacity-60">{{ $t('lastCheck') }}: {{ firmwareCheck.checkedAt }}</span>
-              <button type="button" class="btn btn-xs" @click="refreshFirmware(true)" :disabled="!agentEnabled || firmwareLoading">
+              <button type="button" class="btn btn-xs btn-ghost" @click="loadDetails(true)" :disabled="!agentEnabled || detailsLoading">
+                <span v-if="detailsLoading" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ detailsLoaded ? $t('refresh') : $t('load') }}</span>
+              </button>
+              <button type="button" class="btn btn-xs" @click="refreshFirmware(true)" :disabled="!agentEnabled || firmwareLoading || !detailsLoaded">
                 <span v-if="firmwareLoading" class="loading loading-spinner loading-xs"></span>
                 <span v-else>{{ $t('refresh') }}</span>
               </button>
             </div>
+          </div>
+
+          <div v-if="!detailsLoaded" class="mt-2 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2 text-xs opacity-70">
+            {{ $t('routerDiagnosticsLazyHint') }}
           </div>
 
           <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -94,9 +102,12 @@
         </div>
         <div class="mb-2 flex items-center justify-between gap-2">
           <div class="font-medium">{{ $t('routerInfo') }}</div>
-          <div class="text-xs opacity-60">{{ $t('routerInfoTip') }}</div>
+          <div class="text-xs opacity-60">{{ detailsLoaded ? $t('routerInfoTip') : $t('routerDiagnosticsLazyHint') }}</div>
         </div>
-        <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-2 xl:grid-cols-3">
+        <div v-if="!detailsLoaded" class="rounded-lg border border-dashed border-base-content/20 bg-base-100/40 px-3 py-3 text-sm opacity-70">
+          {{ $t('routerInfoLoadOnDemand') }}
+        </div>
+        <div v-else class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-2 xl:grid-cols-3">
           <div v-for="item in infoItems" :key="item.key" class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2">
             <div class="text-[11px] uppercase tracking-wide opacity-60">{{ item.label }}</div>
             <div class="mt-1 break-all font-mono text-xs sm:text-sm">{{ item.value }}</div>
@@ -138,6 +149,8 @@ const status = ref<AgentStatus>({ ok: false })
 const debugStatus = ref<AgentStatusDebug>({ ok: false })
 const firmwareCheck = ref<FirmwareCheckState>({ ok: false })
 const firmwareLoading = ref(false)
+const detailsLoading = ref(false)
+const detailsLoaded = ref(false)
 
 const prettyBytes = (v: any) => {
   const n = Number(v || 0)
@@ -190,6 +203,7 @@ const refreshFirmware = async (force = false) => {
     firmwareCheck.value = { ok: false }
     return
   }
+  if (!detailsLoaded.value && !force) return
   firmwareLoading.value = true
   try {
     firmwareCheck.value = await agentFirmwareCheckAPI(force)
@@ -222,6 +236,8 @@ const refresh = async () => {
   if (!agentEnabled.value) {
     status.value = { ok: false }
     debugStatus.value = { ok: false }
+    firmwareCheck.value = { ok: false }
+    detailsLoaded.value = false
     return
   }
   status.value = (await agentStatusAPI()) as any
@@ -230,14 +246,26 @@ const refresh = async () => {
 const refreshDebug = async (force = false) => {
   if (!agentEnabled.value) {
     debugStatus.value = { ok: false }
+    detailsLoaded.value = false
     return
   }
   debugStatus.value = (await agentStatusDebugAPI({ force, maxAgeMs: force ? 0 : 60_000 })) as any
+  detailsLoaded.value = true
+}
+
+const loadDetails = async (force = false) => {
+  if (!agentEnabled.value) return
+  detailsLoading.value = true
+  try {
+    await refreshDebug(force)
+    await refreshFirmware(force)
+  } finally {
+    detailsLoading.value = false
+  }
 }
 
 const handleRefresh = () => {
   void refresh()
-  void refreshDebug(true)
 }
 
 const documentVisibility = useDocumentVisibility()
@@ -263,15 +291,12 @@ const startTimer = () => {
 
 onMounted(() => {
   refresh()
-  refreshDebug(false)
-  refreshFirmware(false)
   startTimer()
 })
 
 watch([agentEnabled, documentVisibility], () => {
   if (documentVisibility.value === 'visible' && agentEnabled.value) {
     void refresh()
-    void refreshDebug(false)
   }
   startTimer()
 })
