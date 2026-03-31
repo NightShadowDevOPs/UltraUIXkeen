@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.24"
+AGENT_VERSION="0.6.25"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -137,7 +137,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.24"
+AGENT_VERSION="0.6.25"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -3474,8 +3474,19 @@ shaper_hashlimit_rate_for_mbit() {
   echo $((down_ * 125))
 }
 
+shaper_police_chain_present() {
+  [ $have_iptables -eq 1 ] || return 1
+  iptables -t filter -S ZASH_SHAPER_DOWN >/dev/null 2>&1
+}
+
 shaper_police_ready() {
   ensure_shaper_police_base >/dev/null 2>&1
+}
+
+shaper_police_ready_passive() {
+  [ $have_iptables -eq 1 ] || return 1
+  [ $have_hashlimit -eq 1 ] || return 1
+  shaper_police_chain_present
 }
 
 shaper_downlink_mode_effective() {
@@ -3491,6 +3502,24 @@ shaper_downlink_mode_effective() {
     lan-egress) echo "lan-egress" ;;
     auto)
       ensure_shaper_ifb_base >/dev/null 2>&1 && echo "ifb" || { shaper_police_ready && echo "wan-police" || echo "lan-egress"; }
+      ;;
+    *) echo "lan-egress" ;;
+  esac
+}
+
+shaper_downlink_mode_effective_passive() {
+  mode="$(shaper_configured_downlink_mode)"
+  case "$mode" in
+    wan-only) echo "wan-only" ;;
+    ifb)
+      shaper_ifb_present && echo "ifb" || { shaper_police_ready_passive && echo "wan-police" || echo "lan-egress"; }
+      ;;
+    wan-police)
+      shaper_police_ready_passive && echo "wan-police" || echo "lan-egress"
+      ;;
+    lan-egress) echo "lan-egress" ;;
+    auto)
+      shaper_ifb_present && echo "ifb" || { shaper_police_ready_passive && echo "wan-police" || echo "lan-egress"; }
       ;;
     *) echo "lan-egress" ;;
   esac
@@ -3943,6 +3972,7 @@ set_host_qos() {
 
   apply_qos_only "$ip" "$profile" || { reply_ok '{"ok":false,"error":"apply-failed"}'; return; }
   persist_qos_host "$ip" "$profile"
+  status_cache_clear >/dev/null 2>&1 || true
 
   pct="$(qos_profile_pct "$profile")"
   prio="$(qos_profile_prio "$profile")"
@@ -3971,6 +4001,7 @@ remove_host_qos() {
   fi
 
   remove_persist_qos_host "$ip"
+  status_cache_clear >/dev/null 2>&1 || true
   reply_ok '{"ok":true}'
 }
 
@@ -3996,17 +4027,11 @@ qos_status() {
   echo
 
   shaper_mode_cfg="$(shaper_configured_downlink_mode)"
-  if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
-    ensure_shaper_ifb_base >/dev/null 2>&1 || true
-  fi
-  if [ "$shaper_mode_cfg" = "wan-police" ] || [ "$shaper_mode_cfg" = "auto" ] || [ "$shaper_mode_cfg" = "ifb" ]; then
-    ensure_shaper_police_base >/dev/null 2>&1 || true
-  fi
-  shaper_mode_effective="$(shaper_downlink_mode_effective)"
+  shaper_mode_effective="$(shaper_downlink_mode_effective_passive)"
   shaper_ifb_ready=false
   shaper_police_ready_flag=false
   shaper_ifb_present && shaper_ifb_ready=true
-  shaper_police_ready && shaper_police_ready_flag=true
+  shaper_police_ready_passive && shaper_police_ready_flag=true
 
   printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s","defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
   first=1
@@ -4146,6 +4171,7 @@ shape_ip() {
   [ -f "$STATE_FILE" ] && grep -v "^${ip} " "$STATE_FILE" > "$tmp" 2>/dev/null || true
   echo "${ip} ${up} ${down}" >> "$tmp"
   mv "$tmp" "$STATE_FILE" 2>/dev/null || true
+  status_cache_clear >/dev/null 2>&1 || true
 
   down_mode="$(shaper_downlink_mode_effective)"
   police_ready=false
@@ -4174,6 +4200,7 @@ unshape_ip() {
     grep -v "^${ip} " "$STATE_FILE" > "$tmp" 2>/dev/null || true
     mv "$tmp" "$STATE_FILE" 2>/dev/null || true
   fi
+  status_cache_clear >/dev/null 2>&1 || true
 
   reply_ok '{"ok":true}'
 }
@@ -4197,10 +4224,102 @@ rehydrate() {
   done < "$STATE_FILE"
   rehydrate_qos_hosts >/dev/null 2>&1 || true
   rehydrate_blocks >/dev/null 2>&1 || true
+  status_cache_clear >/dev/null 2>&1 || true
   reply_ok "$(printf '{"ok":true,"count":%s}' "$count")"
 }
 
+status_cache_dir() {
+  echo "/opt/zash-agent/var"
+}
+
+status_cache_payload_file() {
+  echo "$(status_cache_dir)/status-cache.json"
+}
+
+status_cache_ts_file() {
+  echo "$(status_cache_dir)/status-cache.ts"
+}
+
+status_cpu_state_file() {
+  echo "$(status_cache_dir)/status-cpu.state"
+}
+
+status_cache_clear() {
+  rm -f "$(status_cache_payload_file)" "$(status_cache_ts_file)" >/dev/null 2>&1 || true
+}
+
+status_cache_get() {
+  ttl="$1"
+  [ -n "$ttl" ] || ttl=2
+  payload_f="$(status_cache_payload_file)"
+  ts_f="$(status_cache_ts_file)"
+  [ -f "$payload_f" ] || return 1
+  [ -f "$ts_f" ] || return 1
+  now="$(date +%s 2>/dev/null || echo 0)"
+  ts="$(cat "$ts_f" 2>/dev/null || echo 0)"
+  echo "$now" | grep -qE '^[0-9]+$' || now=0
+  echo "$ts" | grep -qE '^[0-9]+$' || ts=0
+  [ "$now" -gt 0 ] || return 1
+  [ "$ts" -gt 0 ] || return 1
+  age=$((now-ts))
+  [ "$age" -lt 0 ] && age=999999
+  [ "$age" -le "$ttl" ] || return 1
+  cat "$payload_f" 2>/dev/null
+}
+
+status_cache_put() {
+  payload="$1"
+  dir="$(status_cache_dir)"
+  mkdir -p "$dir" >/dev/null 2>&1 || true
+  payload_f="$(status_cache_payload_file)"
+  ts_f="$(status_cache_ts_file)"
+  printf '%s' "$payload" > "$payload_f" 2>/dev/null || return 1
+  date +%s > "$ts_f" 2>/dev/null || true
+  return 0
+}
+
+status_cpu_pct_sample() {
+  state_f="$(status_cpu_state_file)"
+  now="$(date +%s 2>/dev/null || echo 0)"
+  [ -r /proc/stat ] || { echo 0; return 0; }
+  read _ u1 n1 s1 i1 w1 irq1 sirq1 stl1 rest < /proc/stat
+  t1=$((u1+n1+s1+i1+w1+irq1+sirq1+stl1))
+  id1=$((i1+w1))
+  cpu_pct=0
+  if [ -f "$state_f" ]; then
+    prev="$(cat "$state_f" 2>/dev/null || true)"
+    prev_now="$(echo "$prev" | awk '{print $1}')"
+    prev_t="$(echo "$prev" | awk '{print $2}')"
+    prev_id="$(echo "$prev" | awk '{print $3}')"
+    if echo "$prev_now $prev_t $prev_id" | grep -qE '^[0-9]+ [0-9]+ [0-9]+$'; then
+      dt=$((t1-prev_t))
+      did=$((id1-prev_id))
+      age=$((now-prev_now))
+      if [ "$dt" -gt 0 ] && [ "$age" -ge 0 ] && [ "$age" -le 30 ]; then
+        cpu_pct=$(( (100*(dt-did))/dt ))
+      fi
+    fi
+  fi
+  mkdir -p "$(status_cache_dir)" >/dev/null 2>&1 || true
+  printf '%s %s %s
+' "$now" "$t1" "$id1" > "$state_f" 2>/dev/null || true
+  [ "$cpu_pct" -lt 0 ] && cpu_pct=0
+  [ "$cpu_pct" -gt 100 ] && cpu_pct=100
+  echo "$cpu_pct"
+}
+
+status_remote_agent_version_cached() {
+  cache_v="/opt/zash-agent/var/remote-version.txt"
+  [ -f "$cache_v" ] && cat "$cache_v" 2>/dev/null || echo ""
+}
+
 status() {
+  cached_payload="$(status_cache_get 2 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
   have_iptables=0
   command -v iptables >/dev/null 2>&1 && have_iptables=1
 
@@ -4209,25 +4328,8 @@ status() {
   iptables -m hashlimit -h >/dev/null 2>&1 && have_hashlimit=1
 
   # --- System metrics (best effort) ---
-  cpu_pct=0
-  if [ -r /proc/stat ]; then
-    read _ u1 n1 s1 i1 w1 irq1 sirq1 stl1 rest < /proc/stat
-    t1=$((u1+n1+s1+i1+w1+irq1+sirq1+stl1))
-    id1=$((i1+w1))
-    if command -v usleep >/dev/null 2>&1; then
-      usleep 200000 2>/dev/null || true
-    else
-      sleep 0.2 2>/dev/null || sleep 1 2>/dev/null || true
-    fi
-    read _ u2 n2 s2 i2 w2 irq2 sirq2 stl2 rest < /proc/stat
-    t2=$((u2+n2+s2+i2+w2+irq2+sirq2+stl2))
-    id2=$((i2+w2))
-    dt=$((t2-t1))
-    did=$((id2-id1))
-    if [ "$dt" -gt 0 ]; then
-      cpu_pct=$(( (100*(dt-did))/dt ))
-    fi
-  fi
+  cpu_pct="$(status_cpu_pct_sample 2>/dev/null || echo 0)"
+  echo "$cpu_pct" | grep -qE '^[0-9]+$' || cpu_pct=0
   [ "$cpu_pct" -lt 0 ] && cpu_pct=0
   [ "$cpu_pct" -gt 100 ] && cpu_pct=100
 
@@ -4324,25 +4426,21 @@ status() {
   fi
 
   agent_ver="$AGENT_VERSION"
-  server_ver="$(remote_agent_version 2>/dev/null || true)"
+  server_ver="$(status_remote_agent_version_cached 2>/dev/null || true)"
   if [ -z "$server_ver" ] || [ "$(version_cmp_sh "$server_ver" "$agent_ver")" -lt 0 ]; then
     server_ver="$agent_ver"
   fi
 
   shaper_mode_cfg="$(shaper_configured_downlink_mode)"
-  if [ "$shaper_mode_cfg" = "ifb" ] || [ "$shaper_mode_cfg" = "auto" ]; then
-    ensure_shaper_ifb_base >/dev/null 2>&1 || true
-  fi
-  if [ "$shaper_mode_cfg" = "wan-police" ] || [ "$shaper_mode_cfg" = "auto" ] || [ "$shaper_mode_cfg" = "ifb" ]; then
-    ensure_shaper_police_base >/dev/null 2>&1 || true
-  fi
-  shaper_mode_effective="$(shaper_downlink_mode_effective)"
+  shaper_mode_effective="$(shaper_downlink_mode_effective_passive)"
   shaper_ifb_ready=false
   shaper_police_ready_flag=false
   shaper_ifb_present && shaper_ifb_ready=true
-  shaper_police_ready && shaper_police_ready_flag=true
+  shaper_police_ready_passive && shaper_police_ready_flag=true
 
-  reply_ok "$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")")"
+  status_payload="$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"storagePath":"%s","storageTotal":%s,"storageUsed":%s,"storageFree":%s,"tempC":"%s","hostname":"%s","model":"%s","firmware":"%s","kernel":"%s","arch":"%s","xkeenVersion":"%s","mihomoBinVersion":"%s","shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$storage_path")" "$storage_total_b" "$storage_used_b" "$storage_free_b" "$(jesc "$temp_c")"     "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$kernel")" "$(jesc "$arch")" "$(jesc "$xkeen_ver")" "$(jesc "$mihomo_ver")"     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")")"
+  status_cache_put "$status_payload" >/dev/null 2>&1 || true
+  reply_ok "$status_payload"
 }
 
 detect_router_firmware_text() {

@@ -140,18 +140,38 @@ const agentAxios = () => {
   return instance
 }
 
-export const agentStatusAPI = async (): Promise<AgentStatus> => {
-  try {
-    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'status' },
-      // NOTE: this axios instance does not use the global interceptors.
-      // Adding custom headers (like X-Zash-Silent) triggers CORS preflight
-      // from browsers, so keep requests headerless unless a token is set.
-    })
-    return (data || {}) as AgentStatus
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'offline' }
+
+const shortLivedAgentCache = {
+  status: { ts: 0, data: null as AgentStatus | null, pending: null as Promise<AgentStatus> | null },
+  qos: { ts: 0, data: null as AgentQosStatus | null, pending: null as Promise<AgentQosStatus> | null },
+}
+
+export const agentStatusAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentStatus> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 1500)
+  const now = Date.now()
+  if (!opts?.force && shortLivedAgentCache.status.data && now - shortLivedAgentCache.status.ts <= maxAgeMs) {
+    return shortLivedAgentCache.status.data
   }
+  if (!opts?.force && shortLivedAgentCache.status.pending) {
+    return shortLivedAgentCache.status.pending
+  }
+  const pending = (async (): Promise<AgentStatus> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'status' },
+      })
+      const parsed = (data || {}) as AgentStatus
+      shortLivedAgentCache.status.data = parsed
+      shortLivedAgentCache.status.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'offline' }
+    } finally {
+      shortLivedAgentCache.status.pending = null
+    }
+  })()
+  shortLivedAgentCache.status.pending = pending
+  return pending
 }
 
 export const agentFirmwareCheckAPI = async (force = false): Promise<AgentFirmwareCheck> => {
@@ -339,16 +359,33 @@ export const agentIpToMacAPI = async (ip: string): Promise<{ ok: boolean; mac?: 
 }
 
 
-export const agentQosStatusAPI = async (): Promise<AgentQosStatus> => {
-  try {
-    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'qos_status' },
-      timeout: 5000,
-    })
-    return (data || { ok: false }) as AgentQosStatus
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'failed' }
+export const agentQosStatusAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentQosStatus> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 1500)
+  const now = Date.now()
+  if (!opts?.force && shortLivedAgentCache.qos.data && now - shortLivedAgentCache.qos.ts <= maxAgeMs) {
+    return shortLivedAgentCache.qos.data
   }
+  if (!opts?.force && shortLivedAgentCache.qos.pending) {
+    return shortLivedAgentCache.qos.pending
+  }
+  const pending = (async (): Promise<AgentQosStatus> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'qos_status' },
+        timeout: 5000,
+      })
+      const parsed = (data || { ok: false }) as AgentQosStatus
+      shortLivedAgentCache.qos.data = parsed
+      shortLivedAgentCache.qos.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'failed' }
+    } finally {
+      shortLivedAgentCache.qos.pending = null
+    }
+  })()
+  shortLivedAgentCache.qos.pending = pending
+  return pending
 }
 
 export const agentSetHostQosAPI = async (args: {

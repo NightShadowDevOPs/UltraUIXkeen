@@ -1,3 +1,9 @@
+## v1.2.112 — 2026-03-31
+- router-agent `0.6.25`: `status` / `qos_status` now use passive shaper readiness checks and stop trying to mutate IFB/hashlimit state on every poll
+- router-agent `status` now avoids the old 200ms CPU sleep sample; CPU usage is derived from cached `/proc/stat` deltas instead of blocking each request
+- router-agent `status` payload is cached for a short TTL and cleared after shaping changes, so multiple router cards do not keep recomputing the same expensive diagnostics in parallel
+- frontend agent API now coalesces short-lived `status` / `qos_status` requests, reducing duplicate polling pressure when several router cards refresh together
+
 ## v1.2.111 — 2026-03-31
 - router UI optimization hotfix: hidden `Router` sections now unmount instead of staying alive with background polling
 - reduced live polling pressure on visible router cards: `SystemCard`, `AgentCard`, host QoS, and user QoS refresh now run less often
