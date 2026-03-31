@@ -190,6 +190,7 @@ import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal', 'low', 'background']
@@ -432,18 +433,22 @@ watch(appliedProfiles, () => {
   ensureDrafts()
 }, { deep: true })
 
+const documentVisibility = useDocumentVisibility()
+
 const restartPolling = () => {
   if (timer) window.clearInterval(timer)
   timer = undefined
   if (!expanded.value) return
+  if (documentVisibility.value !== 'visible') return
   timer = window.setInterval(() => {
+    if (documentVisibility.value !== 'visible') return
     void refreshAll()
-  }, 8000)
+  }, 15_000)
 }
 
-watch(expanded, async (value) => {
+watch([expanded, documentVisibility], async ([value, visibility]) => {
   restartPolling()
-  if (value) await refreshAll()
+  if (value && visibility === 'visible') await refreshAll()
 })
 
 onMounted(async () => {

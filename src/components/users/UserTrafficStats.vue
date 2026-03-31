@@ -854,6 +854,7 @@ import {
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 import { usersDbPullNow } from '@/store/usersDbSync'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -1771,6 +1772,24 @@ const clearUserQos = async (row: Row) => {
   }
 }
 
+const documentVisibility = useDocumentVisibility()
+
+const stopQosTimer = () => {
+  if (qosTimer) {
+    window.clearInterval(qosTimer)
+    qosTimer = undefined as any
+  }
+}
+
+const startQosTimer = () => {
+  stopQosTimer()
+  if (documentVisibility.value !== 'visible') return
+  qosTimer = window.setInterval(() => {
+    if (documentVisibility.value !== 'visible') return
+    void refreshQosStatus()
+  }, 20_000)
+}
+
 onMounted(() => {
   bootstrapRouterAgentForLan()
   void (async () => {
@@ -1778,13 +1797,16 @@ onMounted(() => {
     await usersDbPullNow()
     await refreshQosStatus()
   })()
-  qosTimer = window.setInterval(() => {
-    void refreshQosStatus()
-  }, 12000)
+  startQosTimer()
+})
+
+watch(documentVisibility, () => {
+  if (documentVisibility.value === 'visible') void refreshQosStatus()
+  startQosTimer()
 })
 
 onBeforeUnmount(() => {
-  if (qosTimer) window.clearInterval(qosTimer)
+  stopQosTimer()
 })
 
 const speed = (bps: number) => `${prettyBytesHelper(bps || 0)}/s`

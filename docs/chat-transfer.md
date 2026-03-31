@@ -1,3 +1,9 @@
+## v1.2.111 — 2026-03-31
+- started router-side optimization pass: hidden `Router` sections now unmount instead of polling in the background
+- reduced and visibility-gated live polling for router cards, QoS views, traffic cards, and Tasks logs/upstream checks
+- `NetcrazeTrafficCard` now polls less aggressively and stops when the browser tab is hidden
+- `router-agent` did not change in this release and stays on `0.6.24`
+
 ## v1.2.110 — 2026-03-31
 - removed the `Mihomo` section from router UI navigation and routing; the old path now redirects to `Router`
 - stopped positioning the router build as a Mihomo config workspace and updated Settings to point to the lightweight router/runtime view instead

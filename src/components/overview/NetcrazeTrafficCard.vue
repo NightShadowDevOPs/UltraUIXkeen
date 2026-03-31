@@ -507,7 +507,7 @@ import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme, tunnelInterfaceDescriptionMap } from '@/store/settings'
 import { usersDbSyncEnabled } from '@/store/usersDbSync'
-import { useElementSize, useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useElementSize, useStorage } from '@vueuse/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -1223,6 +1223,7 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
 }
 
 const refreshHostTraffic = () => {
+  if (!shouldPollLive()) return
   const now = Date.now()
   const current = collectHostSnapshot()
   const seen = new Set<string>()
@@ -1338,10 +1339,11 @@ const refreshHostHistory = (items: Record<string, HostTrafficState>, ts: number)
 
 const scheduleHostTrafficRefresh = () => {
   if (hostTrafficTimer !== null) window.clearTimeout(hostTrafficTimer)
+  if (!shouldPollLive()) return
   hostTrafficTimer = window.setTimeout(() => {
     refreshHostTraffic()
     scheduleHostTrafficRefresh()
-  }, 1500)
+  }, 3_000)
 }
 
 const hostScopeTotals = (item: Pick<HostTrafficStat, 'mihomoDown' | 'mihomoUp' | 'vpnDown' | 'vpnUp' | 'bypassDown' | 'bypassUp' | 'connections'>) => ({
@@ -1728,6 +1730,7 @@ const refreshHostRemoteTargets = async (ip: string, force = false) => {
 }
 
 const refreshExpandedHostRemoteTargets = async (force = false) => {
+  if (!shouldPollLive()) return
   const ips = Object.entries(expandedHostDetails.value)
     .filter(([, expanded]) => !!expanded)
     .map(([ip]) => ip)
@@ -1736,13 +1739,15 @@ const refreshExpandedHostRemoteTargets = async (force = false) => {
 
 const scheduleHostRemoteTargetsRefresh = () => {
   if (hostRemoteTargetsTimer !== null) window.clearTimeout(hostRemoteTargetsTimer)
+  if (!shouldPollLive()) return
   hostRemoteTargetsTimer = window.setTimeout(async () => {
     await refreshExpandedHostRemoteTargets()
     scheduleHostRemoteTargetsRefresh()
-  }, hostRemoteTargetsRefreshMs)
+  }, Math.max(12_000, hostRemoteTargetsRefreshMs))
 }
 
 const refreshLanHosts = async () => {
+  if (!shouldPollLive()) return
   if (!agentEnabled.value) return
   const res = await agentLanHostsAPI()
   if (!res?.ok || !Array.isArray(res.items)) return
@@ -1758,6 +1763,7 @@ const refreshLanHosts = async () => {
 }
 
 const refreshHostQos = async () => {
+  if (!shouldPollLive()) return
   if (!agentEnabled.value) {
     hostQosByIp.value = {}
     refreshHostTraffic()
@@ -1782,13 +1788,15 @@ const refreshHostQos = async () => {
 
 const scheduleHostQosRefresh = () => {
   if (hostQosTimer !== null) window.clearTimeout(hostQosTimer)
+  if (!shouldPollLive()) return
   hostQosTimer = window.setTimeout(async () => {
     await refreshHostQos()
     scheduleHostQosRefresh()
-  }, 10000)
+  }, 20_000)
 }
 
 const refreshAgentHostTraffic = async () => {
+  if (!shouldPollLive()) return
   if (!agentEnabled.value) {
     agentHostTrafficByIp.value = {}
     refreshHostTraffic()
@@ -1812,18 +1820,20 @@ const refreshAgentHostTraffic = async () => {
 
 const scheduleHostRefresh = () => {
   if (hostsTimer !== null) window.clearTimeout(hostsTimer)
+  if (!shouldPollLive()) return
   hostsTimer = window.setTimeout(async () => {
     await refreshLanHosts()
     scheduleHostRefresh()
-  }, 60000)
+  }, 120_000)
 }
 
 const scheduleAgentHostTrafficRefresh = () => {
   if (hostTrafficAgentTimer !== null) window.clearTimeout(hostTrafficAgentTimer)
+  if (!shouldPollLive()) return
   hostTrafficAgentTimer = window.setTimeout(async () => {
     await refreshAgentHostTraffic()
     scheduleAgentHostTrafficRefresh()
-  }, 3000)
+  }, 6_000)
 }
 
 const extraSeriesValues = computed(() => {
@@ -2118,6 +2128,10 @@ const options = computed(() => ({
   ],
 }))
 
+const documentVisibility = useDocumentVisibility()
+
+const shouldPollLive = () => documentVisibility.value === 'visible'
+
 const stopPolling = () => {
   if (pollTimer !== null) {
     window.clearTimeout(pollTimer)
@@ -2127,7 +2141,8 @@ const stopPolling = () => {
 
 const scheduleNextPoll = () => {
   stopPolling()
-  pollTimer = window.setTimeout(pollTraffic, 2000)
+  if (documentVisibility.value !== 'visible') return
+  pollTimer = window.setTimeout(pollTraffic, 4_000)
 }
 
 const computeExtraSpeeds = (items: AgentTrafficLiveIface[], ts: number) => {
@@ -2158,6 +2173,10 @@ const computeExtraSpeeds = (items: AgentTrafficLiveIface[], ts: number) => {
 }
 
 const pollTraffic = async () => {
+  if (!shouldPollLive()) {
+    stopPolling()
+    return
+  }
   const timestamp = Date.now()
   const mihomoDown = Math.max(0, Number(downloadSpeed.value || 0))
   const mihomoUp = Math.max(0, Number(uploadSpeed.value || 0))
@@ -2285,6 +2304,28 @@ onMounted(() => {
   scheduleHostRemoteTargetsRefresh()
 
   watch(activeConnections, refreshHostTraffic, { deep: true })
+})
+
+watch(documentVisibility, (value) => {
+  if (value !== 'visible') {
+    stopPolling()
+    if (hostsTimer !== null) { window.clearTimeout(hostsTimer); hostsTimer = null }
+    if (hostTrafficTimer !== null) { window.clearTimeout(hostTrafficTimer); hostTrafficTimer = null }
+    if (hostTrafficAgentTimer !== null) { window.clearTimeout(hostTrafficAgentTimer); hostTrafficAgentTimer = null }
+    if (hostQosTimer !== null) { window.clearTimeout(hostQosTimer); hostQosTimer = null }
+    if (hostRemoteTargetsTimer !== null) { window.clearTimeout(hostRemoteTargetsTimer); hostRemoteTargetsTimer = null }
+    return
+  }
+  refreshLanHosts()
+  scheduleHostRefresh()
+  pollTraffic()
+  refreshAgentHostTraffic()
+  scheduleAgentHostTrafficRefresh()
+  refreshHostQos()
+  scheduleHostQosRefresh()
+  refreshHostTraffic()
+  scheduleHostTrafficRefresh()
+  scheduleHostRemoteTargetsRefresh()
 })
 
 onBeforeUnmount(() => {

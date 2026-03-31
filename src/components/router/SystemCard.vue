@@ -112,8 +112,9 @@ import { agentFirmwareCheckAPI, agentStatusAPI } from '@/api/agent'
 import { version as backendVersion } from '@/api'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useDocumentVisibility } from '@vueuse/core'
 
 type AgentStatusExt = {
   ok: boolean
@@ -251,17 +252,39 @@ const refresh = async () => {
   status.value = (await agentStatusAPI()) as any
 }
 
+const documentVisibility = useDocumentVisibility()
+
 let timer: any = null
+
+const stopTimer = () => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+const startTimer = () => {
+  stopTimer()
+  if (!agentEnabled.value) return
+  if (documentVisibility.value !== 'visible') return
+  timer = setInterval(() => {
+    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
+    refresh()
+  }, 20_000)
+}
 
 onMounted(() => {
   refresh()
   refreshFirmware(false)
-  timer = setInterval(() => {
-    if (agentEnabled.value) refresh()
-  }, 10_000)
+  startTimer()
+})
+
+watch([agentEnabled, documentVisibility], () => {
+  if (documentVisibility.value === 'visible' && agentEnabled.value) void refresh()
+  startTimer()
 })
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
+  stopTimer()
 })
 </script>

@@ -659,6 +659,7 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
 import { useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
@@ -1484,29 +1485,12 @@ const refresh = async () => {
   await refreshRestore()
 }
 
+const documentVisibility = useDocumentVisibility()
+
 let liveTimer: number | undefined
 let statusTimer: number | undefined
 
-onMounted(() => {
-  refresh()
-  statusTimer = window.setInterval(() => {
-    refreshStatus()
-  }, 10_000)
-  liveTimer = window.setInterval(() => {
-    if (restore.value?.running) {
-      refreshRestore()
-    }
-    if (backup.value?.running) {
-      refreshBackup()
-    }
-  }, 2000)
-})
-
-watch([agentEnabled, agentUrl, agentToken], () => {
-  refresh()
-})
-
-onUnmounted(() => {
+const stopTimers = () => {
   if (statusTimer) {
     window.clearInterval(statusTimer)
     statusTimer = undefined
@@ -1515,5 +1499,38 @@ onUnmounted(() => {
     window.clearInterval(liveTimer)
     liveTimer = undefined
   }
+}
+
+const startTimers = () => {
+  stopTimers()
+  if (!agentEnabled.value) return
+  if (documentVisibility.value !== 'visible') return
+  statusTimer = window.setInterval(() => {
+    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
+    refreshStatus()
+  }, 20_000)
+  liveTimer = window.setInterval(() => {
+    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
+    if (restore.value?.running) {
+      refreshRestore()
+    }
+    if (backup.value?.running) {
+      refreshBackup()
+    }
+  }, 5_000)
+}
+
+onMounted(() => {
+  refresh()
+  startTimers()
+})
+
+watch([agentEnabled, agentUrl, agentToken, documentVisibility], () => {
+  if (agentEnabled.value && documentVisibility.value === 'visible') void refreshStatus()
+  startTimers()
+})
+
+onUnmounted(() => {
+  stopTimers()
 })
 </script>

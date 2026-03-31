@@ -1895,7 +1895,7 @@ import {
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
 import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
-import { useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
 import { navigateToTopology } from '@/helper/topologyNav'
 import { parseDateMaybe } from '@/helper/providerHealth'
@@ -2627,6 +2627,8 @@ const providerTrafficDebugSummary = computed(() => {
   }
 })
 
+const documentVisibility = useDocumentVisibility()
+
 // --- Live logs (router-agent) ---
 const logSource = ref<'mihomo' | 'config' | 'agent'>('mihomo')
 const logLines = ref<number>(200)
@@ -2709,9 +2711,11 @@ const startTimer = () => {
   stopTimer()
   if (!logsAuto.value) return
   if (!agentEnabled.value) return
+  if (documentVisibility.value !== 'visible') return
   logTimer = setInterval(() => {
+    if (documentVisibility.value !== 'visible') return
     refreshLogs()
-  }, 2000)
+  }, 5_000)
 }
 
 onMounted(() => {
@@ -2729,7 +2733,19 @@ onBeforeUnmount(() => {
   stopUpstreamTimer()
 })
 
-watch([logsAuto, logSource, logLines, agentEnabled], () => {
+watch(documentVisibility, (value) => {
+  if (value === 'visible') {
+    refreshAgentStatusLite()
+    refreshLogs()
+    startTimer()
+    startUpstreamTimer()
+  } else {
+    stopTimer()
+    stopUpstreamTimer()
+  }
+})
+
+watch([logsAuto, logSource, logLines, agentEnabled, documentVisibility], () => {
   logOffset.value = 0
   refreshLogs()
   startTimer()
@@ -3940,7 +3956,9 @@ let upstreamTimer: any = null
 const startUpstreamTimer = () => {
   stopUpstreamTimer()
   // While Tasks page is open: check every 6 hours.
+  if (documentVisibility.value !== 'visible') return
   upstreamTimer = setInterval(() => {
+    if (documentVisibility.value !== 'visible') return
     checkUpstream()
   }, 6 * 60 * 60 * 1000)
 }

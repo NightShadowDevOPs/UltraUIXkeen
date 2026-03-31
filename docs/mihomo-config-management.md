@@ -1,3 +1,7 @@
+# Router note (2026-03-31)
+
+The heavy Mihomo config workspace remains out of the active router product. As of UI `v1.2.111`, optimization work focuses on router-only runtime pages, lower polling pressure, and lighter agent usage. Do not treat this document as an active router-side roadmap until the router build is fully optimized.
+
 # Mihomo config management
 
 > Status note (v1.2.110): the dedicated `Mihomo` config section is removed from the router UI for now. The router build keeps only Mihomo runtime-related control surfaces; the heavyweight config workspace stays out until the project is optimized for lower CPU load.

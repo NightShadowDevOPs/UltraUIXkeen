@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <section v-show="activeSection === 'overview'" class="space-y-2">
+    <section v-if="activeSection === 'overview'" class="space-y-2">
       <div class="px-1">
         <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionOverviewTitle') }}</div>
         <div class="text-sm opacity-70">{{ t('routerSectionOverviewTip') }}</div>
@@ -64,7 +64,7 @@
       </div>
     </section>
 
-    <section v-show="activeSection === 'traffic'" class="space-y-2">
+    <section v-else-if="activeSection === 'traffic'" class="space-y-2">
       <div class="px-1">
         <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionTrafficTitle') }}</div>
         <div class="text-sm opacity-70">{{ t('routerSectionTrafficTip') }}</div>
@@ -86,7 +86,7 @@
       <ChartsCard title-key="router" />
     </section>
 
-    <section v-show="activeSection === 'network'" class="space-y-2">
+    <section v-else class="space-y-2">
       <div class="px-1">
         <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionNetworkTitle') }}</div>
         <div class="text-sm opacity-70">{{ t('routerSectionNetworkTip') }}</div>
