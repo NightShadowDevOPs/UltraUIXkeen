@@ -55,11 +55,19 @@
     </div>
 
     <section v-if="activeView === 'devices'" class="grid grid-cols-1 gap-2 overflow-x-hidden">
-      <HostQosCard />
+      <HostQosCard
+        :focus-ip="focusIp"
+        :focus-user="focusUser"
+        @open-user-focus="openUserFocus"
+      />
     </section>
 
     <section v-else class="grid grid-cols-1 gap-2 overflow-x-hidden">
-      <UserTrafficStats />
+      <UserTrafficStats
+        :focus-user="focusUser"
+        :focus-ip="focusIp"
+        @open-device-focus="openDeviceFocus"
+      />
     </section>
   </div>
 </template>
@@ -88,17 +96,44 @@ const resolveViewId = (raw: unknown): TrafficViewId => {
   return (trafficViews.find((item) => item.id === value)?.id || 'devices') as TrafficViewId
 }
 
+const readQueryValue = (raw: unknown): string => String(raw || '').trim()
+
 const activeView = computed<TrafficViewId>(() => resolveViewId(route.query.view))
 const activeViewMeta = computed(() => trafficViews.find((item) => item.id === activeView.value) || trafficViews[0])
+const focusUser = computed(() => readQueryValue(route.query.user))
+const focusIp = computed(() => readQueryValue(route.query.ip))
+
+const replaceTrafficQuery = (patch: Record<string, string | null | undefined>) => {
+  const nextQuery = { ...route.query }
+  for (const [key, value] of Object.entries(patch)) {
+    const next = String(value || '').trim()
+    if (next) nextQuery[key] = next
+    else delete nextQuery[key]
+  }
+  router.replace({
+    name: ROUTE_NAME.traffic,
+    query: nextQuery,
+  })
+}
 
 const setView = (id: TrafficViewId) => {
   if (activeView.value === id) return
-  router.replace({
-    name: ROUTE_NAME.traffic,
-    query: {
-      ...route.query,
-      view: id,
-    },
+  replaceTrafficQuery({ view: id })
+}
+
+const openUserFocus = (payload: { user?: string; ip?: string }) => {
+  replaceTrafficQuery({
+    view: 'users',
+    user: payload.user,
+    ip: payload.ip,
+  })
+}
+
+const openDeviceFocus = (payload: { user?: string; ip?: string }) => {
+  replaceTrafficQuery({
+    view: 'devices',
+    user: payload.user,
+    ip: payload.ip,
   })
 }
 
@@ -107,13 +142,7 @@ watch(
   (value) => {
     const resolved = resolveViewId(value)
     if (String(value || '').trim() === resolved) return
-    router.replace({
-      name: ROUTE_NAME.traffic,
-      query: {
-        ...route.query,
-        view: resolved,
-      },
-    })
+    replaceTrafficQuery({ view: resolved })
   },
   { immediate: true },
 )

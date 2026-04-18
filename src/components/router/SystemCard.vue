@@ -1,5 +1,5 @@
 <template>
-  <div class="card gap-3 p-3">
+  <div class="card gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <div class="font-semibold">{{ $t('routerResources') }}</div>
@@ -22,13 +22,13 @@
 
     <template v-else>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div class="flex flex-col gap-1">
+        <div class="rounded-xl border border-base-content/10 bg-base-200/30 p-3">
           <div class="flex items-center justify-between">
-            <div class="text-xs opacity-70">CPU</div>
+            <div class="text-xs uppercase tracking-wide opacity-60">CPU</div>
             <div class="text-sm font-mono">{{ cpuPctText }}</div>
           </div>
-          <progress class="progress w-full" :value="status.cpuPct || 0" max="100" />
-          <div class="text-[11px] opacity-70">
+          <progress class="progress mt-2 w-full" :value="status.cpuPct || 0" max="100" />
+          <div class="mt-2 text-[11px] opacity-70">
             {{ $t('loadAvg1m') }}: <span class="font-mono">{{ status.load1 ?? '—' }}</span>
             <span class="opacity-50">·</span>
             {{ $t('loadAvg5m') }}: <span class="font-mono">{{ status.load5 ?? '—' }}</span>
@@ -39,13 +39,13 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div class="rounded-xl border border-base-content/10 bg-base-200/30 p-3">
           <div class="flex items-center justify-between">
-            <div class="text-xs opacity-70">{{ $t('memoryUsage') }}</div>
+            <div class="text-xs uppercase tracking-wide opacity-60">{{ $t('memoryUsage') }}</div>
             <div class="text-sm font-mono">{{ memPctText }}</div>
           </div>
-          <progress class="progress w-full" :value="status.memUsedPct || 0" max="100" />
-          <div class="text-[11px] opacity-70">
+          <progress class="progress mt-2 w-full" :value="status.memUsedPct || 0" max="100" />
+          <div class="mt-2 text-[11px] opacity-70">
             <span class="font-mono">{{ prettyBytes(status.memUsed) }}</span>
             <span class="opacity-50">/</span>
             <span class="font-mono">{{ prettyBytes(status.memTotal) }}</span>
@@ -55,15 +55,57 @@
         </div>
       </div>
 
-      <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3">
-        <div class="mb-3 rounded-lg border border-base-content/10 bg-base-100/40 p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="grid grid-cols-2 gap-2 xl:grid-cols-6">
+        <div v-for="item in summaryItems" :key="item.key" class="rounded-xl border border-base-content/10 bg-base-100/50 px-3 py-2">
+          <div class="text-[11px] uppercase tracking-wide opacity-60">{{ item.label }}</div>
+          <div class="mt-1 break-all font-mono text-xs sm:text-sm">{{ item.value }}</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <details class="rounded-xl border border-base-content/10 bg-base-100/40 p-3" @toggle="handleRouterInfoToggle">
+          <summary class="flex cursor-pointer list-none items-start justify-between gap-3">
+            <div>
+              <div class="font-medium">{{ $t('routerInfo') }}</div>
+              <div class="text-xs opacity-60">
+                {{ detailsLoaded ? $t('routerInfoTip') : $t('routerInfoLoadOnDemand') }}
+              </div>
+            </div>
+            <span class="badge badge-ghost">{{ detailsLoaded ? $t('details') : $t('load') }}</span>
+          </summary>
+
+          <div class="mt-3 flex flex-col gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-xs" @click="loadDetails(true)" :disabled="!agentEnabled || detailsLoading">
+                <span v-if="detailsLoading" class="loading loading-spinner loading-xs"></span>
+                <span v-else>{{ detailsLoaded ? $t('refresh') : $t('load') }}</span>
+              </button>
+              <span class="text-xs opacity-60">{{ $t('routerDiagnosticsLazyHint') }}</span>
+            </div>
+
+            <div v-if="!detailsLoaded" class="rounded-lg border border-dashed border-base-content/20 bg-base-200/20 px-3 py-3 text-sm opacity-70">
+              {{ $t('routerInfoLoadOnDemand') }}
+            </div>
+            <div v-else class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-2">
+              <div v-for="item in infoItems" :key="item.key" class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2">
+                <div class="text-[11px] uppercase tracking-wide opacity-60">{{ item.label }}</div>
+                <div class="mt-1 break-all font-mono text-xs sm:text-sm">{{ item.value }}</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="rounded-xl border border-base-content/10 bg-base-100/40 p-3" @toggle="handleFirmwareToggle">
+          <summary class="flex cursor-pointer list-none items-start justify-between gap-3">
             <div>
               <div class="font-medium">{{ $t('firmwareUpdateCheck') }}</div>
               <div class="text-xs opacity-60">{{ $t('firmwareUpdateCheckTip') }}</div>
             </div>
-            <div class="flex items-center gap-2">
-              <span v-if="firmwareCheck.checkedAt" class="text-[11px] opacity-60">{{ $t('lastCheck') }}: {{ firmwareCheck.checkedAt }}</span>
+            <span class="badge" :class="firmwareBadgeClass">{{ firmwareBadgeText }}</span>
+          </summary>
+
+          <div class="mt-3 flex flex-col gap-3">
+            <div class="flex flex-wrap items-center gap-2">
               <button type="button" class="btn btn-xs btn-ghost" @click="loadDetails(true)" :disabled="!agentEnabled || detailsLoading">
                 <span v-if="detailsLoading" class="loading loading-spinner loading-xs"></span>
                 <span v-else>{{ detailsLoaded ? $t('refresh') : $t('load') }}</span>
@@ -72,47 +114,34 @@
                 <span v-if="firmwareLoading" class="loading loading-spinner loading-xs"></span>
                 <span v-else>{{ $t('refresh') }}</span>
               </button>
+              <span v-if="firmwareCheck.checkedAt" class="text-[11px] opacity-60">{{ $t('lastCheck') }}: {{ firmwareCheck.checkedAt }}</span>
+            </div>
+
+            <div v-if="!detailsLoaded" class="rounded-lg border border-dashed border-base-content/20 bg-base-200/20 px-3 py-3 text-sm opacity-70">
+              {{ $t('routerDiagnosticsLazyHint') }}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="badge badge-ghost">{{ $t('firmware') }}: {{ firmwareCurrentLabel }}</span>
+              <span v-if="firmwareCheck.latestVersion" class="badge badge-info">site: {{ firmwareCheck.latestVersion }}</span>
+              <span v-if="firmwareCheck.mainLatestVersion" class="badge badge-ghost">main: {{ firmwareCheck.mainLatestVersion }}</span>
+              <span v-if="firmwareCheck.previewLatestVersion" class="badge badge-ghost">preview: {{ firmwareCheck.previewLatestVersion }}</span>
+              <span v-if="firmwareCheck.devLatestVersion" class="badge badge-ghost">dev: {{ firmwareCheck.devLatestVersion }}</span>
+              <span v-if="firmwareCheck.channel" class="badge badge-ghost">{{ firmwareCheck.channel }}</span>
+              <a v-if="firmwareCheck.sourceUrl" class="link link-hover text-xs" :href="firmwareCheck.sourceUrl" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+            </div>
+
+            <div v-if="firmwareCheck.updateAvailable" class="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+              {{ $t('firmwareUpdateAvailable', { version: firmwareCheck.latestVersion || '—' }) }}
+            </div>
+            <div v-else-if="firmwareCheck.ok && firmwareCheck.latestVersion" class="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm">
+              {{ $t('firmwareUpToDate') }}
+            </div>
+            <div v-else-if="firmwareCheck.error" class="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm">
+              {{ firmwareCheck.error }}
             </div>
           </div>
-
-          <div v-if="!detailsLoaded" class="mt-2 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2 text-xs opacity-70">
-            {{ $t('routerDiagnosticsLazyHint') }}
-          </div>
-
-          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span class="badge badge-ghost">{{ $t('firmware') }}: {{ firmwareCurrentLabel }}</span>
-            <span class="badge" :class="firmwareBadgeClass">{{ firmwareBadgeText }}</span>
-            <span v-if="firmwareCheck.latestVersion" class="badge badge-info">site: {{ firmwareCheck.latestVersion }}</span>
-            <span v-if="firmwareCheck.mainLatestVersion" class="badge badge-ghost">main: {{ firmwareCheck.mainLatestVersion }}</span>
-            <span v-if="firmwareCheck.previewLatestVersion" class="badge badge-ghost">preview: {{ firmwareCheck.previewLatestVersion }}</span>
-            <span v-if="firmwareCheck.devLatestVersion" class="badge badge-ghost">dev: {{ firmwareCheck.devLatestVersion }}</span>
-            <span v-if="firmwareCheck.channel" class="badge badge-ghost">{{ firmwareCheck.channel }}</span>
-            <a v-if="firmwareCheck.sourceUrl" class="link link-hover text-xs" :href="firmwareCheck.sourceUrl" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
-          </div>
-
-          <div v-if="firmwareCheck.updateAvailable" class="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
-            {{ $t('firmwareUpdateAvailable', { version: firmwareCheck.latestVersion || '—' }) }}
-          </div>
-          <div v-else-if="firmwareCheck.ok && firmwareCheck.latestVersion" class="mt-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm">
-            {{ $t('firmwareUpToDate') }}
-          </div>
-          <div v-else-if="firmwareCheck.error" class="mt-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm">
-            {{ firmwareCheck.error }}
-          </div>
-        </div>
-        <div class="mb-2 flex items-center justify-between gap-2">
-          <div class="font-medium">{{ $t('routerInfo') }}</div>
-          <div class="text-xs opacity-60">{{ detailsLoaded ? $t('routerInfoTip') : $t('routerDiagnosticsLazyHint') }}</div>
-        </div>
-        <div v-if="!detailsLoaded" class="rounded-lg border border-dashed border-base-content/20 bg-base-100/40 px-3 py-3 text-sm opacity-70">
-          {{ $t('routerInfoLoadOnDemand') }}
-        </div>
-        <div v-else class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <div v-for="item in infoItems" :key="item.key" class="rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2">
-            <div class="text-[11px] uppercase tracking-wide opacity-60">{{ item.label }}</div>
-            <div class="mt-1 break-all font-mono text-xs sm:text-sm">{{ item.value }}</div>
-          </div>
-        </div>
+        </details>
       </div>
     </template>
   </div>
@@ -212,6 +241,18 @@ const refreshFirmware = async (force = false) => {
   }
 }
 
+const summaryItems = computed(() => {
+  const backendVer = String(backendVersion.value || '').trim()
+  return [
+    { key: 'agentVersion', label: t('agentVersion'), value: status.value.version || '—' },
+    { key: 'agentServerVersion', label: t('agentServerVersion'), value: status.value.serverVersion || '—' },
+    { key: 'firmware', label: t('firmware'), value: firmwareCurrentLabel.value },
+    { key: 'mihomo', label: t('mihomoVersion'), value: debugStatus.value.mihomoBinVersion || backendVer || '—' },
+    { key: 'temperature', label: t('temperature'), value: status.value.tempC ? `${status.value.tempC} °C` : '—' },
+    { key: 'memoryFree', label: t('freeMemory'), value: prettyBytes(status.value.memFree) },
+  ]
+})
+
 const infoItems = computed(() => {
   const backendVer = String(backendVersion.value || '').trim()
   return [
@@ -226,9 +267,13 @@ const infoItems = computed(() => {
     { key: 'xkeen', label: t('xkeenVersion'), value: debugStatus.value.xkeenVersion || '—' },
     { key: 'temperature', label: t('temperature'), value: status.value.tempC ? `${status.value.tempC} °C` : '—' },
     { key: 'memoryFree', label: t('freeMemory'), value: prettyBytes(status.value.memFree) },
-    { key: 'storage', label: t('storage'), value: debugStatus.value.storageTotal
-      ? `${prettyBytes(debugStatus.value.storageUsed)} / ${prettyBytes(debugStatus.value.storageTotal)} · ${t('free')}: ${prettyBytes(debugStatus.value.storageFree)}${debugStatus.value.storagePath ? ` · ${debugStatus.value.storagePath}` : ''}`
-      : '—' },
+    {
+      key: 'storage',
+      label: t('storage'),
+      value: debugStatus.value.storageTotal
+        ? `${prettyBytes(debugStatus.value.storageUsed)} / ${prettyBytes(debugStatus.value.storageTotal)} · ${t('free')}: ${prettyBytes(debugStatus.value.storageFree)}${debugStatus.value.storagePath ? ` · ${debugStatus.value.storagePath}` : ''}`
+        : '—',
+    },
   ]
 })
 
@@ -262,6 +307,21 @@ const loadDetails = async (force = false) => {
   } finally {
     detailsLoading.value = false
   }
+}
+
+const ensureDetailsLoaded = () => {
+  if (!agentEnabled.value || detailsLoaded.value || detailsLoading.value) return
+  void loadDetails()
+}
+
+const handleRouterInfoToggle = (event: Event) => {
+  const detailsEl = event.currentTarget as HTMLDetailsElement | null
+  if (detailsEl?.open) ensureDetailsLoaded()
+}
+
+const handleFirmwareToggle = (event: Event) => {
+  const detailsEl = event.currentTarget as HTMLDetailsElement | null
+  if (detailsEl?.open) ensureDetailsLoaded()
 }
 
 const handleRefresh = () => {

@@ -1,41 +1,50 @@
-v1.2.119
-- fixed AgentCard runtime refs so Router → Backups actually renders again
-
 # Changelog
+
+## v1.2.121 — router overview cleanup and clearer work zones
+- cleaned up `Router → Overview`: the page now starts with the live system summary and keeps `Backups`, `Traffic`, and `Network` as separate quick-access work cards instead of dumping everything into one long slab
+- refactored `SystemCard` into a lighter operational snapshot with compact CPU/RAM/resource facts, while detailed router diagnostics and firmware checks stay collapsed and load only when opened
+- kept backup workflow in its dedicated workspace, but made the overview act like a real cockpit again instead of a maintenance storage room with identity issues
+- router-agent version did not change and remains `0.6.26`
+
+## v1.2.120 — traffic focus linking and clearer actions
+- added quick drill-down from `Traffic → Devices` into `Traffic → Users` with automatic user/IP focus
+- added quick drill-down back from `Traffic → Users` into the related devices view
+- added in-place traffic filtering and focus highlighting for user rows
+- made device/user actions more explicit so the traffic workspace is easier to navigate during live checks
 
 ## v1.2.119 - 2026-04-18
 - fixed the real runtime blocker behind the empty `Router → Backups` screen: `AgentCard` referenced `maintenanceLoaded` / `maintenanceLoading` without declaring those refs
 - kept the earlier template-scope repair from v1.2.118 and completed the fix so the backup workspace can finally render instead of silently collapsing
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.118 - 2026-04-18
 - fixed the backup workspace rendering bug: `Router → Backups` could appear almost empty because `AgentCard` had a broken template scope in the upload-results block
 - kept the dedicated backup workspace from v1.2.117, but now the actual backup controls and archive lists render instead of playing hide-and-seek
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.117 - 2026-04-18
 - extracted backup workflow from `Router → Overview` into a dedicated `Router → Backups` workspace, so create/list/restore/delete/check/schedule actions stop hiding inside an overview card
 - overview now stays a short operational summary with router state and backend version instead of pretending to be a maintenance cockpit
 - added direct internal navigation between `Overview` and `Backups` so the backup flow is visible and one click away
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.116 - 2026-04-18
 - split the `Traffic` page into two explicit work modes: `Devices` and `Users`, instead of keeping live host triage and long-lived policy work mixed on one screen
 - `Devices` now mounts `HostQosCard` directly inside the Traffic workspace, so live LAN host activity and QoS tuning are one click away from the main traffic route
 - `Users` keeps `UserTrafficStats` focused on accumulated traffic, blocking, limits, and QoS profiles without competing with device-level noise
 - route query `?view=devices|users` is normalized automatically, which makes direct links to the intended traffic mode stable
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.115 - 2026-04-18
 - added a shared `useSafePolling` composable so live router polling is visibility-aware, serialized, and resumed from one predictable path instead of scattered local timers
 - switched `SystemCard`, `AgentCard`, host QoS, router health, user QoS status, and Tasks live logs/upstream checks to the safe polling flow
 - shared sync stores now skip background pull/push ticks while the browser tab is hidden, which cuts pointless router-agent pressure when the UI is open in the background
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.114 - 2026-04-18
 - lazy-load overview diagnostics and maintenance panels so the main Router page stops mounting every heavy diagnostics block at once
 - improved route-level UI responsiveness before the next polling cleanup pass
-- router-agent version did not change and remains `0.6.28`
+- router-agent version did not change and remains `0.6.26`
 
 ## v1.2.113 - 2026-03-31
 - split router-agent hot-path status into lightweight `status` and slower `status_debug`

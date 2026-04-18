@@ -74,7 +74,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in filteredRows" :key="row.ip">
+            <tr
+              v-for="row in filteredRows"
+              :key="row.ip"
+              :class="isFocusedRow(row) ? 'bg-info/5' : ''"
+            >
               <td class="min-w-[240px]">
                 <div class="flex flex-col gap-0.5">
                   <div class="flex flex-wrap items-center gap-2">
@@ -139,7 +143,16 @@
                 </div>
               </td>
               <td>
-                <div class="flex justify-end gap-2">
+                <div class="flex flex-wrap justify-end gap-2">
+                  <button
+                    v-if="linkedUserLabel(row)"
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    :title="$t('trafficWorkspaceOpenUsers')"
+                    @click="openUserTraffic(row)"
+                  >
+                    {{ $t('trafficWorkspaceOpenUsers') }}
+                  </button>
                   <button
                     type="button"
                     class="btn btn-xs"
@@ -189,11 +202,26 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { useI18n } from 'vue-i18n'
 
 const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal', 'low', 'background']
+
+const props = withDefaults(
+  defineProps<{
+    focusIp?: string
+    focusUser?: string
+  }>(),
+  {
+    focusIp: '',
+    focusUser: '',
+  },
+)
+
+const emit = defineEmits<{
+  (e: 'open-user-focus', payload: { user?: string; ip?: string }): void
+}>()
 
 type Row = AgentLanHost & AgentHostTrafficLiveItem & {
   currentProfile?: AgentQosProfile
@@ -213,6 +241,42 @@ const draftProfiles = routerHostQosDraftProfiles
 const appliedProfiles = routerHostQosAppliedProfiles
 const busyIp = ref('')
 const expanded = routerHostQosExpanded
+
+const focusIpNormalized = computed(() => props.focusIp.trim().toLowerCase())
+const focusUserNormalized = computed(() => props.focusUser.trim().toLowerCase())
+
+const looksLikeIp = (value: string): boolean => /^(?:\d{1,3}\.){3}\d{1,3}$/.test(value.trim())
+
+const linkedUserLabel = (row: Pick<Row, 'displayName' | 'hostname' | 'ip'>): string => {
+  const label = String(row.displayName || row.hostname || '').trim()
+  if (!label || looksLikeIp(label) || label === row.ip) return ''
+  return label
+}
+
+const isFocusedRow = (row: Pick<Row, 'displayName' | 'hostname' | 'ip'>): boolean => {
+  const focusIp = focusIpNormalized.value
+  const focusUser = focusUserNormalized.value
+  const rowIp = String(row.ip || '').trim().toLowerCase()
+  const rowUser = linkedUserLabel(row).toLowerCase()
+  return (!!focusIp && rowIp === focusIp) || (!!focusUser && rowUser === focusUser)
+}
+
+const openUserTraffic = (row: Pick<Row, 'displayName' | 'hostname' | 'ip'>) => {
+  const user = linkedUserLabel(row)
+  if (!user) return
+  emit('open-user-focus', { user, ip: row.ip })
+}
+
+watch(
+  [() => props.focusIp, () => props.focusUser],
+  ([ip, user]) => {
+    const focusTerm = String(ip || '').trim() || String(user || '').trim()
+    if (!focusTerm) return
+    query.value = focusTerm
+    expanded.value = true
+  },
+  { immediate: true },
+)
 
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
   const out: Record<string, AgentQosStatusItem> = {}

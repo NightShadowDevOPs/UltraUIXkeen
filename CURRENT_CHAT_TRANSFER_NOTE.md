@@ -1,26 +1,24 @@
-UltraUIXkeen — CURRENT CHAT TRANSFER NOTE
+# UI Mihomo / Ultra — перенос в новый чат
 
-Current release snapshot: v1.2.119
-Date: 2026-04-18
-Project root: UltraUIXkeen
-Server path: /opt/UltraUIXkeen
-Stack: Vue 3 + TypeScript + router-agent shell/cgi on router
+## Текущее состояние
+- Текущая версия UI: **v1.2.121**
+- Router-agent: **0.6.26**
+- Основной репозиторий: `NightShadowDevOPs/UltraUIXkeen`
+- Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
+- Путь на роутере: `/opt/UltraUIXkeen`
 
-What was done in v1.2.119
-- Fixed the actual `AgentCard` runtime blocker: `maintenanceLoaded` / `maintenanceLoading` were referenced but not declared.
-- The dedicated backup workspace added in v1.2.117 now has the missing refs restored, so its controls and history panels can render.
-- router-agent version was not changed and stays 0.6.28.
+## Что сделано в v1.2.121
+- `Router → Overview` снова приведён к роли короткой операционной сводки
+- в обзоре оставлены быстрые рабочие карточки для перехода в `Резервные копии`, `Трафик` и `Сеть`
+- `SystemCard` облегчён: CPU/RAM/версии и краткие факты видны сразу, а тяжёлая диагностика и проверка прошивки раскрываются и грузятся только по требованию
+- авто-проверка SSL-сертификатов прокси-провайдеров не затрагивалась
 
-Key context to keep in the next chat
-- This is the router UI project, not the Ubuntu host project. Do not mix them.
-- Router path: /opt/UltraUIXkeen.
-- User updates UI on the router through the project’s own UI update flow, not via git pull on the router.
-- Keep automatic SSL certificate checks for proxy providers intact; do not break or rewrite that subsystem casually.
-- Config editing is not the priority right now; information architecture, traffic section, QoS/shaping, server/host state, providers, and operational UX matter more.
-- In router command blocks always start with clear.
-- In every release keep docs updated, including the transfer file for a new chat.
+## Что проверять после выкладки
+1. `Router → Overview` открывается без пустых блоков и без ощущения дублирования backup/traffic/network внутри одной простыни
+2. в `SystemCard` live-метрики обновляются как раньше
+3. раскрытие `Информация о роутере` и `Проверка обновления прошивки` реально подгружает данные по требованию
+4. переходы из обзорных карточек в `Резервные копии`, `Трафик` и `Сеть` работают корректно
+5. `Router → Backups` и `Traffic` не сломались после перестройки обзора
 
-Recommended next step
-- v1.2.120: continue functional Traffic work: device/user linking, duplicate cleanup, and clearer QoS/profile actions directly from the Traffic workspace.
-- v1.2.121: clean Router overview further after backup extraction and keep it as a short operational summary.
-- v1.2.122: continue provider-focused operational polish without touching the working SSL auto-check path.
+## Следующий зафиксированный шаг
+- **v1.2.122** — полировка `Router → Резервные копии`: явные действия по строкам архивов, меньше пустоты, лучше визуальная иерархия

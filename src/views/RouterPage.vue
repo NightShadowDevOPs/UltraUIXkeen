@@ -1,205 +1,127 @@
 <template>
-  <div class="flex h-full flex-col gap-3 overflow-x-hidden overflow-y-auto p-2">
-    <div class="card gap-3 p-3">
-      <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <div class="font-semibold">{{ t('routerWorkspaceTitle') }}</div>
-          <div class="text-sm opacity-70">{{ t('routerWorkspaceTip') }}</div>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="section in routerSections"
-            :key="`quick-${section.id}`"
-            type="button"
-            class="btn btn-sm"
-            :class="activeSection === section.id ? '' : 'btn-ghost'"
-            @click="setSection(section.id)"
-          >
-            {{ t(section.labelKey) }}
-          </button>
-        </div>
+  <div class="flex flex-col gap-4">
+    <div class="card gap-3 p-4">
+      <div>
+        <div class="text-2xl font-semibold">{{ $t('routerTitle') }}</div>
+        <div class="text-sm opacity-70">{{ $t('routerWorkspaceTip') }}</div>
       </div>
 
-      <div class="overflow-x-auto">
-        <div class="tabs tabs-boxed inline-flex min-w-max gap-1 bg-base-200/60 p-1">
-          <button
-            v-for="section in routerSections"
-            :key="section.id"
-            type="button"
-            class="tab whitespace-nowrap border-0"
-            :class="activeSection === section.id ? 'tab-active !bg-base-100 shadow-sm' : 'opacity-80 hover:opacity-100'"
-            @click="setSection(section.id)"
-          >
-            {{ t(section.labelKey) }}
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr),20rem]">
-        <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-          <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t(activeSectionMeta.labelKey) }}</div>
-          <div class="mt-1 text-sm opacity-70">{{ t(activeSectionMeta.tipKey) }}</div>
-        </div>
-        <div class="rounded-lg border border-base-content/10 bg-base-100/70 p-3">
-          <div class="font-semibold">{{ t('routerInfo') }}</div>
-          <div class="mt-1 text-sm opacity-70">{{ t('routerInfoTip') }}</div>
-        </div>
+      <div class="tabs tabs-boxed w-fit gap-1 self-start">
+        <button type="button" class="tab" :class="{ 'tab-active': section === 'overview' }" @click="setSection('overview')">{{ $t('routerSectionOverviewTitle') }}</button>
+        <button type="button" class="tab" :class="{ 'tab-active': section === 'backup' }" @click="setSection('backup')">{{ $t('routerSectionBackupTitle') }}</button>
+        <button type="button" class="tab" :class="{ 'tab-active': section === 'traffic' }" @click="setSection('traffic')">{{ $t('routerSectionTrafficTitle') }}</button>
+        <button type="button" class="tab" :class="{ 'tab-active': section === 'network' }" @click="setSection('network')">{{ $t('routerSectionNetworkTitle') }}</button>
       </div>
     </div>
 
-    <section v-if="activeSection === 'overview'" class="space-y-2">
-      <div class="px-1">
-        <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionOverviewTitle') }}</div>
-        <div class="text-sm opacity-70">{{ t('routerSectionOverviewTip') }}</div>
-      </div>
-
-      <div class="card gap-3 p-3">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div class="font-semibold">{{ t('routerOverviewBackupMovedTitle') }}</div>
-            <div class="mt-1 text-sm opacity-70">{{ t('routerOverviewBackupMovedTip') }}</div>
-          </div>
-          <button type="button" class="btn btn-sm" @click="setSection('backup')">
-            {{ t('open') }} · {{ t('routerSectionBackupTitle') }}
-          </button>
-        </div>
-      </div>
-
+    <template v-if="section === 'overview'">
       <SystemCard />
 
-      <div class="card items-center justify-center gap-2 p-2 sm:flex-row">
-        {{ getLabelFromBackend(activeBackend!) }} :
-        <BackendVersion />
-      </div>
-    </section>
-
-    <section v-else-if="activeSection === 'backup'" class="space-y-2">
-      <div class="px-1">
-        <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionBackupTitle') }}</div>
-        <div class="text-sm opacity-70">{{ t('routerSectionBackupTip') }}</div>
-      </div>
-
-      <div class="card gap-3 p-3">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div class="card gap-3 p-4">
           <div>
-            <div class="font-semibold">{{ t('routerBackupWorkspaceTitle') }}</div>
-            <div class="mt-1 text-sm opacity-70">{{ t('routerBackupWorkspaceTip') }}</div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionBackupTitle') }}</div>
+            <div class="mt-2 text-lg font-semibold">{{ $t('routerOverviewBackupMovedTitle') }}</div>
+            <div class="mt-1 text-sm opacity-70">{{ $t('routerOverviewBackupMovedTip') }}</div>
           </div>
-          <button type="button" class="btn btn-sm btn-ghost" @click="setSection('overview')">
-            {{ t('open') }} · {{ t('routerSectionOverviewTitle') }}
-          </button>
+          <div class="mt-auto flex items-center justify-between gap-3">
+            <span class="badge badge-outline">create / restore / verify</span>
+            <button type="button" class="btn btn-sm" @click="setSection('backup')">{{ $t('open') }}</button>
+          </div>
+        </div>
+
+        <div class="card gap-3 p-4">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionTrafficTitle') }}</div>
+            <div class="mt-2 text-lg font-semibold">{{ $t('routerSectionTrafficTitle') }}</div>
+            <div class="mt-1 text-sm opacity-70">{{ $t('routerSectionTrafficTip') }}</div>
+          </div>
+          <div class="mt-auto flex items-center justify-between gap-3">
+            <span class="badge badge-outline">devices / users / QoS</span>
+            <button type="button" class="btn btn-sm" @click="goUsersTraffic">{{ $t('open') }}</button>
+          </div>
+        </div>
+
+        <div class="card gap-3 p-4">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionNetworkTitle') }}</div>
+            <div class="mt-2 text-lg font-semibold">{{ $t('routerSectionNetworkTitle') }}</div>
+            <div class="mt-1 text-sm opacity-70">{{ showIPAndConnectionInfo ? $t('routerSectionNetworkTip') : $t('routerSectionNetworkDisabled') }}</div>
+          </div>
+          <div class="mt-auto flex items-center justify-between gap-3">
+            <span class="badge" :class="showIPAndConnectionInfo ? 'badge-success' : 'badge-ghost'">{{ showIPAndConnectionInfo ? $t('online') : $t('disabled') }}</span>
+            <button type="button" class="btn btn-sm" @click="setSection('network')" :disabled="!showIPAndConnectionInfo">{{ $t('open') }}</button>
+          </div>
         </div>
       </div>
 
+      <div class="card gap-2 p-4 text-sm">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="badge badge-outline">backend {{ backendVersion || '—' }}</span>
+          <span class="badge badge-ghost">{{ $t('routerSectionOverviewTitle') }}</span>
+        </div>
+        <div class="opacity-70">{{ $t('routerSectionOverviewTip') }}</div>
+        <div class="text-xs opacity-60">{{ $t('routerDiagnosticsLazyHint') }}</div>
+      </div>
+    </template>
+
+    <template v-else-if="section === 'backup'">
+      <div class="card gap-3 p-4">
+        <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionBackupTitle') }}</div>
+        <div class="text-lg font-semibold">{{ $t('routerBackupWorkspaceTitle') }}</div>
+        <div class="text-sm opacity-70">{{ $t('routerSectionBackupTip') }}</div>
+      </div>
       <AgentCard />
-    </section>
+    </template>
 
-    <section v-else-if="activeSection === 'traffic'" class="space-y-2">
-      <div class="px-1">
-        <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionTrafficTitle') }}</div>
-        <div class="text-sm opacity-70">{{ t('routerSectionTrafficTip') }}</div>
-      </div>
-
-      <div class="card gap-2 p-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div class="font-semibold">{{ t('hostQosTitle') }}</div>
-            <div class="text-sm opacity-70">{{ t('hostQosMovedToTrafficTip') }}</div>
-          </div>
-          <button type="button" class="btn btn-sm" @click="goUsersTraffic">
-            {{ t('open') }} · {{ t('traffic') }}
-          </button>
+    <template v-else-if="section === 'traffic'">
+      <div class="card gap-3 p-4">
+        <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionTrafficTitle') }}</div>
+        <div class="text-lg font-semibold">{{ $t('routerSectionTrafficTitle') }}</div>
+        <div class="text-sm opacity-70">{{ $t('routerSectionTrafficTip') }}</div>
+        <div>
+          <button type="button" class="btn btn-sm" @click="goUsersTraffic">{{ $t('open') }}</button>
         </div>
       </div>
+    </template>
 
-      <NetcrazeTrafficCard />
-      <ChartsCard title-key="router" />
-    </section>
-
-    <section v-else class="space-y-2">
-      <div class="px-1">
-        <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionNetworkTitle') }}</div>
-        <div class="text-sm opacity-70">{{ t('routerSectionNetworkTip') }}</div>
+    <template v-else>
+      <div class="card gap-3 p-4">
+        <div class="text-xs font-semibold uppercase tracking-[0.2em] opacity-60">{{ $t('routerSectionNetworkTitle') }}</div>
+        <div class="text-lg font-semibold">{{ $t('routerSectionNetworkTitle') }}</div>
+        <div class="text-sm opacity-70">{{ showIPAndConnectionInfo ? $t('routerSectionNetworkTip') : $t('routerSectionNetworkDisabled') }}</div>
       </div>
-
-      <NetworkCard v-if="showIPAndConnectionInfo" />
-      <div v-else class="card gap-2 p-3 text-sm opacity-70">
-        {{ t('routerSectionNetworkDisabled') }}
-      </div>
-
-      <div class="card items-center justify-center gap-2 p-2 sm:flex-row">
-        {{ getLabelFromBackend(activeBackend!) }} :
-        <BackendVersion />
-      </div>
-    </section>
+      <ConnectionInfoCard v-if="showIPAndConnectionInfo" />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import AgentCard from '@/components/router/AgentCard.vue'
+import ConnectionInfoCard from '@/components/router/ConnectionInfoCard.vue'
 import SystemCard from '@/components/router/SystemCard.vue'
-import BackendVersion from '@/components/common/BackendVersion.vue'
-import ChartsCard from '@/components/overview/ChartsCard.vue'
-import NetcrazeTrafficCard from '@/components/overview/NetcrazeTrafficCard.vue'
-import NetworkCard from '@/components/overview/NetworkCard.vue'
-import { ROUTE_NAME } from '@/constant'
-import { getLabelFromBackend } from '@/helper/utils'
-import { i18n } from '@/i18n'
-import { showIPAndConnectionInfo } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
-import { computed, watch } from 'vue'
+import { version as backendVersion } from '@/api'
+import { useUISettings } from '@/composables/useUISettings'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-const router = useRouter()
 const route = useRoute()
-const t = i18n.global.t
+const router = useRouter()
+const { uiSettings } = useUISettings()
 
-const routerSections = [
-  { id: 'overview', labelKey: 'routerSectionOverviewTitle', tipKey: 'routerSectionOverviewTip' },
-  { id: 'backup', labelKey: 'routerSectionBackupTitle', tipKey: 'routerSectionBackupTip' },
-  { id: 'traffic', labelKey: 'routerSectionTrafficTitle', tipKey: 'routerSectionTrafficTip' },
-  { id: 'network', labelKey: 'routerSectionNetworkTitle', tipKey: 'routerSectionNetworkTip' },
-] as const
+const section = computed(() => {
+  const raw = Array.isArray(route.query.section) ? route.query.section[0] : route.query.section
+  if (raw === 'backup' || raw === 'traffic' || raw === 'network') return raw
+  return 'overview'
+})
 
-type RouterSectionId = (typeof routerSections)[number]['id']
+const showIPAndConnectionInfo = computed(() => uiSettings.value.showIPAndConnectionInfo !== false)
 
-const resolveSectionId = (raw: unknown): RouterSectionId => {
-  const value = String(raw || '').trim()
-  return (routerSections.find((item) => item.id === value)?.id || 'overview') as RouterSectionId
-}
-
-const activeSection = computed<RouterSectionId>(() => resolveSectionId(route.query.section))
-const activeSectionMeta = computed(() => routerSections.find((item) => item.id === activeSection.value) || routerSections[0])
-
-const setSection = (id: RouterSectionId) => {
-  if (activeSection.value === id) return
-  router.replace({
-    name: ROUTE_NAME.router,
-    query: {
-      ...route.query,
-      section: id,
-    },
-  })
+const setSection = (next: 'overview' | 'backup' | 'traffic' | 'network') => {
+  router.replace({ query: { ...route.query, section: next === 'overview' ? undefined : next } })
 }
 
 const goUsersTraffic = () => {
-  router.push({ name: ROUTE_NAME.traffic })
+  router.push({ name: 'Traffic', query: { view: 'users' } })
 }
-
-watch(
-  () => route.query.section,
-  (value) => {
-    const resolved = resolveSectionId(value)
-    if (String(value || '').trim() === resolved) return
-    router.replace({
-      name: ROUTE_NAME.router,
-      query: {
-        ...route.query,
-        section: resolved,
-      },
-    })
-  },
-  { immediate: true },
-)
 </script>

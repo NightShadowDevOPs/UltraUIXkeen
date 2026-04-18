@@ -56,6 +56,24 @@
           </template>
         </div>
       </div>
+      <div class="flex flex-wrap items-end gap-2">
+        <label class="flex min-w-[260px] flex-1 flex-col gap-1 text-sm">
+          <span class="opacity-70">{{ $t('search') }}</span>
+          <input
+            v-model.trim="trafficFilter"
+            class="input input-sm"
+            :placeholder="$t('trafficWorkspaceFilterPlaceholder')"
+          />
+        </label>
+        <button v-if="trafficFilter" type="button" class="btn btn-ghost btn-sm" @click="trafficFilter = ''">
+          {{ $t('clear') }}
+        </button>
+        <span v-if="props.focusUser || props.focusIp" class="badge badge-info">
+          {{ props.focusUser || props.focusIp }}
+        </span>
+      </div>
+
+
       <div v-if="preset === 'custom'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm">
           <span class="opacity-70">{{ $t('from') }}</span>
@@ -266,7 +284,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.user">
+            <tr v-for="row in rows" :key="row.user" :class="rowMatchesFocus(row) ? 'bg-info/5' : undefined">
               <td>
                 <input
                   type="checkbox"
@@ -555,15 +573,27 @@
                       <ArrowPathIcon v-else class="h-4 w-4 opacity-70" />
                     </button>
                     <button
+                      v-if="rowHasEffectiveIps(row)"
                       type="button"
-                      class="btn btn-ghost btn-circle btn-xs relative z-20"
+                      class="btn btn-ghost btn-xs relative z-20"
+                      @click.stop.prevent="openDevicesForRow(row)"
+                      @pointerdown.stop.prevent
+                      @mousedown.stop.prevent
+                      @touchstart.stop.prevent
+                      :title="$t('trafficWorkspaceOpenDevices')"
+                    >
+                      {{ $t('devices') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs relative z-20"
                       @click.stop.prevent="openLimits(rowLimitOwner(row), row.user)"
                       @pointerdown.stop.prevent
                       @mousedown.stop.prevent
                       @touchstart.stop.prevent
                       :title="$t('limits')"
                     >
-                      <AdjustmentsHorizontalIcon class="h-4 w-4" />
+                      {{ $t('limits') }}
                     </button>
 
                     <button
@@ -853,7 +883,7 @@ import {
   userTrafficStoreSize,
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { usersDbPullNow } from '@/store/usersDbSync'
 import { useRouter } from 'vue-router'
@@ -889,6 +919,21 @@ type Row = {
   limitOwnerMatch?: string
   currentQos?: RowQosState
 }
+
+const props = withDefaults(
+  defineProps<{
+    focusUser?: string
+    focusIp?: string
+  }>(),
+  {
+    focusUser: '',
+    focusIp: '',
+  },
+)
+
+const emit = defineEmits<{
+  (e: 'open-device-focus', payload: { user?: string; ip?: string }): void
+}>()
 
 const editingUser = ref<string | null>(null)
 const editingName = ref('')
@@ -1127,6 +1172,40 @@ const effectiveIpsForRow = (row: Row) => {
 }
 
 const rowHasEffectiveIps = (row: Row) => effectiveIpsForRow(row).length > 0
+
+
+const rowMatchesFocus = (row: Row): boolean => {
+  const focusUser = normalizeUserName(props.focusUser)
+  const focusIp = String(props.focusIp || '').trim().toLowerCase()
+  if (focusUser && normalizeUserName(row.user) === focusUser) return true
+  if (!focusIp) return false
+  return row.ips.some((ip) => ip.toLowerCase() === focusIp) || row.macs.some((mac) => mac.toLowerCase() === focusIp)
+}
+
+const rowSearchBlob = (row: Row): string => {
+  const qos = formatQosLabel(row.currentQos || '')
+  return [row.user, row.limitOwner, row.limitOwnerMatch || '', row.keys, row.ips.join(' '), row.macs.join(' '), qos]
+    .join(' ')
+    .toLowerCase()
+}
+
+const openDevicesForRow = (row: Row) => {
+  const preferredIp = effectiveIpsForRow(row)[0] || row.ips[0] || ''
+  emit('open-device-focus', {
+    user: row.user,
+    ip: preferredIp,
+  })
+}
+
+watch(
+  [() => props.focusUser, () => props.focusIp],
+  ([focusUser, focusIp]) => {
+    const nextFilter = String(focusUser || '').trim() || String(focusIp || '').trim()
+    if (!nextFilter) return
+    trafficFilter.value = nextFilter
+  },
+  { immediate: true },
+)
 
 const resolveIpsForQosAction = async (row: Row) => {
   let ips = effectiveIpsForRow(row)
@@ -1429,6 +1508,7 @@ const removeUser = (user: string) => {
 
 const preset = ref<'1h' | '24h' | '7d' | '30d' | 'custom'>('24h')
 const topN = ref<number>(30)
+const trafficFilter = ref('')
 
 type SortKey = 'user' | 'keys' | 'dl' | 'ul' | 'total'
 const sortKey = ref<SortKey>('total')
@@ -1705,6 +1785,7 @@ const rows = computed<Row[]>(() => {
     return dir * (at - bt)
   })
 
+  let result = sorted
   if (topN.value > 0) {
     const pinnedUsers = new Set(Object.keys(userLimits.value || {}).filter((user) => Boolean(user) && shouldIncludeTrafficUser(user)))
     const sliced = sorted.slice(0, topN.value)
@@ -1715,9 +1796,18 @@ const rows = computed<Row[]>(() => {
       sliced.push(row)
       keep.add(row.user)
     }
-    return sliced
+    result = sliced
   }
-  return sorted
+
+  const filterQuery = trafficFilter.value.trim().toLowerCase()
+  if (filterQuery) result = result.filter((row) => rowSearchBlob(row).includes(filterQuery))
+
+  return [...result].sort((a, b) => {
+    const aFocused = rowMatchesFocus(a) ? 1 : 0
+    const bFocused = rowMatchesFocus(b) ? 1 : 0
+    if (aFocused !== bFocused) return bFocused - aFocused
+    return 0
+  })
 })
 
 watch(rows, () => {
