@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.122 — router network card build hotfix
+- added the missing `src/components/router/ConnectionInfoCard.vue` wrapper used by `RouterPage.vue`, so production build no longer falls over on a phantom import
+- restored the `Router → Network` workspace rendering by wiring it to the existing overview IP and latency widgets instead of referencing a file that did not exist
+- updated transfer docs and the near-term release plan after the 1.2.121 build failure
+- router-agent version did not change and remains `0.6.26`
+
 ## v1.2.121 — router overview cleanup and clearer work zones
 - cleaned up `Router → Overview`: the page now starts with the live system summary and keeps `Backups`, `Traffic`, and `Network` as separate quick-access work cards instead of dumping everything into one long slab
 - refactored `SystemCard` into a lighter operational snapshot with compact CPU/RAM/resource facts, while detailed router diagnostics and firmware checks stay collapsed and load only when opened
