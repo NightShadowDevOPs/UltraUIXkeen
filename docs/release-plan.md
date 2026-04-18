@@ -20,16 +20,20 @@
 - по логике обзор был переразложен правильно
 - но сборка упала из-за отсутствующего `ConnectionInfoCard.vue`, поэтому эту версию не считать рабочей
 
-### v1.2.122 — Router network build hotfix ✅
-- добавлен реальный `ConnectionInfoCard.vue`
-- `Router → Сеть` снова собирается и рендерится, используя существующие виджеты IP/latency
-- документация и transfer-файлы синхронизированы после hotfix
+### v1.2.122 — Router network card hotfix ⚠️ build-failed
+- добавлен `ConnectionInfoCard.vue`
+- но сборка всё ещё падала из-за мёртвого импорта `@/composables/useUISettings` в `RouterPage.vue`
 
-### v1.2.123 — Backup workspace action polish
+### v1.2.123 — Router settings import hotfix ✅
+- удалён мёртвый импорт `useUISettings`
+- `RouterPage.vue` теперь берёт `showIPAndConnectionInfo` из `@/store/settings`, где эта настройка реально живёт
+- цепочка сборки для `Router → Сеть` закрыта корректно
+
+### v1.2.124 — Backup workspace action polish
 - довести строки архивов до более явных действий `Проверить / Восстановить / Удалить` без ощущения «пустого экрана»
 - подчистить подписи, фон, плотность и визуальную иерархию backup-экрана под общий стиль проекта
 
-### v1.2.124 — Router network workspace hardening
+### v1.2.125 — Router network workspace hardening
 - сделать `Router → Сеть` самостоятельной полезной рабочей зоной, а не хвостом от обзора
 - проверить, какие сетевые факты и проверки стоит вынести туда из текущих смешанных карточек
 

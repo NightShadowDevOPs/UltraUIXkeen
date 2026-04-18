@@ -101,21 +101,17 @@ import AgentCard from '@/components/router/AgentCard.vue'
 import ConnectionInfoCard from '@/components/router/ConnectionInfoCard.vue'
 import SystemCard from '@/components/router/SystemCard.vue'
 import { version as backendVersion } from '@/api'
-import { useUISettings } from '@/composables/useUISettings'
+import { showIPAndConnectionInfo } from '@/store/settings'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const { uiSettings } = useUISettings()
-
 const section = computed(() => {
   const raw = Array.isArray(route.query.section) ? route.query.section[0] : route.query.section
   if (raw === 'backup' || raw === 'traffic' || raw === 'network') return raw
   return 'overview'
 })
-
-const showIPAndConnectionInfo = computed(() => uiSettings.value.showIPAndConnectionInfo !== false)
 
 const setSection = (next: 'overview' | 'backup' | 'traffic' | 'network') => {
   router.replace({ query: { ...route.query, section: next === 'overview' ? undefined : next } })
