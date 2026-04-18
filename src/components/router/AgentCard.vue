@@ -407,6 +407,7 @@
                     </div>
                   </div>
                 </div>
+              </div>
 
               <div v-else class="mt-2 opacity-70">{{ $t('agentBackupNoItems') }}</div>
             </div>

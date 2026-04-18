@@ -57,7 +57,11 @@
 - lazy-load backup-блока теперь привязан к реальным template refs, чтобы `Загрузить` прокручивал к рабочей зоне предсказуемее
 - router-agent не менялся и остаётся `0.6.26`
 
-### v1.2.130 — Router network workspace hardening
+### v1.2.130 — AgentCard template closure hotfix ✅
+- Закрыт пропущенный контейнер в unified backup history, из-за которого production build падал с `Element is missing end tag`.
+- Backup workspace сохранён без отката логики inspection-panel и unified history.
+
+### v1.2.131 — Router network workspace hardening
 - сделать `Router → Сеть` самостоятельной полезной рабочей зоной, а не хвостом от обзора
 - проверить, какие сетевые факты и проверки стоит вынести туда из текущих смешанных карточек
 

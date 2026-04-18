@@ -1,8 +1,8 @@
 # Changelog
 
-## v1.2.129 — backup workspace render hotfix
-- fixed backup workspace render in `src/components/router/AgentCard.vue`: the archive inspection panel no longer references `item` outside the `v-for`, which could break the whole lazy-loaded backup block at runtime
-- added template refs for the maintenance workspace and its first section so the “Загрузить” action can scroll to the loaded backup area more predictably
+## v1.2.130 — AgentCard template closure hotfix
+- fixed the missing closing container in `src/components/router/AgentCard.vue` unified backup history, which broke production build with `Element is missing end tag`
+- kept the previously assembled backup workspace logic intact: archive inspection panel stays inside the correct list item scope
 - router-agent is unchanged in this release and remains `0.6.26`
 
 ## v1.2.127 — backup workspace build hotfix
