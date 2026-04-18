@@ -6,7 +6,7 @@
         class="flex flex-1 flex-col overflow-hidden"
         ref="swiperRef"
       >
-        <PageTitleBar :route-name="(route.name as string)" />
+        <PageTitleBar :route-name="(route.name as string)" :route="route" />
 
         <div
           v-if="ctrlsMap[route.name as string]"

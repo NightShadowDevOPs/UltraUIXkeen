@@ -35,12 +35,36 @@ import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = defineProps<{ routeName: string | null | undefined }>()
+const props = defineProps<{
+  routeName: string | null | undefined
+  route?: { query?: Record<string, unknown> } | null | undefined
+}>()
 const { t } = useI18n()
 
-const title = computed(() => {
+const titleKey = computed(() => {
   const n = String(props.routeName || '').trim()
-  return n ? t(n) : 'UI Mihomo/Ultra'
+  const query = props.route?.query || {}
+
+  if (n === 'router') {
+    const rawSection = Array.isArray(query.section) ? query.section[0] : query.section
+    if (rawSection === 'backup') return 'routerBackup'
+    if (rawSection === 'traffic') return 'routerTraffic'
+    if (rawSection === 'network') return 'routerNetwork'
+    return 'routerOverview'
+  }
+
+  if (n === 'traffic') {
+    const rawView = Array.isArray(query.view) ? query.view[0] : query.view
+    if (rawView === 'users') return 'trafficUsers'
+    if (rawView === 'devices') return 'trafficDevices'
+  }
+
+  return n
+})
+
+const title = computed(() => {
+  const key = String(titleKey.value || '').trim()
+  return key ? t(key) : 'UI Mihomo/Ultra'
 })
 
 const icon = computed(() => {

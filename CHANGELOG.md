@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.124 — router workspace title polish
+- page title bar now shows normal localized workspace names instead of exposing raw keys like `routerTraffic`
+- added explicit labels for `Router → Overview / Backups / Traffic / Network`
+- added explicit labels for `Traffic → Devices / Users`
+- updated transfer docs and near-term release plan; router-agent version remains `0.6.26`
+
 ## v1.2.123 — router settings import build hotfix
 - removed the dead import of `@/composables/useUISettings` from `RouterPage.vue`; the page now reads `showIPAndConnectionInfo` directly from `@/store/settings`, where this setting actually lives
 - kept the `ConnectionInfoCard.vue` hotfix from v1.2.122 and finished the router page build chain so the route no longer depends on missing local wrappers or missing composables
