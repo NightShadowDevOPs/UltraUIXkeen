@@ -1,7 +1,12 @@
-v1.2.117
-- backup workspace extracted from Router overview into a dedicated Router tab
+v1.2.118
+- fixed empty Backups tab by repairing AgentCard upload-results template scope
 
 # Changelog
+
+## v1.2.118 - 2026-04-18
+- fixed the backup workspace rendering bug: `Router → Backups` could appear almost empty because `AgentCard` had a broken template scope in the upload-results block
+- kept the dedicated backup workspace from v1.2.117, but now the actual backup controls and archive lists render instead of playing hide-and-seek
+- router-agent version did not change and remains `0.6.28`
 
 ## v1.2.117 - 2026-04-18
 - extracted backup workflow from `Router → Overview` into a dedicated `Router → Backups` workspace, so create/list/restore/delete/check/schedule actions stop hiding inside an overview card
