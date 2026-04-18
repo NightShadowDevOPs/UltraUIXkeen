@@ -4,3 +4,4 @@
 - [Проверка SSL-сертификатов провайдеров с роутера](./provider-ssl-checks.md)
 - [Агрегированные клиентские подписки](./aggregated-subscriptions.md)
 - [Аудит навигации и рабочих экранов](./navigation-audit.md)
+- [План ближайших релизов](./release-plan.md)

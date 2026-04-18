@@ -1,7 +1,19 @@
-v1.2.116
-- Traffic page split into two clear workspaces: live devices/QoS and user traffic/limits
+v1.2.117
+- Backup workflow moved out of Router overview into a dedicated Router workspace tab
 
 # UI Mihomo / Ultra — chat transfer
+
+## v1.2.117 — 2026-04-18
+- Router workspace now has an explicit `Backups` tab inside `Router`, so backup creation, archive lists, restore, delete, verification, and schedule actions are no longer buried inside `Overview`
+- `Router → Overview` is reduced back toward a short operational summary instead of mixing health cards with maintenance workflow
+- direct internal navigation between `Overview` and `Backups` makes the backup flow visible on first glance
+- router-agent version stays `0.6.28`
+
+## Fixed near-term roadmap
+- v1.2.118 — Traffic functional linking: devices ↔ users, duplicate cleanup, clearer QoS/profile actions
+- v1.2.119 — Host overview cleanup after backup extraction
+- v1.2.120 — Providers operational pass (status/SSL clarity, without breaking automatic SSL checks)
+- v1.2.121 — QoS/shaping reliability follow-up
 
 ## v1.2.116 — 2026-04-18
 - Traffic page is now a real workspace instead of one long mixed block

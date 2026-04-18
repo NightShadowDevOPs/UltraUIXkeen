@@ -8,14 +8,15 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button type="button" class="btn btn-sm" @click="setSection('overview')">
-            {{ t('routerSectionOverviewTitle') }}
-          </button>
-          <button type="button" class="btn btn-sm btn-ghost" @click="setSection('traffic')">
-            {{ t('routerSectionTrafficTitle') }}
-          </button>
-          <button type="button" class="btn btn-sm btn-ghost" @click="setSection('network')">
-            {{ t('routerSectionNetworkTitle') }}
+          <button
+            v-for="section in routerSections"
+            :key="`quick-${section.id}`"
+            type="button"
+            class="btn btn-sm"
+            :class="activeSection === section.id ? '' : 'btn-ghost'"
+            @click="setSection(section.id)"
+          >
+            {{ t(section.labelKey) }}
           </button>
         </div>
       </div>
@@ -53,15 +54,45 @@
         <div class="text-sm opacity-70">{{ t('routerSectionOverviewTip') }}</div>
       </div>
 
-      <div class="grid grid-cols-1 gap-2 xl:grid-cols-2">
-        <AgentCard />
-        <SystemCard />
+      <div class="card gap-3 p-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div class="font-semibold">{{ t('routerOverviewBackupMovedTitle') }}</div>
+            <div class="mt-1 text-sm opacity-70">{{ t('routerOverviewBackupMovedTip') }}</div>
+          </div>
+          <button type="button" class="btn btn-sm" @click="setSection('backup')">
+            {{ t('open') }} · {{ t('routerSectionBackupTitle') }}
+          </button>
+        </div>
       </div>
+
+      <SystemCard />
 
       <div class="card items-center justify-center gap-2 p-2 sm:flex-row">
         {{ getLabelFromBackend(activeBackend!) }} :
         <BackendVersion />
       </div>
+    </section>
+
+    <section v-else-if="activeSection === 'backup'" class="space-y-2">
+      <div class="px-1">
+        <div class="text-xs font-semibold uppercase tracking-[0.12em] opacity-55">{{ t('routerSectionBackupTitle') }}</div>
+        <div class="text-sm opacity-70">{{ t('routerSectionBackupTip') }}</div>
+      </div>
+
+      <div class="card gap-3 p-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div class="font-semibold">{{ t('routerBackupWorkspaceTitle') }}</div>
+            <div class="mt-1 text-sm opacity-70">{{ t('routerBackupWorkspaceTip') }}</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost" @click="setSection('overview')">
+            {{ t('open') }} · {{ t('routerSectionOverviewTitle') }}
+          </button>
+        </div>
+      </div>
+
+      <AgentCard />
     </section>
 
     <section v-else-if="activeSection === 'traffic'" class="space-y-2">
@@ -126,6 +157,7 @@ const t = i18n.global.t
 
 const routerSections = [
   { id: 'overview', labelKey: 'routerSectionOverviewTitle', tipKey: 'routerSectionOverviewTip' },
+  { id: 'backup', labelKey: 'routerSectionBackupTitle', tipKey: 'routerSectionBackupTip' },
   { id: 'traffic', labelKey: 'routerSectionTrafficTitle', tipKey: 'routerSectionTrafficTip' },
   { id: 'network', labelKey: 'routerSectionNetworkTitle', tipKey: 'routerSectionNetworkTip' },
 ] as const

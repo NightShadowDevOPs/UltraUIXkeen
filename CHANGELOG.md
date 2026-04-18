@@ -1,7 +1,13 @@
-v1.2.116
-- traffic workspace split: live devices/QoS and user traffic/limits
+v1.2.117
+- backup workspace extracted from Router overview into a dedicated Router tab
 
 # Changelog
+
+## v1.2.117 - 2026-04-18
+- extracted backup workflow from `Router → Overview` into a dedicated `Router → Backups` workspace, so create/list/restore/delete/check/schedule actions stop hiding inside an overview card
+- overview now stays a short operational summary with router state and backend version instead of pretending to be a maintenance cockpit
+- added direct internal navigation between `Overview` and `Backups` so the backup flow is visible and one click away
+- router-agent version did not change and remains `0.6.28`
 
 ## v1.2.116 - 2026-04-18
 - split the `Traffic` page into two explicit work modes: `Devices` and `Users`, instead of keeping live host triage and long-lived policy work mixed on one screen
