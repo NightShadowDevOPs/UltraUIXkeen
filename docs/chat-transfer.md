@@ -1,7 +1,14 @@
-v1.2.115
-- global safe polling pass: unified visibility-aware polling for live router cards, Tasks logs, upstream checks, and hidden-tab sync stores
+v1.2.116
+- Traffic page split into two clear workspaces: live devices/QoS and user traffic/limits
 
 # UI Mihomo / Ultra — chat transfer
+
+## v1.2.116 — 2026-04-18
+- Traffic page is now a real workspace instead of one long mixed block
+- added two internal modes: `Devices` for live LAN hosts + host QoS, and `Users` for accumulated traffic, limits and blocking rules
+- route query `?view=devices|users` is normalized automatically, so direct links open the intended traffic mode
+- default traffic view now opens `Devices`, which is better for live operational triage before switching to persistent user policies
+- router-agent version stays `0.6.28`
 
 ## v1.2.115 — 2026-04-18
 - added shared safe polling for visible-only live refresh loops so overview/router/tasks cards stop running their own timer zoo

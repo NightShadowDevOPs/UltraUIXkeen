@@ -1,7 +1,14 @@
-v1.2.115
-- global safe polling pass for router UI cards, Tasks live logs, and shared sync stores
+v1.2.116
+- traffic workspace split: live devices/QoS and user traffic/limits
 
 # Changelog
+
+## v1.2.116 - 2026-04-18
+- split the `Traffic` page into two explicit work modes: `Devices` and `Users`, instead of keeping live host triage and long-lived policy work mixed on one screen
+- `Devices` now mounts `HostQosCard` directly inside the Traffic workspace, so live LAN host activity and QoS tuning are one click away from the main traffic route
+- `Users` keeps `UserTrafficStats` focused on accumulated traffic, blocking, limits, and QoS profiles without competing with device-level noise
+- route query `?view=devices|users` is normalized automatically, which makes direct links to the intended traffic mode stable
+- router-agent version did not change and remains `0.6.28`
 
 ## v1.2.115 - 2026-04-18
 - added a shared `useSafePolling` composable so live router polling is visibility-aware, serialized, and resumed from one predictable path instead of scattered local timers
