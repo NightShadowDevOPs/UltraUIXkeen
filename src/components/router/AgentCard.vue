@@ -320,94 +320,93 @@
                       </ul>
                     </div>
                   </div>
-                </div>
 
-                <div
-                  v-if="checkedUnifiedArchiveName === item.name"
-                  class="mt-3 rounded-2xl border border-base-300/80 bg-base-200/40 p-3"
-                >
-                  <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-                    <div v-if="item.hasLocal" class="rounded-xl border border-base-300 bg-base-100/80 p-3">
-                      <div class="flex items-center justify-between gap-2">
-                        <div class="font-medium">{{ $t('agentRestoreSourceLocal') }}</div>
-                        <span class="badge badge-sm badge-success badge-outline">{{ $t('agentBackupRemoteOk') }}</span>
-                      </div>
-                      <div class="mt-2 grid gap-1 text-xs opacity-80">
-                        <div>{{ formatBackupSize(item.local?.size) }}</div>
-                        <div class="font-mono">{{ formatBackupTime(item.local?.mtime) }}</div>
-                        <div v-if="isCurrentBackup(item.name)" class="badge badge-xs badge-primary badge-outline w-fit">{{ $t('agentBackupCurrent') }}</div>
-                      </div>
-                      <div class="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          class="btn btn-ghost btn-xs"
-                          @click="selectBackupForRestore(item.name)"
-                          :disabled="!agentEnabled || !status.ok"
-                        >
-                          {{ $t('agentRestoreNow') }}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-ghost btn-xs text-error"
-                          @click="deleteLocalBackup(item.name)"
-                          :disabled="!agentEnabled || !status.ok || !!backup.running || !!restore.running || deletingLocalBackup === item.name"
-                        >
-                          <span v-if="deletingLocalBackup === item.name" class="loading loading-spinner loading-xs"></span>
-                          <span v-else>{{ $t('delete') }}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="grid gap-3">
-                      <div
-                        v-for="copy in item.cloudCopies"
-                        :key="`inspect-${item.name}-${cloudItemRemote(copy)}-${copy?.ModTime || ''}`"
-                        class="rounded-xl border border-base-300 bg-base-100/80 p-3"
-                      >
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                          <div class="font-medium">{{ $t('agentRestoreSourceCloud') }} · {{ cloudItemRemote(copy) || 'default' }}</div>
-                          <span class="badge badge-sm" :class="remoteStatusBadgeClass(cloudItemRemote(copy))">
-                            {{ cloudRemoteNameLabel(cloudItemRemote(copy)) }}
-                          </span>
+                  <div
+                    v-if="checkedUnifiedArchiveName === item.name"
+                    class="rounded-2xl border border-base-300/80 bg-base-200/40 p-3"
+                  >
+                    <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+                      <div v-if="item.hasLocal" class="rounded-xl border border-base-300 bg-base-100/80 p-3">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="font-medium">{{ $t('agentRestoreSourceLocal') }}</div>
+                          <span class="badge badge-sm badge-success badge-outline">{{ $t('agentBackupRemoteOk') }}</span>
                         </div>
                         <div class="mt-2 grid gap-1 text-xs opacity-80">
-                          <div>{{ formatBackupSize(copy?.Size) }}</div>
-                          <div class="font-mono">{{ formatCloudTime(copy?.ModTime) }}</div>
-                          <div v-if="item.hasLocal" class="text-[11px] opacity-70">{{ $t('agentBackupCloudAlsoLocal') }}</div>
+                          <div>{{ formatBackupSize(item.local?.size) }}</div>
+                          <div class="font-mono">{{ formatBackupTime(item.local?.mtime) }}</div>
+                          <div v-if="isCurrentBackup(item.name)" class="badge badge-xs badge-primary badge-outline w-fit">{{ $t('agentBackupCurrent') }}</div>
                         </div>
                         <div class="mt-3 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             class="btn btn-ghost btn-xs"
-                            @click="selectCloudBackupForRestore(item.name, cloudItemRemote(copy))"
-                            :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady"
+                            @click="selectBackupForRestore(item.name)"
+                            :disabled="!agentEnabled || !status.ok"
                           >
                             {{ $t('agentRestoreNow') }}
                           </button>
                           <button
                             type="button"
-                            class="btn btn-ghost btn-xs"
-                            @click="downloadCloudBackupToLocal(item.name, cloudItemRemote(copy))"
-                            :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || downloadingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`"
-                          >
-                            <span v-if="downloadingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`" class="loading loading-spinner loading-xs"></span>
-                            <span v-else>{{ $t('agentBackupDownloadToLocal') }}</span>
-                          </button>
-                          <button
-                            type="button"
                             class="btn btn-ghost btn-xs text-error"
-                            @click="deleteCloudBackup(item.name, cloudItemRemote(copy))"
-                            :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || deletingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`"
+                            @click="deleteLocalBackup(item.name)"
+                            :disabled="!agentEnabled || !status.ok || !!backup.running || !!restore.running || deletingLocalBackup === item.name"
                           >
-                            <span v-if="deletingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`" class="loading loading-spinner loading-xs"></span>
+                            <span v-if="deletingLocalBackup === item.name" class="loading loading-spinner loading-xs"></span>
                             <span v-else>{{ $t('delete') }}</span>
                           </button>
+                        </div>
+                      </div>
+
+                      <div class="grid gap-3">
+                        <div
+                          v-for="copy in item.cloudCopies"
+                          :key="`inspect-${item.name}-${cloudItemRemote(copy)}-${copy?.ModTime || ''}`"
+                          class="rounded-xl border border-base-300 bg-base-100/80 p-3"
+                        >
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="font-medium">{{ $t('agentRestoreSourceCloud') }} · {{ cloudItemRemote(copy) || 'default' }}</div>
+                            <span class="badge badge-sm" :class="remoteStatusBadgeClass(cloudItemRemote(copy))">
+                              {{ cloudRemoteNameLabel(cloudItemRemote(copy)) }}
+                            </span>
+                          </div>
+                          <div class="mt-2 grid gap-1 text-xs opacity-80">
+                            <div>{{ formatBackupSize(copy?.Size) }}</div>
+                            <div class="font-mono">{{ formatCloudTime(copy?.ModTime) }}</div>
+                            <div v-if="item.hasLocal" class="text-[11px] opacity-70">{{ $t('agentBackupCloudAlsoLocal') }}</div>
+                          </div>
+                          <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-xs"
+                              @click="selectCloudBackupForRestore(item.name, cloudItemRemote(copy))"
+                              :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady"
+                            >
+                              {{ $t('agentRestoreNow') }}
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-xs"
+                              @click="downloadCloudBackupToLocal(item.name, cloudItemRemote(copy))"
+                              :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || downloadingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`"
+                            >
+                              <span v-if="downloadingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`" class="loading loading-spinner loading-xs"></span>
+                              <span v-else>{{ $t('agentBackupDownloadToLocal') }}</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-xs text-error"
+                              @click="deleteCloudBackup(item.name, cloudItemRemote(copy))"
+                              :disabled="!agentEnabled || !status.ok || !cloudStatus.cloudReady || !!backup.running || !!restore.running || deletingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`"
+                            >
+                              <span v-if="deletingCloudBackup === `${cloudItemRemote(copy)}::${item.name}`" class="loading loading-spinner loading-xs"></span>
+                              <span v-else>{{ $t('delete') }}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
               <div v-else class="mt-2 opacity-70">{{ $t('agentBackupNoItems') }}</div>
             </div>
