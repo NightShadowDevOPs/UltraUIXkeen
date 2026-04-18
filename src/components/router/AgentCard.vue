@@ -13,8 +13,8 @@
       </div>
 
       <div class="flex flex-wrap items-center justify-end gap-2">
-        <button type="button" class="btn btn-sm" @click="refresh">{{ $t('test') }}</button>
-        <button type="button" class="btn btn-sm btn-ghost" @click="loadMaintenancePanels(true)" :disabled="!agentEnabled || !status.ok || maintenanceLoading">
+        <button type="button" class="btn btn-sm" @click="runAgentCheck">{{ $t('test') }}</button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="loadMaintenancePanels(true, { focus: true, announce: true })" :disabled="!agentEnabled || !status.ok || maintenanceLoading">
           <span v-if="maintenanceLoading" class="loading loading-spinner loading-xs"></span>
           <span v-else>{{ maintenanceLoaded ? $t('refresh') : $t('load') }}</span>
         </button>
@@ -749,12 +749,14 @@ import {
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
+const maintenanceWorkspaceRef = ref<HTMLElement | null>(null)
+const maintenancePrimaryRef = ref<HTMLElement | null>(null)
 
 // Aliases for template readability (these are persisted refs via useStorage).
 const backupAutoEnabled = agentBackupAutoEnabled
@@ -1578,14 +1580,54 @@ const refreshStatus = async () => {
   return !!status.value?.ok
 }
 
-const refresh = async () => {
-  const ok = await refreshStatus()
-  if (!ok) return
+const scrollMaintenanceWorkspaceIntoView = async () => {
+  await nextTick()
+  const target = maintenancePrimaryRef.value || maintenanceWorkspaceRef.value
+  if (!target) return
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const loadMaintenancePanels = async (force = false) => {
+const runAgentCheck = async () => {
+  const ok = await refresh()
+  showNotification({
+    title: ok ? t('agentCheckDone') : t('agentCheckFailed'),
+    content: ok ? t('agentCheckDoneTip') : t('agentCheckFailedTip'),
+  })
+}
+
+const refresh = async () => {
   const ok = await refreshStatus()
-  if (!ok) return
+  return ok
+}
+
+const loadMaintenancePanels = async (
+  force = false,
+  options: { focus?: boolean; announce?: boolean } = {},
+) => {
+  if (maintenanceLoading.value) return
+
+  if (maintenanceLoaded.value && !force) {
+    if (options.focus) await scrollMaintenanceWorkspaceIntoView()
+    if (options.announce) {
+      showNotification({
+        title: t('agentMaintenanceReady'),
+        content: t('agentMaintenanceReadyTip'),
+      })
+    }
+    return
+  }
+
+  const ok = await refreshStatus()
+  if (!ok) {
+    if (options.announce) {
+      showNotification({
+        title: t('agentCheckFailed'),
+        content: t('agentCheckFailedTip'),
+      })
+    }
+    return
+  }
+
   maintenanceLoading.value = true
   try {
     await refreshCron()
@@ -1596,6 +1638,13 @@ const loadMaintenancePanels = async (force = false) => {
     await refreshRestore()
     if (force) await refreshCloudHistory()
     maintenanceLoaded.value = true
+    if (options.focus) await scrollMaintenanceWorkspaceIntoView()
+    if (options.announce) {
+      showNotification({
+        title: t('agentMaintenanceLoaded'),
+        content: t('agentMaintenanceLoadedTip'),
+      })
+    }
   } finally {
     maintenanceLoading.value = false
   }
