@@ -367,7 +367,7 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                           <div class="font-medium">{{ $t('agentRestoreSourceCloud') }} · {{ cloudItemRemote(copy) || 'default' }}</div>
                           <span class="badge badge-sm" :class="remoteStatusBadgeClass(cloudItemRemote(copy))">
-                            {{ cloudRemoteLabel(cloudItemRemote(copy)) }}
+                            {{ cloudRemoteNameLabel(cloudItemRemote(copy)) }}
                           </span>
                         </div>
                         <div class="mt-2 grid gap-1 text-xs opacity-80">
@@ -938,7 +938,7 @@ function toggleUnifiedArchiveCheck(item: { name: string }) {
   checkedUnifiedArchiveName.value = checkedUnifiedArchiveName.value === item.name ? '' : item.name
 }
 
-function cloudRemoteLabel(remote: string) {
+function cloudRemoteNameLabel(remote: string) {
   return remote ? remote : 'default'
 }
 
