@@ -1,7 +1,18 @@
-v1.2.114
-- lazy-load overview diagnostics and maintenance panels
+v1.2.115
+- global safe polling pass: unified visibility-aware polling for live router cards, Tasks logs, upstream checks, and hidden-tab sync stores
 
 # UI Mihomo / Ultra — chat transfer
+
+## v1.2.115 — 2026-04-18
+- added shared safe polling for visible-only live refresh loops so overview/router/tasks cards stop running their own timer zoo
+- Tasks page live logs and upstream checks now resume from one safe polling path instead of separate background intervals
+- shared provider/users DB sync stores now skip interval ticks while the tab is hidden, reducing pointless background pressure on router-agent
+- router-agent version stays `0.6.28`
+
+## v1.2.114 — 2026-04-18
+- lazy-loaded overview diagnostics and maintenance panels to keep the main Router page lighter on first render
+- prepared the router UI for the next polling cleanup pass without changing router-agent
+- router-agent version stays `0.6.28`
 
 ## v1.2.113 — 2026-03-31
 - third router optimization pass: split the agent hot-path into lightweight `status` and slower `status_debug`

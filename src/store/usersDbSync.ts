@@ -38,6 +38,7 @@ export const usersDbConflictCount = useStorage<number>('runtime/users-db-conflic
 
 // Conflict context (for manual resolution UI)
 export const usersDbConflictRemoteRev = useStorage<number>('runtime/users-db-conflict-remote-rev-v1', 0)
+const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 export const usersDbConflictRemoteUpdatedAt = useStorage<string>('runtime/users-db-conflict-remote-updated-at-v1', '')
 export const usersDbConflictRemoteB64 = useStorage<string>('runtime/users-db-conflict-remote-b64-v1', '')
 export const usersDbConflictLocalB64 = useStorage<string>('runtime/users-db-conflict-local-b64-v1', '')
@@ -1274,6 +1275,7 @@ export const initUsersDbSync = () => {
   window.setInterval(() => {
     if (!usersDbSyncEnabled.value) return
     if (!agentEnabled.value) return
+    if (!isDocumentVisible()) return
     if (!usersDbLocalDirty.value) return
     if (usersDbPhase.value === 'pulling' || usersDbPhase.value === 'pushing') return
     if (usersDbHasConflict.value) return
@@ -1284,6 +1286,7 @@ export const initUsersDbSync = () => {
   window.setInterval(() => {
     if (!usersDbSyncEnabled.value) return
     if (!agentEnabled.value) return
+    if (!isDocumentVisible()) return
     if (usersDbLocalDirty.value) return
     if (usersDbPhase.value === 'pulling' || usersDbPhase.value === 'pushing') return
     if (usersDbHasConflict.value) return

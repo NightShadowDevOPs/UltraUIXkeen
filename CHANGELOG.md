@@ -1,7 +1,18 @@
-v1.2.114
-- lazy-load overview diagnostics and maintenance panels
+v1.2.115
+- global safe polling pass for router UI cards, Tasks live logs, and shared sync stores
 
 # Changelog
+
+## v1.2.115 - 2026-04-18
+- added a shared `useSafePolling` composable so live router polling is visibility-aware, serialized, and resumed from one predictable path instead of scattered local timers
+- switched `SystemCard`, `AgentCard`, host QoS, router health, user QoS status, and Tasks live logs/upstream checks to the safe polling flow
+- shared sync stores now skip background pull/push ticks while the browser tab is hidden, which cuts pointless router-agent pressure when the UI is open in the background
+- router-agent version did not change and remains `0.6.28`
+
+## v1.2.114 - 2026-04-18
+- lazy-load overview diagnostics and maintenance panels so the main Router page stops mounting every heavy diagnostics block at once
+- improved route-level UI responsiveness before the next polling cleanup pass
+- router-agent version did not change and remains `0.6.28`
 
 ## v1.2.113 - 2026-03-31
 - split router-agent hot-path status into lightweight `status` and slower `status_debug`

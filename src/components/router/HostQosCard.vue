@@ -189,8 +189,8 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useDocumentVisibility } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useSafePolling } from '@/composables/useSafePolling'
 import { useI18n } from 'vue-i18n'
 
 const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal', 'low', 'background']
@@ -213,7 +213,6 @@ const draftProfiles = routerHostQosDraftProfiles
 const appliedProfiles = routerHostQosAppliedProfiles
 const busyIp = ref('')
 const expanded = routerHostQosExpanded
-let timer: number | undefined
 
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
   const out: Record<string, AgentQosStatusItem> = {}
@@ -433,30 +432,18 @@ watch(appliedProfiles, () => {
   ensureDrafts()
 }, { deep: true })
 
-const documentVisibility = useDocumentVisibility()
+useSafePolling({
+  callback: refreshAll,
+  intervalMs: 15_000,
+  enabled: () => expanded.value,
+  immediate: false,
+})
 
-const restartPolling = () => {
-  if (timer) window.clearInterval(timer)
-  timer = undefined
-  if (!expanded.value) return
-  if (documentVisibility.value !== 'visible') return
-  timer = window.setInterval(() => {
-    if (documentVisibility.value !== 'visible') return
-    void refreshAll()
-  }, 15_000)
-}
-
-watch([expanded, documentVisibility], async ([value, visibility]) => {
-  restartPolling()
-  if (value && visibility === 'visible') await refreshAll()
+watch(expanded, async (value) => {
+  if (value) await refreshAll()
 })
 
 onMounted(async () => {
   await refreshAll()
-  restartPolling()
-})
-
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
 })
 </script>

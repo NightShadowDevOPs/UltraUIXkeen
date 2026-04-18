@@ -666,8 +666,8 @@ import {
 import { prettyBytesHelper } from '@/helper/utils'
 import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useDocumentVisibility } from '@vueuse/core'
+import { computed, ref, watch } from 'vue'
+import { useSafePolling } from '@/composables/useSafePolling'
 import { useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
@@ -1506,54 +1506,26 @@ const loadMaintenancePanels = async (force = false) => {
   }
 }
 
-const documentVisibility = useDocumentVisibility()
+useSafePolling({
+  callback: refreshStatus,
+  intervalMs: 20_000,
+  enabled: () => agentEnabled.value,
+  immediate: false,
+})
 
-let liveTimer: number | undefined
-let statusTimer: number | undefined
-
-const stopTimers = () => {
-  if (statusTimer) {
-    window.clearInterval(statusTimer)
-    statusTimer = undefined
-  }
-  if (liveTimer) {
-    window.clearInterval(liveTimer)
-    liveTimer = undefined
-  }
-}
-
-const startTimers = () => {
-  stopTimers()
-  if (!agentEnabled.value) return
-  if (documentVisibility.value !== 'visible') return
-  statusTimer = window.setInterval(() => {
-    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
-    refreshStatus()
-  }, 20_000)
-  liveTimer = window.setInterval(() => {
-    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
+useSafePolling({
+  callback: async () => {
     if (!maintenanceLoaded.value) return
-    if (restore.value?.running) {
-      refreshRestore()
-    }
-    if (backup.value?.running) {
-      refreshBackup()
-    }
-  }, 5_000)
-}
-
-onMounted(() => {
-  refresh()
-  startTimers()
+    if (restore.value?.running) await refreshRestore()
+    if (backup.value?.running) await refreshBackup()
+  },
+  intervalMs: 5_000,
+  enabled: () => agentEnabled.value && maintenanceLoaded.value,
+  immediate: false,
 })
 
-watch([agentEnabled, agentUrl, agentToken, documentVisibility], () => {
-  if (agentEnabled.value && documentVisibility.value === 'visible') void refreshStatus()
+watch([agentEnabled, agentUrl, agentToken], () => {
   if (!agentEnabled.value) maintenanceLoaded.value = false
-  startTimers()
-})
-
-onUnmounted(() => {
-  stopTimers()
-})
+  void refreshStatus()
+}, { immediate: true })
 </script>

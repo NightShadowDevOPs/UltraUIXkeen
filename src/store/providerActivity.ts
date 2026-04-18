@@ -12,6 +12,7 @@ const REMOTE_PUSH_DEBOUNCE_MS = 15_000
 const REMOTE_PULL_INTERVAL_MS = 90_000
 const REMOTE_PUSH_INTERVAL_MS = 75_000
 const REMOTE_HIDDEN_PUSH_THROTTLE_MS = 20_000
+const isDocumentVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible'
 
 export type ProviderActivity = {
   connections: number
@@ -513,6 +514,7 @@ export const initProviderTrafficSync = () => {
 
   window.setInterval(() => {
     if (!agentEnabled.value) return
+    if (!isDocumentVisible()) return
     if (providerTrafficPullInFlight || providerTrafficPushInFlight) return
     if (Date.now() - providerTrafficLastPullAt < REMOTE_PULL_INTERVAL_MS) return
     pullProviderTrafficRemote()
@@ -520,6 +522,7 @@ export const initProviderTrafficSync = () => {
 
   window.setInterval(() => {
     if (!agentEnabled.value) return
+    if (!isDocumentVisible()) return
     if (!providerTrafficLocalDirty) return
     if (providerTrafficPullInFlight || providerTrafficPushInFlight) return
     if (!providerTrafficRemoteBootstrapped) return

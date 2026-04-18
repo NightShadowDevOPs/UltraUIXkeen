@@ -1923,6 +1923,7 @@ import {
   providerTrafficSyncState,
 } from '@/store/providerActivity'
 import { applyUserEnforcementNow, getUserLimitState } from '@/composables/userLimits'
+import { useSafePolling } from '@/composables/useSafePolling'
 import dayjs from 'dayjs'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { RuleProvider } from '@/types'
@@ -2639,7 +2640,6 @@ const logPath = ref('')
 const logOffset = ref(0)
 const logMode = ref<'poll' | 'delta' | 'full'>('poll')
 
-let logTimer: any = null
 const refreshLogs = async () => {
   if (!agentEnabled.value) return
   if (logsBusy.value) return
@@ -2700,55 +2700,33 @@ const forceRefreshLogs = () => {
 }
 
 
-const stopTimer = () => {
-  if (logTimer) {
-    clearInterval(logTimer)
-    logTimer = null
-  }
-}
-
-const startTimer = () => {
-  stopTimer()
-  if (!logsAuto.value) return
-  if (!agentEnabled.value) return
-  if (documentVisibility.value !== 'visible') return
-  logTimer = setInterval(() => {
-    if (documentVisibility.value !== 'visible') return
-    refreshLogs()
-  }, 5_000)
-}
+useSafePolling({
+  callback: refreshLogs,
+  intervalMs: 5_000,
+  enabled: () => logsAuto.value && agentEnabled.value,
+  immediate: false,
+})
 
 onMounted(() => {
   refreshAgentStatusLite()
   refreshLogs()
-  startTimer()
   refreshFreshness()
   refreshProvidersPanel(false)
   checkUpstream()
-  startUpstreamTimer()
-})
-
-onBeforeUnmount(() => {
-  stopTimer()
-  stopUpstreamTimer()
 })
 
 watch(documentVisibility, (value) => {
   if (value === 'visible') {
     refreshAgentStatusLite()
     refreshLogs()
-    startTimer()
-    startUpstreamTimer()
-  } else {
-    stopTimer()
-    stopUpstreamTimer()
+    checkUpstream()
   }
 })
 
-watch([logsAuto, logSource, logLines, agentEnabled, documentVisibility], () => {
+watch([logsAuto, logSource, logLines, agentEnabled], () => {
   logOffset.value = 0
-  refreshLogs()
-  startTimer()
+  logText.value = ''
+  if (documentVisibility.value === 'visible') refreshLogs()
 })
 
 
@@ -3952,23 +3930,11 @@ const markUpstreamReviewed = () => {
   showNotification({ content: 'operationDone', type: 'alert-success', timeout: 1600 })
 }
 
-let upstreamTimer: any = null
-const startUpstreamTimer = () => {
-  stopUpstreamTimer()
-  // While Tasks page is open: check every 6 hours.
-  if (documentVisibility.value !== 'visible') return
-  upstreamTimer = setInterval(() => {
-    if (documentVisibility.value !== 'visible') return
-    checkUpstream()
-  }, 6 * 60 * 60 * 1000)
-}
-
-const stopUpstreamTimer = () => {
-  if (upstreamTimer) {
-    clearInterval(upstreamTimer)
-    upstreamTimer = null
-  }
-}
+useSafePolling({
+  callback: checkUpstream,
+  intervalMs: 6 * 60 * 60 * 1000,
+  immediate: false,
+})
 
 // --- Diagnostics report ---
 const diagBusy = ref(false)

@@ -853,8 +853,8 @@ import {
   userTrafficStoreSize,
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useDocumentVisibility } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useSafePolling } from '@/composables/useSafePolling'
 import { usersDbPullNow } from '@/store/usersDbSync'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -896,7 +896,6 @@ const profileOrder: AgentQosProfile[] = ['critical', 'high', 'elevated', 'normal
 const qosStatus = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
 const qosDraftByUser = ref<Record<string, AgentQosProfile>>({})
 const applyingQosUser = ref('')
-let qosTimer: number | undefined
 
 const router = useRouter()
 const { t } = useI18n()
@@ -1772,23 +1771,11 @@ const clearUserQos = async (row: Row) => {
   }
 }
 
-const documentVisibility = useDocumentVisibility()
-
-const stopQosTimer = () => {
-  if (qosTimer) {
-    window.clearInterval(qosTimer)
-    qosTimer = undefined as any
-  }
-}
-
-const startQosTimer = () => {
-  stopQosTimer()
-  if (documentVisibility.value !== 'visible') return
-  qosTimer = window.setInterval(() => {
-    if (documentVisibility.value !== 'visible') return
-    void refreshQosStatus()
-  }, 20_000)
-}
+useSafePolling({
+  callback: refreshQosStatus,
+  intervalMs: 20_000,
+  immediate: false,
+})
 
 onMounted(() => {
   bootstrapRouterAgentForLan()
@@ -1797,16 +1784,6 @@ onMounted(() => {
     await usersDbPullNow()
     await refreshQosStatus()
   })()
-  startQosTimer()
-})
-
-watch(documentVisibility, () => {
-  if (documentVisibility.value === 'visible') void refreshQosStatus()
-  startQosTimer()
-})
-
-onBeforeUnmount(() => {
-  stopQosTimer()
 })
 
 const speed = (bps: number) => `${prettyBytesHelper(bps || 0)}/s`

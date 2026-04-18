@@ -123,10 +123,10 @@ import { agentFirmwareCheckAPI, agentStatusAPI, agentStatusDebugAPI, type AgentS
 import { version as backendVersion } from '@/api'
 import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { AgentStatus } from '@/api/agent'
 import { useI18n } from 'vue-i18n'
-import { useDocumentVisibility } from '@vueuse/core'
+import { useSafePolling } from '@/composables/useSafePolling'
 
 type FirmwareCheckState = {
   ok: boolean
@@ -268,40 +268,14 @@ const handleRefresh = () => {
   void refresh()
 }
 
-const documentVisibility = useDocumentVisibility()
-
-let timer: any = null
-
-const stopTimer = () => {
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
-
-const startTimer = () => {
-  stopTimer()
-  if (!agentEnabled.value) return
-  if (documentVisibility.value !== 'visible') return
-  timer = setInterval(() => {
-    if (!agentEnabled.value || documentVisibility.value !== 'visible') return
-    refresh()
-  }, 20_000)
-}
-
-onMounted(() => {
-  refresh()
-  startTimer()
+useSafePolling({
+  callback: refresh,
+  intervalMs: 20_000,
+  enabled: () => agentEnabled.value,
+  immediate: false,
 })
 
-watch([agentEnabled, documentVisibility], () => {
-  if (documentVisibility.value === 'visible' && agentEnabled.value) {
-    void refresh()
-  }
-  startTimer()
-})
-
-onBeforeUnmount(() => {
-  stopTimer()
-})
+watch(agentEnabled, () => {
+  void refresh()
+}, { immediate: true })
 </script>

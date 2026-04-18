@@ -49,11 +49,12 @@
 
 <script setup lang="ts">
 import { fetchVersionSilentAPI } from '@/api'
+import { useSafePolling } from '@/composables/useSafePolling'
 import { prettyBytesHelper, fromNow as fromNowFn } from '@/helper/utils'
 import { activeConnections, lastConnectionsTick } from '@/store/connections'
 import { downloadSpeed, lastMemoryTick, lastTrafficTick, memory, uploadSpeed } from '@/store/overview'
 import { BoltIcon } from '@heroicons/vue/24/outline'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const apiOk = ref(true)
 const apiLatencyMs = ref<number | null>(null)
@@ -77,7 +78,6 @@ const wsOk = computed(() => {
   return memOk && netOk && connOk
 })
 
-let timer: any
 const check = async () => {
   if (isLoading.value) return
   isLoading.value = true
@@ -96,12 +96,8 @@ const check = async () => {
   }
 }
 
-onMounted(() => {
-  check()
-  timer = setInterval(check, 30_000)
-})
-
-onUnmounted(() => {
-  clearInterval(timer)
+useSafePolling({
+  callback: check,
+  intervalMs: 30_000,
 })
 </script>
