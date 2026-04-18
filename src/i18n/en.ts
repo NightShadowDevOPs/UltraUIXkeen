@@ -2,6 +2,7 @@ const en = {
   setup: 'Setup',
   overview: 'Overview',
   router: 'Router',
+  routerTitle: 'Router',
   routerOverview: 'Router · Overview',
   routerBackup: 'Router · Backups',
   routerTraffic: 'Router · Traffic',

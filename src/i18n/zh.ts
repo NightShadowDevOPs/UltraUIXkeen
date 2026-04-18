@@ -4,6 +4,7 @@ const zh: LANG_MESSAGE = {
   setup: '配置',
   overview: '概览',
   router: '路由器',
+  routerTitle: '路由器',
   routerOverview: '路由器 · 概览',
   routerBackup: '路由器 · 备份',
   routerTraffic: '路由器 · 流量',

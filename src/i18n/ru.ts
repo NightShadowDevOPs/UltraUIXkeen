@@ -4,6 +4,7 @@ const ru: LANG_MESSAGE = {
   setup: 'Настройка',
   overview: 'Обзор',
   router: 'Роутер',
+  routerTitle: 'Роутер',
   routerOverview: 'Роутер · Обзор',
   routerBackup: 'Роутер · Резервные копии',
   routerTraffic: 'Роутер · Трафик',
