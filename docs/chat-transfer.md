@@ -1,18 +1,24 @@
-v1.2.118
-- Fixed empty Router → Backups screen caused by AgentCard template scope bug
+v1.2.119
+- Fixed AgentCard runtime refs so Router → Backups really renders again
 
 # UI Mihomo / Ultra — chat transfer
 
-## v1.2.118 — 2026-04-18
-- fixed the rendering bug in `AgentCard`: the backup workspace could show only wrapper cards while the actual backup content failed to render
-- `Router → Backups` now keeps the dedicated workspace from v1.2.117 and actually shows the backup controls/history blocks instead of an almost empty page
+## v1.2.119 — 2026-04-18
+- fixed the actual runtime blocker in `AgentCard`: `maintenanceLoaded` and `maintenanceLoading` were used in template and logic but were never declared, which could collapse the backup workspace render
+- preserved the backup workspace split introduced in v1.2.117 and completed the repair started in v1.2.118
 - router-agent version stays `0.6.28`
 
 ## Fixed near-term roadmap
-- v1.2.119 — Traffic functional linking: devices ↔ users, duplicate cleanup, clearer QoS/profile actions
-- v1.2.120 — Host overview cleanup after backup extraction
-- v1.2.121 — Providers operational pass (status/SSL clarity, without breaking automatic SSL checks)
-- v1.2.122 — QoS/shaping reliability follow-up
+- v1.2.120 — Traffic functional linking: devices ↔ users, duplicate cleanup, clearer QoS/profile actions
+- v1.2.121 — Host overview cleanup after backup extraction
+- v1.2.122 — Providers operational pass (status/SSL clarity, without breaking automatic SSL checks)
+- v1.2.123 — QoS/shaping reliability follow-up
+
+## v1.2.118 — 2026-04-18
+- fixed the template-scope bug in `AgentCard` upload results block
+- this turned out to be only part of the empty-backup fix; the remaining runtime blocker was closed in v1.2.119
+- router-agent version stays `0.6.28`
+
 
 ## v1.2.117 — 2026-04-18
 - Router workspace now has an explicit `Backups` tab inside `Router`, so backup creation, archive lists, restore, delete, verification, and schedule actions are no longer buried inside `Overview`

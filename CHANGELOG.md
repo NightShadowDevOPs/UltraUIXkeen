@@ -1,7 +1,12 @@
-v1.2.118
-- fixed empty Backups tab by repairing AgentCard upload-results template scope
+v1.2.119
+- fixed AgentCard runtime refs so Router → Backups actually renders again
 
 # Changelog
+
+## v1.2.119 - 2026-04-18
+- fixed the real runtime blocker behind the empty `Router → Backups` screen: `AgentCard` referenced `maintenanceLoaded` / `maintenanceLoading` without declaring those refs
+- kept the earlier template-scope repair from v1.2.118 and completed the fix so the backup workspace can finally render instead of silently collapsing
+- router-agent version did not change and remains `0.6.28`
 
 ## v1.2.118 - 2026-04-18
 - fixed the backup workspace rendering bug: `Router → Backups` could appear almost empty because `AgentCard` had a broken template scope in the upload-results block

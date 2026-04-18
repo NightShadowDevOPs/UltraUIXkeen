@@ -737,6 +737,8 @@ const backupArchiveView = ref<'all' | 'current' | 'local' | 'cloud' | 'both'>('a
 const backupArchiveQuery = useStorage('config/agent-backup-archive-query-v1', '')
 const backupArchiveSort = useStorage<'timeDesc' | 'timeAsc' | 'sizeDesc' | 'sizeAsc' | 'nameAsc' | 'nameDesc'>('config/agent-backup-archive-sort-v1', 'timeDesc')
 const backupTargetRemote = useStorage<string>('config/agent-backup-target-remote-v1', '')
+const maintenanceLoaded = ref(false)
+const maintenanceLoading = ref(false)
 
 const restore = ref<any>({ ok: true, running: false })
 const restoreLog = ref('')

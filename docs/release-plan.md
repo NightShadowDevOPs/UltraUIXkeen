@@ -1,6 +1,6 @@
 # План ближайших релизов UltraUIXkeen
 
-Зафиксировано после ревизии навигации и оперативного hotfix по пустой вкладке резервного копирования.
+Зафиксировано после ревизии навигации и после второго hotfix, который добил реальную причину пустой вкладки резервного копирования.
 
 ## Текущий принцип
 
@@ -13,29 +13,33 @@
 - create/list/restore/delete/check/schedule сценарии больше не спрятаны внутри обзорной карточки
 - `Router → Обзор` возвращён к роли короткой operational-сводки
 
-### v1.2.118 — Backup workspace render hotfix ✅
-- исправлен пустой экран `Router → Резервные копии`
-- восстановлен реальный рендер `AgentCard` после выноса backup workspace
-- новая навигация сохранена, починено именно содержимое внутри выделенного backup workspace
+### v1.2.118 — Backup workspace template hotfix ✅
+- исправлен шаблонный scope-баг в upload results блоке `AgentCard`
+- этот шаг был частью фикса пустой backup-вкладки, но оказался не последней причиной
 
-### v1.2.119 — Traffic functional linking
+### v1.2.119 — Backup workspace runtime hotfix ✅
+- восстановлены refs `maintenanceLoaded` и `maintenanceLoading`, без которых `AgentCard` мог не рендериться вовсе
+- `Router → Резервные копии` должен снова показывать реальный backup workspace, а не пустую страницу
+- новая навигация сохранена, отката структуры не требуется
+
+### v1.2.120 — Traffic functional linking
 - связать живые устройства с пользовательским контуром
 - быстрый переход из `Traffic → Devices` в `Traffic → Users`
 - подчистить дубли и спорные идентичности строк в traffic/workflow
 - сделать более прямые QoS/profile actions из рабочего экрана Traffic
 
-### v1.2.120 — Host overview cleanup
+### v1.2.121 — Host overview cleanup
 - после выноса backup почистить `Router → Обзор`
 - оставить в обзоре только короткую operational-сводку
 - тяжёлые и отдельные сценарии не смешивать с overview
 - дополнительно проверить, какие maintenance/diagnostics блоки ещё стоит разнести по отдельным подэкранам
 
-### v1.2.121 — Providers operational pass
+### v1.2.122 — Providers operational pass
 - продолжить приоритетный блок по провайдерам
 - улучшить читаемость статусов, SSL, сроков действия и operational-сигналов
 - не ломать существующую автоматическую проверку SSL-сертификатов прокси-провайдеров
 
-### v1.2.122 — QoS / shaping reliability follow-up
+### v1.2.123 — QoS / shaping reliability follow-up
 - довести сохранение и применение QoS/shaping сценариев
 - сделать бейджи/состояния понятнее
 - убрать лишнюю двусмысленность между live QoS, saved profile и effective state
