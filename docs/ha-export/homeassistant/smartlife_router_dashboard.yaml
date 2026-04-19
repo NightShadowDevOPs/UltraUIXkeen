@@ -1,0 +1,72 @@
+title: SmartLife Router
+views:
+  - title: Роутер
+    path: smartlife-router
+    icon: mdi:router-network
+    cards:
+      - type: markdown
+        title: Роутер
+        content: >
+          **{{ states('sensor.smartlife_router_model') }}**  
+          Прошивка: {{ states('sensor.smartlife_router_firmware') }}  
+          Сводка: {{ states('sensor.smartlife_router_summary') }}
+
+      - type: entities
+        title: Состояние
+        entities:
+          - binary_sensor.smartlife_router_agent_up
+          - binary_sensor.smartlife_router_mihomo_running
+          - binary_sensor.smartlife_router_wan_up
+          - binary_sensor.smartlife_router_qos_enabled_flag
+          - sensor.smartlife_router_cpu
+          - sensor.smartlife_router_memory
+          - sensor.smartlife_router_memory_used
+          - sensor.smartlife_router_uptime
+
+      - type: entities
+        title: Пользователи и QoS
+        entities:
+          - sensor.smartlife_router_active_users
+          - sensor.smartlife_router_active_devices
+          - sensor.smartlife_router_limited_users
+          - sensor.smartlife_router_blocked_users
+          - sensor.smartlife_router_qos_enabled
+
+      - type: gauge
+        entity: sensor.smartlife_router_cpu
+        name: CPU
+        min: 0
+        max: 100
+        severity:
+          green: 0
+          yellow: 60
+          red: 85
+
+      - type: gauge
+        entity: sensor.smartlife_router_memory
+        name: RAM
+        min: 0
+        max: 100
+        severity:
+          green: 0
+          yellow: 70
+          red: 90
+
+      - type: entities
+        title: Трафик
+        entities:
+          - sensor.smartlife_router_wan_rx
+          - sensor.smartlife_router_wan_tx
+          - sensor.smartlife_router_wan_rx_mbit
+          - sensor.smartlife_router_wan_tx_mbit
+          - sensor.smartlife_router_total_rx
+          - sensor.smartlife_router_total_tx
+
+      - type: history-graph
+        title: CPU / RAM / WAN
+        hours_to_show: 6
+        entities:
+          - sensor.smartlife_router_cpu
+          - sensor.smartlife_router_memory
+          - sensor.smartlife_router_wan_rx_mbit
+          - sensor.smartlife_router_wan_tx_mbit

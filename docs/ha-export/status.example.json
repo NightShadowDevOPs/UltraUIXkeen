@@ -9,8 +9,8 @@
   },
   "agent": {
     "up": true,
-    "version": "0.6.27",
-    "serverVersion": "0.6.27"
+    "version": "0.6.28",
+    "serverVersion": "0.6.28"
   },
   "mihomo": {
     "running": true,

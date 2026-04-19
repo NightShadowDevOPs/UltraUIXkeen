@@ -21,7 +21,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.27"
+AGENT_VERSION="0.6.28"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -4270,10 +4270,8 @@ status() {
   done
 
   agent_ver="$AGENT_VERSION"
-  server_ver="$(status_remote_agent_version_cached 2>/dev/null || true)"
-  if [ -z "$server_ver" ] || [ "$(version_cmp_sh "$server_ver" "$agent_ver")" -lt 0 ]; then
-    server_ver="$agent_ver"
-  fi
+  # keep serverVersion aligned with the installed runtime version; remote cache may lag after update
+  server_ver="$agent_ver"
 
   status_payload="$(printf '{"ok":true,"version":"%s","serverVersion":"%s","wan":"%s","lan":"%s","tc":%s,"iptables":%s,"hashlimit":%s,"hostQos":%s,"usersDb":true,"cpuPct":%s,"load1":"%s","load5":"%s","load15":"%s","uptimeSec":%s,"memTotal":%s,"memUsed":%s,"memFree":%s,"memUsedPct":%s,"tempC":"%s"}'     "$agent_ver" "$server_ver" "$WAN_IF" "$LAN_IF"     $( [ $have_tc -eq 1 ] && echo true || echo false )     $( [ $have_iptables -eq 1 ] && echo true || echo false )     $( [ $have_hashlimit -eq 1 ] && echo true || echo false )     $( [ $have_tc -eq 1 ] && echo true || echo false )     "$cpu_pct" "$load1" "$load5" "$load15" "$uptime_sec" "$mem_total_b" "$mem_used_b" "$mem_free_b" "$mem_used_pct" "$(jesc "$temp_c")")"
   status_cache_put "$status_payload" >/dev/null 2>&1 || true
@@ -4387,10 +4385,8 @@ status_debug() {
   fi
 
   agent_ver="$AGENT_VERSION"
-  server_ver="$(status_remote_agent_version_cached 2>/dev/null || true)"
-  if [ -z "$server_ver" ] || [ "$(version_cmp_sh "$server_ver" "$agent_ver")" -lt 0 ]; then
-    server_ver="$agent_ver"
-  fi
+  # keep serverVersion aligned with the installed runtime version; remote cache may lag after update
+  server_ver="$agent_ver"
 
   shaper_mode_cfg="$(shaper_configured_downlink_mode)"
   shaper_mode_effective="$(shaper_downlink_mode_effective_passive)"

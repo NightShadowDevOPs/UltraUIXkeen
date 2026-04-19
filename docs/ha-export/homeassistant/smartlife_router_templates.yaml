@@ -1,0 +1,28 @@
+template:
+  - sensor:
+      - name: SmartLife Router WAN RX Mbit
+        unique_id: smartlife_router_wan_rx_mbit
+        icon: mdi:download
+        unit_of_measurement: 'Mbit/s'
+        state_class: measurement
+        state: "{{ ((states('sensor.smartlife_router_wan_rx') | float(0)) / 1000000) | round(2) }}"
+      - name: SmartLife Router WAN TX Mbit
+        unique_id: smartlife_router_wan_tx_mbit
+        icon: mdi:upload
+        unit_of_measurement: 'Mbit/s'
+        state_class: measurement
+        state: "{{ ((states('sensor.smartlife_router_wan_tx') | float(0)) / 1000000) | round(2) }}"
+      - name: SmartLife Router Summary
+        unique_id: smartlife_router_summary
+        icon: mdi:router-network
+        state: >-
+          CPU {{ states('sensor.smartlife_router_cpu') }}% · RAM {{ states('sensor.smartlife_router_memory') }}% ·
+          Users {{ states('sensor.smartlife_router_active_users') }} · Devices {{ states('sensor.smartlife_router_active_devices') }}
+      - name: SmartLife Router Model
+        unique_id: smartlife_router_model
+        icon: mdi:router-wireless
+        state: "{{ state_attr('sensor.smartlife_router_cpu', 'model') or 'unknown' }}"
+      - name: SmartLife Router Firmware
+        unique_id: smartlife_router_firmware
+        icon: mdi:information-outline
+        state: "{{ state_attr('sensor.smartlife_router_cpu', 'firmware') or 'unknown' }}"

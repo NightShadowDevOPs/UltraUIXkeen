@@ -1,25 +1,25 @@
-# UI Mihomo / Ultra — перенос в новый чат
+# CURRENT CHAT TRANSFER NOTE
 
-## Текущее состояние
-- Текущая версия UI: **v1.2.136**
-- Router-agent: **0.6.27**
-- Основной репозиторий: `NightShadowDevOPs/UltraUIXkeen`
+## Current state
+- Текущая версия UI: **v1.2.137**
+- Router-agent: **0.6.28**
+- Проект: **UI Mihomo / Ultra** (`NightShadowDevOPs/UltraUIXkeen`)
 - Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
 - Путь на роутере: `/opt/UltraUIXkeen`
 
-## Что сделано в v1.2.136
-- добавлен первый runtime-контур HA snapshot export на стороне router-agent
-- появились команды `ha_contract_meta`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`
-- добавлен короткий cache для HA-ответов (`30s / 15s / 60s / 60s`), чтобы не молотить shell без толку
-- обновлены handoff docs и example JSON для соседнего SmartLife / Home Assistant проекта
-- `router-agent` поднят до `0.6.27`
+## Что сделано в v1.2.137
+- поднят UI до `1.2.137`
+- поднят `router-agent` до `0.6.28`
+- добавлен готовый пакет Home Assistant в `docs/ha-export/homeassistant/`
+- добавлены готовые YAML-файлы: конфигурационный snippet, REST sensors/binary sensors, template helpers и пример Lovelace dashboard
+- исправлена синхронизация `serverVersion` в agent status/HA status после обновления агента
+- обновлены `CHANGELOG.md`, `docs/release-plan.md`, `docs/chat-transfer.md`, `TRANSFER_CHAT` и HA handoff docs
 
-## Что проверять после выкладки
-1. версии UI / agent синхронизированы: `v1.2.136` и `0.6.27`
-2. новые `ha_*` команды отвечают JSON-ом
-3. handoff-архив для HA содержит `ha_contract_meta` и обновлённые sample/example payloads
-4. в кодовом архиве есть актуальный `docs/chat-transfer.md`
+## Важное по live-проверке
+- команды `ha_contract_meta` и `status` на роутере уже отвечают по `http://192.168.0.1:9099/cgi-bin/api.sh?...`
+- для live-проверок на этом стенде лучше использовать `192.168.0.1`, а не `127.0.0.1`
+- до фикса `v1.2.137` на живом роутере наблюдался хвост: `status.version=0.6.27`, но `serverVersion=0.5.57`; в этом релизе синхронизация версии прибита явно
 
-## Следующий зафиксированный шаг
-- **v1.2.137** — live-router validation + HA template package
-- затем **v1.2.138** — optional MQTT/discovery spike
+## Следующий шаг
+- проверить на роутере обновлённый agent `0.6.28`
+- затем можно идти либо в UI-потребление HA payloads, либо в расширение snapshot-диагностики/карточек под Home Assistant
