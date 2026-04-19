@@ -94,7 +94,12 @@
         :key="card.key"
         type="button"
         class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40 disabled:cursor-default disabled:hover:border-base-content/10 disabled:hover:bg-base-100/50"
-        :class="card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        :class="[
+          card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50',
+          card.tone === 'warning' ? 'shadow-[inset_0_0_0_1px_rgba(245,158,11,0.14)]' : '',
+          card.tone === 'error' ? 'shadow-[inset_0_0_0_1px_rgba(239,68,68,0.14)]' : '',
+          card.tone === 'success' ? 'shadow-[inset_0_0_0_1px_rgba(34,197,94,0.14)]' : '',
+        ]"
         :disabled="!card.clickable"
         @click="card.onClick?.()"
       >
@@ -128,8 +133,10 @@
               <div class="flex flex-wrap items-center gap-2">
                 <span class="opacity-60">{{ $t('focus') }}:</span>
                 <span class="badge badge-ghost">{{ activeFilterLabel }}</span>
+                <span v-if="activeDiagnosticTitle" class="badge badge-secondary">{{ $t('diagnostics') }}: {{ activeDiagnosticTitle }}</span>
                 <button v-if="query" type="button" class="btn btn-ghost btn-xs" @click="query = ''">{{ $t('clear') }}</button>
                 <button v-if="profileFilter !== 'all'" type="button" class="btn btn-ghost btn-xs" @click="profileFilter = 'all'">{{ $t('reset') }}</button>
+                <button v-if="activeDiagnosticKey !== 'all'" type="button" class="btn btn-ghost btn-xs" @click="activeDiagnosticKey = 'all'">{{ $t('reset') }}</button>
                 <span v-if="props.focusUser || props.focusIp" class="badge badge-info">{{ props.focusUser || props.focusIp }}</span>
               </div>
               <div class="mt-2 opacity-70">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
@@ -418,15 +425,30 @@ const matchesProfileFilter = (row: Row): boolean => {
   return (row.currentProfile || 'normal') === profileFilter.value
 }
 
+const rowHasLiveTraffic = (row: Row) => Number(row.totalDownBps || 0) + Number(row.totalUpBps || 0) > 0
+
+const rowMatchesDiagnostic = (row: Row) => {
+  if (activeDiagnosticKey.value === 'all') return true
+  if (activeDiagnosticKey.value === 'active-traffic') return rowHasLiveTraffic(row)
+  if (activeDiagnosticKey.value === 'unlabeled') return !linkedUserLabel(row) && !String(row.hostname || '').trim()
+  if (activeDiagnosticKey.value === 'pending') return (draftProfiles.value[row.ip] || 'normal') !== (row.currentProfile || 'normal')
+  return true
+}
+
 const filteredRows = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return rows.value.filter((row) => {
+  const filtered = rows.value.filter((row) => {
     if (!matchesProfileFilter(row)) return false
+    if (!rowMatchesDiagnostic(row)) return false
     if (!q) return true
     return [row.displayName, row.hostname, row.ip, row.mac, row.currentProfile]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q))
   })
+  if (activeDiagnosticKey.value === 'active-traffic') {
+    return [...filtered].sort((a, b) => (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0)))
+  }
+  return filtered
 })
 
 const appliedCount = computed(() => (qos.value.items || []).length)
@@ -453,6 +475,16 @@ const pendingDraftRows = computed(() =>
   rows.value.filter((row) => (draftProfiles.value[row.ip] || 'normal') !== (row.currentProfile || 'normal')),
 )
 
+const activateDiagnostic = (key: 'active-traffic' | 'unlabeled' | 'pending') => {
+  if (activeDiagnosticKey.value === key) {
+    activeDiagnosticKey.value = 'all'
+    return
+  }
+  activeDiagnosticKey.value = key
+  profileFilter.value = 'all'
+  query.value = ''
+}
+
 const diagnosticsCards = computed(() => {
   const topTrafficRow = activeTrafficRows.value[0]
   const unlabeledCount = unlabeledRows.value.length
@@ -469,13 +501,10 @@ const diagnosticsCards = computed(() => {
       description: topTrafficRow
         ? t('hostQosDiagnosticsTrafficHint', { host: topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip })
         : t('hostQosDiagnosticsTrafficEmpty'),
-      clickable: !!topTrafficRow,
-      active: !!topTrafficRow && query.value.trim().toLowerCase() === String(topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip).trim().toLowerCase(),
-      onClick: topTrafficRow
-        ? () => {
-            query.value = String(topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip)
-          }
-        : undefined,
+      tone: activeCount > 0 ? 'warning' : 'success',
+      clickable: activeCount > 0,
+      active: activeDiagnosticKey.value === 'active-traffic',
+      onClick: activeCount > 0 ? () => activateDiagnostic('active-traffic') : undefined,
     },
     {
       key: 'unlabeled',
@@ -486,13 +515,10 @@ const diagnosticsCards = computed(() => {
       description: unlabeledCount
         ? t('hostQosDiagnosticsUnlabeledHint')
         : t('hostQosDiagnosticsUnlabeledEmpty'),
+      tone: unlabeledCount > 0 ? 'warning' : 'success',
       clickable: unlabeledCount > 0,
-      active: unlabeledCount > 0 && !!query.value.trim() && unlabeledRows.value.some((row) => row.ip.toLowerCase().includes(query.value.trim().toLowerCase())),
-      onClick: unlabeledCount > 0
-        ? () => {
-            query.value = unlabeledRows.value[0]?.ip || ''
-          }
-        : undefined,
+      active: activeDiagnosticKey.value === 'unlabeled',
+      onClick: unlabeledCount > 0 ? () => activateDiagnostic('unlabeled') : undefined,
     },
     {
       key: 'pending',
@@ -503,13 +529,10 @@ const diagnosticsCards = computed(() => {
       description: pendingCount
         ? t('hostQosDiagnosticsPendingHint')
         : t('hostQosDiagnosticsPendingEmpty'),
+      tone: pendingCount > 0 ? 'error' : 'success',
       clickable: pendingCount > 0,
-      active: pendingCount > 0 && !!query.value.trim() && pendingDraftRows.value.some((row) => row.ip.toLowerCase().includes(query.value.trim().toLowerCase())),
-      onClick: pendingCount > 0
-        ? () => {
-            query.value = pendingDraftRows.value[0]?.ip || ''
-          }
-        : undefined,
+      active: activeDiagnosticKey.value === 'pending',
+      onClick: pendingCount > 0 ? () => activateDiagnostic('pending') : undefined,
     },
     {
       key: 'focus',
@@ -518,15 +541,21 @@ const diagnosticsCards = computed(() => {
       badge: activeFilterLabel.value,
       title: t('hostQosDiagnosticsFocusTitle'),
       description: t('hostQosDiagnosticsFocusHint', { count: filteredRows.value.length, total: rows.value.length }),
-      clickable: profileFilter.value !== 'all' || !!query.value.trim(),
-      active: profileFilter.value !== 'all' || !!query.value.trim(),
+      tone: profileFilter.value !== 'all' || !!query.value.trim() || activeDiagnosticKey.value !== 'all' ? 'warning' : 'success',
+      clickable: profileFilter.value !== 'all' || !!query.value.trim() || activeDiagnosticKey.value !== 'all',
+      active: activeDiagnosticKey.value === 'all' && (profileFilter.value !== 'all' || !!query.value.trim()),
       onClick: () => {
         profileFilter.value = 'all'
         query.value = ''
+        activeDiagnosticKey.value = 'all'
       },
     },
   ]
 })
+
+const activeDiagnosticTitle = computed(() =>
+  diagnosticsCards.value.find((card) => card.key === activeDiagnosticKey.value)?.title || '',
+)
 
 const syncAppliedProfiles = () => {
   const next: Record<string, AgentQosProfile> = {}

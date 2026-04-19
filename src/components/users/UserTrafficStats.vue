@@ -115,7 +115,12 @@
           :key="card.key"
           type="button"
           class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40 disabled:cursor-default disabled:hover:border-base-content/10 disabled:hover:bg-base-100/50"
-          :class="card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          :class="[
+            card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50',
+            card.tone === 'warning' ? 'shadow-[inset_0_0_0_1px_rgba(245,158,11,0.14)]' : '',
+            card.tone === 'error' ? 'shadow-[inset_0_0_0_1px_rgba(239,68,68,0.14)]' : '',
+            card.tone === 'success' ? 'shadow-[inset_0_0_0_1px_rgba(34,197,94,0.14)]' : '',
+          ]"
           :disabled="!card.clickable"
           @click="card.onClick?.()"
         >
@@ -147,7 +152,11 @@
           <button v-if="workspaceFocus !== 'all'" type="button" class="btn btn-ghost btn-sm" @click="workspaceFocus = 'all'">
             {{ $t('resetFocus') }}
           </button>
+          <button v-if="activeTrafficDiagnosticKey !== 'all'" type="button" class="btn btn-ghost btn-sm" @click="activeTrafficDiagnosticKey = 'all'">
+            {{ $t('reset') }}
+          </button>
           <span class="badge badge-ghost">{{ $t('focus') }}: {{ workspaceFocusLabel }}</span>
+          <span v-if="activeTrafficDiagnosticTitle" class="badge badge-secondary">{{ $t('diagnostics') }}: {{ activeTrafficDiagnosticTitle }}</span>
           <span class="badge badge-outline">{{ $t('users') }}: {{ rows.length }}</span>
           <span v-if="selectedList.length" class="badge badge-secondary">{{ $t('selected') }}: {{ selectedList.length }}</span>
           <span v-if="props.focusUser || props.focusIp" class="badge badge-info">
@@ -1636,6 +1645,7 @@ const preset = ref<'1h' | '24h' | '7d' | '30d' | 'custom'>('24h')
 const topN = ref<number>(30)
 const trafficFilter = ref('')
 const workspaceFocus = ref<'all' | 'limited' | 'blocked' | 'devices' | 'noDevices'>('all')
+const activeTrafficDiagnosticKey = ref<'all' | 'missing-devices' | 'stored-only-qos' | 'near-limit' | 'active-traffic'>('all')
 
 type SortKey = 'user' | 'keys' | 'dl' | 'ul' | 'total'
 const sortKey = ref<SortKey>('total')
@@ -1913,7 +1923,7 @@ const rows = computed<Row[]>(() => {
   })
 
   let result = sorted
-  if (topN.value > 0) {
+  if (topN.value > 0 && activeTrafficDiagnosticKey.value === 'all') {
     const pinnedUsers = new Set(Object.keys(userLimits.value || {}).filter((user) => Boolean(user) && shouldIncludeTrafficUser(user)))
     const sliced = sorted.slice(0, topN.value)
     const keep = new Set(sliced.map((row) => row.user))
@@ -1927,6 +1937,7 @@ const rows = computed<Row[]>(() => {
   }
 
   result = result.filter((row) => rowMatchesWorkspaceFocus(row))
+  result = result.filter((row) => rowMatchesActiveTrafficDiagnostic(row))
 
   const filterQuery = trafficFilter.value.trim().toLowerCase()
   if (filterQuery) result = result.filter((row) => rowSearchBlob(row).includes(filterQuery))
@@ -2005,12 +2016,37 @@ const rowsNearLimit = computed(() => {
   return items.sort((a, b) => Number(b.limitState?.usageBytes || 0) - Number(a.limitState?.usageBytes || 0))
 })
 
+const rowMatchesActiveTrafficDiagnostic = (row: Row) => {
+  if (activeTrafficDiagnosticKey.value === 'all') return true
+  if (activeTrafficDiagnosticKey.value === 'missing-devices') return !rowHasEffectiveIps(row)
+  if (activeTrafficDiagnosticKey.value === 'stored-only-qos') return (rowHasLimitedQos(row) || rowIsBlocked(row)) && !rowHasEffectiveIps(row)
+  if (activeTrafficDiagnosticKey.value === 'near-limit') {
+    const state = row.limitState
+    return !!state?.enabled && !state.blocked && Number(state.percent || 0) >= 80
+  }
+  if (activeTrafficDiagnosticKey.value === 'active-traffic') return Number(row.liveTotalBps || 0) > 0
+  return true
+}
+
+const activateTrafficDiagnostic = (
+  key: 'missing-devices' | 'stored-only-qos' | 'near-limit' | 'active-traffic',
+  nextFocus: 'all' | 'limited' | 'blocked' | 'devices' | 'noDevices' = 'all',
+) => {
+  if (activeTrafficDiagnosticKey.value === key) {
+    activeTrafficDiagnosticKey.value = 'all'
+    workspaceFocus.value = 'all'
+    return
+  }
+  activeTrafficDiagnosticKey.value = key
+  workspaceFocus.value = nextFocus
+  trafficFilter.value = ''
+}
+
 const diagnosticsCards = computed(() => {
   const missingDevices = rowsWithMissingDevices.value
   const storedOnlyQos = rowsWithStoredOnlyQos.value
   const nearLimit = rowsNearLimit.value
   const topTraffic = activeTrafficRows.value[0]
-  const focusFilter = trafficFilter.value.trim().toLowerCase()
 
   return [
     {
@@ -2022,13 +2058,11 @@ const diagnosticsCards = computed(() => {
       description: missingDevices.length
         ? t('trafficDiagnosticsMissingDevicesHint')
         : t('trafficDiagnosticsMissingDevicesEmpty'),
+      tone: missingDevices.length > 0 ? 'warning' : 'success',
       clickable: missingDevices.length > 0,
-      active: missingDevices.length > 0 && focusFilter === String(missingDevices[0]?.user || '').trim().toLowerCase(),
+      active: activeTrafficDiagnosticKey.value === 'missing-devices',
       onClick: missingDevices.length > 0
-        ? () => {
-            workspaceFocus.value = 'all'
-            trafficFilter.value = String(missingDevices[0]?.user || '')
-          }
+        ? () => activateTrafficDiagnostic('missing-devices', 'noDevices')
         : undefined,
     },
     {
@@ -2040,13 +2074,11 @@ const diagnosticsCards = computed(() => {
       description: storedOnlyQos.length
         ? t('trafficDiagnosticsStoredOnlyHint')
         : t('trafficDiagnosticsStoredOnlyEmpty'),
+      tone: storedOnlyQos.length > 0 ? 'warning' : 'success',
       clickable: storedOnlyQos.length > 0,
-      active: storedOnlyQos.length > 0 && focusFilter === String(storedOnlyQos[0]?.user || '').trim().toLowerCase(),
+      active: activeTrafficDiagnosticKey.value === 'stored-only-qos',
       onClick: storedOnlyQos.length > 0
-        ? () => {
-            workspaceFocus.value = 'limited'
-            trafficFilter.value = String(storedOnlyQos[0]?.user || '')
-          }
+        ? () => activateTrafficDiagnostic('stored-only-qos', 'limited')
         : undefined,
     },
     {
@@ -2058,13 +2090,11 @@ const diagnosticsCards = computed(() => {
       description: nearLimit.length
         ? t('trafficDiagnosticsNearLimitHint', { user: nearLimit[0]?.user || '' })
         : t('trafficDiagnosticsNearLimitEmpty'),
+      tone: nearLimit.length > 0 ? 'warning' : 'success',
       clickable: nearLimit.length > 0,
-      active: nearLimit.length > 0 && focusFilter === String(nearLimit[0]?.user || '').trim().toLowerCase(),
+      active: activeTrafficDiagnosticKey.value === 'near-limit',
       onClick: nearLimit.length > 0
-        ? () => {
-            workspaceFocus.value = 'all'
-            trafficFilter.value = String(nearLimit[0]?.user || '')
-          }
+        ? () => activateTrafficDiagnostic('near-limit', 'all')
         : undefined,
     },
     {
@@ -2076,17 +2106,19 @@ const diagnosticsCards = computed(() => {
       description: topTraffic
         ? t('trafficDiagnosticsActiveTrafficHint', { user: topTraffic.user })
         : t('trafficDiagnosticsActiveTrafficEmpty'),
+      tone: activeTrafficRows.value.length > 0 ? 'warning' : 'success',
       clickable: !!topTraffic,
-      active: !!topTraffic && focusFilter === String(topTraffic.user || '').trim().toLowerCase(),
+      active: activeTrafficDiagnosticKey.value === 'active-traffic',
       onClick: topTraffic
-        ? () => {
-            workspaceFocus.value = 'all'
-            trafficFilter.value = String(topTraffic.user || '')
-          }
+        ? () => activateTrafficDiagnostic('active-traffic', 'all')
         : undefined,
     },
   ]
 })
+
+const activeTrafficDiagnosticTitle = computed(() =>
+  diagnosticsCards.value.find((card) => card.key === activeTrafficDiagnosticKey.value)?.title || '',
+)
 
 const openWorkspaceUserShortcut = () => {
   const row = workspaceShortcutRow.value
