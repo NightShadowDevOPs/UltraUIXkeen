@@ -1,5 +1,10 @@
 # Home Assistant export bridge notes
 
+## v1.2.147
+- Router overview traffic shortcut hotfix and Russian QoS wording cleanup were done only inside the router UI.
+- Router-agent contract for Home Assistant intentionally unchanged.
+- Existing HA cards / sensors should continue to work without YAML changes.
+
 ## v1.2.146
 - Host / Traffic diagnostics slices got severity-first ordering and inline reason badges only inside the router UI.
 - Router-agent contract for Home Assistant intentionally unchanged.

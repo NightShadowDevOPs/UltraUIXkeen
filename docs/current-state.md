@@ -1,7 +1,7 @@
 # UltraUIXkeen — Current state
 
 ## Release target
-- UI package target for this release: **v1.2.146**
+- UI package target for this release: **v1.2.147**
 - Router-agent line confirmed for this package: **0.6.31**
 - Home Assistant bridge contract: **frozen / do not change payload shape without explicit need**
 - Current stable HA pull model: **single `ha_snapshot` poll + attribute split inside HA**
@@ -9,8 +9,7 @@
 ## What is confirmed right now
 - Router and Home Assistant already exchange data correctly through `ha_snapshot`.
 - The user confirmed that the metrics are coming in and the HA side was checked successfully.
-- `v1.2.142` introduced HA-side freshness helpers without changing the transport contract.
-- This `v1.2.146` package focuses on making diagnostic slices easier to read: severity-first ordering plus explicit row reasons, while keeping the Home Assistant bridge contract unchanged.
+- `v1.2.147` is a focused router-UI hotfix: repair the broken traffic jump from the Router overview and clean up user-facing QoS naming in Russian.
 
 ## Current guardrails
 - Do not casually change the HA JSON contract.

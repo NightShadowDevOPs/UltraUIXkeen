@@ -37,8 +37,8 @@
             <div class="mt-1 text-sm opacity-70">{{ $t('routerSectionTrafficTip') }}</div>
           </div>
           <div class="mt-auto flex items-center justify-between gap-3">
-            <span class="badge badge-outline">devices / users / QoS</span>
-            <button type="button" class="btn btn-sm" @click="goUsersTraffic">{{ $t('open') }}</button>
+            <span class="badge badge-outline">Устройства / Пользователи / QoS</span>
+            <button type="button" class="btn btn-sm" @click="goTrafficWorkspace">{{ $t('open') }}</button>
           </div>
         </div>
 
@@ -80,7 +80,7 @@
         <div class="text-lg font-semibold">{{ $t('routerSectionTrafficTitle') }}</div>
         <div class="text-sm opacity-70">{{ $t('routerSectionTrafficTip') }}</div>
         <div>
-          <button type="button" class="btn btn-sm" @click="goUsersTraffic">{{ $t('open') }}</button>
+          <button type="button" class="btn btn-sm" @click="goTrafficWorkspace">{{ $t('open') }}</button>
         </div>
       </div>
     </template>
@@ -102,6 +102,7 @@ import ConnectionInfoCard from '@/components/router/ConnectionInfoCard.vue'
 import SystemCard from '@/components/router/SystemCard.vue'
 import { version as backendVersion } from '@/api'
 import { showIPAndConnectionInfo } from '@/store/settings'
+import { ROUTE_NAME } from '@/constant'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -117,7 +118,7 @@ const setSection = (next: 'overview' | 'backup' | 'traffic' | 'network') => {
   router.replace({ query: { ...route.query, section: next === 'overview' ? undefined : next } })
 }
 
-const goUsersTraffic = () => {
-  router.push({ name: 'Traffic', query: { view: 'users' } })
+const goTrafficWorkspace = () => {
+  router.push({ name: ROUTE_NAME.traffic, query: { view: 'devices' } })
 }
 </script>

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.147 — router traffic jump hotfix and Russian QoS labels
+- raised UI package version to `1.2.147`
+- fixed the broken **Router → Traffic → Открыть** action: it now navigates through the real named route instead of a stale raw string route name
+- the Router overview traffic card now opens the main **Трафик** workspace in the devices/QoS context, so the operator lands where host priorities are actually managed
+- replaced the leftover English badge on the Router overview traffic card with a Russian label
+- cleaned up key user-facing QoS wording from **Host QoS / хосты** to **QoS устройств / устройства** in the router UI
+- kept the Home Assistant bridge contract unchanged; no router-agent payload or export shape changes
+- validation note: full `npm run build` still could not be completed in the container because dependencies are not installed in this environment
+
 ## v1.2.146 — diagnostics slice ordering and row reasons
 - raised UI package version to `1.2.146`
 - in **Host QoS**, diagnostic slices now sort by severity first (live traffic / unlabeled / pending draft mismatch) instead of looking random

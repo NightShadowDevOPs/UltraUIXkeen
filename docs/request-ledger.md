@@ -25,3 +25,8 @@
 - Inside diagnostics slices, rows should be easier to read: sort the most important/problematic entries first.
 - Show a short visible explanation near each row so the operator understands why it landed in the current slice.
 - Keep the Home Assistant bridge contract unchanged.
+
+## Special request for v1.2.147
+- Fix the broken **Router → Traffic → Открыть** shortcut shown on the router overview.
+- Keep the user-facing naming Russian and clearer: prefer **QoS устройств / устройства** over leftover Host wording in this flow.
+- Keep the Home Assistant bridge contract unchanged.
