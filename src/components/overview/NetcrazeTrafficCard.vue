@@ -700,6 +700,17 @@ let lastRxBytes: number | null = null
 let lastTxBytes: number | null = null
 let lastSampleTs: number | null = null
 const lastExtraCounters = ref<ExtraCounterState>({})
+const lastStableTrafficSample = ref<{
+  capturedAt: number
+  routerDown: number
+  routerUp: number
+  vpnDown: number
+  vpnUp: number
+  bypassDown: number
+  bypassUp: number
+  extraSpeeds: Record<string, { down: number; up: number; kind?: string }>
+} | null>(null)
+const lastStableAgentHostTraffic = ref<{ capturedAt: number; items: Record<string, AgentHostTrafficSnapshot> } | null>(null)
 const lanHostNames = ref<Record<string, string>>({})
 const agentHostTrafficByIp = ref<Record<string, AgentHostTrafficSnapshot>>({})
 const hostRemoteTargetsByIp = ref<Record<string, HostRemoteTargetsState>>({})
@@ -1798,13 +1809,19 @@ const scheduleHostQosRefresh = () => {
 const refreshAgentHostTraffic = async () => {
   if (!shouldPollLive()) return
   if (!agentEnabled.value) {
+    lastStableAgentHostTraffic.value = null
     agentHostTrafficByIp.value = {}
     refreshHostTraffic()
     return
   }
   const res = await agentHostTrafficLiveAPI()
   if (!res?.ok || !Array.isArray(res.items)) {
-    agentHostTrafficByIp.value = {}
+    const fallback = lastStableAgentHostTraffic.value
+    if (fallback && (Date.now() - fallback.capturedAt) <= 12_000) {
+      agentHostTrafficByIp.value = { ...fallback.items }
+    } else {
+      agentHostTrafficByIp.value = {}
+    }
     refreshHostTraffic()
     return
   }
@@ -1814,6 +1831,7 @@ const refreshAgentHostTraffic = async () => {
     if (!normalized) continue
     next[normalized.ip] = normalized
   }
+  lastStableAgentHostTraffic.value = { capturedAt: Date.now(), items: { ...next } }
   agentHostTrafficByIp.value = next
   refreshHostTraffic()
 }
@@ -2184,6 +2202,7 @@ const pollTraffic = async () => {
   let routerDown = 0
   let routerUp = 0
   let extraSpeeds: Record<string, { down: number; up: number; kind?: string }> = {}
+  let usedStableFallback = false
 
   if (agentEnabled.value) {
     const live = await agentTrafficLiveAPI()
@@ -2205,17 +2224,48 @@ const pollTraffic = async () => {
       if (Array.isArray(live.extraIfaces) && live.extraIfaces.length) {
         extraSpeeds = computeExtraSpeeds(live.extraIfaces, ts)
       }
+    } else {
+      const fallback = lastStableTrafficSample.value
+      if (fallback && (timestamp - fallback.capturedAt) <= 12_000) {
+        routerDown = fallback.routerDown
+        routerUp = fallback.routerUp
+        extraSpeeds = { ...fallback.extraSpeeds }
+        usedStableFallback = true
+      }
     }
+  } else {
+    lastStableTrafficSample.value = null
   }
 
   const otherDown = Math.max(routerDown - mihomoDown, 0)
   const otherUp = Math.max(routerUp - mihomoUp, 0)
   const vpnDownRaw = Object.values(extraSpeeds).reduce((sum, item) => sum + Math.max(0, Number(item?.down || 0)), 0)
   const vpnUpRaw = Object.values(extraSpeeds).reduce((sum, item) => sum + Math.max(0, Number(item?.up || 0)), 0)
-  const vpnDown = Math.min(otherDown, vpnDownRaw)
-  const vpnUp = Math.min(otherUp, vpnUpRaw)
-  const bypassDown = Math.max(otherDown - vpnDown, 0)
-  const bypassUp = Math.max(otherUp - vpnUp, 0)
+  const vpnDown = usedStableFallback && lastStableTrafficSample.value
+    ? lastStableTrafficSample.value.vpnDown
+    : Math.min(otherDown, vpnDownRaw)
+  const vpnUp = usedStableFallback && lastStableTrafficSample.value
+    ? lastStableTrafficSample.value.vpnUp
+    : Math.min(otherUp, vpnUpRaw)
+  const bypassDown = usedStableFallback && lastStableTrafficSample.value
+    ? lastStableTrafficSample.value.bypassDown
+    : Math.max(otherDown - vpnDown, 0)
+  const bypassUp = usedStableFallback && lastStableTrafficSample.value
+    ? lastStableTrafficSample.value.bypassUp
+    : Math.max(otherUp - vpnUp, 0)
+
+  if (agentEnabled.value && !usedStableFallback) {
+    lastStableTrafficSample.value = {
+      capturedAt: timestamp,
+      routerDown,
+      routerUp,
+      vpnDown,
+      vpnUp,
+      bypassDown,
+      bypassUp,
+      extraSpeeds: { ...extraSpeeds },
+    }
+  }
 
   pushHistory(routerDownloadHistory, timestamp, routerDown)
   pushHistory(routerUploadHistory, timestamp, routerUp)

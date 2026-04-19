@@ -1,38 +1,9 @@
-# UltraUIXkeen — Request ledger
+# Request ledger — UI Mihomo / Ultra
 
-## Long-lived user requirements
-- Each release should contain archives, a separate commit message, updated docs and transfer files.
-- Keep a transfer file in `docs` for moving the project into a new chat.
-- If `router-agent` changes, sync its version in `install.sh` and in the status API.
-- Router command blocks should start with `clear`.
-- Do not treat `git pull` on the router as the main UI update path.
-- Do not break automatic SSL certificate checks of proxy providers.
-- Do not change the HA JSON contract unless there is a strong reason and it is explicitly agreed.
-
-## Special request for v1.2.143
-- Prepare the current release.
-- Prepare clean transfer information for a new chat.
-- Prepare a memory snapshot with an explanation of how this memory should be used during work.
-- Document the working order: command blocks, commit messages, checks, release packaging.
-
-## Special request for v1.2.144
-- Host QoS and Traffic / Users should get **normal diagnostics cards**, not just compact counters.
-- Diagnostics cards should be actionable and help navigate to the problematic slice quickly.
-- Do **not** change the Home Assistant data structure / payload contract while doing this UI step.
-- Refresh the transfer pack, memory snapshot and workflow notes again in the same release.
-
-## Special request for v1.2.146
-- Inside diagnostics slices, rows should be easier to read: sort the most important/problematic entries first.
-- Show a short visible explanation near each row so the operator understands why it landed in the current slice.
-- Keep the Home Assistant bridge contract unchanged.
-
-## Special request for v1.2.147
-- Fix the broken **Router → Traffic → Открыть** shortcut shown on the router overview.
-- Keep the user-facing naming Russian and clearer: prefer **QoS устройств / устройства** over leftover Host wording in this flow.
-- Keep the Home Assistant bridge contract unchanged.
-
-## Special request for v1.2.148
-- User explicitly asked to proceed **without harming traffic through the router**.
-- The **Overview diagram with traffic weights** must keep working normally after the hotfix.
-- Any optimization in Traffic/QoS should prefer reducing router load instead of increasing polling density.
-
+## 2026-04-20
+- User request: continue after `v1.2.148` and keep reducing router-side pressure without harming real traffic.
+- User constraint: traffic through the router must not suffer.
+- User constraint: the Overview diagram with traffic weights must keep working normally.
+- Action in `v1.2.149`: added UI-side short-lived dedupe/cache for `traffic_live`, `host_traffic_live` and `lan_hosts` requests.
+- Action in `v1.2.149`: added fallback to the last stable live telemetry sample for Overview/Traffic graphs and host live stats so brief agent misses do not zero charts.
+- Follow-up request to keep in scope: keep looking at what can be taken safely from upstream, but only if it does not increase background load or endanger runtime traffic.

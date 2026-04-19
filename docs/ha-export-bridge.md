@@ -1,33 +1,18 @@
-# HA export bridge notes
+# HA export bridge — UI Mihomo / Ultra
 
-## v1.2.148
-- HA handoff bundle synced to router-agent **0.6.32**.
-- Bridge contract intentionally kept stable; this release focuses on router traffic safety and lighter telemetry pressure.
-- Overview traffic-weight chart support remains in place; no HA-side breaking change introduced.
+Дата: **2026-04-20**
+Текущая версия UI: **v1.2.149**
+Текущая версия router-agent: **0.6.32**
 
-# Home Assistant export bridge notes
+## Что важно для HA / внешних handoff-пакетов
+- В `v1.2.149` router-agent не менялся: backend-контур и telemetry cache из `v1.2.148` сохранены без расширения.
+- Изменения релиза находятся в UI-слое: короткий dedupe/cache запросов к `traffic_live`, `host_traffic_live`, `lan_hosts` и безопасный fallback на последний стабильный live-снимок для графиков.
+- Это релиз про стабилизацию UI-runtime, а не про новый backend API.
 
-## v1.2.147
-- Router overview traffic shortcut hotfix and Russian QoS wording cleanup were done only inside the router UI.
-- Router-agent contract for Home Assistant intentionally unchanged.
-- Existing HA cards / sensors should continue to work without YAML changes.
+## Что проверять после обновления
+1. Overview: диаграмма весов трафика обновляется и не проваливается в нули при кратких промахах telemetry.
+2. Traffic: карточки и live-хосты не дёргаются при единичных сбоях polling.
+3. Router runtime: реальный трафик через роутер не деградирует.
 
-## v1.2.146
-- Host / Traffic diagnostics slices got severity-first ordering and inline reason badges only inside the router UI.
-- Router-agent contract for Home Assistant intentionally unchanged.
-- Existing HA cards / sensors should continue to work without YAML changes.
-
-## v1.2.145
-- Host / Traffic diagnostics drill-in UX updated only inside the router UI.
-- Router-agent contract for Home Assistant intentionally unchanged.
-- Existing HA cards / sensors should continue to work without YAML changes.
-
-## v1.2.142
-- Home Assistant helper layer expanded with freshness / stale indicators derived from existing snapshot timestamps.
-- Router-agent contract for Home Assistant intentionally unchanged.
-- Example dashboard updated to surface stale / delayed data without additional router polling.
-
-## v1.2.141
-- UI / docs handoff release.
-- Router-agent contract for Home Assistant intentionally unchanged.
-- Project memory exported into docs for the next chat / handoff.
+## Следующий мостовой шаг
+- если `v1.2.149` стабилен на роутере, можно смотреть следующий безопасный cherry-pick из upstream, но только без увеличения фонового polling и без вмешательства в SSL/provider checks

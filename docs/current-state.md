@@ -1,22 +1,24 @@
 # Current state — UI Mihomo / Ultra
 
-## Release baseline
-- UI package target for this release: **v1.2.148**
-- Router-agent line confirmed for this package: **0.6.32**
-- Repo: `NightShadowDevOPs/UltraUIXkeen`
-- Local workspace: `Y:\Мой диск\Git\UltraUIXkeen`
+- Date: **2026-04-20**
+- UI version: **v1.2.149**
+- router-agent version: **0.6.32**
+- Repository: `NightShadowDevOPs/UltraUIXkeen`
+- Local path: `Y:\Мой диск\Git\UltraUIXkeen`
 - Router path: `/opt/UltraUIXkeen`
-- Update path on router: through the UI updater (do **not** treat `git pull` as the main update path)
 
-## What this package does
-- `v1.2.148` is a router-safe traffic telemetry hotfix.
-- Live traffic/QoS/LAN payloads are now short-term cached inside router-agent so the UI stops hammering the router with heavy parallel reads.
-- Host QoS card now loads expensive live traffic only when the card is opened or when the page is focused on a concrete host/user.
-- Main goal of the release: **do not worsen router traffic/runtime**, while keeping the **Overview traffic-weight chart** alive and feeding it with normal telemetry.
-- HA bridge contract stays compatible; handoff examples are synced to router-agent `0.6.32`.
+## What was done in v1.2.149
+- left router-agent telemetry cache from `v1.2.148` untouched so the forwarding/runtime path stays conservative and safe
+- added short-lived client-side dedupe/cache for `traffic_live`, `host_traffic_live` and `lan_hosts`, so simultaneous UI cards do not hammer the router-agent with duplicate reads
+- hardened Overview/Traffic live charts with fallback to the last stable sample, so brief telemetry misses do not drop traffic weights and host live stats to zero
+- kept the traffic diagram in Overview on the same data path, but made transient polling failures visually flatter instead of noisy
+- synchronized docs, changelog and chat-transfer bundle for the new release
 
-## Constraints to keep in mind
-- Do not break provider SSL checks.
-- Do not make the Traffic section heavier again without measuring the router impact.
-- UI update on router still goes through the built-in updater, not through manual git workflow.
-- If router-agent changes again, keep versions in `router-agent/install.sh`, status API, docs and HA handoff bundle aligned.
+## Current focus
+- reduce remaining UI polling overhead without touching the actual traffic path
+- keep Overview traffic weights chart stable under real router load
+- continue lightening the Traffic workspace carefully, without breaking QoS, host stats or provider SSL checks
+
+## Next logical step after this release
+- observe `v1.2.149` under real router load
+- if the runtime is stable, move to the next safe cleanup: trim non-critical background refreshes in secondary Traffic widgets and review which upstream ideas are worth porting without dragging extra load onto the router

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.149 - traffic workspace polling dedupe and stable overview fallback
+- добавлен короткоживущий клиентский dedupe/cache для `traffic_live`, `host_traffic_live` и `lan_hosts`, чтобы UI не дёргал router-agent повторно при одновременных обновлениях карточек
+- в `NetcrazeTrafficCard` добавлен safe fallback на последний стабильный live-сэмпл, чтобы кратковременный промах agent telemetry не ронял обзорные графики и не сбрасывал веса трафика в ноль
+- для host live traffic добавлен fallback на последний стабильный снимок, чтобы карточки в разделе Трафик не дёргались при единичных сбоях polling
+- документация и файлы переноса в новый чат обновлены под `v1.2.149`
+
 ## v1.2.148 — 2026-04-20
 - bumped UI package to `1.2.148`
 - bumped router-agent line to `0.6.32`

@@ -157,6 +157,9 @@ const shortLivedAgentCache = {
   status: { ts: 0, data: null as AgentStatus | null, pending: null as Promise<AgentStatus> | null },
   statusDebug: { ts: 0, data: null as AgentStatusDebug | null, pending: null as Promise<AgentStatusDebug> | null },
   qos: { ts: 0, data: null as AgentQosStatus | null, pending: null as Promise<AgentQosStatus> | null },
+  lanHosts: { ts: 0, data: null as { ok: boolean; items?: AgentLanHost[]; error?: string } | null, pending: null as Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> | null },
+  trafficLive: { ts: 0, data: null as AgentTrafficLive | null, pending: null as Promise<AgentTrafficLive> | null },
+  hostTrafficLive: { ts: 0, data: null as AgentHostTrafficLive | null, pending: null as Promise<AgentHostTrafficLive> | null },
 }
 
 const invalidateAgentShortCaches = () => {
@@ -166,6 +169,18 @@ const invalidateAgentShortCaches = () => {
   shortLivedAgentCache.statusDebug.data = null
   shortLivedAgentCache.qos.ts = 0
   shortLivedAgentCache.qos.data = null
+  shortLivedAgentCache.lanHosts.ts = 0
+  shortLivedAgentCache.lanHosts.data = null
+  shortLivedAgentCache.trafficLive.ts = 0
+  shortLivedAgentCache.trafficLive.data = null
+  shortLivedAgentCache.hostTrafficLive.ts = 0
+  shortLivedAgentCache.hostTrafficLive.data = null
+}
+
+const readShortCache = <T>(slot: { ts: number; data: T | null }, maxAgeMs: number) => {
+  const now = Date.now()
+  if (!slot.data) return null
+  return now - slot.ts <= maxAgeMs ? slot.data : null
 }
 
 export const agentStatusAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentStatus> => {
@@ -236,16 +251,31 @@ export const agentFirmwareCheckAPI = async (force = false): Promise<AgentFirmwar
   }
 }
 
-export const agentTrafficLiveAPI = async (): Promise<AgentTrafficLive> => {
-  try {
-    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'traffic_live' },
-      timeout: 4000,
-    })
-    return (data || { ok: false }) as AgentTrafficLive
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'failed' }
+export const agentTrafficLiveAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentTrafficLive> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 1_500)
+  const cached = !opts?.force ? readShortCache(shortLivedAgentCache.trafficLive, maxAgeMs) : null
+  if (cached) return cached
+  if (!opts?.force && shortLivedAgentCache.trafficLive.pending) {
+    return shortLivedAgentCache.trafficLive.pending
   }
+  const pending = (async (): Promise<AgentTrafficLive> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'traffic_live' },
+        timeout: 4000,
+      })
+      const parsed = (data || { ok: false }) as AgentTrafficLive
+      shortLivedAgentCache.trafficLive.data = parsed
+      shortLivedAgentCache.trafficLive.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'failed' }
+    } finally {
+      shortLivedAgentCache.trafficLive.pending = null
+    }
+  })()
+  shortLivedAgentCache.trafficLive.pending = pending
+  return pending
 }
 
 export const agentSetShapeAPI = async (args: {
@@ -342,28 +372,58 @@ export type AgentHostRemoteTargets = {
   error?: string
 }
 
-export const agentLanHostsAPI = async (): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
-  try {
-    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'lan_hosts' },
-      timeout: 15000,
-    })
-    return (data || { ok: true }) as any
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'failed' }
+export const agentLanHostsAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 12_000)
+  const cached = !opts?.force ? readShortCache(shortLivedAgentCache.lanHosts, maxAgeMs) : null
+  if (cached) return cached
+  if (!opts?.force && shortLivedAgentCache.lanHosts.pending) {
+    return shortLivedAgentCache.lanHosts.pending
   }
+  const pending = (async (): Promise<{ ok: boolean; items?: AgentLanHost[]; error?: string }> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'lan_hosts' },
+        timeout: 15000,
+      })
+      const parsed = (data || { ok: true }) as { ok: boolean; items?: AgentLanHost[]; error?: string }
+      shortLivedAgentCache.lanHosts.data = parsed
+      shortLivedAgentCache.lanHosts.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'failed' }
+    } finally {
+      shortLivedAgentCache.lanHosts.pending = null
+    }
+  })()
+  shortLivedAgentCache.lanHosts.pending = pending
+  return pending
 }
 
-export const agentHostTrafficLiveAPI = async (): Promise<AgentHostTrafficLive> => {
-  try {
-    const { data } = await agentAxios().get('/cgi-bin/api.sh', {
-      params: { cmd: 'host_traffic_live' },
-      timeout: 8000,
-    })
-    return (data || { ok: false }) as AgentHostTrafficLive
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'failed' }
+export const agentHostTrafficLiveAPI = async (opts?: { force?: boolean; maxAgeMs?: number }): Promise<AgentHostTrafficLive> => {
+  const maxAgeMs = Math.max(0, opts?.maxAgeMs ?? 2_000)
+  const cached = !opts?.force ? readShortCache(shortLivedAgentCache.hostTrafficLive, maxAgeMs) : null
+  if (cached) return cached
+  if (!opts?.force && shortLivedAgentCache.hostTrafficLive.pending) {
+    return shortLivedAgentCache.hostTrafficLive.pending
   }
+  const pending = (async (): Promise<AgentHostTrafficLive> => {
+    try {
+      const { data } = await agentAxios().get('/cgi-bin/api.sh', {
+        params: { cmd: 'host_traffic_live' },
+        timeout: 8000,
+      })
+      const parsed = (data || { ok: false }) as AgentHostTrafficLive
+      shortLivedAgentCache.hostTrafficLive.data = parsed
+      shortLivedAgentCache.hostTrafficLive.ts = Date.now()
+      return parsed
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'failed' }
+    } finally {
+      shortLivedAgentCache.hostTrafficLive.pending = null
+    }
+  })()
+  shortLivedAgentCache.hostTrafficLive.pending = pending
+  return pending
 }
 
 export const agentHostRemoteTargetsAPI = async (ip: string): Promise<AgentHostRemoteTargets> => {

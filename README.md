@@ -1,5 +1,11 @@
 # UltraUIXkeen
 
+## Current packaged snapshot
+
+- UI: `v1.2.149`
+- router-agent: `0.6.32`
+- Focus: Traffic workspace polling dedupe and stable Overview/Traffic live fallback
+
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
 Цель репозитория — дать удобный веб‑интерфейс для Mihomo на Ultra, обновления через GitHub Releases и расширенные функции через **router-agent** (то, чего нет в стандартном Clash/Mihomo API).

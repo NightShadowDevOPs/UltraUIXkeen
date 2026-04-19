@@ -1,36 +1,22 @@
-# UltraUIXkeen — Model memory snapshot
+# Model memory snapshot — UI Mihomo / Ultra
 
-## What this file is
-This is a practical snapshot of long-lived project context that was accumulated during previous work on UltraUIXkeen and related router / HA bridge tasks.
+## Working context
+- Date: **2026-04-20**
+- UI version: **v1.2.149**
+- router-agent version: **0.6.32**
 
-## How this memory should be used
-- Use it as **working context**, not as the only source of truth.
-- Before implementing the next release in a new chat, verify the actual state of:
-  - repository files
-  - current packaged release
-  - router-agent version on the router
-  - actual runtime behaviour on the router / in Home Assistant
-- If memory and real project files disagree, **project files and runtime win**.
+## What changed most recently
+- `v1.2.148`: heavy telemetry endpoints on router-agent (`traffic_live`, `host_traffic_live`, `qos_status`, `lan_hosts`) moved behind short TTL cache; Host QoS live refresh became more demand-driven
+- `v1.2.149`: UI-side duplicate reads for `traffic_live`, `host_traffic_live` and `lan_hosts` are now deduped/cached briefly; Overview/Traffic charts reuse the last stable live sample on short telemetry misses instead of dropping to zero
 
-## Memory snapshot relevant to this project
-- Project: **UI Mihomo / Ultra**, repo `NightShadowDevOPs/UltraUIXkeen`.
-- Local folder used by the user: `Y:\Мой диск\Git\UltraUIXkeen`.
-- Router path: `/opt/UltraUIXkeen`.
-- Router update flow: user normally updates the UI through the UI itself; do not fall back to `git pull` on the router as the main path.
-- Router-agent is installed / updated separately via `router-agent/install.sh`.
-- If `router-agent` changes, version must be synced in `install.sh` and in the status API.
-- Router commands in release messages should start with `clear`.
-- Automatic SSL certificate checks for proxy providers must not be broken during optimisation or refactoring.
-- Traffic / QoS / shaping remain a key focus area.
-- Home Assistant bridge now uses a stable `ha_snapshot`-based contract and that contract should not be changed casually.
-- The user prefers every release to include updated docs and transfer files, not only code changes.
+## Important constraints
+- traffic through the router must not degrade because of UI work
+- Overview traffic weights chart must keep working normally
+- provider SSL checks are off-limits unless explicitly requested
+- updater flow on the router remains the built-in UI updater
 
-## Current confirmed release baseline
-- Current UI package in this folder: **v1.2.148**
-- Current router-agent line expected with this package: **0.6.32**
-- Current HA bridge rule: **JSON contract unchanged**
-
-## Operator note for a new chat
-When continuing in a new chat, start by checking the current repo contents and the actual router-agent/runtime state before planning the next version. Memory is a map, not the territory.
-
-- `v1.2.148` is the traffic-runtime safety patch: cache short-lived traffic/QoS/LAN payloads in router-agent and load host live traffic on demand.
+## Immediate next check
+- verify real-router behavior after `v1.2.149`:
+  1. Overview traffic weights chart updates normally
+  2. Traffic page no longer causes visible polling jitter on short telemetry misses
+  3. router throughput/latency does not regress

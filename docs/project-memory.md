@@ -1,26 +1,22 @@
-# UltraUIXkeen — Project memory snapshot
+# Project memory — UI Mihomo / Ultra
 
-## Stable facts
-- Current UI line in this package: **v1.2.148**
-- Current router-agent line used with this package: **0.6.32**
-- Home Assistant bridge is built around a **single `ha_snapshot` pull** with attribute split inside HA.
-- JSON contract for `ha_snapshot` / `ha_status` / `ha_traffic` / `ha_users` / `ha_qos` is intentionally frozen until the user explicitly asks to change it.
+## Stable project facts
+- Main repository: `NightShadowDevOPs/UltraUIXkeen`
+- Local folder: `Y:\Мой диск\Git\UltraUIXkeen`
+- Router path: `/opt/UltraUIXkeen`
+- UI updates on the router are done through the built-in UI updater, not through `git pull`
+- In router command blocks always include `clear`
+- If `router-agent` changes, sync the version in `install.sh`, status API and documentation
+- Automatic SSL-certificate checks for proxy providers must stay intact
 
-## What the user already confirmed
-- Роутер и HA уже подтверждали, что данные с роутера поступают.
-- Основная жалоба сейчас не «данных нет совсем», а то, что навигация и отдельные UI-хвосты местами сбивают и мешают быстро попасть в нужный контур.
-- Пользователь хочет идти дальше в функционал, а не бесконечно спорить с кривыми кнопками и хвостами терминологии.
+## Current validated baseline
+- UI: **v1.2.149**
+- router-agent: **0.6.32**
 
-## Release memory
-- В релизе `v1.2.144` payload также **не менялся**; это UI/diagnostics release поверх уже стабилизированного bridge-контракта.
-- В релизе `v1.2.145` payload по-прежнему **не меняется**; доработан именно operator UX вокруг diagnostics slices.
-- В релизе `v1.2.146` payload по-прежнему **не меняется**; добавлены severity-first сортировка и поясняющие причины внутри diagnostic slices.
-- В релизе `v1.2.147` payload по-прежнему **не меняется**; исправлен переход из карточки роутера в раздел трафика и упрощены пользовательские QoS-подписи.
+## Latest delivered step
+- `v1.2.149` kept the conservative agent-side telemetry cache from `v1.2.148`, then added UI-side request dedupe/cache and stable live-snapshot fallback so Overview/Traffic graphs stop flapping on brief telemetry misses
 
-## Why this matters
-- Любые следующие шаги вокруг HA нужно строить вокруг текущего контракта, а не ломать его.
-- Слой удобства и диагностики лучше добавлять на стороне UI/HA-карточек, чем раздувать router-agent и нагрузку на роутер.
-
-- In `v1.2.148` the main design rule is operational safety: expensive traffic/QoS/LAN endpoints were wrapped with tiny TTL caches in router-agent so the router is not hammered by repeated UI fetches.
-- Host QoS card now avoids live host-traffic polling until the operator opens the card (or lands there with a focused user/IP), which should keep Overview responsive and leave forwarding traffic alone.
-- Overview traffic-weight diagram must remain functional; follow-up releases should validate the chart on real router runtime instead of blindly adding more polls.
+## Current development direction
+- continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path
+- observe what can be borrowed from upstream only when it is cheap operationally and does not add constant polling pressure
+- preserve normal work of the Overview traffic weights chart while lightening the UI/runtime contour
