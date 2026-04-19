@@ -56,6 +56,58 @@
           </template>
         </div>
       </div>
+      <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <button
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+          :class="workspaceFocus === 'all' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          @click="workspaceFocus = 'all'"
+        >
+          <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('all') }}</div>
+          <div class="mt-1 text-2xl font-semibold">{{ workspaceTotals.total }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusAllHint') }}</div>
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+          :class="workspaceFocus === 'limited' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          @click="workspaceFocus = 'limited'"
+        >
+          <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('trafficWorkspaceFocusLimited') }}</div>
+          <div class="mt-1 text-2xl font-semibold">{{ workspaceTotals.limited }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusLimitedHint') }}</div>
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+          :class="workspaceFocus === 'blocked' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          @click="workspaceFocus = 'blocked'"
+        >
+          <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('blocked') }}</div>
+          <div class="mt-1 text-2xl font-semibold">{{ workspaceTotals.blocked }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusBlockedHint') }}</div>
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+          :class="workspaceFocus === 'devices' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          @click="workspaceFocus = 'devices'"
+        >
+          <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('trafficWorkspaceFocusDevices') }}</div>
+          <div class="mt-1 text-2xl font-semibold">{{ workspaceTotals.devices }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusDevicesHint') }}</div>
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+          :class="workspaceFocus === 'noDevices' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          @click="workspaceFocus = 'noDevices'"
+        >
+          <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('trafficWorkspaceFocusNoDevices') }}</div>
+          <div class="mt-1 text-2xl font-semibold">{{ workspaceTotals.noDevices }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusNoDevicesHint') }}</div>
+        </button>
+      </div>
       <div class="flex flex-wrap items-end gap-2">
         <label class="flex min-w-[260px] flex-1 flex-col gap-1 text-sm">
           <span class="opacity-70">{{ $t('search') }}</span>
@@ -68,6 +120,10 @@
         <button v-if="trafficFilter" type="button" class="btn btn-ghost btn-sm" @click="trafficFilter = ''">
           {{ $t('clear') }}
         </button>
+        <button v-if="workspaceFocus !== 'all'" type="button" class="btn btn-ghost btn-sm" @click="workspaceFocus = 'all'">
+          {{ $t('resetFocus') }}
+        </button>
+        <span class="badge badge-ghost">{{ $t('focus') }}: {{ workspaceFocusLabel }}</span>
         <span v-if="props.focusUser || props.focusIp" class="badge badge-info">
           {{ props.focusUser || props.focusIp }}
         </span>
@@ -1174,6 +1230,10 @@ const effectiveIpsForRow = (row: Row) => {
 const rowHasEffectiveIps = (row: Row) => effectiveIpsForRow(row).length > 0
 
 
+const rowHasDeviceBindings = (row: Row) => row.ips.length > 0 || row.macs.length > 0
+const rowIsBlocked = (row: Row) => row.currentQos === 'blocked' || limitStates.value[row.user]?.blocked === true
+const rowHasLimitedQos = (row: Row) => !!row.currentQos && row.currentQos !== 'normal' && row.currentQos !== 'blocked'
+
 const rowMatchesFocus = (row: Row): boolean => {
   const focusUser = normalizeUserName(props.focusUser)
   const focusIp = String(props.focusIp || '').trim().toLowerCase()
@@ -1196,6 +1256,44 @@ const openDevicesForRow = (row: Row) => {
     ip: preferredIp,
   })
 }
+
+const rowMatchesWorkspaceFocus = (row: Row): boolean => {
+  switch (workspaceFocus.value) {
+    case 'limited':
+      return rowHasLimitedQos(row)
+    case 'blocked':
+      return rowIsBlocked(row)
+    case 'devices':
+      return rowHasDeviceBindings(row)
+    case 'noDevices':
+      return !rowHasDeviceBindings(row)
+    default:
+      return true
+  }
+}
+
+const workspaceTotals = computed(() => ({
+  total: rows.value.length,
+  limited: rows.value.filter((row) => rowHasLimitedQos(row)).length,
+  blocked: rows.value.filter((row) => rowIsBlocked(row)).length,
+  devices: rows.value.filter((row) => rowHasDeviceBindings(row)).length,
+  noDevices: rows.value.filter((row) => !rowHasDeviceBindings(row)).length,
+}))
+
+const workspaceFocusLabel = computed(() => {
+  switch (workspaceFocus.value) {
+    case 'limited':
+      return t('trafficWorkspaceFocusLimited')
+    case 'blocked':
+      return t('blocked')
+    case 'devices':
+      return t('trafficWorkspaceFocusDevices')
+    case 'noDevices':
+      return t('trafficWorkspaceFocusNoDevices')
+    default:
+      return t('all')
+  }
+})
 
 watch(
   [() => props.focusUser, () => props.focusIp],
@@ -1509,6 +1607,7 @@ const removeUser = (user: string) => {
 const preset = ref<'1h' | '24h' | '7d' | '30d' | 'custom'>('24h')
 const topN = ref<number>(30)
 const trafficFilter = ref('')
+const workspaceFocus = ref<'all' | 'limited' | 'blocked' | 'devices' | 'noDevices'>('all')
 
 type SortKey = 'user' | 'keys' | 'dl' | 'ul' | 'total'
 const sortKey = ref<SortKey>('total')
@@ -1799,6 +1898,8 @@ const rows = computed<Row[]>(() => {
     result = sliced
   }
 
+  result = result.filter((row) => rowMatchesWorkspaceFocus(row))
+
   const filterQuery = trafficFilter.value.trim().toLowerCase()
   if (filterQuery) result = result.filter((row) => rowSearchBlob(row).includes(filterQuery))
 
@@ -1813,6 +1914,55 @@ const rows = computed<Row[]>(() => {
 watch(rows, () => {
   ensureQosDrafts()
 }, { deep: true, immediate: true })
+
+const workspaceShortcutRow = computed<Row | null>(() => {
+  if (props.focusUser || props.focusIp) {
+    return rows.value.find((row) => rowMatchesFocus(row)) || null
+  }
+  if (trafficFilter.value && rows.value.length === 1) return rows.value[0]
+  return null
+})
+
+const workspaceShortcutIps = computed(() =>
+  workspaceShortcutRow.value ? effectiveIpsForRow(workspaceShortcutRow.value) : [],
+)
+
+const workspaceShortcutPrimaryIp = computed(() => {
+  const fromFocus = String(props.focusIp || '').trim()
+  if (fromFocus) return fromFocus
+  return workspaceShortcutIps.value[0] || ''
+})
+
+const workspaceShortcutQosLabel = computed(() => {
+  const row = workspaceShortcutRow.value
+  if (!row) return ''
+  const qosKey = String(row.currentQos || '').trim()
+  if (!qosKey || qosKey === 'normal') return ''
+  return formatQosLabel(qosKey)
+})
+
+const openWorkspaceUserShortcut = () => {
+  const row = workspaceShortcutRow.value
+  if (!row) return
+  workspaceFocus.value = 'all'
+  trafficFilter.value = row.user
+}
+
+const openWorkspaceDevicesShortcut = () => {
+  const row = workspaceShortcutRow.value
+  if (!row) return
+  emit('open-device-focus', { user: row.user, ip: workspaceShortcutPrimaryIp.value || undefined })
+}
+
+const openWorkspaceQosShortcut = () => {
+  const row = workspaceShortcutRow.value
+  if (!row) return
+  const qosKey = String(row.currentQos || '').trim()
+  if (!qosKey || qosKey === 'normal') return
+  workspaceFocus.value = row.isBlocked ? 'blocked' : 'limited'
+  trafficFilter.value = workspaceShortcutQosLabel.value || qosKey
+}
+
 
 const applyUserQos = async (row: Row) => {
   const ready = await ensureAgentReady()

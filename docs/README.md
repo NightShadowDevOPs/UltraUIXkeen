@@ -5,3 +5,5 @@
 - [Агрегированные клиентские подписки](./aggregated-subscriptions.md)
 - [Аудит навигации и рабочих экранов](./navigation-audit.md)
 - [План ближайших релизов](./release-plan.md)
+
+- [Перенос проекта в новый чат](./chat-transfer.md)

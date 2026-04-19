@@ -38,18 +38,76 @@
     <div v-else-if="!expanded" class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-80">
       {{ $t('hostQosIntro') }}
     </div>
-    <template v-else>
+
+    <div
+      v-if="agentEnabled && status.ok && (qos.supported || status.hostQos)"
+      class="grid grid-cols-2 gap-2 lg:grid-cols-4"
+    >
+      <button
+        type="button"
+        class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+        :class="profileFilter === 'all' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        @click="profileFilter = 'all'"
+      >
+        <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('all') }}</div>
+        <div class="mt-1 text-2xl font-semibold">{{ rows.length }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
+      </button>
+      <button
+        type="button"
+        class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+        :class="profileFilter === 'limited' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        @click="profileFilter = 'limited'"
+      >
+        <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('hostQosFocusLimited') }}</div>
+        <div class="mt-1 text-2xl font-semibold">{{ limitedCount }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ $t('hostQosFocusLimitedHint') }}</div>
+      </button>
+      <button
+        type="button"
+        class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+        :class="profileFilter === 'blocked' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        @click="profileFilter = 'blocked'"
+      >
+        <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ $t('blocked') }}</div>
+        <div class="mt-1 text-2xl font-semibold">{{ blockedCount }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ $t('hostQosFocusBlockedHint') }}</div>
+      </button>
+      <button
+        type="button"
+        class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40"
+        :class="profileFilter === 'normal' ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        @click="profileFilter = 'normal'"
+      >
+        <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ profileLabel('normal') }}</div>
+        <div class="mt-1 text-2xl font-semibold">{{ Math.max(rows.length - limitedCount - blockedCount, 0) }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ $t('hostQosFocusNormalHint') }}</div>
+      </button>
+    </div>
+
+    <template v-if="expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)">
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
         <div>{{ $t('hostQosIntro') }}</div>
         <div class="mt-1 text-xs opacity-70">{{ $t('hostQosShapeOverrideTip') }}</div>
         <div v-if="qos.qosMode === 'wan-only'" class="mt-1 text-xs text-info/80">Safe mode: uplink/WAN only</div>
       </div>
 
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
-        <label class="flex min-w-0 flex-col gap-1">
-          <span class="text-xs opacity-60">{{ $t('search') }}</span>
-          <input v-model.trim="query" class="input input-sm w-full" :placeholder="$t('hostQosSearchPlaceholder')" />
-        </label>
+      <div class="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs opacity-60">{{ $t('search') }}</span>
+            <input v-model.trim="query" class="input input-sm w-full" :placeholder="$t('hostQosSearchPlaceholder')" />
+          </label>
+          <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="opacity-60">{{ $t('focus') }}:</span>
+              <span class="badge badge-ghost">{{ activeFilterLabel }}</span>
+              <button v-if="profileFilter !== 'all'" type="button" class="btn btn-ghost btn-xs" @click="profileFilter = 'all'">{{ $t('reset') }}</button>
+            </div>
+            <div class="mt-2 opacity-70">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
+            <div class="opacity-70">{{ $t('hostQosFilteredHosts', { count: filteredRows.length }) }}</div>
+          </div>
+        </div>
         <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-xs opacity-70">
           <div>{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
           <div>{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
@@ -233,6 +291,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const error = ref('')
 const query = ref('')
+const profileFilter = ref<'all' | AgentQosProfile | 'blocked' | 'limited'>('all')
 const status = ref<{ ok: boolean; hostQos?: boolean }>({ ok: false })
 const qos = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
 const hosts = ref<AgentLanHost[]>([])
@@ -324,10 +383,17 @@ const rows = computed<Row[]>(() => {
     })
 })
 
+const matchesProfileFilter = (row: Row): boolean => {
+  if (profileFilter.value === 'all') return true
+  if (profileFilter.value === 'limited') return !!row.currentProfile && row.currentProfile !== 'normal' && row.currentProfile !== 'blocked'
+  return (row.currentProfile || 'normal') === profileFilter.value
+}
+
 const filteredRows = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (!q) return rows.value
   return rows.value.filter((row) => {
+    if (!matchesProfileFilter(row)) return false
+    if (!q) return true
     return [row.displayName, row.hostname, row.ip, row.mac, row.currentProfile]
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q))
@@ -335,6 +401,14 @@ const filteredRows = computed(() => {
 })
 
 const appliedCount = computed(() => (qos.value.items || []).length)
+const limitedCount = computed(() => rows.value.filter((row) => !!row.currentProfile && row.currentProfile !== 'normal' && row.currentProfile !== 'blocked').length)
+const blockedCount = computed(() => rows.value.filter((row) => row.currentProfile === 'blocked').length)
+const activeFilterLabel = computed(() => {
+  if (profileFilter.value === 'all') return t('all')
+  if (profileFilter.value === 'limited') return t('hostQosFocusLimited')
+  if (profileFilter.value === 'blocked') return t('blocked')
+  return profileLabel(profileFilter.value)
+})
 
 const syncAppliedProfiles = () => {
   const next: Record<string, AgentQosProfile> = {}
