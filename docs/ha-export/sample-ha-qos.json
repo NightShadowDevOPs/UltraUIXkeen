@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "timestamp": "2026-04-19T12:00:00Z",
+  "qos_enabled": true,
+  "counts": {
+    "qos_enabled": 5,
+    "limited_users": 2,
+    "blocked_users": 1
+  },
+  "summary": {
+    "wan_rate_mbit": 300,
+    "lan_rate_mbit": 1000,
+    "rules_active": 5
+  },
+  "qos_rules_detail": [
+    { "target": "desktop-main", "profile": "work", "shape": "normal" },
+    { "target": "child-tablet", "profile": "kids-evening", "shape": "limited" }
+  ]
+}

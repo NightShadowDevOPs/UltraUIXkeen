@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "timestamp": "2026-04-19T12:00:00Z",
+  "counts": {
+    "active_users": 7,
+    "active_devices": 11,
+    "limited_users": 2,
+    "blocked_users": 1
+  },
+  "top_users": [
+    { "name": "desktop-main", "rx_bps": 12500000, "tx_bps": 850000 },
+    { "name": "tv-room", "rx_bps": 3800000, "tx_bps": 220000 }
+  ],
+  "top_devices": [
+    { "name": "desktop-main", "mac": "AA:BB:CC:DD:EE:FF", "rx_bps": 12500000, "tx_bps": 850000 },
+    { "name": "phone-1", "mac": "11:22:33:44:55:66", "rx_bps": 2100000, "tx_bps": 340000 }
+  ],
+  "limited": [
+    { "name": "child-tablet", "profile": "kids-evening" },
+    { "name": "guest-tv", "profile": "guests" }
+  ],
+  "blocked": [
+    { "name": "temp-device", "reason": "manual block" }
+  ]
+}

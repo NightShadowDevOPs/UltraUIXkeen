@@ -108,37 +108,67 @@
           <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusNoDevicesHint') }}</div>
         </button>
       </div>
-      <div class="flex flex-wrap items-end gap-2">
-        <label class="flex min-w-[260px] flex-1 flex-col gap-1 text-sm">
-          <span class="opacity-70">{{ $t('search') }}</span>
-          <input
-            v-model.trim="trafficFilter"
-            class="input input-sm"
-            :placeholder="$t('trafficWorkspaceFilterPlaceholder')"
-          />
-        </label>
-        <button v-if="trafficFilter" type="button" class="btn btn-ghost btn-sm" @click="trafficFilter = ''">
-          {{ $t('clear') }}
-        </button>
-        <button v-if="workspaceFocus !== 'all'" type="button" class="btn btn-ghost btn-sm" @click="workspaceFocus = 'all'">
-          {{ $t('resetFocus') }}
-        </button>
-        <span class="badge badge-ghost">{{ $t('focus') }}: {{ workspaceFocusLabel }}</span>
-        <span v-if="props.focusUser || props.focusIp" class="badge badge-info">
-          {{ props.focusUser || props.focusIp }}
-        </span>
-      </div>
+      <div class="sticky top-2 z-20 -mx-1 rounded-2xl border border-base-content/10 bg-base-100/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-base-100/85">
+        <div class="flex flex-wrap items-end gap-2">
+          <label class="flex min-w-[260px] flex-1 flex-col gap-1 text-sm">
+            <span class="opacity-70">{{ $t('search') }}</span>
+            <input
+              v-model.trim="trafficFilter"
+              class="input input-sm"
+              :placeholder="$t('trafficWorkspaceFilterPlaceholder')"
+            />
+          </label>
+          <button v-if="trafficFilter" type="button" class="btn btn-ghost btn-sm" @click="trafficFilter = ''">
+            {{ $t('clear') }}
+          </button>
+          <button v-if="workspaceFocus !== 'all'" type="button" class="btn btn-ghost btn-sm" @click="workspaceFocus = 'all'">
+            {{ $t('resetFocus') }}
+          </button>
+          <span class="badge badge-ghost">{{ $t('focus') }}: {{ workspaceFocusLabel }}</span>
+          <span class="badge badge-outline">{{ $t('users') }}: {{ rows.length }}</span>
+          <span v-if="selectedList.length" class="badge badge-secondary">{{ $t('selected') }}: {{ selectedList.length }}</span>
+          <span v-if="props.focusUser || props.focusIp" class="badge badge-info">
+            {{ props.focusUser || props.focusIp }}
+          </span>
+        </div>
 
+        <div v-if="preset === 'custom'" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label class="flex flex-col gap-1 text-sm">
+            <span class="opacity-70">{{ $t('from') }}</span>
+            <input class="input input-sm" type="datetime-local" v-model="customFrom" />
+          </label>
+          <label class="flex flex-col gap-1 text-sm">
+            <span class="opacity-70">{{ $t('to') }}</span>
+            <input class="input input-sm" type="datetime-local" v-model="customTo" />
+          </label>
+        </div>
 
-      <div v-if="preset === 'custom'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="opacity-70">{{ $t('from') }}</span>
-          <input class="input input-sm" type="datetime-local" v-model="customFrom" />
-        </label>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="opacity-70">{{ $t('to') }}</span>
-          <input class="input input-sm" type="datetime-local" v-model="customTo" />
-        </label>
+        <div v-if="selectedList.length" class="mt-2 rounded-xl border border-base-content/10 bg-base-200/60 p-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-sm font-semibold">{{ $t('selected') }}: {{ selectedList.length }}</div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select class="select select-sm" v-model="bulkProfileId">
+                <option value="">{{ $t('applyProfile') }}</option>
+                <option v-for="p in limitProfiles" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+              <button type="button" class="btn btn-sm" @click="applyProfileBulk" :disabled="!bulkProfileId || bulkBusy">
+                {{ $t('apply') }}
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" @click="bulkUnblockReset" :disabled="bulkBusy">
+                {{ $t('unblockAndReset') }}
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" @click="bulkDisableLimits" :disabled="bulkBusy">
+                {{ $t('disableLimits') }}
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" @click="goPolicies">
+                {{ $t('limitProfiles') }}
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost" @click="clearSelection">
+                {{ $t('clearSelection') }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
 
@@ -273,32 +303,6 @@
       </div>
 
 
-      <div v-if="selectedList.length" class="rounded-lg border border-base-content/10 bg-base-200/30 p-2">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="text-sm font-semibold">{{ $t('selected') }}: {{ selectedList.length }}</div>
-          <div class="flex flex-wrap items-center gap-2">
-            <select class="select select-sm" v-model="bulkProfileId">
-              <option value="">{{ $t('applyProfile') }}</option>
-              <option v-for="p in limitProfiles" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
-            <button type="button" class="btn btn-sm" @click="applyProfileBulk" :disabled="!bulkProfileId || bulkBusy">
-              {{ $t('apply') }}
-            </button>
-            <button type="button" class="btn btn-sm btn-ghost" @click="bulkUnblockReset" :disabled="bulkBusy">
-              {{ $t('unblockAndReset') }}
-            </button>
-            <button type="button" class="btn btn-sm btn-ghost" @click="bulkDisableLimits" :disabled="bulkBusy">
-              {{ $t('disableLimits') }}
-            </button>
-            <button type="button" class="btn btn-sm btn-ghost" @click="goPolicies">
-              {{ $t('limitProfiles') }}
-            </button>
-            <button type="button" class="btn btn-sm btn-ghost" @click="clearSelection">
-              {{ $t('clearSelection') }}
-            </button>
-          </div>
-        </div>
-      </div>
 
       <div class="overflow-x-auto">
         <table class="table table-sm">

@@ -1,20 +1,33 @@
 # UI Mihomo / Ultra — HA export bridge blueprint
 
-## Зачем это нужно
+## Цель первого этапа
 Нужно отдать данные с роутера в Home Assistant так, чтобы:
 - не парсить HTML/UI;
 - не грузить роутер тяжёлыми запросами;
-- получить в HA графики трафика, активных пользователей, устройства, QoS и базовую operational-сводку;
+- получить в HA operational dashboard по состоянию роутера, WAN, пользователям, устройствам, трафику и QoS;
 - не ломать и не трогать автопроверку SSL-сертификатов прокси-провайдеров.
 
+## Зафиксированный транспорт
+### Первый этап
+- **REST — основной и обязательный транспорт**.
+- Контракт первого этапа строится вокруг четырёх лёгких endpoint'ов:
+  - `cmd=ha_status`
+  - `cmd=ha_traffic`
+  - `cmd=ha_users`
+  - `cmd=ha_qos`
+
+### Следующий этап
+- MQTT допускается как **дополнительный контур**, но не входит в первый runtime scope.
+- MQTT discovery на первом этапе **не нужен**.
+
 ## Базовый принцип
-Home Assistant должен читать **отдельный лёгкий экспортный контур**, а не внутренние UI-представления.
+Home Assistant читает **отдельный лёгкий export-контур**, а не внутренние UI-представления.
 
 Правильная схема:
 1. `router-agent` периодически собирает короткий snapshot;
 2. snapshot кэшируется на роутере;
-3. UI использует свои экраны;
-4. Home Assistant читает отдельные HA-friendly endpoints или MQTT-публикации.
+3. UI живёт своей жизнью;
+4. Home Assistant читает уже готовые HA-friendly JSON endpoints.
 
 ## Почему не надо дёргать тяжёлые команды напрямую из HA
 Если HA каждые 5–10 секунд вызывает shell-скрипты с полным разбором трафика, cloud-статусов и списков пользователей, роутер начнёт греться и тормозить.
@@ -25,87 +38,109 @@ Home Assistant должен читать **отдельный лёгкий эк�
 - предагрегированные данные;
 - без лишней детализации на каждый опрос.
 
-## Предлагаемый порядок внедрения
-### Этап 1 — REST export
-Сначала делаем лёгкие JSON endpoints:
-- `cmd=ha_status`
-- `cmd=ha_traffic`
-- `cmd=ha_users`
-- `cmd=ha_qos`
-
-Плюсы:
-- быстро внедряется;
-- удобно отлаживать;
-- Home Assistant легко подключается через REST sensors / REST commands.
-
-### Этап 2 — MQTT export
-После стабилизации REST добавить MQTT-публикации:
-- summary каждые 30–60 сек;
-- traffic rollup каждые 15–30 сек;
-- users/qos каждые 30–60 сек.
-
-Плюсы:
-- меньше прямых запросов к роутеру;
-- удобнее собирать сущности и графики в HA;
-- проще развивать discovery/auto-entities.
-
-## Предлагаемые endpoints
+## Зафиксированный состав endpoint'ов
 ### 1. `ha_status`
-Короткая operational-сводка.
+Operational summary / system state.
 
 Содержимое:
 - hostname/model/firmware;
 - uptime;
-- cpu / load / memory / storage;
+- cpu/load/memory/storage;
 - agent version;
 - mihomo version / running;
 - wan up/down;
 - active users/devices;
-- current rx/tx rate;
+- limited/blocked counts;
+- qos enabled/count;
 - timestamp snapshot.
 
 ### 2. `ha_traffic`
-Агрегированный трафик для графиков.
+Traffic rates + totals.
 
 Содержимое:
-- total rx/tx bytes;
-- current rx/tx rate;
-- 1m / 5m rollup;
-- top users за интервал;
-- top devices за интервал.
+- current WAN RX/TX rate;
+- cumulative RX/TX counters;
+- interface detail в атрибутах;
+- при необходимости later-stage optional rollup, но без обязательной исторической нагрузки на роутер.
 
 ### 3. `ha_users`
-Лёгкая сводка по пользователям.
+Counts + top lists + active/limited/blocked detail.
 
 Содержимое:
 - active user count;
-- limited/blocked count;
-- пользователи с привязанными устройствами;
-- топ активных пользователей;
-- при необходимости — сокращённый список карточек.
+- active device count;
+- limited/blocked counts;
+- `top_users`;
+- `top_devices`;
+- detail списки `limited` / `blocked`;
+- per-user / per-device breakdown — атрибутами, а не россыпью отдельных HA сущностей.
 
 ### 4. `ha_qos`
-Лёгкая сводка по QoS.
+Enabled flag + counts + краткая сводка правил.
 
 Содержимое:
-- total hosts;
-- normal / limited / blocked;
-- список профилей с количеством хостов;
-- top impacted hosts.
+- qos enabled flag;
+- qos enabled count;
+- краткая сводка правил;
+- qos rules detail атрибутами;
+- summary по impacted users/devices/hosts.
 
-## Рекомендованные интервалы обновления
-Безопасный режим для роутера:
-- `ha_status`: каждые **30–60 сек**;
-- `ha_traffic`: каждые **15–30 сек**;
-- `ha_users`: каждые **30–60 сек**;
-- `ha_qos`: каждые **30–60 сек**.
+## Зафиксированная частота обновления
+- `ha_status` — **30 сек**
+- `ha_traffic` — **15 сек**
+- `ha_users` — **60 сек**
+- `ha_qos` — **60 сек**
 
-## Что не надо тащить в HA слишком часто
-- тяжёлые backup/cloud diagnostics;
-- расширенные проверки внешних сервисов;
-- полные детальные таблицы UI;
-- пересчёт больших списков по каждому запросу;
-- любые сценарии, которые могут задеть SSL check pipeline.
+Это даёт нормальную operational-картину без перегрева роутера.
+
+## Entity naming, согласованный с HA-проектом
+- `sensor.smartlife_router_*`
+- `binary_sensor.smartlife_router_*`
+
+Префикс `smartlife_router_` обязателен, чтобы не было коллизий и чтобы контур был сразу читаемым в Home Assistant.
+
+## Что идёт отдельными сущностями
+### Sensors
+- `sensor.smartlife_router_cpu_pct`
+- `sensor.smartlife_router_memory_used_mb`
+- `sensor.smartlife_router_memory_pct`
+- `sensor.smartlife_router_uptime_seconds`
+- `sensor.smartlife_router_active_users_count`
+- `sensor.smartlife_router_active_devices_count`
+- `sensor.smartlife_router_limited_users_count`
+- `sensor.smartlife_router_blocked_users_count`
+- `sensor.smartlife_router_qos_enabled_count`
+- `sensor.smartlife_router_wan_rx_bps`
+- `sensor.smartlife_router_wan_tx_bps`
+- `sensor.smartlife_router_total_rx_bytes`
+- `sensor.smartlife_router_total_tx_bytes`
+
+### Binary sensors
+- `binary_sensor.smartlife_router_wan_up`
+- `binary_sensor.smartlife_router_agent_up`
+- `binary_sensor.smartlife_router_mihomo_running`
+- `binary_sensor.smartlife_router_qos_enabled`
+
+## Что не надо раздувать в отдельные сущности
+Атрибутами можно и нужно отдавать:
+- `top_users`
+- `top_devices`
+- список limited / blocked
+- qos rules detail
+- per-user / per-device breakdown
+- interface detail
+
+## История / аналитика
+На текущем этапе нужен **operational dashboard**, а не тяжёлая историческая аналитика на стороне роутера.
+
+То есть:
+- текущее состояние роутера;
+- WAN;
+- активные пользователи / устройства;
+- текущий трафик;
+- QoS / limited / blocked.
+
+Историческая аналитика — вторым этапом, уже поверх накопленной истории в Home Assistant.
 
 ## Нагрузка на роутер
 При корректной реализации нагрузка будет умеренной.
@@ -121,31 +156,21 @@ Home Assistant должен читать **отдельный лёгкий эк�
 ### Потенциально тяжело
 - полные live-списки каждую секунду;
 - множественные shell-вызовы на каждый endpoint;
-- глубокая детализация по каждому хосту в real time.
+- глубокая детализация по каждому хосту в real time;
+- попытка тащить исторические минутные точки прямо с роутера как обязательный контур.
 
 ## Минимальные технические требования к реализации
 - один внутренний snapshot-builder;
-- кэш на 15–30 сек для traffic и на 30–60 сек для summary/users/qos;
-- стабильный JSON format version;
+- кэш на 15 сек для `ha_traffic`;
+- кэш на 30–60 сек для `ha_status`, `ha_users`, `ha_qos`;
+- стабильный `format_version` в JSON;
 - без зависимости HA от UI-компонентов;
 - без вмешательства в SSL provider checks;
-- желательно отдельный namespace для HA (`ha_*`).
+- отдельный namespace для `ha_*` endpoints.
 
-## Рекомендуемый стартовый scope для соседнего HA-проекта
-### Фаза A
-- принять `ha_status`;
-- принять `ha_traffic`;
-- построить две диаграммы:
-  - общий входящий/исходящий трафик;
-  - текущая скорость rx/tx.
-
-### Фаза B
-- принять `ha_users`;
-- вывести карточки активных пользователей / устройств / blocked / limited.
-
-### Фаза C
-- принять `ha_qos`;
-- собрать operational dashboard по QoS.
-
-## Итог
-Да, интеграция с Home Assistant реальна и нормальна для проекта, **если делать отдельный лёгкий контур экспорта через router-agent с кэшем и агрегатами**.
+## Следующий технический шаг
+Следующим релизом на стороне этого проекта нужно подготовить router-agent groundwork:
+- формализовать payload schema/version;
+- определить cache keys/TTL;
+- подготовить безопасную сборку snapshot без тяжёлых повторных shell-вызовов;
+- только потом переходить к первому runtime implementation release.

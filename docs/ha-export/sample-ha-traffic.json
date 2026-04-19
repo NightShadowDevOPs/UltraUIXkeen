@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "timestamp": "2026-04-19T12:00:00Z",
+  "wan": {
+    "rx_bps": 18300000,
+    "tx_bps": 4200000,
+    "total_rx_bytes": 98234098234,
+    "total_tx_bytes": 4523498234
+  },
+  "interface_detail": {
+    "name": "pppoe-wan",
+    "rx_packets": 82349823,
+    "tx_packets": 42123982
+  }
+}

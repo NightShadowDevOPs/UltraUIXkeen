@@ -1,23 +1,23 @@
 # UI Mihomo / Ultra — перенос в новый чат
 
 ## Текущее состояние
-- Текущая версия UI: **v1.2.134**
+- Текущая версия UI: **v1.2.135**
 - Router-agent: **0.6.26**
 - Основной репозиторий: `NightShadowDevOPs/UltraUIXkeen`
 - Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
 - Путь на роутере: `/opt/UltraUIXkeen`
 
-## Что сделано в v1.2.134
-- подготовлен отдельный handoff-пакет для интеграции роутера с Home Assistant
-- зафиксирован архитектурный подход: Home Assistant получает данные через лёгкий экспортный контур `router-agent`, а не через парсинг UI
-- оформлены базовые контракты для `ha_status / ha_traffic / ha_users / ha_qos`
-- добавлены примерные JSON payload'ы и entity map для соседнего HA-проекта
-- `router-agent` в этом релизе не менялся и остаётся `0.6.26`
+## Что сделано в v1.2.135
+- добавлены sticky-панели в длинные traffic/QoS-списки, чтобы поиск, focus, счётчики и быстрые действия оставались под рукой
+- синхронизирован HA handoff: подтверждён REST-first контракт, namespace `smartlife_router_*`, интервалы опроса и распределение data между entities и attributes
+- router-agent не менялся и остаётся `0.6.26`
 
 ## Что проверять после выкладки
-1. в архиве проекта есть `docs/ha-export-bridge.md` и папка `docs/ha-export/`
-2. в `docs/ha-export/` лежат example payload'ы для `status / traffic / users / qos`
-3. `CURRENT_CHAT_TRANSFER_NOTE.md` и `docs/chat-transfer.md` синхронизированы по версии `v1.2.134`
+1. sticky-панели на трафиковых экранах не исчезают при длинной прокрутке
+2. bulk-операции пользователей и фильтры хостов работают как раньше
+3. handoff-архив для HA содержит обновлённые docs
+4. версия в интерфейсе показывает `v1.2.135`
 
 ## Следующий зафиксированный шаг
-- **v1.2.135** — Router traffic sticky summary: проверить, нужен ли ещё компактный sticky-summary/action-bar для длинных списков
+- **v1.2.136** — lightweight router-agent export groundwork
+- затем **v1.2.137** — первый runtime snapshot export для HA

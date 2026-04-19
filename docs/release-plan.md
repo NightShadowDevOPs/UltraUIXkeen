@@ -1,97 +1,35 @@
 # UI Mihomo / Ultra — release plan
 
-Текущий рабочий фокус: приводим `Router / Host` к нормальной информационной архитектуре, не ломая авто-проверку SSL у прокси-провайдеров и не возвращая тяжёлую конфиг-редактуру в hot path.
+## Current release line
+- **v1.2.135** — sticky traffic workbench + HA contract sync ✅
+- **v1.2.136** — lightweight router-agent export groundwork
+- **v1.2.137** — first router-agent snapshot endpoints for Home Assistant
 
-## Зафиксированный ближний план
+## Current packaged artifacts
+- Latest packaged release: **v1.2.135** (`UltraUIXkeen-v1.2.135.zip`)
+- Latest chat-transfer pack: **v1.2.135** (`UltraUIXkeen-chat-transfer-v1.2.135.zip`)
+- Latest HA handoff pack: **v1.2.135** (`UltraUIXkeen-ha-handoff-v1.2.135.zip`)
 
-### v1.2.117 — Router backup workspace ✅
-- резервные копии вынесены из `Router → Обзор` в отдельную рабочую вкладку `Router → Резервные копии`
-- обзор перестал быть свалкой maintenance-блоков
+## Release status snapshot
+- **v1.2.130** — fixed the broken backup-history template in `AgentCard.vue`; production build recovered.
+- **v1.2.131** — stabilized the router network workspace and cleaned the agent version badge logic.
+- **v1.2.132** — polished the traffic workspace with summary cards and clearer focus handling.
+- **v1.2.133** — added traffic action shortcuts for quicker drill-down between users/devices/QoS profile contexts.
+- **v1.2.134** — packaged the dedicated HA handoff docs for the neighboring SmartLife / Home Assistant project.
+- **v1.2.135** — made the users/QoS traffic control strips sticky during long scroll sessions and synced the HA docs to the confirmed REST-first contract.
 
-### v1.2.118 / v1.2.119 — backup render hotfixes ✅
-- починены runtime-ошибки, из-за которых `Router → Резервные копии` рендерился пустым
-- backup workspace снова отображает create/list/restore/delete/check/schedule сценарии
+## Next step details
+### v1.2.136 — lightweight router-agent export groundwork
+- formalize the JSON schema and `format_version` policy for `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`
+- define snapshot/cache keys and safe TTL rules (`15s / 30s / 60s / 60s`)
+- prepare the router-agent-side data builder so HA reads lightweight cached payloads, not raw heavy shell flows
 
-### v1.2.120 — Traffic focus linking ✅
-- добавлен быстрый drill-down между `Traffic → Devices` и `Traffic → Users`
-- трафиковая зона стала понятнее для живой навигации
+### v1.2.137 — first router-agent snapshot endpoints
+- expose the first lightweight REST endpoints for `ha_status` and `ha_traffic`
+- keep the first runtime stage REST-only; MQTT/discovery stay out of scope for now
+- do not touch proxy-provider SSL checks while adding the new export namespace
 
-### v1.2.121 — Router overview cleanup ⚠️ build-failed
-- по логике обзор был переразложен правильно
-- но сборка упала из-за отсутствующего `ConnectionInfoCard.vue`, поэтому эту версию не считать рабочей
-
-### v1.2.122 — Router network card hotfix ⚠️ build-failed
-- добавлен `ConnectionInfoCard.vue`
-- но сборка всё ещё падала из-за мёртвого импорта `@/composables/useUISettings` в `RouterPage.vue`
-
-### v1.2.123 — Router settings import hotfix ✅
-- удалён мёртвый импорт `useUISettings`
-- `RouterPage.vue` теперь берёт `showIPAndConnectionInfo` из `@/store/settings`, где эта настройка реально живёт
-- цепочка сборки для `Router → Сеть` закрыта корректно
-
-### v1.2.124 — Router workspace title polish ✅
-- верхняя плашка заголовка теперь показывает нормальные локализованные названия рабочих зон вместо сырого ключа вроде `routerTraffic`
-- добавлены явные заголовки для `Router → Обзор / Резервные копии / Трафик / Сеть`
-- добавлены явные заголовки для `Traffic → Devices / Users`
-
-### v1.2.125 — Router page title translation fix ✅
-- добавлен перевод для `routerTitle`, чтобы в шапке RouterPage больше не торчал сырой ключ
-- закреплена нормальная локализация верхнего названия страницы роутера
-
-### v1.2.127 — Backup workspace action polish ✅
-- список архивов перестроен в более аккуратные карточки с нормальной визуальной иерархией
-- вместо неочевидного выбора добавлены явные действия по строке: `Проверить / Восстановить / Удалить`
-- добавлен inline-блок проверки архива с деталями локальной и облачных копий
-
-### v1.2.127 — Backup workspace build hotfix ✅
-- исправлен build-breaker в `AgentCard.vue` после релиза v1.2.126
-- сохранены UI-изменения backup workspace без отката
-
-### v1.2.128 — Backup workspace action feedback ✅
-- `Router → Резервные копии → Проверить` теперь даёт явный результат через уведомление
-- `Загрузить` после подгрузки ведёт пользователя к самому рабочему блоку backup, а не оставляет на пустом верхнем экране
-- повторный `Загрузить` на уже загруженном экране просто переводит к нужному месту и не заставляет искать блок вручную
-
-### v1.2.129 — Backup workspace render hotfix ✅
-- исправлен runtime-render сбой backup workspace: inspection panel архива больше не использует `item` вне `v-for`
-- lazy-load backup-блока теперь привязан к реальным template refs, чтобы `Загрузить` прокручивал к рабочей зоне предсказуемее
-- router-agent не менялся и остаётся `0.6.26`
-
-### v1.2.130 — AgentCard template closure hotfix ✅
-- Закрыт пропущенный контейнер в unified backup history, из-за которого production build падал с `Element is missing end tag`.
-- Backup workspace сохранён без отката логики inspection-panel и unified history.
-
-### v1.2.131 — Router network workspace hardening ✅
-- `Router → Сеть` оформлен как отдельная рабочая зона с краткой сводкой по IP/ping-проверкам и быстрыми переходами к трафику и провайдерам
-- исправлена логика подписи версии агента: если upstream старее локального агента, UI больше не пишет странное `latest`, а честно показывает upstream-версию и состояние `локальная версия новее`
-
-### v1.2.132 — Router traffic workspace polish ✅
-- `Router → Трафик → Users` получил summary-карточки состояния: общий контур, QoS-активные, blocked, есть устройства, без устройств
-- `Router → Трафик → Devices / QoS` получил компактную QoS-сводку по хостам и быстрые фокусы по состояниям
-- на обоих экранах добавлены явный текущий фокус и кнопка сброса, чтобы длинные списки читались быстрее
-
-### v1.2.133 — Router traffic action shortcuts ✅
-- в `Router → Трафик → Users` добавлены верхние action-shortcuts с быстрым переходом по контексту `пользователь / устройство / QoS-профиль`
-- быстрые сценарии теперь не требуют вручную перебивать фильтр при drill-down из устройств в пользователей и обратно
-
-### v1.2.134 — HA export foundation docs ✅
-- зафиксирован отдельный экспортный контур для Home Assistant через `router-agent`, без парсинга UI
-- оформлен handoff-пакет для соседнего HA-проекта: contract, пример payload'ов и entity map
-- подтверждён базовый принцип: HA должен читать лёгкий snapshot/cache, а не дёргать тяжёлые shell-сценарии
-
-### v1.2.135 — Router traffic sticky summary
-- собрать компактный sticky-summary/action-bar для длинных трафиковых списков
-- проверить, хватает ли контекста при глубокой прокрутке без перегруза верхней части экрана
-
-### v1.2.136 — HA export REST summary
-- добавить первый runtime-экспорт `ha_status` и `ha_traffic`
-- подготовить минимальный REST-контур для датчиков и графиков Home Assistant
-
-### v1.2.137 — HA export users/qos
-- добавить `ha_users` и `ha_qos`
-- отдать в HA сводки по активным пользователям, устройствам и QoS
-
-## Жёсткие ограничения
-- не трогаем и не ломаем автоматическую проверку SSL-сертификатов прокси-провайдеров
-- не возвращаем тяжёлые секции Mihomo config management в router hot path
-- если редактирование конфига когда-нибудь вернётся, у него обязан остаться рабочий эталонный fallback-конфиг
+## Hard constraints
+- do not break automatic proxy-provider SSL certificate checks
+- do not reintroduce heavy Mihomo config-management work into the hot path
+- if config editing returns later, it must keep a working fallback reference config

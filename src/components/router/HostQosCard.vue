@@ -92,27 +92,31 @@
         <div v-if="qos.qosMode === 'wan-only'" class="mt-1 text-xs text-info/80">Safe mode: uplink/WAN only</div>
       </div>
 
-      <div class="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs opacity-60">{{ $t('search') }}</span>
-            <input v-model.trim="query" class="input input-sm w-full" :placeholder="$t('hostQosSearchPlaceholder')" />
-          </label>
-          <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-xs">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="opacity-60">{{ $t('focus') }}:</span>
-              <span class="badge badge-ghost">{{ activeFilterLabel }}</span>
-              <button v-if="profileFilter !== 'all'" type="button" class="btn btn-ghost btn-xs" @click="profileFilter = 'all'">{{ $t('reset') }}</button>
+      <div class="sticky top-2 z-20 -mx-1 rounded-2xl border border-base-content/10 bg-base-100/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-base-100/85">
+        <div class="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(0,1fr)_260px]">
+          <div class="grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
+            <label class="flex min-w-0 flex-col gap-1">
+              <span class="text-xs opacity-60">{{ $t('search') }}</span>
+              <input v-model.trim="query" class="input input-sm w-full" :placeholder="$t('hostQosSearchPlaceholder')" />
+            </label>
+            <div class="rounded-xl border border-base-content/10 bg-base-200/50 px-3 py-2 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="opacity-60">{{ $t('focus') }}:</span>
+                <span class="badge badge-ghost">{{ activeFilterLabel }}</span>
+                <button v-if="query" type="button" class="btn btn-ghost btn-xs" @click="query = ''">{{ $t('clear') }}</button>
+                <button v-if="profileFilter !== 'all'" type="button" class="btn btn-ghost btn-xs" @click="profileFilter = 'all'">{{ $t('reset') }}</button>
+                <span v-if="props.focusUser || props.focusIp" class="badge badge-info">{{ props.focusUser || props.focusIp }}</span>
+              </div>
+              <div class="mt-2 opacity-70">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
+              <div class="opacity-70">{{ $t('hostQosFilteredHosts', { count: filteredRows.length }) }}</div>
             </div>
-            <div class="mt-2 opacity-70">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
-            <div class="opacity-70">{{ $t('hostQosFilteredHosts', { count: filteredRows.length }) }}</div>
           </div>
-        </div>
-        <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-xs opacity-70">
-          <div>{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
-          <div>{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
-          <div>{{ $t('hostQosLineRates', { wan: qos.wanRateMbit || '—', lan: qos.lanRateMbit || '—' }) }}</div>
-          <div v-if="qos.qosMode === 'wan-only'">Safe mode: uplink/WAN only</div>
+          <div class="rounded-xl border border-base-content/10 bg-base-200/50 px-3 py-2 text-xs opacity-70">
+            <div>{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</div>
+            <div>{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</div>
+            <div>{{ $t('hostQosLineRates', { wan: qos.wanRateMbit || '—', lan: qos.lanRateMbit || '—' }) }}</div>
+            <div v-if="qos.qosMode === 'wan-only'">Safe mode: uplink/WAN only</div>
+          </div>
         </div>
       </div>
 

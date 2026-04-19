@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "timestamp": "2026-04-19T12:00:00Z",
+  "router": {
+    "hostname": "Netcraze-Ultra",
+    "model": "NC-1812",
+    "firmware": "XKeen 1.1.3.9 Stable"
+  },
+  "agent": {
+    "up": true,
+    "version": "0.6.26"
+  },
+  "mihomo": {
+    "running": true,
+    "version": "Meta v1.19.20"
+  },
+  "system": {
+    "cpu_pct": 18,
+    "memory_used_mb": 292,
+    "memory_pct": 41,
+    "uptime_seconds": 482340,
+    "wan_up": true
+  },
+  "counts": {
+    "active_users": 7,
+    "active_devices": 11,
+    "limited_users": 2,
+    "blocked_users": 1,
+    "qos_enabled": 5
+  }
+}
