@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "timestamp": "2026-04-19T12:00:00Z",
+  "summary": {
+    "total_hosts": 19,
+    "normal": 14,
+    "limited": 4,
+    "blocked": 1
+  },
+  "profiles": [
+    { "key": "normal", "label": "Нормальный", "hosts": 14 },
+    { "key": "limited", "label": "Ограничен", "hosts": 4 },
+    { "key": "blocked", "label": "Заблокирован", "hosts": 1 }
+  ],
+  "top_hosts": [
+    { "ip": "192.168.0.21", "label": "Work PC", "profile": "limited" },
+    { "ip": "192.168.0.42", "label": "Guest phone", "profile": "blocked" }
+  ]
+}
