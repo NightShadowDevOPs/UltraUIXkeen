@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div ref="cardRef" class="card">
     <div class="card-title px-4 pt-4 flex items-center justify-between gap-2">
       <span>{{ $t('userTraffic') }}</span>
       <div class="flex items-center gap-2">
@@ -986,6 +986,7 @@ import {
   userTrafficStoreSize,
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
+import { useElementVisibility } from '@vueuse/core'
 import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { usersDbPullNow } from '@/store/usersDbSync'
@@ -1048,6 +1049,8 @@ const applyingQosUser = ref('')
 const router = useRouter()
 const { t } = useI18n()
 const { showTip, hideTip } = useTooltip()
+const cardRef = ref<HTMLElement | null>(null)
+const cardVisible = useElementVisibility(cardRef)
 
 // --- Bulk actions (profiles / mass apply) ---
 const selectedMap = ref<Record<string, boolean>>({})
@@ -2027,6 +2030,12 @@ watch(rows, () => {
   ensureQosDrafts()
 }, { deep: true, immediate: true })
 
+
+watch(cardVisible, async (visible) => {
+  if (!visible) return
+  await refreshQosStatus()
+})
+
 const workspaceShortcutRow = computed<Row | null>(() => {
   if (props.focusUser || props.focusIp) {
     return rows.value.find((row) => rowMatchesFocus(row)) || null
@@ -2272,6 +2281,7 @@ const clearUserQos = async (row: Row) => {
 useSafePolling({
   callback: refreshQosStatus,
   intervalMs: 35_000,
+  enabled: () => cardVisible.value,
   immediate: false,
 })
 

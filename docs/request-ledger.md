@@ -9,4 +9,6 @@
 - Action in `v1.2.150`: slowed down secondary Host QoS / Users QoS background refresh loops, while keeping the main live traffic contour intact.
 - Action in `v1.2.150`: added brief cache windows for repeated `status`, `qos_status` and `lan_hosts` reads inside Traffic/QoS widget flows.
 - Action in `v1.2.150`: silent background refresh in Host QoS no longer flips the loading state on every timer tick.
+- Action in `v1.2.151`: made secondary Host QoS / Users QoS polling viewport-aware so invisible cards pause background refresh.
+- Action in `v1.2.151`: when those cards become visible again, UI triggers a soft QoS/runtime refresh without changing the main traffic live contour.
 - Follow-up request to keep in scope: keep looking at what can be taken safely from upstream, but only if it does not increase background load or endanger runtime traffic.

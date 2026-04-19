@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.151 - viewport-aware lazy polling for secondary QoS cards
+- raised UI package version to `1.2.151`
+- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
+- made `HostQosCard` and `UserTrafficStats` viewport-aware: off-screen secondary QoS cards pause background polling instead of refreshing invisibly
+- when those cards return into view, UI triggers a soft refresh so QoS/runtime data catches up without manual reload
+- kept the main live traffic contour and Overview traffic weights chart outside this lazy-visibility logic
+- documentation and transfer files refreshed for `v1.2.151`
+
 ## v1.2.150 - calmer secondary Traffic/QoS polling
 - raised UI package version to `1.2.150`
 - kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release

@@ -1,5 +1,5 @@
 <template>
-  <div class="card gap-3 p-3">
+  <div ref="cardRef" class="card gap-3 p-3">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div class="flex flex-wrap items-center gap-2">
         <div class="font-semibold">{{ $t('hostQosTitle') }}</div>
@@ -309,6 +309,7 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
+import { useElementVisibility } from '@vueuse/core'
 import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { useI18n } from 'vue-i18n'
@@ -338,6 +339,9 @@ type Row = AgentLanHost & AgentHostTrafficLiveItem & {
 
 const { t } = useI18n()
 const loading = ref(false)
+const cardRef = ref<HTMLElement | null>(null)
+const cardVisible = useElementVisibility(cardRef)
+
 const error = ref('')
 const query = ref('')
 const profileFilter = ref<'all' | AgentQosProfile | 'blocked' | 'limited'>('all')
@@ -385,6 +389,12 @@ watch(
   },
   { immediate: true },
 )
+
+
+watch(cardVisible, async (visible) => {
+  if (!visible || !expanded.value) return
+  await refreshAll({ includeLive: true, silent: true })
+})
 
 const qosMap = computed<Record<string, AgentQosStatusItem>>(() => {
   const out: Record<string, AgentQosStatusItem> = {}
@@ -814,14 +824,14 @@ watch(appliedProfiles, () => {
 useSafePolling({
   callback: () => refreshAll({ includeLive: false, silent: true }),
   intervalMs: 45_000,
-  enabled: () => expanded.value,
+  enabled: () => expanded.value && cardVisible.value,
   immediate: false,
 })
 
 useSafePolling({
   callback: () => refreshAll({ includeLive: true, silent: true }),
   intervalMs: 12_000,
-  enabled: () => expanded.value,
+  enabled: () => expanded.value && cardVisible.value,
   immediate: false,
 })
 

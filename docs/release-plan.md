@@ -5,16 +5,17 @@
 - `v1.2.148` — router-agent telemetry cache for heavy traffic endpoints + Host QoS on-demand live refresh
 - `v1.2.149` — client-side polling dedupe/cache + stable fallback for overview/traffic live graphs
 - `v1.2.150` — lighter secondary Traffic/QoS polling + short cache windows for repeated status/qos/lan-host reads
+- `v1.2.151` — viewport-aware lazy polling for Host QoS and Traffic/Users QoS cards
 
 ## Current target
-- validate `v1.2.150` on the real router under ordinary and heavier traffic
+- validate `v1.2.151` on the real router under ordinary and heavier traffic
 - confirm that Overview traffic weights remain live and that router throughput/forwarding is unaffected
-- confirm that Traffic → Devices / Users QoS widgets refresh more calmly in the background
+- confirm that off-screen QoS cards really stop background polling and resume cleanly when visible again
 
 ## Next candidate release
-- `v1.2.151`
+- `v1.2.152`
   - review useful upstream ideas that can be cherry-picked without adding extra background load
-  - if `v1.2.150` behaves well, consider one more round of lazy refresh for clearly secondary widgets only
+  - selectively inspect one or two more clearly secondary widgets for viewport/lazy refresh opportunities
   - keep provider SSL checks and the traffic/runtime path untouched unless explicitly requested
 
 ## Guardrails
