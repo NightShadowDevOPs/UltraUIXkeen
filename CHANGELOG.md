@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.138 — ha_status serverVersion sync hotfix
+
+- raised `router-agent` to `0.6.29`
+- fixed `ha_status` payload so `agent.serverVersion` is aligned with the installed agent runtime instead of stale cached metadata
+- refreshed HA handoff YAML bundle and docs after live router verification
+
 ## v1.2.137 — HA package bundle + agent version sync
 - raised UI to `1.2.137`
 - raised `router-agent` to `0.6.28`

@@ -2,6 +2,10 @@
 
 ## Что уже сделано
 
+### v1.2.138
+- добит оставшийся хвост: внутри `ha_status` поле `agent.serverVersion` теперь тоже синхронизировано с установленной версией router-agent
+- обновлены sample JSON и handoff docs под agent `0.6.29`
+
 ### v1.2.137
 - добавлен готовый пакет файлов для Home Assistant в `docs/ha-export/homeassistant/`
 - добавлены готовые YAML-примеры для `packages`, REST sensors/binary sensors, template helpers и Lovelace dashboard

@@ -1,13 +1,20 @@
 # UI Mihomo / Ultra — release plan
 
 ## Completed
+- **v1.2.138** — ha_status serverVersion sync hotfix ✅
 - **v1.2.137** — HA package bundle + agent version sync ✅
 - **v1.2.136** — HA snapshot runtime + short cache ✅
 
 ## Current packaged artifacts
-- Latest packaged release: **v1.2.137** (`UltraUIXkeen-v1.2.137.zip`)
-- Latest chat-transfer pack: **v1.2.137** (`UltraUIXkeen-chat-transfer-v1.2.137.zip`)
-- Latest HA handoff pack: **v1.2.137** (`UltraUIXkeen-ha-handoff-v1.2.137.zip`)
+- Latest packaged release: **v1.2.138** (`UltraUIXkeen-v1.2.138.zip`)
+- Latest chat-transfer pack: **v1.2.138** (`UltraUIXkeen-chat-transfer-v1.2.138.zip`)
+- Latest HA handoff pack: **v1.2.138** (`UltraUIXkeen-ha-handoff-v1.2.138.zip`)
+
+## What shipped in v1.2.138
+
+- router-agent raised to **0.6.29**
+- fixed the remaining `ha_status.agent.serverVersion` mismatch; the HA snapshot now reports the installed runtime version directly
+- release/docs refreshed after live router verification
 
 ## What shipped in v1.2.137
 - added a ready Home Assistant bundle in `docs/ha-export/homeassistant/`
@@ -19,4 +26,4 @@
 - refreshed chat-transfer docs, changelog and HA handoff documentation
 
 ## Next logical step
-- **v1.2.138** — first UI consumption of HA/export payloads or extended router snapshot diagnostics, depending on the test results from the live router
+- **v1.2.139** — first UI consumption of HA/export payloads or extended router snapshot diagnostics, depending on the test results from the live router

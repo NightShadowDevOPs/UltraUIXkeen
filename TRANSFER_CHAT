@@ -1,8 +1,14 @@
 UI Mihomo / Ultra
 ==================
 
-Текущая версия UI: v1.2.137
-Router-agent: 0.6.28
+Текущая версия UI: v1.2.138
+Router-agent: 0.6.29
+
+Что вошло в v1.2.138:
+- поднят UI до 1.2.138
+- поднят router-agent до 0.6.29
+- исправлен оставшийся рассинхрон serverVersion внутри ha_status
+- обновлены changelog/release-plan/transfer docs после live-проверки
 
 Что вошло в v1.2.137:
 - поднят UI до 1.2.137

@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.28"
+AGENT_VERSION="0.6.29"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -144,7 +144,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.28"
+AGENT_VERSION="0.6.29"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -6065,7 +6065,7 @@ ha_status_json() {
   fi
 
   payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","router":{"hostname":"%s","model":"%s","firmware":"%s"},"agent":{"up":true,"version":"%s","serverVersion":"%s"},"mihomo":{"running":%s,"version":"%s"},"system":{"cpu_pct":%s,"memory_used_mb":%s,"memory_pct":%s,"uptime_seconds":%s,"wan_up":%s,"wan_iface":"%s"},"counts":{"active_users":%s,"active_devices":%s,"limited_users":%s,"blocked_users":%s,"qos_enabled":%s},"capabilities":{"tc":%s,"iptables":%s,"hashlimit":%s}}' \
-    "$(jesc "$(ha_now_iso)")" "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$AGENT_VERSION")" "$(jesc "$(status_remote_agent_version_cached 2>/dev/null || echo "$AGENT_VERSION")")" "$mihomo_running" "$(jesc "$mihomo_ver")" "$cpu_pct" "$mem_used_mb" "$mem_used_pct" "$uptime_sec" "$wan_up" "$(jesc "$wan_iface")" "$active_users" "$active_devices" "$limited_users" "$blocked_users" "$qos_enabled_count" $( [ $have_tc -eq 1 ] && echo true || echo false ) $( [ $have_iptables -eq 1 ] && echo true || echo false ) $( [ $have_hashlimit -eq 1 ] && echo true || echo false ))"
+    "$(jesc "$(ha_now_iso)")" "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$AGENT_VERSION")" "$(jesc "$AGENT_VERSION")" "$mihomo_running" "$(jesc "$mihomo_ver")" "$cpu_pct" "$mem_used_mb" "$mem_used_pct" "$uptime_sec" "$wan_up" "$(jesc "$wan_iface")" "$active_users" "$active_devices" "$limited_users" "$blocked_users" "$qos_enabled_count" $( [ $have_tc -eq 1 ] && echo true || echo false ) $( [ $have_iptables -eq 1 ] && echo true || echo false ) $( [ $have_hashlimit -eq 1 ] && echo true || echo false ))"
 
   ha_cache_put ha_status "$payload" >/dev/null 2>&1 || true
   rm -f "$hosts_file" "$labels_file" "$users_file" "$limited_file" "$blocked_file" >/dev/null 2>&1 || true
