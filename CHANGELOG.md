@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.152 - viewport-aware lazy polling for router host status cards
+- raised UI package version to `1.2.152`
+- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
+- extended viewport-aware lazy polling to `SystemCard` and `AgentCard`, so Router → Resources and Router agent stop background refresh while off-screen
+- when those cards return into view, UI triggers a soft refresh so host/runtime data catches up without manual reload
+- kept the main live traffic contour and Overview traffic weights chart outside this lazy-visibility logic
+- documentation and transfer files refreshed for `v1.2.152`
+
 ## v1.2.151 - viewport-aware lazy polling for secondary QoS cards
 - raised UI package version to `1.2.151`
 - kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release

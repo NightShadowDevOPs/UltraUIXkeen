@@ -1,5 +1,5 @@
 <template>
-  <div class="card gap-2 p-3">
+  <div ref="cardRef" class="card gap-2 p-3">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <div class="font-semibold">{{ $t('routerAgent') }}</div>
@@ -750,10 +750,12 @@ import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
-import { useStorage } from '@vueuse/core'
+import { useElementVisibility, useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
+const cardRef = ref<HTMLElement | null>(null)
+const cardVisible = useElementVisibility(cardRef)
 const maintenanceWorkspaceRef = ref<HTMLElement | null>(null)
 const maintenancePrimaryRef = ref<HTMLElement | null>(null)
 
@@ -1667,7 +1669,7 @@ const loadMaintenancePanels = async (
 useSafePolling({
   callback: refreshStatus,
   intervalMs: 20_000,
-  enabled: () => agentEnabled.value,
+  enabled: () => agentEnabled.value && cardVisible.value,
   immediate: false,
 })
 
@@ -1678,12 +1680,21 @@ useSafePolling({
     if (backup.value?.running) await refreshBackup()
   },
   intervalMs: 5_000,
-  enabled: () => agentEnabled.value && maintenanceLoaded.value,
+  enabled: () => agentEnabled.value && maintenanceLoaded.value && cardVisible.value,
   immediate: false,
 })
 
-watch([agentEnabled, agentUrl, agentToken], () => {
-  if (!agentEnabled.value) maintenanceLoaded.value = false
-  void refreshStatus()
+watch([agentEnabled, agentUrl, agentToken, cardVisible], (value, oldValue) => {
+  const [enabled, url, token, visible] = value
+  const [prevEnabled, prevUrl, prevToken, prevVisible] = oldValue ?? []
+  if (!enabled) maintenanceLoaded.value = false
+  const configChanged = url !== prevUrl || token !== prevToken
+  if (!enabled) {
+    void refreshStatus()
+    return
+  }
+  if (configChanged || (visible && (!prevEnabled || !prevVisible))) {
+    void refreshStatus()
+  }
 }, { immediate: true })
 </script>

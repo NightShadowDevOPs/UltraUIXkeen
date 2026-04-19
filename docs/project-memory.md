@@ -10,11 +10,11 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.151**
+- UI: **v1.2.152**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.151` leaves router-agent untouched and adds viewport-aware lazy polling for `HostQosCard` and `UserTrafficStats`: off-screen secondary widgets stop background refresh, then softly refresh when visible again
+- `v1.2.152` leaves router-agent untouched and extends viewport-aware lazy polling to `SystemCard` and `AgentCard`: off-screen Router host-status widgets stop background refresh, then softly refresh when visible again
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path

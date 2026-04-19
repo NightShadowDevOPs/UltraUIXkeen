@@ -12,3 +12,5 @@
 - Action in `v1.2.151`: made secondary Host QoS / Users QoS polling viewport-aware so invisible cards pause background refresh.
 - Action in `v1.2.151`: when those cards become visible again, UI triggers a soft QoS/runtime refresh without changing the main traffic live contour.
 - Follow-up request to keep in scope: keep looking at what can be taken safely from upstream, but only if it does not increase background load or endanger runtime traffic.
+- Action in `v1.2.152`: extended the same viewport-aware lazy strategy to Router → Resources and Router agent cards so invisible host-status widgets pause background refresh.
+- Action in `v1.2.152`: when those host-status cards return into view, UI triggers a soft runtime refresh without touching the main traffic live contour.

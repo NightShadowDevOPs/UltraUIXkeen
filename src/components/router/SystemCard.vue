@@ -1,5 +1,5 @@
 <template>
-  <div class="card gap-3 p-4">
+  <div ref="cardRef" class="card gap-3 p-4">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <div class="font-semibold">{{ $t('routerResources') }}</div>
@@ -156,6 +156,7 @@ import { computed, ref, watch } from 'vue'
 import type { AgentStatus } from '@/api/agent'
 import { useI18n } from 'vue-i18n'
 import { useSafePolling } from '@/composables/useSafePolling'
+import { useElementVisibility } from '@vueuse/core'
 
 type FirmwareCheckState = {
   ok: boolean
@@ -174,6 +175,8 @@ type FirmwareCheckState = {
 }
 
 const { t } = useI18n()
+const cardRef = ref<HTMLElement | null>(null)
+const cardVisible = useElementVisibility(cardRef)
 const status = ref<AgentStatus>({ ok: false })
 const debugStatus = ref<AgentStatusDebug>({ ok: false })
 const firmwareCheck = ref<FirmwareCheckState>({ ok: false })
@@ -331,11 +334,22 @@ const handleRefresh = () => {
 useSafePolling({
   callback: refresh,
   intervalMs: 20_000,
-  enabled: () => agentEnabled.value,
+  enabled: () => agentEnabled.value && cardVisible.value,
   immediate: false,
 })
 
-watch(agentEnabled, () => {
-  void refresh()
+watch([agentEnabled, cardVisible], (value, oldValue) => {
+  const [enabled, visible] = value
+  const [prevEnabled, prevVisible] = oldValue ?? []
+  if (!enabled) {
+    status.value = { ok: false }
+    debugStatus.value = { ok: false }
+    firmwareCheck.value = { ok: false }
+    detailsLoaded.value = false
+    return
+  }
+  if (visible && (!prevEnabled || !prevVisible)) {
+    void refresh()
+  }
 }, { immediate: true })
 </script>

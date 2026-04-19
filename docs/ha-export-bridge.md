@@ -1,12 +1,12 @@
 # HA export bridge — UI Mihomo / Ultra
 
 Дата: **2026-04-20**
-Текущая версия UI: **v1.2.151**
+Текущая версия UI: **v1.2.152**
 Текущая версия router-agent: **0.6.32**
 
 ## Что важно для HA / внешних handoff-пакетов
-- В `v1.2.151` router-agent не менялся: HA/export контракт и backend telemetry path оставлены без изменений.
-- Изменения релиза находятся в UI-слое: viewport-aware lazy polling для второстепенных Traffic/QoS карточек.
+- В `v1.2.152` router-agent не менялся: HA/export контракт и backend telemetry path оставлены без изменений.
+- Изменения релиза находятся в UI-слое: viewport-aware lazy polling расширен на карточки Router → Resources и Router agent.
 - Это релиз про стабилизацию UI-runtime, а не про новый backend API.
 
 ## Что проверять после обновления
@@ -15,4 +15,4 @@
 3. Router runtime: реальный трафик через роутер не деградирует.
 
 ## Следующий мостовой шаг
-- если `v1.2.151` стабилен на роутере, можно смотреть следующий безопасный cherry-pick из upstream, но только без увеличения фонового polling и без вмешательства в SSL/provider checks
+- если `v1.2.152` стабилен на роутере, можно смотреть следующий безопасный cherry-pick из upstream, но только без увеличения фонового polling и без вмешательства в SSL/provider checks
