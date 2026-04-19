@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "format_version": 1,
+  "timestamp": "2026-04-19T13:16:21Z",
+  "contract": "zash.ha.snapshot.v1",
+  "agent_version": "0.6.27",
+  "cache": {
+    "ha_status_ttl_sec": 30,
+    "ha_traffic_ttl_sec": 15,
+    "ha_users_ttl_sec": 60,
+    "ha_qos_ttl_sec": 60
+  },
+  "commands": [
+    "ha_contract_meta",
+    "ha_status",
+    "ha_traffic",
+    "ha_users",
+    "ha_qos"
+  ],
+  "entity_namespace": {
+    "sensor": "sensor.smartlife_router_*",
+    "binary_sensor": "binary_sensor.smartlife_router_*"
+  },
+  "notes": {
+    "transport": "json over router-agent cgi",
+    "snapshot_cache": "short on-router cache to avoid rebuilding shell snapshots on every poll"
+  }
+}

@@ -1,27 +1,36 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
-  "totals": {
-    "rx_bytes": 16482342342,
-    "tx_bytes": 9234522341,
-    "rx_rate_bps": 2450000,
-    "tx_rate_bps": 820000
+  "timestamp": "2026-04-19T13:16:23Z",
+  "wan": {
+    "iface": "eth3",
+    "rx_bps": 1843200,
+    "tx_bps": 512000,
+    "rx_bytes": 18736291844,
+    "tx_bytes": 3940253188
   },
-  "rollup": {
-    "window_sec": 60,
-    "samples": [
-      { "ts": "2026-04-19T11:56:00Z", "rx_bps": 1900000, "tx_bps": 540000 },
-      { "ts": "2026-04-19T11:57:00Z", "rx_bps": 2100000, "tx_bps": 610000 },
-      { "ts": "2026-04-19T11:58:00Z", "rx_bps": 2300000, "tx_bps": 700000 },
-      { "ts": "2026-04-19T11:59:00Z", "rx_bps": 2450000, "tx_bps": 820000 }
-    ]
+  "summary": {
+    "wan_rx_bps": 1843200,
+    "wan_tx_bps": 512000,
+    "total_rx_bytes": 18736291844,
+    "total_tx_bytes": 3940253188
   },
-  "top_users": [
-    { "id": "tv_room", "label": "TV room", "rx_bps": 900000, "tx_bps": 120000 },
-    { "id": "work_pc", "label": "Work PC", "rx_bps": 650000, "tx_bps": 240000 }
-  ],
-  "top_devices": [
-    { "ip": "192.168.0.10", "label": "TV", "rx_bps": 850000, "tx_bps": 100000 },
-    { "ip": "192.168.0.21", "label": "PC", "rx_bps": 640000, "tx_bps": 220000 }
+  "interface_detail": [
+    {
+      "name": "eth3",
+      "kind": "wan",
+      "rx_bytes": 18736291844,
+      "tx_bytes": 3940253188,
+      "rx_bps": 1843200,
+      "tx_bps": 512000
+    },
+    {
+      "name": "br0",
+      "kind": "lan",
+      "rx_bytes": 13577264311,
+      "tx_bytes": 22852111401,
+      "rx_bps": 1478656,
+      "tx_bps": 1769472
+    }
   ]
 }

@@ -1,25 +1,148 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
+  "timestamp": "2026-04-19T13:16:24Z",
   "counts": {
-    "active_users": 7,
+    "active_users": 6,
     "active_devices": 11,
     "limited_users": 2,
     "blocked_users": 1
   },
   "top_users": [
-    { "name": "desktop-main", "rx_bps": 12500000, "tx_bps": 850000 },
-    { "name": "tv-room", "rx_bps": 3800000, "tx_bps": 220000 }
+    {
+      "name": "Denis-Laptop",
+      "rx_bps": 742112,
+      "tx_bps": 88432
+    },
+    {
+      "name": "LivingRoom-TV",
+      "rx_bps": 531456,
+      "tx_bps": 19456
+    },
+    {
+      "name": "Work-Mac",
+      "rx_bps": 314368,
+      "tx_bps": 102400
+    }
   ],
   "top_devices": [
-    { "name": "desktop-main", "mac": "AA:BB:CC:DD:EE:FF", "rx_bps": 12500000, "tx_bps": 850000 },
-    { "name": "phone-1", "mac": "11:22:33:44:55:66", "rx_bps": 2100000, "tx_bps": 340000 }
+    {
+      "name": "Denis-Laptop",
+      "mac": "AA:BB:CC:DD:EE:01",
+      "rx_bps": 742112,
+      "tx_bps": 88432,
+      "ip": "192.168.1.12"
+    },
+    {
+      "name": "LivingRoom-TV",
+      "mac": "AA:BB:CC:DD:EE:19",
+      "rx_bps": 531456,
+      "tx_bps": 19456,
+      "ip": "192.168.1.44"
+    },
+    {
+      "name": "Work-Mac",
+      "mac": "AA:BB:CC:DD:EE:07",
+      "rx_bps": 314368,
+      "tx_bps": 102400,
+      "ip": "192.168.1.21"
+    }
   ],
   "limited": [
-    { "name": "child-tablet", "profile": "kids-evening" },
-    { "name": "guest-tv", "profile": "guests" }
+    {
+      "name": "Kids-Tablet",
+      "source": "shape",
+      "profile": "up:8/down:20",
+      "target": "192.168.1.33"
+    },
+    {
+      "name": "Guest-TV",
+      "source": "qos",
+      "profile": "low",
+      "target": "192.168.1.61"
+    }
   ],
   "blocked": [
-    { "name": "temp-device", "reason": "manual block" }
+    {
+      "name": "Unknown-IoT",
+      "reason": "manual block",
+      "target": "AA:BB:CC:DD:EE:99"
+    }
+  ],
+  "per_user_breakdown": [
+    {
+      "name": "Denis-Laptop",
+      "rx_bps": 742112,
+      "tx_bps": 88432
+    },
+    {
+      "name": "LivingRoom-TV",
+      "rx_bps": 531456,
+      "tx_bps": 19456
+    },
+    {
+      "name": "Work-Mac",
+      "rx_bps": 314368,
+      "tx_bps": 102400
+    },
+    {
+      "name": "Kids-Tablet",
+      "rx_bps": 22312,
+      "tx_bps": 8128
+    },
+    {
+      "name": "Guest-TV",
+      "rx_bps": 11520,
+      "tx_bps": 2048
+    },
+    {
+      "name": "Office-Printer",
+      "rx_bps": 1024,
+      "tx_bps": 1024
+    }
+  ],
+  "per_device_breakdown": [
+    {
+      "name": "Denis-Laptop",
+      "mac": "AA:BB:CC:DD:EE:01",
+      "rx_bps": 742112,
+      "tx_bps": 88432,
+      "ip": "192.168.1.12"
+    },
+    {
+      "name": "LivingRoom-TV",
+      "mac": "AA:BB:CC:DD:EE:19",
+      "rx_bps": 531456,
+      "tx_bps": 19456,
+      "ip": "192.168.1.44"
+    },
+    {
+      "name": "Work-Mac",
+      "mac": "AA:BB:CC:DD:EE:07",
+      "rx_bps": 314368,
+      "tx_bps": 102400,
+      "ip": "192.168.1.21"
+    },
+    {
+      "name": "Kids-Tablet",
+      "mac": "AA:BB:CC:DD:EE:13",
+      "rx_bps": 22312,
+      "tx_bps": 8128,
+      "ip": "192.168.1.33"
+    },
+    {
+      "name": "Guest-TV",
+      "mac": "AA:BB:CC:DD:EE:77",
+      "rx_bps": 11520,
+      "tx_bps": 2048,
+      "ip": "192.168.1.61"
+    },
+    {
+      "name": "Office-Printer",
+      "mac": "AA:BB:CC:DD:EE:55",
+      "rx_bps": 1024,
+      "tx_bps": 1024,
+      "ip": "192.168.1.48"
+    }
   ]
 }

@@ -1,31 +1,39 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
+  "timestamp": "2026-04-19T13:16:22Z",
   "router": {
-    "hostname": "Netcraze-Ultra",
-    "model": "NC-1812",
-    "firmware": "XKeen 1.1.3.9 Stable"
+    "hostname": "keenetic-ultra",
+    "model": "XKeen Ultra",
+    "firmware": "XKeen 1.1.3.9"
   },
   "agent": {
     "up": true,
-    "version": "0.6.26"
+    "version": "0.6.27",
+    "serverVersion": "0.6.27"
   },
   "mihomo": {
     "running": true,
-    "version": "Meta v1.19.20"
+    "version": "Mihomo Meta v1.19.5"
   },
   "system": {
-    "cpu_pct": 18,
-    "memory_used_mb": 292,
-    "memory_pct": 41,
-    "uptime_seconds": 482340,
-    "wan_up": true
+    "cpu_pct": 14,
+    "memory_used_mb": 113,
+    "memory_pct": 28,
+    "uptime_seconds": 486221,
+    "wan_up": true,
+    "wan_iface": "eth3"
   },
   "counts": {
-    "active_users": 7,
+    "active_users": 6,
     "active_devices": 11,
     "limited_users": 2,
     "blocked_users": 1,
-    "qos_enabled": 5
+    "qos_enabled": 4
+  },
+  "capabilities": {
+    "tc": true,
+    "iptables": true,
+    "hashlimit": true
   }
 }

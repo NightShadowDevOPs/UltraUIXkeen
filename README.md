@@ -79,6 +79,7 @@ Router-agent нужен для функций, которых нет в Mihomo A
 - **Router-agent** (Entware): API для расширенных функций и **бэкапы** (в т.ч. в облако через rclone).
 - **Router → Host QoS priority**: заготовка приоритизации трафика для LAN-хостов (High / Normal / Low) через `tc` на роутере, без обязательных ручных правок в конфиге.
 - **Трафик**: рабочий экран разделён на режимы `Устройства` и `Пользователи`, чтобы отдельно видеть живые LAN-хосты/QoS и отдельно — лимиты, блокировки и накопленную статистику по правилам.
+- **Router-agent / Home Assistant**: доступны лёгкие snapshot endpoint'ы `ha_contract_meta`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos` с коротким on-router cache для operational dashboard в HA.
 
 ---
 

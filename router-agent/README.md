@@ -39,6 +39,11 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=qos_status`
 - `GET /cgi-bin/api.sh?cmd=qos_set&ip=192.168.1.2&profile=high|normal|low`
 - `GET /cgi-bin/api.sh?cmd=qos_remove&ip=192.168.1.2`
+- `GET /cgi-bin/api.sh?cmd=ha_contract_meta`
+- `GET /cgi-bin/api.sh?cmd=ha_status`
+- `GET /cgi-bin/api.sh?cmd=ha_traffic`
+- `GET /cgi-bin/api.sh?cmd=ha_users`
+- `GET /cgi-bin/api.sh?cmd=ha_qos`
 - `GET /cgi-bin/api.sh?cmd=backup_start`
 - `GET /cgi-bin/api.sh?cmd=backup_status`
 - `GET /cgi-bin/api.sh?cmd=backup_cloud_status`
@@ -60,6 +65,34 @@ sh /opt/zash-agent/install.sh
 Host QoS priority is best-effort: it helps under congestion, but if the same IP also has a hard shaping rule (`cmd=shape`), the hard shaping rule wins.
 
 Если в `/opt/zash-agent/agent.env` задан `TOKEN=...`, UI будет слать `Authorization: Bearer <token>`.
+
+## Home Assistant snapshot export
+
+Starting with router-agent **0.6.27**, the agent also exposes a lightweight Home Assistant export contour:
+
+- `cmd=ha_contract_meta`
+- `cmd=ha_status`
+- `cmd=ha_traffic`
+- `cmd=ha_users`
+- `cmd=ha_qos`
+
+This contour is REST-first and reads from a short on-router cache instead of rebuilding heavy shell payloads on every poll.
+
+Default TTLs:
+
+```sh
+HA_EXPORT_CACHE_DIR="/opt/zash-agent/var/ha-cache"
+HA_STATUS_TTL_SECS="30"
+HA_TRAFFIC_TTL_SECS="15"
+HA_USERS_TTL_SECS="60"
+HA_QOS_TTL_SECS="60"
+```
+
+You can override these in `/opt/zash-agent/agent.env` if you really need to, but the defaults are chosen to keep HA polling useful without turning the router into a toaster.
+
+Contract marker for the current runtime: `zash.ha.snapshot.v1`.
+
+Detailed handoff docs live in `../docs/ha-export/` and `../docs/ha-export-bridge.md`.
 
 ### status payload
 

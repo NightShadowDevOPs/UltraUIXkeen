@@ -1,19 +1,43 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
+  "timestamp": "2026-04-19T13:16:24Z",
   "qos_enabled": true,
   "counts": {
-    "qos_enabled": 5,
+    "qos_enabled": 4,
     "limited_users": 2,
     "blocked_users": 1
   },
   "summary": {
-    "wan_rate_mbit": 300,
+    "wan_rate_mbit": 500,
     "lan_rate_mbit": 1000,
-    "rules_active": 5
+    "rules_active": 7,
+    "shaper_downlink_mode": "wan-police"
   },
   "qos_rules_detail": [
-    { "target": "desktop-main", "profile": "work", "shape": "normal" },
-    { "target": "child-tablet", "profile": "kids-evening", "shape": "limited" }
+    {
+      "target": "Denis-Laptop",
+      "profile": "high",
+      "shape": "qos",
+      "detail": "192.168.1.12"
+    },
+    {
+      "target": "LivingRoom-TV",
+      "profile": "low",
+      "shape": "qos",
+      "detail": "192.168.1.44"
+    },
+    {
+      "target": "Kids-Tablet",
+      "profile": "limited",
+      "shape": "shape",
+      "detail": "192.168.1.33 (up:8/down:20)"
+    },
+    {
+      "target": "Unknown-IoT",
+      "profile": "blocked",
+      "shape": "block",
+      "detail": "AA:BB:CC:DD:EE:99"
+    }
   ]
 }

@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.26"
+AGENT_VERSION="0.6.27"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -71,6 +71,13 @@ RCLONE_KEEP_DAYS="30"
 # Provider SSL cache auto-refresh interval in seconds (default: 6h)
 SSL_CACHE_AUTO_REFRESH_SECS="21600"
 
+# Home Assistant export snapshot cache (lightweight shell snapshots)
+HA_EXPORT_CACHE_DIR="$AGENT_DIR/var/ha-cache"
+HA_STATUS_TTL_SECS="30"
+HA_TRAFFIC_TTL_SECS="15"
+HA_USERS_TTL_SECS="60"
+HA_QOS_TTL_SECS="60"
+
 # Live host traffic state (keep in /tmp to avoid flash writes on every poll)
 HOST_TRAFFIC_STATE_FILE="/tmp/zash-host-traffic.prev.tsv"
 HOST_TRAFFIC_TS_FILE="/tmp/zash-host-traffic.prev.ts"
@@ -137,7 +144,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.26"
+AGENT_VERSION="0.6.27"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -175,6 +182,11 @@ SSL_CACHE_FILE="${SSL_CACHE_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache
 SSL_CACHE_TS_FILE="${SSL_CACHE_TS_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.ts}"
 SSL_CACHE_AUTO_REFRESH_SECS="${SSL_CACHE_AUTO_REFRESH_SECS:-21600}"
 SSL_CACHE_LOCK_FILE="${SSL_CACHE_LOCK_FILE:-/opt/zash-agent/var/mihomo-providers-ssl-cache.lock}"
+HA_EXPORT_CACHE_DIR="${HA_EXPORT_CACHE_DIR:-/opt/zash-agent/var/ha-cache}"
+HA_STATUS_TTL_SECS="${HA_STATUS_TTL_SECS:-30}"
+HA_TRAFFIC_TTL_SECS="${HA_TRAFFIC_TTL_SECS:-15}"
+HA_USERS_TTL_SECS="${HA_USERS_TTL_SECS:-60}"
+HA_QOS_TTL_SECS="${HA_QOS_TTL_SECS:-60}"
 
 json() {
   printf '{'
@@ -4246,6 +4258,7 @@ status_cpu_state_file() {
 
 status_cache_clear() {
   rm -f "$(status_cache_payload_file)" "$(status_cache_ts_file)" "$(status_debug_payload_file)" "$(status_debug_ts_file)" >/dev/null 2>&1 || true
+  ha_cache_clear >/dev/null 2>&1 || true
 }
 
 status_cache_get() {
@@ -5451,11 +5464,819 @@ backup_cron_set_json() {
   fi
 }
 
+
+ha_now_iso() {
+  date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo ""
+}
+
+ha_cache_dir() {
+  printf '%s\n' "$HA_EXPORT_CACHE_DIR"
+}
+
+ha_cache_payload_file() {
+  name="$1"
+  printf '%s/%s.json\n' "$(ha_cache_dir)" "$name"
+}
+
+ha_cache_ts_file() {
+  name="$1"
+  printf '%s/%s.ts\n' "$(ha_cache_dir)" "$name"
+}
+
+ha_cache_clear() {
+  dir="$(ha_cache_dir)"
+  [ -d "$dir" ] || return 0
+  rm -f "$dir"/*.json "$dir"/*.ts "$dir"/*.tsv >/dev/null 2>&1 || true
+}
+
+ha_cache_get() {
+  name="$1"
+  ttl="$2"
+  [ -n "$ttl" ] || ttl=30
+  payload_f="$(ha_cache_payload_file "$name")"
+  ts_f="$(ha_cache_ts_file "$name")"
+  [ -f "$payload_f" ] || return 1
+  [ -f "$ts_f" ] || return 1
+  now="$(date +%s 2>/dev/null || echo 0)"
+  ts="$(cat "$ts_f" 2>/dev/null || echo 0)"
+  echo "$now" | grep -qE '^[0-9]+$' || now=0
+  echo "$ts" | grep -qE '^[0-9]+$' || ts=0
+  [ "$now" -gt 0 ] || return 1
+  [ "$ts" -gt 0 ] || return 1
+  age=$((now-ts))
+  [ "$age" -lt 0 ] && age=999999
+  [ "$age" -le "$ttl" ] || return 1
+  cat "$payload_f" 2>/dev/null
+}
+
+ha_cache_put() {
+  name="$1"
+  payload="$2"
+  dir="$(ha_cache_dir)"
+  mkdir -p "$dir" >/dev/null 2>&1 || true
+  payload_f="$(ha_cache_payload_file "$name")"
+  ts_f="$(ha_cache_ts_file "$name")"
+  printf '%s' "$payload" > "$payload_f" 2>/dev/null || return 1
+  date +%s > "$ts_f" 2>/dev/null || true
+  return 0
+}
+
+ha_count_lines() {
+  f="$1"
+  [ -f "$f" ] || { echo 0; return 0; }
+  wc -l < "$f" 2>/dev/null | tr -d ' ' | awk '{print ($1 ~ /^[0-9]+$/ ? $1 : 0)}'
+}
+
+ha_users_db_exact_labels_tsv() {
+  out_file="$1"
+  ensure_tmp_file "$out_file" || return 1
+  [ -f "$USERS_DB_FILE" ] || return 0
+  tr '\n' ' ' < "$USERS_DB_FILE" 2>/dev/null | awk '
+    BEGIN { RS="\\{"; OFS="\t" }
+    {
+      key=""; label="";
+      if (match($0, /"key"[[:space:]]*:[[:space:]]*"[^"]+"/)) {
+        key = substr($0, RSTART, RLENGTH)
+        sub(/^.*"key"[[:space:]]*:[[:space:]]*"/, "", key)
+        sub(/"$/, "", key)
+      }
+      if (match($0, /"label"[[:space:]]*:[[:space:]]*"[^"]+"/)) {
+        label = substr($0, RSTART, RLENGTH)
+        sub(/^.*"label"[[:space:]]*:[[:space:]]*"/, "", label)
+        sub(/"$/, "", label)
+      }
+      if (key ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && label != "") print key, label
+    }
+  ' > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+}
+
+ha_target_name_for_ip() {
+  ip_="$1"
+  hosts_file="$2"
+  labels_file="$3"
+  [ -n "$ip_" ] || { echo ""; return 0; }
+  awk -F'\t' -v ip="$ip_" '
+    FNR==NR { if ($1 != "" && $2 != "") label[$1]=$2; next }
+    $1 == ip {
+      host = $3
+      if (ip in label && label[ip] != "") { print label[ip]; exit }
+      if (host != "") { print host; exit }
+      print ip; exit
+    }
+    END {
+      if (!(ip in seen) && !(ip in label)) {}
+    }
+  ' "$labels_file" "$hosts_file" 2>/dev/null | head -n1
+}
+
+ha_target_name_for_mac() {
+  mac_="$1"
+  hosts_file="$2"
+  labels_file="$3"
+  [ -n "$mac_" ] || { echo ""; return 0; }
+  mac_lc="$(printf '%s' "$mac_" | tr 'A-Z' 'a-z')"
+  ip_="$(awk -F'\t' -v mac="$mac_lc" 'tolower($2)==mac{print $1; exit}' "$hosts_file" 2>/dev/null)"
+  if [ -n "$ip_" ]; then
+    ha_target_name_for_ip "$ip_" "$hosts_file" "$labels_file"
+    return 0
+  fi
+  printf '%s\n' "$mac_lc"
+}
+
+ha_collect_active_hosts_tsv() {
+  out_file="$1"
+  ensure_tmp_file "$out_file" || return 1
+  collect_tracked_hosts_tsv "$out_file" >/dev/null 2>&1 || ensure_tmp_file "$out_file" || true
+}
+
+ha_build_user_agg_tsv() {
+  hosts_file="$1"
+  labels_file="$2"
+  out_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  awk -F'\t' '
+    FNR==NR { if ($1 != "" && $2 != "") label[$1]=$2; next }
+    {
+      ip=$1; host=$3;
+      user=(label[ip] != "" ? label[ip] : (host != "" ? host : ip));
+      users[user] += 1;
+      if (!(user in seen)) order[++n]=user;
+      seen[user]=1;
+    }
+    END {
+      for (i=1; i<=n; i++) {
+        u=order[i];
+        if (u != "") print u "\t" users[u];
+      }
+    }
+  ' "$labels_file" "$hosts_file" > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+}
+
+ha_host_traffic_snapshot_tsv() {
+  out_file="$1"
+  state_file="$2"
+  ts_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  command -v iptables >/dev/null 2>&1 || { ensure_tmp_file "$out_file" || true; return 0; }
+  mkdir -p /tmp >/dev/null 2>&1 || true
+  host_traffic_sync_rules
+
+  hosts_tmp="$(new_tmp_file zash_ha_host_traffic_hosts)"
+  raw_tmp="$(new_tmp_file zash_ha_host_traffic_raw)"
+  current_tmp="$(new_tmp_file zash_ha_host_traffic_current)"
+  [ -n "$hosts_tmp" ] || hosts_tmp="/tmp/zash_ha_host_traffic_hosts.$$"
+  [ -n "$raw_tmp" ] || raw_tmp="/tmp/zash_ha_host_traffic_raw.$$"
+  [ -n "$current_tmp" ] || current_tmp="/tmp/zash_ha_host_traffic_current.$$"
+
+  ensure_tmp_file "$hosts_tmp" || { ensure_tmp_file "$out_file" || true; return 0; }
+  ensure_tmp_file "$raw_tmp" || { rm -f "$hosts_tmp" 2>/dev/null || true; ensure_tmp_file "$out_file" || true; return 0; }
+  ensure_tmp_file "$current_tmp" || { rm -f "$hosts_tmp" "$raw_tmp" 2>/dev/null || true; ensure_tmp_file "$out_file" || true; return 0; }
+
+  collect_tracked_hosts_tsv "$hosts_tmp" || ensure_tmp_file "$hosts_tmp" || true
+  host_traffic_collect_bytes_tsv "$raw_tmp"
+
+  awk -F'\t' '
+    FNR==NR {
+      ip=$1; mac=$2; host=$3; src=$4;
+      if (ip != "") {
+        host_mac[ip]=mac;
+        host_name[ip]=host;
+        host_src[ip]=src;
+        ips[ip]=1;
+      }
+      next
+    }
+    {
+      ip=$1; key=$2; val=$3+0;
+      if (ip != "") {
+        data[ip SUBSEP key]=val;
+        ips[ip]=1;
+      }
+    }
+    END {
+      for (ip in ips) {
+        print ip "\t" \
+          (data[ip SUBSEP "bypassDownBytes"] + 0) "\t" \
+          (data[ip SUBSEP "bypassUpBytes"] + 0) "\t" \
+          (data[ip SUBSEP "vpnDownBytes"] + 0) "\t" \
+          (data[ip SUBSEP "vpnUpBytes"] + 0) "\t" \
+          host_mac[ip] "\t" host_name[ip] "\t" host_src[ip];
+      }
+    }
+  ' "$hosts_tmp" "$raw_tmp" 2>/dev/null | sort > "$current_tmp" 2>/dev/null || ensure_tmp_file "$current_tmp" || true
+
+  now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
+  prev_ms="$(cat "$ts_file" 2>/dev/null | tr -d '\n ' || true)"
+  echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
+  if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
+    dt_ms=$((now_ms - prev_ms))
+  else
+    dt_ms=0
+  fi
+  if [ "$dt_ms" -gt 0 ]; then
+    dt_sec="$(awk -v ms="$dt_ms" 'BEGIN { printf "%.3f", (ms / 1000) }')"
+  else
+    dt_sec="0"
+  fi
+
+  prev_input="/dev/null"
+  [ -f "$state_file" ] && prev_input="$state_file"
+
+  awk -F'\t' -v dt="$dt_sec" '
+    function clamp(v) { return (v < 0 ? 0 : v) }
+    FNR==NR {
+      ip=$1;
+      prev_bd[ip]=$2+0;
+      prev_bu[ip]=$3+0;
+      prev_vd[ip]=$4+0;
+      prev_vu[ip]=$5+0;
+      next
+    }
+    {
+      ip=$1; bd=$2+0; bu=$3+0; vd=$4+0; vu=$5+0; mac=$6; host=$7; src=$8;
+      bypassDownBps = (dt > 0 ? clamp((bd - prev_bd[ip]) / dt) : 0);
+      bypassUpBps = (dt > 0 ? clamp((bu - prev_bu[ip]) / dt) : 0);
+      vpnDownBps = (dt > 0 ? clamp((vd - prev_vd[ip]) / dt) : 0);
+      vpnUpBps = (dt > 0 ? clamp((vu - prev_vu[ip]) / dt) : 0);
+      totalDownBps = bypassDownBps + vpnDownBps;
+      totalUpBps = bypassUpBps + vpnUpBps;
+      if (totalDownBps + totalUpBps <= 1 && bd + bu + vd + vu <= 0) next;
+      printf "%s\t%s\t%s\t%s\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\n", ip, mac, host, src, bypassDownBps, bypassUpBps, vpnDownBps, vpnUpBps, totalDownBps, totalUpBps;
+    }
+  ' "$prev_input" "$current_tmp" > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+
+  cp "$current_tmp" "$state_file" 2>/dev/null || true
+  printf '%s' "$now_ms" > "$ts_file" 2>/dev/null || true
+  rm -f "$hosts_tmp" "$raw_tmp" "$current_tmp" 2>/dev/null || true
+}
+
+ha_build_user_rates_tsv() {
+  hosts_rates_file="$1"
+  labels_file="$2"
+  out_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  awk -F'\t' '
+    FNR==NR { if ($1 != "" && $2 != "") label[$1]=$2; next }
+    {
+      ip=$1; host=$3; rx=$9+0; tx=$10+0;
+      user=(label[ip] != "" ? label[ip] : (host != "" ? host : ip));
+      down[user]+=rx; up[user]+=tx;
+      if (!(user in seen)) order[++n]=user;
+      seen[user]=1;
+    }
+    END {
+      for (i=1; i<=n; i++) {
+        u=order[i];
+        if (u != "") printf "%s\t%.0f\t%.0f\n", u, down[u], up[u];
+      }
+    }
+  ' "$labels_file" "$hosts_rates_file" > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+}
+
+ha_build_device_rates_tsv() {
+  hosts_rates_file="$1"
+  labels_file="$2"
+  out_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  awk -F'\t' '
+    FNR==NR { if ($1 != "" && $2 != "") label[$1]=$2; next }
+    {
+      ip=$1; mac=$2; host=$3; rx=$9+0; tx=$10+0;
+      name=(host != "" ? host : (label[ip] != "" ? label[ip] : ip));
+      printf "%s\t%s\t%.0f\t%.0f\t%s\n", name, mac, rx, tx, ip;
+    }
+  ' "$labels_file" "$hosts_rates_file" > "$out_file" 2>/dev/null || ensure_tmp_file "$out_file" || true
+}
+
+ha_limited_rules_tsv() {
+  out_file="$1"
+  hosts_file="$2"
+  labels_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  : > "$out_file" 2>/dev/null || true
+
+  if [ -f "$STATE_FILE" ]; then
+    while read -r ip_ up_ down_; do
+      [ -n "$ip_" ] || continue
+      name_="$(ha_target_name_for_ip "$ip_" "$hosts_file" "$labels_file")"
+      [ -n "$name_" ] || name_="$ip_"
+      [ -n "$down_" ] || down_="$up_"
+      printf '%s\tshape\tup:%s/down:%s\t%s\n' "$name_" "$up_" "$down_" "$ip_" >> "$out_file" 2>/dev/null || true
+    done < "$STATE_FILE"
+  fi
+
+  if [ -f "$QOS_HOSTS_FILE" ]; then
+    while read -r ip_ profile_; do
+      [ -n "$ip_" ] || continue
+      [ -n "$profile_" ] || continue
+      case "$profile_" in
+        normal) continue ;;
+      esac
+      name_="$(ha_target_name_for_ip "$ip_" "$hosts_file" "$labels_file")"
+      [ -n "$name_" ] || name_="$ip_"
+      printf '%s\tqos\t%s\t%s\n' "$name_" "$profile_" "$ip_" >> "$out_file" 2>/dev/null || true
+    done < "$QOS_HOSTS_FILE"
+  fi
+
+  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+}
+
+ha_blocked_rules_tsv() {
+  out_file="$1"
+  hosts_file="$2"
+  labels_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  : > "$out_file" 2>/dev/null || true
+  [ -f "$BLOCKS_FILE" ] || return 0
+
+  while read -r a b c; do
+    [ -n "$a" ] || continue
+    kind_="$a"; key_="$b"; val_="$c"
+    if [ "$kind_" != "mac" ] && [ "$kind_" != "ip" ]; then
+      kind_="mac"
+      key_="$a"
+      val_="$b"
+    fi
+
+    if [ "$kind_" = "ip" ]; then
+      [ -n "$key_" ] || continue
+      name_="$(ha_target_name_for_ip "$key_" "$hosts_file" "$labels_file")"
+      [ -n "$name_" ] || name_="$key_"
+      printf '%s\tmanual block\t%s\n' "$name_" "$key_" >> "$out_file" 2>/dev/null || true
+      continue
+    fi
+
+    [ -n "$key_" ] || continue
+    name_="$(ha_target_name_for_mac "$key_" "$hosts_file" "$labels_file")"
+    [ -n "$name_" ] || name_="$key_"
+    reason_="manual block"
+    [ -n "$val_" ] && [ "$val_" != "all" ] && [ "$val_" != "ALL" ] && reason_="ports:$val_"
+    printf '%s\t%s\t%s\n' "$name_" "$reason_" "$key_" >> "$out_file" 2>/dev/null || true
+  done < "$BLOCKS_FILE"
+
+  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+}
+
+ha_qos_rules_tsv() {
+  out_file="$1"
+  hosts_file="$2"
+  labels_file="$3"
+  ensure_tmp_file "$out_file" || return 1
+  : > "$out_file" 2>/dev/null || true
+
+  if [ -f "$QOS_HOSTS_FILE" ]; then
+    while read -r ip_ profile_; do
+      [ -n "$ip_" ] || continue
+      [ -n "$profile_" ] || continue
+      name_="$(ha_target_name_for_ip "$ip_" "$hosts_file" "$labels_file")"
+      [ -n "$name_" ] || name_="$ip_"
+      printf '%s\t%s\tqos\t%s\n' "$name_" "$profile_" "$ip_" >> "$out_file" 2>/dev/null || true
+    done < "$QOS_HOSTS_FILE"
+  fi
+
+  if [ -f "$STATE_FILE" ]; then
+    while read -r ip_ up_ down_; do
+      [ -n "$ip_" ] || continue
+      name_="$(ha_target_name_for_ip "$ip_" "$hosts_file" "$labels_file")"
+      [ -n "$name_" ] || name_="$ip_"
+      [ -n "$down_" ] || down_="$up_"
+      printf '%s\tlimited\tshape\t%s (up:%s/down:%s)\n' "$name_" "$ip_" "$up_" "$down_" >> "$out_file" 2>/dev/null || true
+    done < "$STATE_FILE"
+  fi
+
+  if [ -f "$BLOCKS_FILE" ]; then
+    while read -r a b c; do
+      [ -n "$a" ] || continue
+      kind_="$a"; key_="$b"; val_="$c"
+      if [ "$kind_" != "mac" ] && [ "$kind_" != "ip" ]; then
+        kind_="mac"; key_="$a"; val_="$b"
+      fi
+      if [ "$kind_" = "ip" ]; then
+        name_="$(ha_target_name_for_ip "$key_" "$hosts_file" "$labels_file")"
+        [ -n "$name_" ] || name_="$key_"
+        printf '%s\tblocked\tblock\t%s\n' "$name_" "$key_" >> "$out_file" 2>/dev/null || true
+      else
+        name_="$(ha_target_name_for_mac "$key_" "$hosts_file" "$labels_file")"
+        [ -n "$name_" ] || name_="$key_"
+        printf '%s\tblocked\tblock\t%s\n' "$name_" "$key_" >> "$out_file" 2>/dev/null || true
+      fi
+    done < "$BLOCKS_FILE"
+  fi
+
+  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+}
+
+ha_json_users_from_tsv() {
+  f="$1"
+  limit="$2"
+  awk -F'\t' -v limit="$limit" '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, " ", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (limit > 0 && count >= limit) next
+      if (count > 0) printf ","
+      printf "{\"name\":\"%s\",\"rx_bps\":%.0f,\"tx_bps\":%.0f}", esc($1), ($2+0), ($3+0)
+      count++
+    }
+    END { printf "]" }
+  ' "$f" 2>/dev/null
+}
+
+ha_json_devices_from_tsv() {
+  f="$1"
+  limit="$2"
+  awk -F'\t' -v limit="$limit" '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, " ", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (limit > 0 && count >= limit) next
+      if (count > 0) printf ","
+      printf "{\"name\":\"%s\",\"mac\":\"%s\",\"rx_bps\":%.0f,\"tx_bps\":%.0f,\"ip\":\"%s\"}", esc($1), esc($2), ($3+0), ($4+0), esc($5)
+      count++
+    }
+    END { printf "]" }
+  ' "$f" 2>/dev/null
+}
+
+ha_json_limited_from_tsv() {
+  f="$1"
+  awk -F'\t' '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, " ", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (count > 0) printf ","
+      printf "{\"name\":\"%s\",\"source\":\"%s\",\"profile\":\"%s\",\"target\":\"%s\"}", esc($1), esc($2), esc($3), esc($4)
+      count++
+    }
+    END { printf "]" }
+  ' "$f" 2>/dev/null
+}
+
+ha_json_blocked_from_tsv() {
+  f="$1"
+  awk -F'\t' '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, " ", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (count > 0) printf ","
+      printf "{\"name\":\"%s\",\"reason\":\"%s\",\"target\":\"%s\"}", esc($1), esc($2), esc($3)
+      count++
+    }
+    END { printf "]" }
+  ' "$f" 2>/dev/null
+}
+
+ha_json_qos_rules_from_tsv() {
+  f="$1"
+  awk -F'\t' '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\r/, "", s); gsub(/\n/, " ", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (count > 0) printf ","
+      printf "{\"target\":\"%s\",\"profile\":\"%s\",\"shape\":\"%s\",\"detail\":\"%s\"}", esc($1), esc($2), esc($3), esc($4)
+      count++
+    }
+    END { printf "]" }
+  ' "$f" 2>/dev/null
+}
+
+ha_collect_iface_counters_tsv() {
+  out_file="$1"
+  ensure_tmp_file "$out_file" || return 1
+  iface="$WAN_IF"
+  [ -n "$iface" ] || iface="eth0"
+  if ! ip link show "$iface" >/dev/null 2>&1; then
+    iface="$(ip -4 route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  fi
+  [ -n "$iface" ] || iface="$WAN_IF"
+  [ -n "$iface" ] || iface="eth0"
+
+  rx_bytes="$(read_iface_counter "$iface" rx)"
+  tx_bytes="$(read_iface_counter "$iface" tx)"
+  printf '%s\twan\t%s\t%s\n' "$iface" "$rx_bytes" "$tx_bytes" > "$out_file" 2>/dev/null || true
+
+  for extra_if in $(list_extra_traffic_ifaces); do
+    [ -n "$extra_if" ] || continue
+    ex_rx="$(read_iface_counter "$extra_if" rx)"
+    ex_tx="$(read_iface_counter "$extra_if" tx)"
+    ex_kind="$(traffic_iface_kind "$extra_if")"
+    [ -n "$ex_kind" ] || ex_kind="extra"
+    printf '%s\t%s\t%s\t%s\n' "$extra_if" "$ex_kind" "$ex_rx" "$ex_tx" >> "$out_file" 2>/dev/null || true
+  done
+}
+
+ha_status_json() {
+  cached_payload="$(ha_cache_get ha_status "$HA_STATUS_TTL_SECS" 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
+  hosts_file="$(new_tmp_file zash_ha_status_hosts)"
+  labels_file="$(new_tmp_file zash_ha_status_labels)"
+  users_file="$(new_tmp_file zash_ha_status_users)"
+  limited_file="$(new_tmp_file zash_ha_status_limited)"
+  blocked_file="$(new_tmp_file zash_ha_status_blocked)"
+  [ -n "$hosts_file" ] || hosts_file="/tmp/zash_ha_status_hosts.$$"
+  [ -n "$labels_file" ] || labels_file="/tmp/zash_ha_status_labels.$$"
+  [ -n "$users_file" ] || users_file="/tmp/zash_ha_status_users.$$"
+  [ -n "$limited_file" ] || limited_file="/tmp/zash_ha_status_limited.$$"
+  [ -n "$blocked_file" ] || blocked_file="/tmp/zash_ha_status_blocked.$$"
+
+  ensure_tmp_file "$labels_file" || true
+  ha_collect_active_hosts_tsv "$hosts_file" || true
+  ha_users_db_exact_labels_tsv "$labels_file" || true
+  ha_build_user_agg_tsv "$hosts_file" "$labels_file" "$users_file" || true
+  ha_limited_rules_tsv "$limited_file" "$hosts_file" "$labels_file" || true
+  ha_blocked_rules_tsv "$blocked_file" "$hosts_file" "$labels_file" || true
+
+  active_users="$(ha_count_lines "$users_file")"
+  active_devices="$(ha_count_lines "$hosts_file")"
+  limited_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$limited_file" 2>/dev/null)"
+  blocked_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$blocked_file" 2>/dev/null)"
+  qos_enabled_count="$(awk 'NF{c++} END{print c+0}' "$QOS_HOSTS_FILE" 2>/dev/null)"
+  echo "$active_users" | grep -qE '^[0-9]+$' || active_users=0
+  echo "$active_devices" | grep -qE '^[0-9]+$' || active_devices=0
+  echo "$limited_users" | grep -qE '^[0-9]+$' || limited_users=0
+  echo "$blocked_users" | grep -qE '^[0-9]+$' || blocked_users=0
+  echo "$qos_enabled_count" | grep -qE '^[0-9]+$' || qos_enabled_count=0
+
+  have_iptables=0
+  command -v iptables >/dev/null 2>&1 && have_iptables=1
+  have_hashlimit=0
+  iptables -m hashlimit -h >/dev/null 2>&1 && have_hashlimit=1
+
+  cpu_pct="$(status_cpu_pct_sample 2>/dev/null || echo 0)"
+  echo "$cpu_pct" | grep -qE '^[0-9]+$' || cpu_pct=0
+  [ "$cpu_pct" -lt 0 ] && cpu_pct=0
+  [ "$cpu_pct" -gt 100 ] && cpu_pct=100
+
+  uptime_sec=0
+  [ -r /proc/uptime ] && uptime_sec="$(awk '{print int($1)}' /proc/uptime 2>/dev/null)"
+  echo "$uptime_sec" | grep -qE '^[0-9]+$' || uptime_sec=0
+
+  mem_total_kb=0
+  mem_avail_kb=0
+  if [ -r /proc/meminfo ]; then
+    mem_total_kb="$(awk '/MemTotal:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+    mem_avail_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+    [ -n "$mem_avail_kb" ] || mem_avail_kb="$(awk '/MemFree:/{print $2; exit}' /proc/meminfo 2>/dev/null)"
+  fi
+  echo "$mem_total_kb" | grep -qE '^[0-9]+$' || mem_total_kb=0
+  echo "$mem_avail_kb" | grep -qE '^[0-9]+$' || mem_avail_kb=0
+  mem_used_kb=$((mem_total_kb-mem_avail_kb))
+  [ "$mem_used_kb" -lt 0 ] && mem_used_kb=0
+  mem_used_pct=0
+  if [ "$mem_total_kb" -gt 0 ]; then
+    mem_used_pct=$(( (100*mem_used_kb)/mem_total_kb ))
+  fi
+  mem_used_mb=$((mem_used_kb/1024))
+
+  hostname="$(uname -n 2>/dev/null | tr -d '\n' | head -n 1)"
+  [ -n "$hostname" ] || hostname="router"
+  model=""
+  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d '\000\n' | head -n 1)"
+  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\000\n' | head -n 1)"
+  [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '\n' | head -n 1)"
+  firmware="$(detect_router_firmware_text)"
+
+  mihomo_ver=""
+  mihomo_running=false
+  if command -v mihomo >/dev/null 2>&1; then
+    mihomo_ver="$(mihomo -v 2>/dev/null | head -n 1 | tr -d '\n')"
+    pidof mihomo >/dev/null 2>&1 && mihomo_running=true
+  elif command -v clash-meta >/dev/null 2>&1; then
+    mihomo_ver="$(clash-meta -v 2>/dev/null | head -n 1 | tr -d '\n')"
+    pidof clash-meta >/dev/null 2>&1 && mihomo_running=true
+  fi
+  if [ "$mihomo_running" = false ]; then
+    ps 2>/dev/null | grep -v grep | grep -qE 'mihomo|clash-meta' && mihomo_running=true
+  fi
+
+  wan_iface="$WAN_IF"
+  [ -n "$wan_iface" ] || wan_iface="eth0"
+  if ! ip link show "$wan_iface" >/dev/null 2>&1; then
+    wan_iface="$(ip -4 route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+  fi
+  [ -n "$wan_iface" ] || wan_iface="$WAN_IF"
+  [ -n "$wan_iface" ] || wan_iface="eth0"
+  wan_up=false
+  if [ -r "/sys/class/net/$wan_iface/operstate" ]; then
+    state_="$(cat "/sys/class/net/$wan_iface/operstate" 2>/dev/null | tr -d '\n')"
+    case "$state_" in up|unknown) wan_up=true ;; esac
+  else
+    ip link show "$wan_iface" 2>/dev/null | grep -q 'state UP' && wan_up=true
+  fi
+
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","router":{"hostname":"%s","model":"%s","firmware":"%s"},"agent":{"up":true,"version":"%s","serverVersion":"%s"},"mihomo":{"running":%s,"version":"%s"},"system":{"cpu_pct":%s,"memory_used_mb":%s,"memory_pct":%s,"uptime_seconds":%s,"wan_up":%s,"wan_iface":"%s"},"counts":{"active_users":%s,"active_devices":%s,"limited_users":%s,"blocked_users":%s,"qos_enabled":%s},"capabilities":{"tc":%s,"iptables":%s,"hashlimit":%s}}' \
+    "$(jesc "$(ha_now_iso)")" "$(jesc "$hostname")" "$(jesc "$model")" "$(jesc "$firmware")" "$(jesc "$AGENT_VERSION")" "$(jesc "$(status_remote_agent_version_cached 2>/dev/null || echo "$AGENT_VERSION")")" "$mihomo_running" "$(jesc "$mihomo_ver")" "$cpu_pct" "$mem_used_mb" "$mem_used_pct" "$uptime_sec" "$wan_up" "$(jesc "$wan_iface")" "$active_users" "$active_devices" "$limited_users" "$blocked_users" "$qos_enabled_count" $( [ $have_tc -eq 1 ] && echo true || echo false ) $( [ $have_iptables -eq 1 ] && echo true || echo false ) $( [ $have_hashlimit -eq 1 ] && echo true || echo false ))"
+
+  ha_cache_put ha_status "$payload" >/dev/null 2>&1 || true
+  rm -f "$hosts_file" "$labels_file" "$users_file" "$limited_file" "$blocked_file" >/dev/null 2>&1 || true
+  reply_ok "$payload"
+}
+
+ha_traffic_json() {
+  cached_payload="$(ha_cache_get ha_traffic "$HA_TRAFFIC_TTL_SECS" 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
+  current_file="$(new_tmp_file zash_ha_traffic_current)"
+  rates_file="$(new_tmp_file zash_ha_traffic_rates)"
+  [ -n "$current_file" ] || current_file="/tmp/zash_ha_traffic_current.$$"
+  [ -n "$rates_file" ] || rates_file="/tmp/zash_ha_traffic_rates.$$"
+  ensure_tmp_file "$current_file" || true
+  ensure_tmp_file "$rates_file" || true
+
+  state_file="$(ha_cache_dir)/traffic-state.tsv"
+  ts_file="$(ha_cache_dir)/traffic-state.ts"
+  mkdir -p "$(ha_cache_dir)" >/dev/null 2>&1 || true
+
+  ha_collect_iface_counters_tsv "$current_file"
+
+  now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
+  prev_ms="$(cat "$ts_file" 2>/dev/null | tr -d '\n ' || true)"
+  echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
+  if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
+    dt_ms=$((now_ms - prev_ms))
+  else
+    dt_ms=0
+  fi
+  if [ "$dt_ms" -gt 0 ]; then
+    dt_sec="$(awk -v ms="$dt_ms" 'BEGIN { printf "%.3f", (ms / 1000) }')"
+  else
+    dt_sec="0"
+  fi
+
+  prev_input="/dev/null"
+  [ -f "$state_file" ] && prev_input="$state_file"
+  awk -F'\t' -v dt="$dt_sec" '
+    FNR==NR { prx[$1]=$3+0; ptx[$1]=$4+0; next }
+    {
+      name=$1; kind=$2; rx=$3+0; tx=$4+0;
+      rxb=(dt > 0 && rx >= prx[name] ? (rx - prx[name]) / dt : 0);
+      txb=(dt > 0 && tx >= ptx[name] ? (tx - ptx[name]) / dt : 0);
+      printf "%s\t%s\t%.0f\t%.0f\t%.0f\t%.0f\n", name, kind, rx, tx, rxb, txb;
+    }
+  ' "$prev_input" "$current_file" > "$rates_file" 2>/dev/null || ensure_tmp_file "$rates_file" || true
+
+  cp "$current_file" "$state_file" 2>/dev/null || true
+  printf '%s' "$now_ms" > "$ts_file" 2>/dev/null || true
+
+  wan_row="$(awk -F'\t' '$2=="wan"{print; exit}' "$rates_file" 2>/dev/null)"
+  if [ -n "$wan_row" ]; then
+    wan_iface="$(printf '%s' "$wan_row" | awk -F'\t' '{print $1}')"
+    wan_rx_bytes="$(printf '%s' "$wan_row" | awk -F'\t' '{print $3}')"
+    wan_tx_bytes="$(printf '%s' "$wan_row" | awk -F'\t' '{print $4}')"
+    wan_rx_bps="$(printf '%s' "$wan_row" | awk -F'\t' '{print $5}')"
+    wan_tx_bps="$(printf '%s' "$wan_row" | awk -F'\t' '{print $6}')"
+  else
+    wan_iface="$WAN_IF"
+    wan_rx_bytes=0; wan_tx_bytes=0; wan_rx_bps=0; wan_tx_bps=0
+  fi
+
+  detail_json="$(awk -F'\t' '
+    function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); return s }
+    BEGIN { printf "[" }
+    $1 != "" {
+      if (count > 0) printf ","
+      printf "{\"name\":\"%s\",\"kind\":\"%s\",\"rx_bytes\":%.0f,\"tx_bytes\":%.0f,\"rx_bps\":%.0f,\"tx_bps\":%.0f}", esc($1), esc($2), ($3+0), ($4+0), ($5+0), ($6+0)
+      count++
+    }
+    END { printf "]" }
+  ' "$rates_file" 2>/dev/null)"
+
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","wan":{"iface":"%s","rx_bps":%s,"tx_bps":%s,"rx_bytes":%s,"tx_bytes":%s},"summary":{"wan_rx_bps":%s,"wan_tx_bps":%s,"total_rx_bytes":%s,"total_tx_bytes":%s},"interface_detail":%s}' \
+    "$(jesc "$(ha_now_iso)")" "$(jesc "$wan_iface")" "$wan_rx_bps" "$wan_tx_bps" "$wan_rx_bytes" "$wan_tx_bytes" "$wan_rx_bps" "$wan_tx_bps" "$wan_rx_bytes" "$wan_tx_bytes" "$detail_json")"
+
+  ha_cache_put ha_traffic "$payload" >/dev/null 2>&1 || true
+  rm -f "$current_file" "$rates_file" >/dev/null 2>&1 || true
+  reply_ok "$payload"
+}
+
+ha_users_json() {
+  cached_payload="$(ha_cache_get ha_users "$HA_USERS_TTL_SECS" 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
+  labels_file="$(new_tmp_file zash_ha_users_labels)"
+  hosts_rates_file="$(new_tmp_file zash_ha_users_hosts_rates)"
+  users_rates_file="$(new_tmp_file zash_ha_users_user_rates)"
+  devices_rates_file="$(new_tmp_file zash_ha_users_device_rates)"
+  limited_file="$(new_tmp_file zash_ha_users_limited)"
+  blocked_file="$(new_tmp_file zash_ha_users_blocked)"
+  hosts_file="$(new_tmp_file zash_ha_users_hosts)"
+  [ -n "$labels_file" ] || labels_file="/tmp/zash_ha_users_labels.$$"
+  [ -n "$hosts_rates_file" ] || hosts_rates_file="/tmp/zash_ha_users_hosts_rates.$$"
+  [ -n "$users_rates_file" ] || users_rates_file="/tmp/zash_ha_users_user_rates.$$"
+  [ -n "$devices_rates_file" ] || devices_rates_file="/tmp/zash_ha_users_device_rates.$$"
+  [ -n "$limited_file" ] || limited_file="/tmp/zash_ha_users_limited.$$"
+  [ -n "$blocked_file" ] || blocked_file="/tmp/zash_ha_users_blocked.$$"
+  [ -n "$hosts_file" ] || hosts_file="/tmp/zash_ha_users_hosts.$$"
+
+  ensure_tmp_file "$labels_file" || true
+  ha_users_db_exact_labels_tsv "$labels_file" || true
+  ha_collect_active_hosts_tsv "$hosts_file" || true
+  mkdir -p "$(ha_cache_dir)" >/dev/null 2>&1 || true
+  ha_host_traffic_snapshot_tsv "$hosts_rates_file" "$(ha_cache_dir)/users-state.tsv" "$(ha_cache_dir)/users-state.ts"
+  ha_build_user_rates_tsv "$hosts_rates_file" "$labels_file" "$users_rates_file" || true
+  sort -t'\t' -k2,2nr -k3,3nr "$users_rates_file" -o "$users_rates_file" 2>/dev/null || true
+  ha_build_device_rates_tsv "$hosts_rates_file" "$labels_file" "$devices_rates_file" || true
+  sort -t'\t' -k3,3nr -k4,4nr "$devices_rates_file" -o "$devices_rates_file" 2>/dev/null || true
+  ha_limited_rules_tsv "$limited_file" "$hosts_file" "$labels_file" || true
+  ha_blocked_rules_tsv "$blocked_file" "$hosts_file" "$labels_file" || true
+
+  active_users="$(ha_count_lines "$users_rates_file")"
+  active_devices="$(ha_count_lines "$devices_rates_file")"
+  limited_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$limited_file" 2>/dev/null)"
+  blocked_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$blocked_file" 2>/dev/null)"
+  echo "$active_users" | grep -qE '^[0-9]+$' || active_users=0
+  echo "$active_devices" | grep -qE '^[0-9]+$' || active_devices=0
+  echo "$limited_users" | grep -qE '^[0-9]+$' || limited_users=0
+  echo "$blocked_users" | grep -qE '^[0-9]+$' || blocked_users=0
+
+  top_users_json="$(ha_json_users_from_tsv "$users_rates_file" 5)"
+  top_devices_json="$(ha_json_devices_from_tsv "$devices_rates_file" 5)"
+  limited_json="$(ha_json_limited_from_tsv "$limited_file")"
+  blocked_json="$(ha_json_blocked_from_tsv "$blocked_file")"
+  per_user_json="$(ha_json_users_from_tsv "$users_rates_file" 0)"
+  per_device_json="$(ha_json_devices_from_tsv "$devices_rates_file" 0)"
+
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","counts":{"active_users":%s,"active_devices":%s,"limited_users":%s,"blocked_users":%s},"top_users":%s,"top_devices":%s,"limited":%s,"blocked":%s,"per_user_breakdown":%s,"per_device_breakdown":%s}' \
+    "$(jesc "$(ha_now_iso)")" "$active_users" "$active_devices" "$limited_users" "$blocked_users" "$top_users_json" "$top_devices_json" "$limited_json" "$blocked_json" "$per_user_json" "$per_device_json")"
+
+  ha_cache_put ha_users "$payload" >/dev/null 2>&1 || true
+  rm -f "$labels_file" "$hosts_rates_file" "$users_rates_file" "$devices_rates_file" "$limited_file" "$blocked_file" "$hosts_file" >/dev/null 2>&1 || true
+  reply_ok "$payload"
+}
+
+ha_qos_json() {
+  cached_payload="$(ha_cache_get ha_qos "$HA_QOS_TTL_SECS" 2>/dev/null || true)"
+  if [ -n "$cached_payload" ]; then
+    reply_ok "$cached_payload"
+    return
+  fi
+
+  labels_file="$(new_tmp_file zash_ha_qos_labels)"
+  hosts_file="$(new_tmp_file zash_ha_qos_hosts)"
+  limited_file="$(new_tmp_file zash_ha_qos_limited)"
+  blocked_file="$(new_tmp_file zash_ha_qos_blocked)"
+  qos_rules_file="$(new_tmp_file zash_ha_qos_rules)"
+  [ -n "$labels_file" ] || labels_file="/tmp/zash_ha_qos_labels.$$"
+  [ -n "$hosts_file" ] || hosts_file="/tmp/zash_ha_qos_hosts.$$"
+  [ -n "$limited_file" ] || limited_file="/tmp/zash_ha_qos_limited.$$"
+  [ -n "$blocked_file" ] || blocked_file="/tmp/zash_ha_qos_blocked.$$"
+  [ -n "$qos_rules_file" ] || qos_rules_file="/tmp/zash_ha_qos_rules.$$"
+
+  ensure_tmp_file "$labels_file" || true
+  ha_users_db_exact_labels_tsv "$labels_file" || true
+  ha_collect_active_hosts_tsv "$hosts_file" || true
+  ha_limited_rules_tsv "$limited_file" "$hosts_file" "$labels_file" || true
+  ha_blocked_rules_tsv "$blocked_file" "$hosts_file" "$labels_file" || true
+  ha_qos_rules_tsv "$qos_rules_file" "$hosts_file" "$labels_file" || true
+
+  qos_enabled_count="$(awk 'NF{c++} END{print c+0}' "$QOS_HOSTS_FILE" 2>/dev/null)"
+  limited_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$limited_file" 2>/dev/null)"
+  blocked_users="$(awk -F'\t' '$1 != "" { seen[$1]=1 } END { c=0; for (k in seen) c++; print c+0 }' "$blocked_file" 2>/dev/null)"
+  rules_active="$(ha_count_lines "$qos_rules_file")"
+  echo "$qos_enabled_count" | grep -qE '^[0-9]+$' || qos_enabled_count=0
+  echo "$limited_users" | grep -qE '^[0-9]+$' || limited_users=0
+  echo "$blocked_users" | grep -qE '^[0-9]+$' || blocked_users=0
+  echo "$rules_active" | grep -qE '^[0-9]+$' || rules_active=0
+  qos_enabled=false
+  [ "$rules_active" -gt 0 ] && qos_enabled=true
+
+  summary_json="$(printf '{"wan_rate_mbit":%s,"lan_rate_mbit":%s,"rules_active":%s,"shaper_downlink_mode":"%s"}' "$WAN_RATE" "$LAN_RATE" "$rules_active" "$(jesc "$(shaper_downlink_mode_effective_passive 2>/dev/null || echo auto)")")"
+  rules_json="$(ha_json_qos_rules_from_tsv "$qos_rules_file")"
+
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","qos_enabled":%s,"counts":{"qos_enabled":%s,"limited_users":%s,"blocked_users":%s},"summary":%s,"qos_rules_detail":%s}' \
+    "$(jesc "$(ha_now_iso)")" "$qos_enabled" "$qos_enabled_count" "$limited_users" "$blocked_users" "$summary_json" "$rules_json")"
+
+  ha_cache_put ha_qos "$payload" >/dev/null 2>&1 || true
+  rm -f "$labels_file" "$hosts_file" "$limited_file" "$blocked_file" "$qos_rules_file" >/dev/null 2>&1 || true
+  reply_ok "$payload"
+}
+
+ha_contract_meta_json() {
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","contract":"zash.ha.snapshot.v1","agent_version":"%s","cache":{"ha_status_ttl_sec":%s,"ha_traffic_ttl_sec":%s,"ha_users_ttl_sec":%s,"ha_qos_ttl_sec":%s},"commands":["ha_contract_meta","ha_status","ha_traffic","ha_users","ha_qos"],"entity_namespace":{"sensor":"sensor.smartlife_router_*","binary_sensor":"binary_sensor.smartlife_router_*"},"notes":{"transport":"json over router-agent cgi","snapshot_cache":"short on-router cache to avoid rebuilding shell snapshots on every poll"}}' \
+    "$(jesc "$(ha_now_iso)")" "$(jesc "$AGENT_VERSION")" "$HA_STATUS_TTL_SECS" "$HA_TRAFFIC_TTL_SECS" "$HA_USERS_TTL_SECS" "$HA_QOS_TTL_SECS")"
+  reply_ok "$payload"
+}
+
 # Save a lightweight trace of requests (best effort).
 agent_log
 
 case "$cmd" in
   status|"") status ;;
+  ha_contract_meta) ha_contract_meta_json ;;
+  ha_status) ha_status_json ;;
+  ha_traffic) ha_traffic_json ;;
+  ha_users) ha_users_json ;;
+  ha_qos) ha_qos_json ;;
   status_debug) status_debug ;;
   neighbors) neighbors ;;
   lan_hosts) lan_hosts_json ;;

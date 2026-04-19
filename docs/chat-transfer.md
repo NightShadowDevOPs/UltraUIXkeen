@@ -1,25 +1,33 @@
 # UI Mihomo / Ultra — перенос в новый чат
 
 ## Текущее состояние
-- Текущая версия UI: **v1.2.135**
-- Router-agent: **0.6.26**
+- Текущая версия UI: **v1.2.136**
+- Router-agent: **0.6.27**
 - Основной репозиторий: `NightShadowDevOPs/UltraUIXkeen`
 - Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
 - Путь на роутере: `/opt/UltraUIXkeen`
 
-## Что сделано в v1.2.135
-- в `Router → Трафик → Пользователи` сделана sticky-панель рабочего контура: поиск, focus, счётчики и bulk-операции остаются видимыми при длинной прокрутке
-- в `Router → Трафик → Хосты / QoS` сделана sticky-сводка с поиском, текущим focus и краткими счётчиками, чтобы не приходилось каждый раз возвращаться вверх
-- обновлён handoff-пакет для интеграции роутера с Home Assistant: зафиксирован подтверждённый REST-first контракт, namespace сущностей `smartlife_router_*`, интервалы обновления и разделение sensor/binary_sensor vs attributes
-- `router-agent` в этом релизе не менялся и остаётся `0.6.26`
+## Что вошло в v1.2.136
+- поднят UI до `1.2.136`
+- поднят `router-agent` до `0.6.27`
+- в `api.sh` добавлены новые команды HA export-контура: `ha_contract_meta`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`
+- добавлен короткий cache-слой для snapshot-ответов Home Assistant, чтобы роутер не пересобирал тяжёлые shell-данные на каждый опрос: `30s / 15s / 60s / 60s`
+- сброс внутреннего status/cache контура теперь заодно чистит и HA snapshot cache
+- обновлены `CHANGELOG.md`, `docs/release-plan.md`, `CURRENT_CHAT_TRANSFER_NOTE.md`, `TRANSFER_CHAT` и этот файл
+- обновлён HA handoff-пакет: `docs/ha-export-bridge.md`, `docs/ha-export/README.md`, `docs/ha-export/rest-contract.md`, `docs/ha-export/homeassistant-entity-map.md` и sample/example JSON
 
 ## Что проверять после выкладки
-1. `Router → Трафик → Пользователи`: при длинной прокрутке sticky-панель остаётся видимой, фильтр и bulk-операции работают
-2. `Router → Трафик → Пользователи`: выбор нескольких пользователей, apply profile, unblock/reset и disable limits не сломаны
-3. `Router → Трафик → Хосты / QoS`: sticky-сводка остаётся сверху и не перекрывает таблицу/строки
-4. в архиве есть `docs/ha-export-bridge.md` и папка `docs/ha-export/` с обновлённым confirmed-contract для HA
-5. `CURRENT_CHAT_TRANSFER_NOTE.md` и `docs/chat-transfer.md` синхронизированы по версии `v1.2.135`
+1. в UI версия показывает `v1.2.136`
+2. на роутере `router-agent` отвечает командой:
+   - `http://<router-ip>:9099/cgi-bin/api.sh?cmd=ha_contract_meta`
+   - `http://<router-ip>:9099/cgi-bin/api.sh?cmd=ha_status`
+   - `http://<router-ip>:9099/cgi-bin/api.sh?cmd=ha_traffic`
+   - `http://<router-ip>:9099/cgi-bin/api.sh?cmd=ha_users`
+   - `http://<router-ip>:9099/cgi-bin/api.sh?cmd=ha_qos`
+3. ответы приходят JSON-ом с `format_version: 1`, а не HTML/ошибкой CGI
+4. повторные вызовы не жарят роутер: трафик/пользователи/qoS читаются из короткого cache, а не пересобираются каждый раз в лоб
+5. в архиве есть `docs/chat-transfer.md`, `CURRENT_CHAT_TRANSFER_NOTE.md` и обновлённая папка `docs/ha-export/`
 
 ## Следующий зафиксированный шаг
-- **v1.2.136** — lightweight router-agent export groundwork: формализовать payload schema/version и cache/TTL для `ha_status / ha_traffic / ha_users / ha_qos`
-- затем **v1.2.137** — первый runtime-этап snapshot endpoint'ов на стороне router-agent без MQTT/discovery в первом шаге
+- **v1.2.137** — live-router validation + HA template package
+- затем **v1.2.138** — optional MQTT/discovery spike, только если REST-first контур останется чистым и достаточно стабильным

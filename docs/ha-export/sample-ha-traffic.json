@@ -1,15 +1,36 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
+  "timestamp": "2026-04-19T13:16:23Z",
   "wan": {
-    "rx_bps": 18300000,
-    "tx_bps": 4200000,
-    "total_rx_bytes": 98234098234,
-    "total_tx_bytes": 4523498234
+    "iface": "eth3",
+    "rx_bps": 1843200,
+    "tx_bps": 512000,
+    "rx_bytes": 18736291844,
+    "tx_bytes": 3940253188
   },
-  "interface_detail": {
-    "name": "pppoe-wan",
-    "rx_packets": 82349823,
-    "tx_packets": 42123982
-  }
+  "summary": {
+    "wan_rx_bps": 1843200,
+    "wan_tx_bps": 512000,
+    "total_rx_bytes": 18736291844,
+    "total_tx_bytes": 3940253188
+  },
+  "interface_detail": [
+    {
+      "name": "eth3",
+      "kind": "wan",
+      "rx_bytes": 18736291844,
+      "tx_bytes": 3940253188,
+      "rx_bps": 1843200,
+      "tx_bps": 512000
+    },
+    {
+      "name": "br0",
+      "kind": "lan",
+      "rx_bytes": 13577264311,
+      "tx_bytes": 22852111401,
+      "rx_bps": 1478656,
+      "tx_bps": 1769472
+    }
+  ]
 }

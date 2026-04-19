@@ -1,19 +1,43 @@
 {
+  "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T12:00:00Z",
-  "summary": {
-    "total_hosts": 19,
-    "normal": 14,
-    "limited": 4,
-    "blocked": 1
+  "timestamp": "2026-04-19T13:16:24Z",
+  "qos_enabled": true,
+  "counts": {
+    "qos_enabled": 4,
+    "limited_users": 2,
+    "blocked_users": 1
   },
-  "profiles": [
-    { "key": "normal", "label": "Нормальный", "hosts": 14 },
-    { "key": "limited", "label": "Ограничен", "hosts": 4 },
-    { "key": "blocked", "label": "Заблокирован", "hosts": 1 }
-  ],
-  "top_hosts": [
-    { "ip": "192.168.0.21", "label": "Work PC", "profile": "limited" },
-    { "ip": "192.168.0.42", "label": "Guest phone", "profile": "blocked" }
+  "summary": {
+    "wan_rate_mbit": 500,
+    "lan_rate_mbit": 1000,
+    "rules_active": 7,
+    "shaper_downlink_mode": "wan-police"
+  },
+  "qos_rules_detail": [
+    {
+      "target": "Denis-Laptop",
+      "profile": "high",
+      "shape": "qos",
+      "detail": "192.168.1.12"
+    },
+    {
+      "target": "LivingRoom-TV",
+      "profile": "low",
+      "shape": "qos",
+      "detail": "192.168.1.44"
+    },
+    {
+      "target": "Kids-Tablet",
+      "profile": "limited",
+      "shape": "shape",
+      "detail": "192.168.1.33 (up:8/down:20)"
+    },
+    {
+      "target": "Unknown-IoT",
+      "profile": "blocked",
+      "shape": "block",
+      "detail": "AA:BB:CC:DD:EE:99"
+    }
   ]
 }
