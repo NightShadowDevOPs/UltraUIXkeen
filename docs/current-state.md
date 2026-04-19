@@ -1,29 +1,19 @@
 # UltraUIXkeen — Current state
 
 ## Release target
-- UI package target for this release: **v1.2.142**
-- Router-agent line confirmed on router: **0.6.31**
-- Home Assistant bridge contract: **frozen / do not change payload shape**
+- UI package target for this release: **v1.2.143**
+- Router-agent line confirmed for this package: **0.6.31**
+- Home Assistant bridge contract: **frozen / do not change payload shape without explicit need**
 - Current stable HA pull model: **single `ha_snapshot` poll + attribute split inside HA**
-- Current HA UX addition: **freshness / stale helper sensors are computed inside HA only**
 
 ## What is confirmed right now
-- Router and Home Assistant are already delivering `ha_snapshot` correctly after router-agent `0.6.31`.
-- The user sees router data in HA, but some cards periodically show **«Нет данных»**.
-- The agreed safe next step was: do **not** expand the router-agent JSON; instead, show data age / stale-state inside Home Assistant.
-- Heavy extra polling should be avoided so the router is not hammered for the sake of prettier cards.
+- Router and Home Assistant already exchange data correctly through `ha_snapshot`.
+- The user confirmed that the metrics are coming in and the HA side was checked successfully.
+- `v1.2.142` introduced HA-side freshness helpers without changing the transport contract.
+- This `v1.2.143` package focuses on packaging the current state, transfer context and workflow rules for safe continuation in a new chat.
 
-## Release intent for v1.2.142
-- Не менять структуру данных, которые Ultra / router-agent передают в Home Assistant.
-- Добавить в Home Assistant слой индикации свежести `snapshot` / `traffic` / `users` / `qos` без дополнительной нагрузки на роутер.
-- Обновить handoff-документы, release-plan и карту сущностей под новые helper-сенсоры.
-
-## Previous release intent for v1.2.141
-- Не менять структуру данных, которые Ultra / router-agent передают в Home Assistant.
-- Выгрузить накопленную проектную память и рабочие договорённости в файлы внутри проекта.
-- Обновить все handoff-документы, чтобы следующий чат можно было начать без потери контекста.
-
-## Important guardrails
-- Не ломать автоматическую проверку SSL-сертификатов прокси-провайдеров.
-- Не возвращаться к `git pull` как к основному сценарию обновления UI на роутере.
-- В docs и handoff-файлах каждый релиз должен фиксировать и сам шаг, и запрос пользователя, а не только итог.
+## Current guardrails
+- Do not casually change the HA JSON contract.
+- Do not break automatic SSL certificate checks for providers.
+- Do not switch back to router-side `git pull` as the default UI update flow.
+- Keep docs / handoff files current in every release.

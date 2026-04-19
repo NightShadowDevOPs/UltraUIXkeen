@@ -1,22 +1,16 @@
 # UltraUIXkeen — Request ledger
 
 ## Long-lived user requirements
-- Каждый релиз должен содержать архив, commit message, команды для роутера и обновлённые docs / handoff-файлы.
-- В `docs` должен поддерживаться файл переноса в новый чат.
-- Если меняется `router-agent`, нужно синхронизировать его версию в `install.sh` и status API.
-- В командах для роутера всегда добавлять `clear`.
-- На роутере пользователь обновляет UI через сам интерфейс, а не через `git pull` как основной путь.
-- Автоматическую проверку SSL-сертификатов прокси-провайдеров ломать нельзя.
-- При работе с Home Assistant bridge нельзя без нужды менять JSON-контракт экспортируемых данных.
+- Each release should contain archives, a separate commit message, updated docs and transfer files.
+- Keep a transfer file in `docs` for moving the project into a new chat.
+- If `router-agent` changes, sync its version in `install.sh` and in the status API.
+- Router command blocks should start with `clear`.
+- Do not treat `git pull` on the router as the main UI update path.
+- Do not break automatic SSL certificate checks of proxy providers.
+- Do not change the HA JSON contract unless there is a strong reason and it is explicitly agreed.
 
-## Специальная договорённость на релиз v1.2.142
-- Не менять структуру данных, которые передаются в HA.
-- Индикацию свежести / stale-состояния считать в Home Assistant derived-сенсорами, а не расширять router-agent payload.
-
-## Специальная договорённость на релиз v1.2.141
-- Не менять структуру данных, которые передаются в HA.
-- Всю накопленную рабочую информацию и проектную память выгрузить в файлы внутри проекта.
-
-## Current focus after this release
-- Дальше развивать Host / Traffic diagnostics cards уже поверх стабилизированного bridge-контра.
-- Потом перейти к QoS / shaping visibility cleanup и общей полировке раздела «Трафик».
+## Special request for v1.2.143
+- Prepare the current release.
+- Prepare clean transfer information for a new chat.
+- Prepare a memory snapshot with an explanation of how this memory should be used during work.
+- Document the working order: command blocks, commit messages, checks, release packaging.

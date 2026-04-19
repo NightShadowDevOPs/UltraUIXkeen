@@ -1,19 +1,16 @@
 UltraUIXkeen / UI Mihomo Ultra — transfer summary
 
-Текущая версия UI: v1.2.142
+Текущая версия UI: v1.2.143
 Текущая версия router-agent: 0.6.31
 
-Что вошло в v1.2.142:
-- поднят UI до 1.2.142
+Что вошло в v1.2.143:
+- поднят UI до 1.2.143
 - router-agent не менялся и остаётся 0.6.31
 - структура данных для Home Assistant не менялась
-- в Home Assistant добавлены helper-сенсоры свежести и stale-индикатор поверх существующих timestamp
-- обновлён пример HA dashboard, чтобы было видно задержку / устаревание данных без дополнительной нагрузки на роутер
-- обновлены changelog, release-plan, transfer docs, request-ledger и HA handoff-пакет
+- добавлены docs/model-memory-snapshot.md и docs/workflow-rules.md
+- обновлены transfer docs, release-plan, current-state, request-ledger
 
-Что вошло в v1.2.141:
-- поднят UI до 1.2.141
-- router-agent не менялся и остаётся 0.6.31
-- структура данных для Home Assistant не менялась
-- в docs добавлены project-memory, request-ledger и current-state
-- обновлены changelog, release-plan, transfer docs и HA handoff-пакет
+Главное правило на новый чат:
+- сначала читаем transfer docs и workflow rules
+- потом сверяем реальное состояние repo и runtime
+- только потом планируем следующий релиз

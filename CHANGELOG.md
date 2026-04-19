@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.143 — release packaging, transfer kit and workflow snapshot
+- raised UI package version to `1.2.143`
+- router-agent left unchanged at `0.6.31`
+- added `docs/model-memory-snapshot.md` with a practical snapshot of remembered project rules and an explanation of how this memory should be used
+- added `docs/workflow-rules.md` with the agreed release workflow: archives, commit block, router commands, checks, docs discipline
+- refreshed current transfer notes, request ledger, current state and release plan for clean handoff into a new chat
+- Home Assistant bridge contract remains unchanged
+
 ## v1.2.142 — HA snapshot freshness helpers and no-data UX
 
 - raised UI to `1.2.142`
