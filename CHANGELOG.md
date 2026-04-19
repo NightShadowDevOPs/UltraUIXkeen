@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.141 — project memory export and docs freeze
+
+- raised UI to `1.2.141`
+- kept `router-agent` at `0.6.31` — no agent/API payload changes in this release
+- **did not change** the Home Assistant JSON contract or payload structure
+- exported the accumulated project context into docs: added project memory, request ledger, current live state, and synced chat-transfer materials
+- refreshed release plan, HA handoff docs, chat-transfer docs, and examples around the current `ha_snapshot`-based integration
+
 ## v1.2.140 — router-agent install hotfix
 
 - raised UI to `1.2.140`

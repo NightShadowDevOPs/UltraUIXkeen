@@ -59,3 +59,7 @@
 
 ## Home Assistant bundle
 Готовые YAML-файлы лежат в `docs/ha-export/homeassistant/`. Начиная с `v1.2.140`, основной пакет переведён на единый `ha_snapshot` resource.
+
+## Contract freeze note
+В релизе `v1.2.141` структура JSON для Home Assistant намеренно не менялась. Это документный / handoff release поверх уже подтверждённого `ha_snapshot`-контракта.
+
