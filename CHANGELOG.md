@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.150 - calmer secondary Traffic/QoS polling
+- raised UI package version to `1.2.150`
+- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
+- slowed down secondary background refresh loops in **Host QoS** and **Traffic / Users** so the router sees fewer repeated status/qos/runtime reads
+- added short cache windows for repeated `status`, `qos_status` and `lan_hosts` reads inside QoS widget flows
+- kept the main live traffic contour untouched so the Overview traffic weights chart and live traffic path stay responsive
+- silent Host QoS auto-refresh no longer flashes the loading state on normal timer ticks
+- documentation and transfer files refreshed for `v1.2.150`
+
 ## v1.2.149 - traffic workspace polling dedupe and stable overview fallback
 - добавлен короткоживущий клиентский dedupe/cache для `traffic_live`, `host_traffic_live` и `lan_hosts`, чтобы UI не дёргал router-agent повторно при одновременных обновлениях карточек
 - в `NetcrazeTrafficCard` добавлен safe fallback на последний стабильный live-сэмпл, чтобы кратковременный промах agent telemetry не ронял обзорные графики и не сбрасывал веса трафика в ноль

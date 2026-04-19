@@ -715,11 +715,16 @@ const profileSummary = (profile: AgentQosProfile) => {
   return `${item.pct || 0}% · prio ${item.priority ?? '—'}`
 }
 
+const STATUS_REFRESH_CACHE_MS = 5_000
+const QOS_REFRESH_CACHE_MS = 5_000
+const LAN_HOSTS_REFRESH_CACHE_MS = 20_000
+const LIVE_HOST_TRAFFIC_CACHE_MS = 4_000
+
 const refreshSummary = async () => {
   const [st, q, h] = await Promise.all([
-    agentStatusAPI(),
-    agentQosStatusAPI(),
-    agentLanHostsAPI(),
+    agentStatusAPI({ maxAgeMs: STATUS_REFRESH_CACHE_MS }),
+    agentQosStatusAPI({ maxAgeMs: QOS_REFRESH_CACHE_MS }),
+    agentLanHostsAPI({ maxAgeMs: LAN_HOSTS_REFRESH_CACHE_MS }),
   ])
   status.value = { ok: !!st.ok, hostQos: !!st.hostQos }
   qos.value = q.ok ? q : { ok: false, supported: false, items: [], error: q.error }
@@ -730,21 +735,23 @@ const refreshSummary = async () => {
   else if (!q.ok) error.value = q.error || t('hostQosStatusFailed')
 }
 
-const refreshAll = async ({ includeLive = expanded.value || Boolean(props.focusUser || props.focusIp) }: { includeLive?: boolean } = {}) => {
+const refreshAll = async ({
+  includeLive = expanded.value || Boolean(props.focusUser || props.focusIp),
+  silent = false,
+}: { includeLive?: boolean; silent?: boolean } = {}) => {
   if (!agentEnabled.value) return
-  loading.value = true
+  if (!silent) loading.value = true
   error.value = ''
   try {
     if (!includeLive) {
       await refreshSummary()
-      traffic.value = []
       return
     }
     const [st, q, h, tr] = await Promise.all([
-      agentStatusAPI(),
-      agentQosStatusAPI(),
-      agentLanHostsAPI(),
-      agentHostTrafficLiveAPI(),
+      agentStatusAPI({ maxAgeMs: STATUS_REFRESH_CACHE_MS }),
+      agentQosStatusAPI({ maxAgeMs: QOS_REFRESH_CACHE_MS }),
+      agentLanHostsAPI({ maxAgeMs: LAN_HOSTS_REFRESH_CACHE_MS }),
+      agentHostTrafficLiveAPI({ maxAgeMs: LIVE_HOST_TRAFFIC_CACHE_MS }),
     ])
     status.value = { ok: !!st.ok, hostQos: !!st.hostQos }
     qos.value = q.ok ? q : { ok: false, supported: false, items: [], error: q.error }
@@ -755,7 +762,7 @@ const refreshAll = async ({ includeLive = expanded.value || Boolean(props.focusU
     if (!st.ok) error.value = st.error || t('agentOfflineTip')
     else if (!q.ok) error.value = q.error || t('hostQosStatusFailed')
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -805,8 +812,15 @@ watch(appliedProfiles, () => {
 }, { deep: true })
 
 useSafePolling({
-  callback: refreshAll,
-  intervalMs: 15_000,
+  callback: () => refreshAll({ includeLive: false, silent: true }),
+  intervalMs: 45_000,
+  enabled: () => expanded.value,
+  immediate: false,
+})
+
+useSafePolling({
+  callback: () => refreshAll({ includeLive: true, silent: true }),
+  intervalMs: 12_000,
   enabled: () => expanded.value,
   immediate: false,
 })

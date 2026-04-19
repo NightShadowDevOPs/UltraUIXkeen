@@ -10,13 +10,14 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.149**
+- UI: **v1.2.150**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.149` kept the conservative agent-side telemetry cache from `v1.2.148`, then added UI-side request dedupe/cache and stable live-snapshot fallback so Overview/Traffic graphs stop flapping on brief telemetry misses
+- `v1.2.150` leaves router-agent untouched and calms down secondary Traffic/QoS refresh loops: summary/runtime polling is rarer, repeated status/qos/lan-host reads are short-cached, while the main live traffic contour stays active
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path
 - observe what can be borrowed from upstream only when it is cheap operationally and does not add constant polling pressure
 - preserve normal work of the Overview traffic weights chart while lightening the UI/runtime contour
+- avoid flashy background loading in Host QoS cards when only silent auto-refresh is happening

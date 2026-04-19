@@ -6,4 +6,7 @@
 - User constraint: the Overview diagram with traffic weights must keep working normally.
 - Action in `v1.2.149`: added UI-side short-lived dedupe/cache for `traffic_live`, `host_traffic_live` and `lan_hosts` requests.
 - Action in `v1.2.149`: added fallback to the last stable live telemetry sample for Overview/Traffic graphs and host live stats so brief agent misses do not zero charts.
+- Action in `v1.2.150`: slowed down secondary Host QoS / Users QoS background refresh loops, while keeping the main live traffic contour intact.
+- Action in `v1.2.150`: added brief cache windows for repeated `status`, `qos_status` and `lan_hosts` reads inside Traffic/QoS widget flows.
+- Action in `v1.2.150`: silent background refresh in Host QoS no longer flips the loading state on every timer tick.
 - Follow-up request to keep in scope: keep looking at what can be taken safely from upstream, but only if it does not increase background load or endanger runtime traffic.

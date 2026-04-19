@@ -1061,7 +1061,7 @@ const agentLanHosts = ref<AgentLanHost[]>([])
 
 const refreshAgentRuntime = async () => {
   try {
-    const st = await agentStatusAPI()
+    const st = await agentStatusAPI({ maxAgeMs: 5_000 })
     const ok = !!st?.ok
     agentRuntimeReady.value = ok
     if (!ok) {
@@ -1072,7 +1072,7 @@ const refreshAgentRuntime = async () => {
     if (!agentEnabled.value) agentEnabled.value = true
     if (!agentEnforceBandwidth.value) agentEnforceBandwidth.value = true
 
-    const hosts = await agentLanHostsAPI().catch(() => ({ ok: false, items: [] as AgentLanHost[] }))
+    const hosts = await agentLanHostsAPI({ maxAgeMs: 20_000 }).catch(() => ({ ok: false, items: [] as AgentLanHost[] }))
     agentLanHosts.value = hosts?.ok && Array.isArray(hosts.items) ? hosts.items : []
     return true
   } catch {
@@ -1431,7 +1431,7 @@ const resolveIpsForQosAction = async (row: Row) => {
 const refreshQosStatus = async () => {
   const ready = await ensureAgentReady()
   if (!ready) return
-  const res = await agentQosStatusAPI()
+  const res = await agentQosStatusAPI({ maxAgeMs: 5_000 })
   qosStatus.value = res.ok ? res : { ok: false, supported: false, items: [], error: res.error }
   if (res.ok) syncAppliedQosProfiles()
 }
@@ -2271,7 +2271,7 @@ const clearUserQos = async (row: Row) => {
 
 useSafePolling({
   callback: refreshQosStatus,
-  intervalMs: 20_000,
+  intervalMs: 35_000,
   immediate: false,
 })
 

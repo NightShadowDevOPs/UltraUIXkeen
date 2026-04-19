@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.149`
+- UI: `v1.2.150`
 - router-agent: `0.6.32`
-- Focus: Traffic workspace polling dedupe and stable Overview/Traffic live fallback
+- Focus: lighter secondary Traffic polling without touching the main live traffic path
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
