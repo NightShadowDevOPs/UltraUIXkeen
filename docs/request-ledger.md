@@ -14,3 +14,9 @@
 - Prepare clean transfer information for a new chat.
 - Prepare a memory snapshot with an explanation of how this memory should be used during work.
 - Document the working order: command blocks, commit messages, checks, release packaging.
+
+## Special request for v1.2.144
+- Host QoS and Traffic / Users should get **normal diagnostics cards**, not just compact counters.
+- Diagnostics cards should be actionable and help navigate to the problematic slice quickly.
+- Do **not** change the Home Assistant data structure / payload contract while doing this UI step.
+- Refresh the transfer pack, memory snapshot and workflow notes again in the same release.

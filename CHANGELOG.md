@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.144 — diagnostics cards for Host and Traffic workspaces
+- raised UI package version to `1.2.144`
+- added a new diagnostics card row in **Host QoS**: live traffic, unlabeled hosts, pending QoS drafts, current slice reset
+- added a new diagnostics card row in **Traffic / Users**: missing devices, stored-only QoS, near-limit users, active live traffic
+- cards are actionable: they open the matching host/user slice instead of being passive counters
+- kept the Home Assistant bridge contract unchanged; no payload or structure changes were made for HA export
+- validation note: local dependency install was unavailable in the container, so final safety check was done with TypeScript transpile parsing of modified Vue/locale files
+
 ## v1.2.143 — release packaging, transfer kit and workflow snapshot
 - raised UI package version to `1.2.143`
 - router-agent left unchanged at `0.6.31`

@@ -85,6 +85,31 @@
       </button>
     </div>
 
+    <div
+      v-if="expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)"
+      class="grid grid-cols-1 gap-2 xl:grid-cols-4"
+    >
+      <button
+        v-for="card in diagnosticsCards"
+        :key="card.key"
+        type="button"
+        class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40 disabled:cursor-default disabled:hover:border-base-content/10 disabled:hover:bg-base-100/50"
+        :class="card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+        :disabled="!card.clickable"
+        @click="card.onClick?.()"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ card.eyebrow }}</div>
+            <div class="mt-1 text-xl font-semibold sm:text-2xl">{{ card.value }}</div>
+          </div>
+          <span v-if="card.badge" class="badge badge-ghost whitespace-nowrap">{{ card.badge }}</span>
+        </div>
+        <div class="mt-2 text-sm font-medium">{{ card.title }}</div>
+        <div class="mt-1 text-xs opacity-70">{{ card.description }}</div>
+      </button>
+    </div>
+
     <template v-if="expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)">
       <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
         <div>{{ $t('hostQosIntro') }}</div>
@@ -412,6 +437,95 @@ const activeFilterLabel = computed(() => {
   if (profileFilter.value === 'limited') return t('hostQosFocusLimited')
   if (profileFilter.value === 'blocked') return t('blocked')
   return profileLabel(profileFilter.value)
+})
+
+const activeTrafficRows = computed(() =>
+  [...rows.value]
+    .filter((row) => Number(row.totalDownBps || 0) + Number(row.totalUpBps || 0) > 0)
+    .sort((a, b) => (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0))),
+)
+
+const unlabeledRows = computed(() =>
+  rows.value.filter((row) => !linkedUserLabel(row) && !String(row.hostname || '').trim()),
+)
+
+const pendingDraftRows = computed(() =>
+  rows.value.filter((row) => (draftProfiles.value[row.ip] || 'normal') !== (row.currentProfile || 'normal')),
+)
+
+const diagnosticsCards = computed(() => {
+  const topTrafficRow = activeTrafficRows.value[0]
+  const unlabeledCount = unlabeledRows.value.length
+  const pendingCount = pendingDraftRows.value.length
+  const activeCount = activeTrafficRows.value.length
+
+  return [
+    {
+      key: 'active-traffic',
+      eyebrow: t('hostQosDiagnosticsEyebrowTraffic'),
+      value: String(activeCount),
+      badge: topTrafficRow ? formatRate(Number(topTrafficRow.totalDownBps || 0) + Number(topTrafficRow.totalUpBps || 0)) : '',
+      title: t('hostQosDiagnosticsTrafficTitle'),
+      description: topTrafficRow
+        ? t('hostQosDiagnosticsTrafficHint', { host: topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip })
+        : t('hostQosDiagnosticsTrafficEmpty'),
+      clickable: !!topTrafficRow,
+      active: !!topTrafficRow && query.value.trim().toLowerCase() === String(topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip).trim().toLowerCase(),
+      onClick: topTrafficRow
+        ? () => {
+            query.value = String(topTrafficRow.displayName || topTrafficRow.hostname || topTrafficRow.ip)
+          }
+        : undefined,
+    },
+    {
+      key: 'unlabeled',
+      eyebrow: t('hostQosDiagnosticsEyebrowHosts'),
+      value: String(unlabeledCount),
+      badge: unlabeledRows.value[0]?.ip || '',
+      title: t('hostQosDiagnosticsUnlabeledTitle'),
+      description: unlabeledCount
+        ? t('hostQosDiagnosticsUnlabeledHint')
+        : t('hostQosDiagnosticsUnlabeledEmpty'),
+      clickable: unlabeledCount > 0,
+      active: unlabeledCount > 0 && !!query.value.trim() && unlabeledRows.value.some((row) => row.ip.toLowerCase().includes(query.value.trim().toLowerCase())),
+      onClick: unlabeledCount > 0
+        ? () => {
+            query.value = unlabeledRows.value[0]?.ip || ''
+          }
+        : undefined,
+    },
+    {
+      key: 'pending',
+      eyebrow: t('hostQosDiagnosticsEyebrowProfiles'),
+      value: String(pendingCount),
+      badge: pendingDraftRows.value[0]?.ip || '',
+      title: t('hostQosDiagnosticsPendingTitle'),
+      description: pendingCount
+        ? t('hostQosDiagnosticsPendingHint')
+        : t('hostQosDiagnosticsPendingEmpty'),
+      clickable: pendingCount > 0,
+      active: pendingCount > 0 && !!query.value.trim() && pendingDraftRows.value.some((row) => row.ip.toLowerCase().includes(query.value.trim().toLowerCase())),
+      onClick: pendingCount > 0
+        ? () => {
+            query.value = pendingDraftRows.value[0]?.ip || ''
+          }
+        : undefined,
+    },
+    {
+      key: 'focus',
+      eyebrow: t('hostQosDiagnosticsEyebrowFocus'),
+      value: String(filteredRows.value.length),
+      badge: activeFilterLabel.value,
+      title: t('hostQosDiagnosticsFocusTitle'),
+      description: t('hostQosDiagnosticsFocusHint', { count: filteredRows.value.length, total: rows.value.length }),
+      clickable: profileFilter.value !== 'all' || !!query.value.trim(),
+      active: profileFilter.value !== 'all' || !!query.value.trim(),
+      onClick: () => {
+        profileFilter.value = 'all'
+        query.value = ''
+      },
+    },
+  ]
 })
 
 const syncAppliedProfiles = () => {

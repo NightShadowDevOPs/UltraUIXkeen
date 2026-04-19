@@ -108,6 +108,29 @@
           <div class="mt-1 text-xs opacity-70">{{ $t('trafficWorkspaceFocusNoDevicesHint') }}</div>
         </button>
       </div>
+
+      <div class="grid grid-cols-1 gap-2 xl:grid-cols-4">
+        <button
+          v-for="card in diagnosticsCards"
+          :key="card.key"
+          type="button"
+          class="rounded-2xl border px-3 py-3 text-left transition hover:border-primary/40 hover:bg-base-200/40 disabled:cursor-default disabled:hover:border-base-content/10 disabled:hover:bg-base-100/50"
+          :class="card.active ? 'border-primary/50 bg-primary/10' : 'border-base-content/10 bg-base-100/50'"
+          :disabled="!card.clickable"
+          @click="card.onClick?.()"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-[11px] uppercase tracking-[0.24em] opacity-60">{{ card.eyebrow }}</div>
+              <div class="mt-1 text-xl font-semibold sm:text-2xl">{{ card.value }}</div>
+            </div>
+            <span v-if="card.badge" class="badge badge-ghost whitespace-nowrap">{{ card.badge }}</span>
+          </div>
+          <div class="mt-2 text-sm font-medium">{{ card.title }}</div>
+          <div class="mt-1 text-xs opacity-70">{{ card.description }}</div>
+        </button>
+      </div>
+
       <div class="sticky top-2 z-20 -mx-1 rounded-2xl border border-base-content/10 bg-base-100/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-base-100/85">
         <div class="flex flex-wrap items-end gap-2">
           <label class="flex min-w-[260px] flex-1 flex-col gap-1 text-sm">
@@ -1247,7 +1270,8 @@ const rowMatchesFocus = (row: Row): boolean => {
 }
 
 const rowSearchBlob = (row: Row): string => {
-  const qos = formatQosLabel(row.currentQos || '')
+  const qosKey = String(row.currentQos || '').trim()
+  const qos = qosKey ? profileLabel(qosKey as AgentQosProfile) : ''
   return [row.user, row.limitOwner, row.limitOwnerMatch || '', row.keys, row.ips.join(' '), row.macs.join(' '), qos]
     .join(' ')
     .toLowerCase()
@@ -1942,7 +1966,126 @@ const workspaceShortcutQosLabel = computed(() => {
   if (!row) return ''
   const qosKey = String(row.currentQos || '').trim()
   if (!qosKey || qosKey === 'normal') return ''
-  return formatQosLabel(qosKey)
+  return profileLabel(qosKey as AgentQosProfile)
+})
+
+const formatLiveRate = (value: number) => speed(value)
+
+const usagePctCompact = (row: Row) => {
+  const state = row.limitState
+  if (!state?.enabled) return ''
+  const limit = Number(state.limitBytes || 0)
+  const usage = Number(state.usageBytes || 0)
+  if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(usage) || usage < 0) return ''
+  return `${Math.round((usage / limit) * 100)}%`
+}
+
+const activeTrafficRows = computed(() =>
+  [...rows.value]
+    .filter((row) => Number(row.liveTotalBps || 0) > 0)
+    .sort((a, b) => Number(b.liveTotalBps || 0) - Number(a.liveTotalBps || 0)),
+)
+
+const rowsWithMissingDevices = computed(() => rows.value.filter((row) => row.deviceCount === 0))
+
+const rowsWithStoredOnlyQos = computed(() =>
+  rows.value.filter((row) => (rowHasLimitedQos(row) || rowIsBlocked(row)) && !rowHasEffectiveIps(row)),
+)
+
+const rowsNearLimit = computed(() => {
+  const items = rows.value.filter((row) => {
+    const state = row.limitState
+    if (!state?.enabled) return false
+    const limit = Number(state.limitBytes || 0)
+    const usage = Number(state.usageBytes || 0)
+    if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(usage) || usage <= 0) return false
+    if (usage >= limit) return false
+    return usage / limit >= 0.8
+  })
+  return items.sort((a, b) => Number(b.limitState?.usageBytes || 0) - Number(a.limitState?.usageBytes || 0))
+})
+
+const diagnosticsCards = computed(() => {
+  const missingDevices = rowsWithMissingDevices.value
+  const storedOnlyQos = rowsWithStoredOnlyQos.value
+  const nearLimit = rowsNearLimit.value
+  const topTraffic = activeTrafficRows.value[0]
+  const focusFilter = trafficFilter.value.trim().toLowerCase()
+
+  return [
+    {
+      key: 'missing-devices',
+      eyebrow: t('trafficDiagnosticsEyebrowDevices'),
+      value: String(missingDevices.length),
+      badge: missingDevices[0]?.user || '',
+      title: t('trafficDiagnosticsMissingDevicesTitle'),
+      description: missingDevices.length
+        ? t('trafficDiagnosticsMissingDevicesHint')
+        : t('trafficDiagnosticsMissingDevicesEmpty'),
+      clickable: missingDevices.length > 0,
+      active: missingDevices.length > 0 && focusFilter === String(missingDevices[0]?.user || '').trim().toLowerCase(),
+      onClick: missingDevices.length > 0
+        ? () => {
+            workspaceFocus.value = 'all'
+            trafficFilter.value = String(missingDevices[0]?.user || '')
+          }
+        : undefined,
+    },
+    {
+      key: 'stored-only-qos',
+      eyebrow: t('trafficDiagnosticsEyebrowQos'),
+      value: String(storedOnlyQos.length),
+      badge: storedOnlyQos[0]?.user || '',
+      title: t('trafficDiagnosticsStoredOnlyTitle'),
+      description: storedOnlyQos.length
+        ? t('trafficDiagnosticsStoredOnlyHint')
+        : t('trafficDiagnosticsStoredOnlyEmpty'),
+      clickable: storedOnlyQos.length > 0,
+      active: storedOnlyQos.length > 0 && focusFilter === String(storedOnlyQos[0]?.user || '').trim().toLowerCase(),
+      onClick: storedOnlyQos.length > 0
+        ? () => {
+            workspaceFocus.value = 'limited'
+            trafficFilter.value = String(storedOnlyQos[0]?.user || '')
+          }
+        : undefined,
+    },
+    {
+      key: 'near-limit',
+      eyebrow: t('trafficDiagnosticsEyebrowLimits'),
+      value: String(nearLimit.length),
+      badge: nearLimit[0] ? usagePctCompact(nearLimit[0]) : '',
+      title: t('trafficDiagnosticsNearLimitTitle'),
+      description: nearLimit.length
+        ? t('trafficDiagnosticsNearLimitHint', { user: nearLimit[0]?.user || '' })
+        : t('trafficDiagnosticsNearLimitEmpty'),
+      clickable: nearLimit.length > 0,
+      active: nearLimit.length > 0 && focusFilter === String(nearLimit[0]?.user || '').trim().toLowerCase(),
+      onClick: nearLimit.length > 0
+        ? () => {
+            workspaceFocus.value = 'all'
+            trafficFilter.value = String(nearLimit[0]?.user || '')
+          }
+        : undefined,
+    },
+    {
+      key: 'active-traffic',
+      eyebrow: t('trafficDiagnosticsEyebrowTraffic'),
+      value: String(activeTrafficRows.value.length),
+      badge: topTraffic ? formatLiveRate(topTraffic.liveTotalBps) : '',
+      title: t('trafficDiagnosticsActiveTrafficTitle'),
+      description: topTraffic
+        ? t('trafficDiagnosticsActiveTrafficHint', { user: topTraffic.user })
+        : t('trafficDiagnosticsActiveTrafficEmpty'),
+      clickable: !!topTraffic,
+      active: !!topTraffic && focusFilter === String(topTraffic.user || '').trim().toLowerCase(),
+      onClick: topTraffic
+        ? () => {
+            workspaceFocus.value = 'all'
+            trafficFilter.value = String(topTraffic.user || '')
+          }
+        : undefined,
+    },
+  ]
 })
 
 const openWorkspaceUserShortcut = () => {

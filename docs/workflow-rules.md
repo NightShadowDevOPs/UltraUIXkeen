@@ -34,7 +34,7 @@ Mention what should be checked after deployment or update. Prefer concrete check
 ## Commit message style
 - One concise release line
 - Include version and intent
-- Example style: `v1.2.143: refresh transfer kit and document workflow rules`
+- Example style: `v1.2.144: add actionable diagnostics cards for Host and Traffic workspaces`
 
 ## Handoff rules for a new chat
 At the start of a new chat:
