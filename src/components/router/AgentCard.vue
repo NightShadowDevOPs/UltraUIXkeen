@@ -69,13 +69,12 @@
         <div class="text-xs opacity-70">
       <div v-if="agentEnabled && status.ok">
         {{ $t('agentDetected') }}: {{ status.lan || 'br0' }} → {{ status.wan || 'eth4' }}
-        <div v-if="status.version || status.serverVersion" class="mt-0.5 flex flex-wrap items-center gap-2">
+        <div v-if="status.version || remoteAgentVersion" class="mt-0.5 flex flex-wrap items-center gap-2">
           <span v-if="status.version" class="font-mono">v{{ status.version }}</span>
-          <span v-if="status.serverVersion" class="opacity-60">
-            latest <span class="font-mono">{{ status.serverVersion }}</span>
-          </span>
+          <span v-if="agentVersionNote" class="opacity-60">{{ agentVersionNote }}</span>
           <span v-if="needsUpdate" class="badge badge-warning badge-sm">{{ $t('agentUpdate') }}</span>
           <span v-else-if="isAhead" class="badge badge-info badge-sm">{{ $t('agentAhead') }}</span>
+          <span v-else-if="isCurrent" class="badge badge-success badge-outline badge-sm">{{ $t('agentCurrent') }}</span>
         </div>
 
         <div v-if="!maintenanceLoaded" class="mt-1 rounded-lg border border-base-content/10 bg-base-100/40 px-3 py-2 text-xs opacity-70">
@@ -849,14 +848,29 @@ const versionCmp = (a?: string, b?: string) => {
   return 0
 }
 
+const remoteAgentVersion = computed(() => String(status.value?.serverVersion || '').trim())
+
 const needsUpdate = computed(() => {
-  if (!status.value?.ok || !status.value?.version || !status.value?.serverVersion) return false
-  return versionCmp(status.value.version, status.value.serverVersion) < 0
+  if (!status.value?.ok || !status.value?.version || !remoteAgentVersion.value) return false
+  return versionCmp(status.value.version, remoteAgentVersion.value) < 0
 })
 
 const isAhead = computed(() => {
-  if (!status.value?.ok || !status.value?.version || !status.value?.serverVersion) return false
-  return versionCmp(status.value.version, status.value.serverVersion) > 0
+  if (!status.value?.ok || !status.value?.version || !remoteAgentVersion.value) return false
+  return versionCmp(status.value.version, remoteAgentVersion.value) > 0
+})
+
+const isCurrent = computed(() => {
+  if (!status.value?.ok || !status.value?.version || !remoteAgentVersion.value) return false
+  return versionCmp(status.value.version, remoteAgentVersion.value) === 0
+})
+
+const agentVersionNote = computed(() => {
+  if (!remoteAgentVersion.value) return ''
+  if (needsUpdate.value) return t('agentVersionAvailable', { version: remoteAgentVersion.value })
+  if (isAhead.value) return t('agentVersionUpstream', { version: remoteAgentVersion.value })
+  if (isCurrent.value) return ''
+  return t('agentVersionReported', { version: remoteAgentVersion.value })
 })
 
 const configuredCloudRemotes = computed(() => {
