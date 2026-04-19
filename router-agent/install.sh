@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.30"
+AGENT_VERSION="0.6.31"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -144,7 +144,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.30"
+AGENT_VERSION="0.6.31"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -6258,8 +6258,22 @@ ha_qos_json() {
 }
 
 ha_contract_meta_json() {
-  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","contract":"zash.ha.snapshot.v1","agent_version":"%s","cache":{"ha_status_ttl_sec":%s,"ha_traffic_ttl_sec":%s,"ha_users_ttl_sec":%s,"ha_qos_ttl_sec":%s},"commands":["ha_contract_meta","ha_status","ha_traffic","ha_users","ha_qos"],"entity_namespace":{"sensor":"sensor.smartlife_router_*","binary_sensor":"binary_sensor.smartlife_router_*"},"notes":{"transport":"json over router-agent cgi","snapshot_cache":"short on-router cache to avoid rebuilding shell snapshots on every poll"}}' \
-    "$(jesc "$(ha_now_iso)")" "$(jesc "$AGENT_VERSION")" "$HA_STATUS_TTL_SECS" "$HA_TRAFFIC_TTL_SECS" "$HA_USERS_TTL_SECS" "$HA_QOS_TTL_SECS")"
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","contract":"zash.ha.snapshot.v1","agent_version":"%s","cache":{"ha_status_ttl_sec":%s,"ha_traffic_ttl_sec":%s,"ha_users_ttl_sec":%s,"ha_qos_ttl_sec":%s},"commands":["ha_contract_meta","ha_snapshot","ha_status","ha_traffic","ha_users","ha_qos"],"preferred_resource":"ha_snapshot","entity_namespace":{"sensor":"sensor.smartlife_router_*","binary_sensor":"binary_sensor.smartlife_router_*"},"notes":{"transport":"json over router-agent cgi","snapshot_cache":"short on-router cache to avoid rebuilding shell snapshots on every poll","snapshot_bundle":"ha_snapshot aggregates status/traffic/users/qos into one payload to reduce parallel polling from Home Assistant"}}'     "$(jesc "$(ha_now_iso)")" "$(jesc "$AGENT_VERSION")" "$HA_STATUS_TTL_SECS" "$HA_TRAFFIC_TTL_SECS" "$HA_USERS_TTL_SECS" "$HA_QOS_TTL_SECS")"
+  reply_ok "$payload"
+}
+
+ha_snapshot_json() {
+  status_payload="$(ha_status_json 2>/dev/null | sed -n '$p')"
+  traffic_payload="$(ha_traffic_json 2>/dev/null | sed -n '$p')"
+  users_payload="$(ha_users_json 2>/dev/null | sed -n '$p')"
+  qos_payload="$(ha_qos_json 2>/dev/null | sed -n '$p')"
+
+  [ -n "$status_payload" ] || status_payload='{"ok":false,"error":"empty-status"}'
+  [ -n "$traffic_payload" ] || traffic_payload='{"ok":false,"error":"empty-traffic"}'
+  [ -n "$users_payload" ] || users_payload='{"ok":false,"error":"empty-users"}'
+  [ -n "$qos_payload" ] || qos_payload='{"ok":false,"error":"empty-qos"}'
+
+  payload="$(printf '{"ok":true,"format_version":1,"timestamp":"%s","contract":"zash.ha.snapshot.bundle.v1","agent_version":"%s","status":%s,"traffic":%s,"users":%s,"qos":%s}'     "$(jesc "$(ha_now_iso)")" "$(jesc "$AGENT_VERSION")" "$status_payload" "$traffic_payload" "$users_payload" "$qos_payload")"
   reply_ok "$payload"
 }
 
@@ -6269,6 +6283,7 @@ agent_log
 case "$cmd" in
   status|"") status ;;
   ha_contract_meta) ha_contract_meta_json ;;
+  ha_snapshot) ha_snapshot_json ;;
   ha_status) ha_status_json ;;
   ha_traffic) ha_traffic_json ;;
   ha_users) ha_users_json ;;

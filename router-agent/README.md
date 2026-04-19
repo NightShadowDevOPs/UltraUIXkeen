@@ -69,7 +69,7 @@ Host QoS priority is best-effort: it helps under congestion, but if the same IP 
 
 ## Home Assistant snapshot export
 
-Starting with router-agent **0.6.27**, the agent exposes a lightweight Home Assistant export contour. In **0.6.28**, the runtime version sync for `status` was hardened, in **0.6.29** the same version alignment was extended to `ha_status`, and in **0.6.30** a new aggregated `ha_snapshot` endpoint was added for Home Assistant. The repo also ships a ready Home Assistant YAML bundle under `docs/ha-export/homeassistant/` and the default package now uses the single `ha_snapshot` resource:
+Starting with router-agent **0.6.27**, the agent exposes a lightweight Home Assistant export contour. In **0.6.28**, the runtime version sync for `status` was hardened, in **0.6.29** the same version alignment was extended to `ha_status`, and in **0.6.31** a new aggregated `ha_snapshot` endpoint was added for Home Assistant. The repo also ships a ready Home Assistant YAML bundle under `docs/ha-export/homeassistant/` and the default package now uses the single `ha_snapshot` resource:
 
 - `cmd=ha_contract_meta`
 - `cmd=ha_snapshot`

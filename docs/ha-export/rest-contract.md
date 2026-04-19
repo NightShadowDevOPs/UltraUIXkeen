@@ -18,7 +18,7 @@
   "format_version": 1,
   "timestamp": "2026-04-19T13:16:21Z",
   "contract": "zash.ha.snapshot.v1",
-  "agent_version": "0.6.30",
+  "agent_version": "0.6.31",
   "preferred_resource": "ha_snapshot"
 }
 ```
@@ -58,4 +58,4 @@
 - `qos_rules_detail[]`
 
 ## Home Assistant bundle
-Готовые YAML-файлы лежат в `docs/ha-export/homeassistant/`. Начиная с `v1.2.139`, основной пакет переведён на единый `ha_snapshot` resource.
+Готовые YAML-файлы лежат в `docs/ha-export/homeassistant/`. Начиная с `v1.2.140`, основной пакет переведён на единый `ha_snapshot` resource.
