@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.139 — aggregated HA snapshot bundle
+
+- raised UI to `1.2.139`
+- raised `router-agent` to `0.6.30`
+- added aggregated `ha_snapshot` endpoint that returns one bundle with `status`, `traffic`, `users` and `qos`
+- switched the default Home Assistant REST package to a single `ha_snapshot` resource to reduce parallel polling and stabilize router metrics in HA
+- refreshed HA handoff docs, contract examples, release-plan and chat-transfer notes
+
 ## v1.2.138 — ha_status serverVersion sync hotfix
 
 - raised `router-agent` to `0.6.29`

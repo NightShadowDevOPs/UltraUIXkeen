@@ -4,12 +4,12 @@
 
 ## Что внутри
 - `configuration-snippet.example.yaml` — пример включения `packages`
-- `smartlife_router_rest.yaml` — готовые REST sensors / binary sensors
+- `smartlife_router_rest.yaml` — готовые REST sensors / binary sensors через единый `ha_snapshot` resource
 - `smartlife_router_templates.yaml` — производные helper sensors
 - `smartlife_router_dashboard.yaml` — пример Lovelace dashboard
 
 ## Быстрое подключение
-1. Убедись, что router-agent на роутере обновлён минимум до **0.6.29**.
+1. Убедись, что router-agent на роутере обновлён минимум до **0.6.30**.
 2. В Home Assistant включи `packages`, если они ещё не включены.
 3. Скопируй `smartlife_router_rest.yaml` и `smartlife_router_templates.yaml` в `/config/packages/`.
 4. При желании импортируй `smartlife_router_dashboard.yaml` как raw Lovelace config.
@@ -18,4 +18,4 @@
 ## Важно
 - в примерах используется live-адрес этого стенда: `http://192.168.0.1:9099/cgi-bin/api.sh`
 - если IP роутера другой, просто замени его во всех `resource:`
-- для первых тестов достаточно проверить `status` и `ha_contract_meta` через браузер/wget
+- для первых тестов достаточно проверить `status`, `ha_contract_meta` и новый агрегированный `ha_snapshot` через браузер/wget

@@ -5,6 +5,7 @@
 
 ## Commands
 - `cmd=ha_contract_meta`
+- `cmd=ha_snapshot` ← предпочтительный агрегированный endpoint для Home Assistant
 - `cmd=ha_status`
 - `cmd=ha_traffic`
 - `cmd=ha_users`
@@ -17,9 +18,13 @@
   "format_version": 1,
   "timestamp": "2026-04-19T13:16:21Z",
   "contract": "zash.ha.snapshot.v1",
-  "agent_version": "0.6.29"
+  "agent_version": "0.6.30",
+  "preferred_resource": "ha_snapshot"
 }
 ```
+
+## Aggregated snapshot (`cmd=ha_snapshot`)
+Один JSON-ответ, внутри которого уже лежат `status`, `traffic`, `users`, `qos`. Это снижает количество параллельных REST-запросов из Home Assistant и помогает убрать периодические `Нет данных` / `Empty reply when expecting JSON`.
 
 ## Status snapshot
 Ключевые поля:
@@ -53,4 +58,4 @@
 - `qos_rules_detail[]`
 
 ## Home Assistant bundle
-Готовые YAML-файлы лежат в `docs/ha-export/homeassistant/`.
+Готовые YAML-файлы лежат в `docs/ha-export/homeassistant/`. Начиная с `v1.2.139`, основной пакет переведён на единый `ha_snapshot` resource.

@@ -1,6 +1,6 @@
 rest:
-  - resource: http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_status
-    scan_interval: 30
+  - resource: http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot
+    scan_interval: 15
     timeout: 10
     sensor:
       - name: SmartLife Router CPU
@@ -8,8 +8,8 @@ rest:
         icon: mdi:chip
         unit_of_measurement: '%'
         state_class: measurement
-        value_template: "{{ value_json.system.cpu_pct | int(0) }}"
-        json_attributes_path: '$.router'
+        value_template: "{{ value_json.status.system.cpu_pct | int(0) }}"
+        json_attributes_path: '$.status.router'
         json_attributes:
           - hostname
           - model
@@ -19,101 +19,80 @@ rest:
         icon: mdi:memory
         unit_of_measurement: 'MB'
         state_class: measurement
-        value_template: "{{ value_json.system.memory_used_mb | int(0) }}"
+        value_template: "{{ value_json.status.system.memory_used_mb | int(0) }}"
       - name: SmartLife Router Memory
         unique_id: smartlife_router_memory_pct
         icon: mdi:memory
         unit_of_measurement: '%'
         state_class: measurement
-        value_template: "{{ value_json.system.memory_pct | int(0) }}"
+        value_template: "{{ value_json.status.system.memory_pct | int(0) }}"
       - name: SmartLife Router Uptime
         unique_id: smartlife_router_uptime_seconds
         icon: mdi:timer-outline
         unit_of_measurement: 's'
         state_class: total_increasing
-        value_template: "{{ value_json.system.uptime_seconds | int(0) }}"
+        value_template: "{{ value_json.status.system.uptime_seconds | int(0) }}"
       - name: SmartLife Router Active Users
         unique_id: smartlife_router_active_users_count
         icon: mdi:account-group
         state_class: measurement
-        value_template: "{{ value_json.counts.active_users | int(0) }}"
+        value_template: "{{ value_json.status.counts.active_users | int(0) }}"
       - name: SmartLife Router Active Devices
         unique_id: smartlife_router_active_devices_count
         icon: mdi:devices
         state_class: measurement
-        value_template: "{{ value_json.counts.active_devices | int(0) }}"
+        value_template: "{{ value_json.status.counts.active_devices | int(0) }}"
       - name: SmartLife Router Limited Users
         unique_id: smartlife_router_limited_users_count
         icon: mdi:speedometer-slow
         state_class: measurement
-        value_template: "{{ value_json.counts.limited_users | int(0) }}"
+        value_template: "{{ value_json.status.counts.limited_users | int(0) }}"
       - name: SmartLife Router Blocked Users
         unique_id: smartlife_router_blocked_users_count
         icon: mdi:block-helper
         state_class: measurement
-        value_template: "{{ value_json.counts.blocked_users | int(0) }}"
+        value_template: "{{ value_json.status.counts.blocked_users | int(0) }}"
       - name: SmartLife Router QoS Enabled
         unique_id: smartlife_router_qos_enabled_count
         icon: mdi:traffic-light
         state_class: measurement
-        value_template: "{{ value_json.counts.qos_enabled | int(0) }}"
-    binary_sensor:
-      - name: SmartLife Router Agent Up
-        unique_id: smartlife_router_agent_up
-        device_class: connectivity
-        value_template: "{{ value_json.agent.up | default(false) }}"
-      - name: SmartLife Router Mihomo Running
-        unique_id: smartlife_router_mihomo_running
-        device_class: running
-        value_template: "{{ value_json.mihomo.running | default(false) }}"
-      - name: SmartLife Router WAN Up
-        unique_id: smartlife_router_wan_up
-        device_class: connectivity
-        value_template: "{{ value_json.system.wan_up | default(false) }}"
-
-  - resource: http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_traffic
-    scan_interval: 15
-    timeout: 10
-    sensor:
+        value_template: "{{ value_json.status.counts.qos_enabled | int(0) }}"
       - name: SmartLife Router WAN RX
         unique_id: smartlife_router_wan_rx_bps
         icon: mdi:download-network
         unit_of_measurement: 'bps'
         state_class: measurement
-        value_template: "{{ value_json.summary.wan_rx_bps | int(0) }}"
+        value_template: "{{ value_json.traffic.summary.wan_rx_bps | int(0) }}"
       - name: SmartLife Router WAN TX
         unique_id: smartlife_router_wan_tx_bps
         icon: mdi:upload-network
         unit_of_measurement: 'bps'
         state_class: measurement
-        value_template: "{{ value_json.summary.wan_tx_bps | int(0) }}"
+        value_template: "{{ value_json.traffic.summary.wan_tx_bps | int(0) }}"
       - name: SmartLife Router Total RX
         unique_id: smartlife_router_total_rx_bytes
         icon: mdi:database-arrow-down
         unit_of_measurement: 'B'
         state_class: total_increasing
-        value_template: "{{ value_json.summary.total_rx_bytes | int(0) }}"
+        value_template: "{{ value_json.traffic.summary.total_rx_bytes | int(0) }}"
       - name: SmartLife Router Total TX
         unique_id: smartlife_router_total_tx_bytes
         icon: mdi:database-arrow-up
         unit_of_measurement: 'B'
         state_class: total_increasing
-        value_template: "{{ value_json.summary.total_tx_bytes | int(0) }}"
+        value_template: "{{ value_json.traffic.summary.total_tx_bytes | int(0) }}"
       - name: SmartLife Router Traffic Snapshot
         unique_id: smartlife_router_traffic_snapshot
         icon: mdi:chart-line
-        value_template: "{{ value_json.timestamp }}"
+        value_template: "{{ value_json.traffic.timestamp }}"
+        json_attributes_path: '$.traffic'
         json_attributes:
           - interface_detail
-
-  - resource: http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_users
-    scan_interval: 60
-    timeout: 10
-    sensor:
       - name: SmartLife Router Users Snapshot
         unique_id: smartlife_router_users_snapshot
         icon: mdi:account-multiple-outline
-        value_template: "{{ value_json.timestamp }}"
+        value_template: "{{ value_json.users.timestamp }}"
+        json_attributes_path: '$.users'
         json_attributes:
           - counts
           - top_users
@@ -122,21 +101,36 @@ rest:
           - blocked
           - per_user_breakdown
           - per_device_breakdown
-
-  - resource: http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_qos
-    scan_interval: 60
-    timeout: 10
-    sensor:
       - name: SmartLife Router QoS Snapshot
         unique_id: smartlife_router_qos_snapshot
         icon: mdi:traffic-light-outline
-        value_template: "{{ value_json.timestamp }}"
+        value_template: "{{ value_json.qos.timestamp }}"
+        json_attributes_path: '$.qos'
         json_attributes:
           - counts
           - summary
           - qos_rules_detail
+      - name: SmartLife Router Snapshot Contract
+        unique_id: smartlife_router_snapshot_contract
+        icon: mdi:file-document-outline
+        value_template: "{{ value_json.contract }}"
+        json_attributes:
+          - agent_version
+          - timestamp
     binary_sensor:
+      - name: SmartLife Router Agent Up
+        unique_id: smartlife_router_agent_up
+        device_class: connectivity
+        value_template: "{{ value_json.status.agent.up | default(false) }}"
+      - name: SmartLife Router Mihomo Running
+        unique_id: smartlife_router_mihomo_running
+        device_class: running
+        value_template: "{{ value_json.status.mihomo.running | default(false) }}"
+      - name: SmartLife Router WAN Up
+        unique_id: smartlife_router_wan_up
+        device_class: connectivity
+        value_template: "{{ value_json.status.system.wan_up | default(false) }}"
       - name: SmartLife Router QoS Enabled Flag
         unique_id: smartlife_router_qos_enabled_flag
         device_class: running
-        value_template: "{{ value_json.qos_enabled | default(false) }}"
+        value_template: "{{ value_json.qos.qos_enabled | default(false) }}"

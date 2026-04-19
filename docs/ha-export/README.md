@@ -12,6 +12,7 @@
 
 ## Основные команды router-agent
 - `ha_contract_meta`
+- `ha_snapshot` ← предпочтительный агрегированный endpoint для Home Assistant
 - `ha_status`
 - `ha_traffic`
 - `ha_users`

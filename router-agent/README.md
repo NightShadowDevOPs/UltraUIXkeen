@@ -40,6 +40,7 @@ sh /opt/zash-agent/install.sh
 - `GET /cgi-bin/api.sh?cmd=qos_set&ip=192.168.1.2&profile=high|normal|low`
 - `GET /cgi-bin/api.sh?cmd=qos_remove&ip=192.168.1.2`
 - `GET /cgi-bin/api.sh?cmd=ha_contract_meta`
+- `GET /cgi-bin/api.sh?cmd=ha_snapshot`
 - `GET /cgi-bin/api.sh?cmd=ha_status`
 - `GET /cgi-bin/api.sh?cmd=ha_traffic`
 - `GET /cgi-bin/api.sh?cmd=ha_users`
@@ -68,15 +69,16 @@ Host QoS priority is best-effort: it helps under congestion, but if the same IP 
 
 ## Home Assistant snapshot export
 
-Starting with router-agent **0.6.27**, the agent exposes a lightweight Home Assistant export contour. In **0.6.28**, the runtime version sync for `status` was hardened, and in **0.6.29** the same version alignment was extended to `ha_status`. The repo also ships a ready Home Assistant YAML bundle under `docs/ha-export/homeassistant/`:
+Starting with router-agent **0.6.27**, the agent exposes a lightweight Home Assistant export contour. In **0.6.28**, the runtime version sync for `status` was hardened, in **0.6.29** the same version alignment was extended to `ha_status`, and in **0.6.30** a new aggregated `ha_snapshot` endpoint was added for Home Assistant. The repo also ships a ready Home Assistant YAML bundle under `docs/ha-export/homeassistant/` and the default package now uses the single `ha_snapshot` resource:
 
 - `cmd=ha_contract_meta`
+- `cmd=ha_snapshot`
 - `cmd=ha_status`
 - `cmd=ha_traffic`
 - `cmd=ha_users`
 - `cmd=ha_qos`
 
-This contour is REST-first and reads from a short on-router cache instead of rebuilding heavy shell payloads on every poll.
+This contour is REST-first and reads from a short on-router cache instead of rebuilding heavy shell payloads on every poll. The new `ha_snapshot` endpoint reduces parallel REST polling from Home Assistant by returning one bundle with `status`, `traffic`, `users` and `qos`.
 
 Default TTLs:
 
@@ -90,7 +92,7 @@ HA_QOS_TTL_SECS="60"
 
 You can override these in `/opt/zash-agent/agent.env` if you really need to, but the defaults are chosen to keep HA polling useful without turning the router into a toaster.
 
-Contract marker for the current runtime: `zash.ha.snapshot.v1`.
+Contract marker for runtime metadata: `zash.ha.snapshot.v1`. The aggregated bundle endpoint uses `zash.ha.snapshot.bundle.v1`.
 
 Detailed handoff docs live in `../docs/ha-export/` and `../docs/ha-export-bridge.md`.
 

@@ -1,9 +1,9 @@
 {
   "ok": true,
   "format_version": 1,
-  "timestamp": "2026-04-19T13:16:21Z",
+  "timestamp": "2026-04-19T14:06:20Z",
   "contract": "zash.ha.snapshot.v1",
-  "agent_version": "0.6.29",
+  "agent_version": "0.6.30",
   "cache": {
     "ha_status_ttl_sec": 30,
     "ha_traffic_ttl_sec": 15,
@@ -12,17 +12,20 @@
   },
   "commands": [
     "ha_contract_meta",
+    "ha_snapshot",
     "ha_status",
     "ha_traffic",
     "ha_users",
     "ha_qos"
   ],
+  "preferred_resource": "ha_snapshot",
   "entity_namespace": {
     "sensor": "sensor.smartlife_router_*",
     "binary_sensor": "binary_sensor.smartlife_router_*"
   },
   "notes": {
     "transport": "json over router-agent cgi",
-    "snapshot_cache": "short on-router cache to avoid rebuilding shell snapshots on every poll"
+    "snapshot_cache": "short on-router cache to avoid rebuilding shell snapshots on every poll",
+    "snapshot_bundle": "ha_snapshot aggregates status/traffic/users/qos into one payload to reduce parallel polling from Home Assistant"
   }
 }
