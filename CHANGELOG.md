@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.2.146 — diagnostics slice ordering and row reasons
+- raised UI package version to `1.2.146`
+- in **Host QoS**, diagnostic slices now sort by severity first (live traffic / unlabeled / pending draft mismatch) instead of looking random
+- in **Host QoS**, each row inside an active diagnostic slice now shows a short badge explaining why it landed there
+- in **Traffic / Users**, diagnostic slices now sort by the most relevant signal for the active mode (blocked/limited first, higher usage first, stronger live traffic first)
+- in **Traffic / Users**, each row inside an active diagnostic slice now shows a short reason badge such as `Нет привязок`, `QoS без runtime-IP`, `{percent} лимита`, `Live: rate`
+- kept the Home Assistant bridge contract unchanged; no router-agent payload or export shape changes
+- validation note: `npm run build` could not be completed in the container because dependencies are not installed here (`vite: not found`), so post-update manual UI checks are required
+
+## v1.2.145 — diagnostics drill-in slices and sticky active state
+- raised UI package version to `1.2.145`
+- Host QoS diagnostic cards now open the full corresponding problem slice instead of focusing only the first host
+- Traffic / Users diagnostic cards now open full problem subsets: missing devices, stored-only QoS, near-limit, active live traffic
+- while a diagnostic slice is active in Traffic / Users, Top N truncation is bypassed so relevant rows stay visible
+- toolbar now shows the active diagnostic state and offers a quick reset
+- kept the Home Assistant bridge contract unchanged; no router-agent payload shape changes
+
 ## v1.2.144 — diagnostics cards for Host and Traffic workspaces
 - raised UI package version to `1.2.144`
 - added a new diagnostics card row in **Host QoS**: live traffic, unlabeled hosts, pending QoS drafts, current slice reset

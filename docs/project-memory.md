@@ -1,7 +1,7 @@
 # UltraUIXkeen — Project memory snapshot
 
 ## Stable facts
-- Current UI line in this package: **v1.2.145**
+- Current UI line in this package: **v1.2.146**
 - Current router-agent line used with this package: **0.6.31**
 - Home Assistant bridge is built around a **single `ha_snapshot` pull** with attribute split inside HA.
 - JSON contract for `ha_snapshot` / `ha_status` / `ha_traffic` / `ha_users` / `ha_qos` is intentionally frozen until the user explicitly asks to change it.
@@ -16,6 +16,7 @@
 - В релизе `v1.2.142` структура payload тоже **не меняется**; freshness / stale UX считается только derived-сенсорами внутри HA.
 - В релизе `v1.2.144` payload также **не менялся**; это UI/diagnostics release поверх уже стабилизированного bridge-контракта.
 - В релизе `v1.2.145` payload по-прежнему **не меняется**; доработан именно operator UX вокруг diagnostics slices.
+- В релизе `v1.2.146` payload по-прежнему **не меняется**; добавлены severity-first сортировка и поясняющие причины внутри diagnostic slices.
 
 ## Why this matters
 - Любые следующие шаги вокруг HA нужно строить вокруг текущего контракта, а не ломать его.

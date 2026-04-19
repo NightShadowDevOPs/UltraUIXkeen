@@ -20,3 +20,8 @@
 - Diagnostics cards should be actionable and help navigate to the problematic slice quickly.
 - Do **not** change the Home Assistant data structure / payload contract while doing this UI step.
 - Refresh the transfer pack, memory snapshot and workflow notes again in the same release.
+
+## Special request for v1.2.146
+- Inside diagnostics slices, rows should be easier to read: sort the most important/problematic entries first.
+- Show a short visible explanation near each row so the operator understands why it landed in the current slice.
+- Keep the Home Assistant bridge contract unchanged.

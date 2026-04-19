@@ -26,7 +26,7 @@ This is a practical snapshot of long-lived project context that was accumulated 
 - The user prefers every release to include updated docs and transfer files, not only code changes.
 
 ## Current confirmed release baseline
-- Current UI package in this folder: **v1.2.145**
+- Current UI package in this folder: **v1.2.146**
 - Current router-agent line expected with this package: **0.6.31**
 - Current HA bridge rule: **JSON contract unchanged**
 

@@ -472,6 +472,17 @@
                       {{ badge.text }}
                     </span>
                   </div>
+                  <div
+                    v-if="editingUser !== row.user && activeTrafficDiagnosticKey !== 'all'"
+                    class="flex flex-wrap items-center gap-1 text-[10px] uppercase tracking-[0.16em]"
+                  >
+                    <span
+                      class="badge badge-ghost badge-xs border-warning/30 bg-warning/10"
+                      :title="trafficDiagnosticReasonTitle(row)"
+                    >
+                      {{ trafficDiagnosticReasonLabel(row) }}
+                    </span>
+                  </div>
                 </div>
               </td>
               <td class="max-md:hidden">
@@ -1270,6 +1281,67 @@ const rowHasDeviceBindings = (row: Row) => row.ips.length > 0 || row.macs.length
 const rowIsBlocked = (row: Row) => row.currentQos === 'blocked' || limitStates.value[row.user]?.blocked === true
 const rowHasLimitedQos = (row: Row) => !!row.currentQos && row.currentQos !== 'normal' && row.currentQos !== 'blocked'
 
+const userDiagnosticSeverity = (row: Row) => {
+  if (rowIsBlocked(row)) return 3
+  if (rowHasLimitedQos(row)) return 2
+  if (row.limitState?.enabled) return 1
+  return 0
+}
+
+const compareRowsByUserName = (a: Row, b: Row) => a.user.localeCompare(b.user)
+
+const compareRowsForTrafficDiagnosticKey = (key: TrafficDiagnosticKey, a: Row, b: Row) => {
+  if (key === 'missing-devices') {
+    const severityDelta = userDiagnosticSeverity(b) - userDiagnosticSeverity(a)
+    if (severityDelta !== 0) return severityDelta
+    const bindingDelta = Number(rowHasDeviceBindings(a)) - Number(rowHasDeviceBindings(b))
+    if (bindingDelta !== 0) return bindingDelta
+    return compareRowsByUserName(a, b)
+  }
+  if (key === 'stored-only-qos') {
+    const severityDelta = userDiagnosticSeverity(b) - userDiagnosticSeverity(a)
+    if (severityDelta !== 0) return severityDelta
+    const limitDelta = Number(b.limitState?.percent || 0) - Number(a.limitState?.percent || 0)
+    if (limitDelta !== 0) return limitDelta
+    return compareRowsByUserName(a, b)
+  }
+  if (key === 'near-limit') {
+    const limitDelta = Number(b.limitState?.percent || 0) - Number(a.limitState?.percent || 0)
+    if (limitDelta !== 0) return limitDelta
+    const usageDelta = Number(b.limitState?.usageBytes || 0) - Number(a.limitState?.usageBytes || 0)
+    if (usageDelta !== 0) return usageDelta
+    return compareRowsByUserName(a, b)
+  }
+  if (key === 'active-traffic') {
+    const trafficDelta = Number(b.liveTotalBps || 0) - Number(a.liveTotalBps || 0)
+    if (trafficDelta !== 0) return trafficDelta
+    return compareRowsByUserName(a, b)
+  }
+  return compareRowsByUserName(a, b)
+}
+
+const trafficDiagnosticReasonLabel = (row: Row) => {
+  if (activeTrafficDiagnosticKey.value === 'missing-devices') {
+    if (!rowHasDeviceBindings(row)) return t('trafficDiagnosticReasonMissingDevicesNoBindings')
+    return t('trafficDiagnosticReasonMissingDevicesNoRuntimeIp')
+  }
+  if (activeTrafficDiagnosticKey.value === 'stored-only-qos') return t('trafficDiagnosticReasonStoredOnlyQos')
+  if (activeTrafficDiagnosticKey.value === 'near-limit') return t('trafficDiagnosticReasonNearLimit', { percent: usagePctCompact(row) || `${Math.round(Number(row.limitState?.percent || 0))}%` })
+  if (activeTrafficDiagnosticKey.value === 'active-traffic') return t('trafficDiagnosticReasonActiveTraffic', { rate: formatLiveRate(Number(row.liveTotalBps || 0)) })
+  return ''
+}
+
+const trafficDiagnosticReasonTitle = (row: Row) => {
+  if (activeTrafficDiagnosticKey.value === 'missing-devices') {
+    if (!rowHasDeviceBindings(row)) return t('trafficDiagnosticReasonMissingDevicesNoBindingsTitle')
+    return t('trafficDiagnosticReasonMissingDevicesNoRuntimeIpTitle')
+  }
+  if (activeTrafficDiagnosticKey.value === 'stored-only-qos') return t('trafficDiagnosticReasonStoredOnlyQosTitle')
+  if (activeTrafficDiagnosticKey.value === 'near-limit') return t('trafficDiagnosticReasonNearLimitTitle')
+  if (activeTrafficDiagnosticKey.value === 'active-traffic') return t('trafficDiagnosticReasonActiveTrafficTitle')
+  return ''
+}
+
 const rowMatchesFocus = (row: Row): boolean => {
   const focusUser = normalizeUserName(props.focusUser)
   const focusIp = String(props.focusIp || '').trim().toLowerCase()
@@ -1946,6 +2018,7 @@ const rows = computed<Row[]>(() => {
     const aFocused = rowMatchesFocus(a) ? 1 : 0
     const bFocused = rowMatchesFocus(b) ? 1 : 0
     if (aFocused !== bFocused) return bFocused - aFocused
+    if (activeTrafficDiagnosticKey.value !== 'all') return compareRowsForTrafficDiagnosticKey(activeTrafficDiagnosticKey.value, a, b)
     return 0
   })
 })
@@ -1997,10 +2070,12 @@ const activeTrafficRows = computed(() =>
     .sort((a, b) => Number(b.liveTotalBps || 0) - Number(a.liveTotalBps || 0)),
 )
 
-const rowsWithMissingDevices = computed(() => rows.value.filter((row) => row.deviceCount === 0))
+const rowsWithMissingDevices = computed(() => [...rows.value].filter((row) => !rowHasEffectiveIps(row)).sort((a, b) => compareRowsForTrafficDiagnosticKey('missing-devices', a, b)))
 
 const rowsWithStoredOnlyQos = computed(() =>
-  rows.value.filter((row) => (rowHasLimitedQos(row) || rowIsBlocked(row)) && !rowHasEffectiveIps(row)),
+  [...rows.value]
+    .filter((row) => (rowHasLimitedQos(row) || rowIsBlocked(row)) && !rowHasEffectiveIps(row))
+    .sort((a, b) => compareRowsForTrafficDiagnosticKey('stored-only-qos', a, b)),
 )
 
 const rowsNearLimit = computed(() => {
@@ -2013,14 +2088,18 @@ const rowsNearLimit = computed(() => {
     if (usage >= limit) return false
     return usage / limit >= 0.8
   })
-  return items.sort((a, b) => Number(b.limitState?.usageBytes || 0) - Number(a.limitState?.usageBytes || 0))
+  return items.sort((a, b) => {
+    const percentDelta = Number(b.limitState?.percent || 0) - Number(a.limitState?.percent || 0)
+    if (percentDelta !== 0) return percentDelta
+    return Number(b.limitState?.usageBytes || 0) - Number(a.limitState?.usageBytes || 0)
+  })
 })
 
 const rowMatchesActiveTrafficDiagnostic = (row: Row) => {
   if (activeTrafficDiagnosticKey.value === 'all') return true
   if (activeTrafficDiagnosticKey.value === 'missing-devices') return !rowHasEffectiveIps(row)
   if (activeTrafficDiagnosticKey.value === 'stored-only-qos') return (rowHasLimitedQos(row) || rowIsBlocked(row)) && !rowHasEffectiveIps(row)
-  if (activeTrafficDiagnosticKey.value === 'near-limit') {
+  if (key === 'near-limit') {
     const state = row.limitState
     return !!state?.enabled && !state.blocked && Number(state.percent || 0) >= 80
   }

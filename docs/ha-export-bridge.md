@@ -1,9 +1,14 @@
+# Home Assistant export bridge notes
+
+## v1.2.146
+- Host / Traffic diagnostics slices got severity-first ordering and inline reason badges only inside the router UI.
+- Router-agent contract for Home Assistant intentionally unchanged.
+- Existing HA cards / sensors should continue to work without YAML changes.
+
 ## v1.2.145
 - Host / Traffic diagnostics drill-in UX updated only inside the router UI.
 - Router-agent contract for Home Assistant intentionally unchanged.
 - Existing HA cards / sensors should continue to work without YAML changes.
-
-# Home Assistant export bridge notes
 
 ## v1.2.142
 - Home Assistant helper layer expanded with freshness / stale indicators derived from existing snapshot timestamps.

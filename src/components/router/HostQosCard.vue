@@ -174,25 +174,38 @@
               :class="isFocusedRow(row) ? 'bg-info/5' : ''"
             >
               <td class="min-w-[240px]">
-                <div class="flex flex-col gap-0.5">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
-                    <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium" :class="profilePillClass(row.currentProfile)">
-                      <span aria-hidden="true">{{ profileIcon(row.currentProfile) }}</span>
-                      <span class="opacity-80">QoS</span>
-                      <span class="inline-flex items-end gap-0.5" aria-hidden="true">
-                        <span
-                          v-for="bar in qosIndicatorBars(row.currentProfile)"
-                          :key="`${row.ip}-title-${bar.key}`"
-                          class="w-1 rounded-full"
-                          :class="bar.active ? profileBarClass(row.currentProfile) : 'bg-base-content/10'"
-                          :style="{ height: `${bar.height}px` }"
-                        />
+                <div class="flex flex-col gap-1">
+                  <div class="flex flex-col gap-0.5">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-medium">{{ row.displayName || row.hostname || row.ip }}</span>
+                      <span v-if="row.currentProfile" class="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium" :class="profilePillClass(row.currentProfile)">
+                        <span aria-hidden="true">{{ profileIcon(row.currentProfile) }}</span>
+                        <span class="opacity-80">QoS</span>
+                        <span class="inline-flex items-end gap-0.5" aria-hidden="true">
+                          <span
+                            v-for="bar in qosIndicatorBars(row.currentProfile)"
+                            :key="`${row.ip}-title-${bar.key}`"
+                            class="w-1 rounded-full"
+                            :class="bar.active ? profileBarClass(row.currentProfile) : 'bg-base-content/10'"
+                            :style="{ height: `${bar.height}px` }"
+                          />
+                        </span>
                       </span>
+                    </div>
+                    <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
+                    <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
+                  </div>
+                  <div
+                    v-if="activeDiagnosticKey !== 'all'"
+                    class="flex flex-wrap gap-1"
+                  >
+                    <span
+                      class="badge badge-ghost badge-sm border-warning/30 bg-warning/10 text-[10px] uppercase tracking-[0.16em]"
+                      :title="diagnosticReasonTitle(row)"
+                    >
+                      {{ diagnosticReasonLabel(row) }}
                     </span>
                   </div>
-                  <span class="font-mono text-[11px] opacity-70">{{ row.ip }}</span>
-                  <span v-if="row.mac" class="font-mono text-[11px] opacity-50">{{ row.mac }}</span>
                 </div>
               </td>
               <td>
@@ -427,6 +440,58 @@ const matchesProfileFilter = (row: Row): boolean => {
 
 const rowHasLiveTraffic = (row: Row) => Number(row.totalDownBps || 0) + Number(row.totalUpBps || 0) > 0
 
+const profileSeverity = (profile?: string) => {
+  const value = String(profile || '').trim().toLowerCase()
+  if (value === 'critical') return 5
+  if (value === 'high') return 4
+  if (value === 'elevated') return 3
+  if (value === 'low') return 2
+  if (value === 'background') return 1
+  return 0
+}
+
+const pendingDraftSeverity = (row: Row) => profileSeverity(draftProfiles.value[row.ip] || 'normal') - profileSeverity(row.currentProfile || 'normal')
+
+const compareRowsByName = (a: Row, b: Row) => {
+  const an = String(a.displayName || a.hostname || a.ip).toLowerCase()
+  const bn = String(b.displayName || b.hostname || b.ip).toLowerCase()
+  return an.localeCompare(bn)
+}
+
+const compareRowsForDiagnosticKey = (key: 'all' | 'active-traffic' | 'unlabeled' | 'pending', a: Row, b: Row) => {
+  if (key === 'active-traffic') {
+    const trafficDelta = (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0))
+    if (trafficDelta !== 0) return trafficDelta
+  }
+  if (key === 'unlabeled') {
+    const trafficDelta = (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0))
+    if (trafficDelta !== 0) return trafficDelta
+    const qosDelta = profileSeverity(b.currentProfile || 'normal') - profileSeverity(a.currentProfile || 'normal')
+    if (qosDelta !== 0) return qosDelta
+  }
+  if (key === 'pending') {
+    const severityDelta = pendingDraftSeverity(b) - pendingDraftSeverity(a)
+    if (severityDelta !== 0) return severityDelta
+    const trafficDelta = (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0))
+    if (trafficDelta !== 0) return trafficDelta
+  }
+  return compareRowsByName(a, b)
+}
+
+const diagnosticReasonLabel = (row: Row) => {
+  if (activeDiagnosticKey.value === 'active-traffic') return t('hostQosDiagnosticReasonActiveTraffic', { rate: formatRate(Number(row.totalDownBps || 0) + Number(row.totalUpBps || 0)) })
+  if (activeDiagnosticKey.value === 'unlabeled') return t('hostQosDiagnosticReasonUnlabeled')
+  if (activeDiagnosticKey.value === 'pending') return t('hostQosDiagnosticReasonPending', { profile: profileLabel((draftProfiles.value[row.ip] || 'normal') as AgentQosProfile) })
+  return ''
+}
+
+const diagnosticReasonTitle = (row: Row) => {
+  if (activeDiagnosticKey.value === 'active-traffic') return t('hostQosDiagnosticReasonActiveTrafficTitle')
+  if (activeDiagnosticKey.value === 'unlabeled') return t('hostQosDiagnosticReasonUnlabeledTitle')
+  if (activeDiagnosticKey.value === 'pending') return t('hostQosDiagnosticReasonPendingTitle', { current: profileLabel((row.currentProfile || 'normal') as AgentQosProfile), draft: profileLabel((draftProfiles.value[row.ip] || 'normal') as AgentQosProfile) })
+  return ''
+}
+
 const rowMatchesDiagnostic = (row: Row) => {
   if (activeDiagnosticKey.value === 'all') return true
   if (activeDiagnosticKey.value === 'active-traffic') return rowHasLiveTraffic(row)
@@ -445,9 +510,7 @@ const filteredRows = computed(() => {
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q))
   })
-  if (activeDiagnosticKey.value === 'active-traffic') {
-    return [...filtered].sort((a, b) => (Number(b.totalDownBps || 0) + Number(b.totalUpBps || 0)) - (Number(a.totalDownBps || 0) + Number(a.totalUpBps || 0)))
-  }
+  if (activeDiagnosticKey.value !== 'all') return [...filtered].sort((a, b) => compareRowsForDiagnosticKey(activeDiagnosticKey.value, a, b))
   return filtered
 })
 
@@ -468,11 +531,15 @@ const activeTrafficRows = computed(() =>
 )
 
 const unlabeledRows = computed(() =>
-  rows.value.filter((row) => !linkedUserLabel(row) && !String(row.hostname || '').trim()),
+  [...rows.value]
+    .filter((row) => !linkedUserLabel(row) && !String(row.hostname || '').trim())
+    .sort((a, b) => compareRowsForDiagnosticKey('unlabeled', a, b)),
 )
 
 const pendingDraftRows = computed(() =>
-  rows.value.filter((row) => (draftProfiles.value[row.ip] || 'normal') !== (row.currentProfile || 'normal')),
+  [...rows.value]
+    .filter((row) => (draftProfiles.value[row.ip] || 'normal') !== (row.currentProfile || 'normal'))
+    .sort((a, b) => compareRowsForDiagnosticKey('pending', a, b)),
 )
 
 const activateDiagnostic = (key: 'active-traffic' | 'unlabeled' | 'pending') => {
