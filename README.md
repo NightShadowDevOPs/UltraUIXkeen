@@ -78,6 +78,7 @@ Router-agent нужен для функций, которых нет в Mihomo A
 - Исправления UX (прозрачность/читаемость выпадающих меню).
 - **Router-agent** (Entware): API для расширенных функций и **бэкапы** (в т.ч. в облако через rclone).
 - **Router → Host QoS priority**: заготовка приоритизации трафика для LAN-хостов (High / Normal / Low) через `tc` на роутере, без обязательных ручных правок в конфиге.
+- Home Assistant export bundle остаётся совместимым: свежесть / stale-индикаторы для snapshot теперь считаются внутри HA template helpers, без изменения JSON payload от router-agent.
 - **Трафик**: рабочий экран разделён на режимы `Устройства` и `Пользователи`, чтобы отдельно видеть живые LAN-хосты/QoS и отдельно — лимиты, блокировки и накопленную статистику по правилам.
 - **Router-agent / Home Assistant**: доступны лёгкие snapshot endpoint'ы `ha_contract_meta`, `ha_snapshot`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`; новый `ha_snapshot` собирает bundle в одном JSON и помогает снизить число параллельных опросов из Home Assistant.
 - **Home Assistant handoff**: в `docs/ha-export/homeassistant/` лежит готовый YAML bundle для быстрого подключения роутера в HA через REST + template sensors. Версионный sync в `status` и `ha_status` доведён до единообразного поведения, а основной HA bundle переведён на agent `0.6.31` с единым `ha_snapshot` resource.

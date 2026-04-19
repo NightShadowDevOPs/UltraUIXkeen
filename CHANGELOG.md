@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.142 — HA snapshot freshness helpers and no-data UX
+
+- raised UI to `1.2.142`
+- kept `router-agent` at `0.6.31` — no agent/API payload changes in this release
+- kept the Home Assistant JSON contract **unchanged**; `ha_snapshot` / `ha_status` / `ha_traffic` / `ha_users` / `ha_qos` payload shape was not touched
+- added Home Assistant template helpers for snapshot freshness and age (`snapshot`, `traffic`, `users`, `qos`)
+- refreshed the example Home Assistant dashboard so stale / delayed data is visible without hammering the router harder
+- updated handoff docs, release plan, request ledger and project memory for the next chat
+
 ## v1.2.141 — project memory export and docs freeze
 
 - raised UI to `1.2.141`

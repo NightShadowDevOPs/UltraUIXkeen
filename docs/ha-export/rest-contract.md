@@ -63,3 +63,5 @@
 ## Contract freeze note
 В релизе `v1.2.141` структура JSON для Home Assistant намеренно не менялась. Это документный / handoff release поверх уже подтверждённого `ha_snapshot`-контракта.
 
+В релизе `v1.2.142` JSON-контракт тоже **не меняется**. Индикация свежести и stale-состояния реализуется на стороне Home Assistant через template helpers, поэтому router-agent payload остаётся прежним.
+

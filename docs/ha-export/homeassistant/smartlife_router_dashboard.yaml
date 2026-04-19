@@ -1,72 +1,94 @@
-title: SmartLife Router
 views:
-  - title: Роутер
+  - title: SmartLife Router
     path: smartlife-router
     icon: mdi:router-network
     cards:
       - type: markdown
-        title: Роутер
         content: >
-          **{{ states('sensor.smartlife_router_model') }}**  
-          Прошивка: {{ states('sensor.smartlife_router_firmware') }}  
-          Сводка: {{ states('sensor.smartlife_router_summary') }}
+          ## SmartLife Router / Ultra bridge
 
+
+          Пакет использует единый REST snapshot `ha_snapshot` и уже распакованные атрибуты.
+          Дополнительные индикаторы свежести считаются **внутри Home Assistant** и не меняют JSON-контракт router-agent.
       - type: entities
-        title: Состояние
+        title: Свежесть snapshot
+        show_header_toggle: false
         entities:
-          - binary_sensor.smartlife_router_agent_up
-          - binary_sensor.smartlife_router_mihomo_running
-          - binary_sensor.smartlife_router_wan_up
-          - binary_sensor.smartlife_router_qos_enabled_flag
-          - sensor.smartlife_router_cpu
-          - sensor.smartlife_router_memory
-          - sensor.smartlife_router_memory_used
-          - sensor.smartlife_router_uptime
-
+          - entity: sensor.smartlife_router_snapshot_freshness
+            name: Состояние snapshot
+          - entity: sensor.smartlife_router_snapshot_age_sec
+            name: Возраст snapshot, сек
+          - entity: binary_sensor.smartlife_router_snapshot_stale
+            name: Snapshot устарел
+          - entity: sensor.smartlife_router_traffic_age_sec
+            name: Возраст traffic, сек
+          - entity: sensor.smartlife_router_users_age_sec
+            name: Возраст users, сек
+          - entity: sensor.smartlife_router_qos_age_sec
+            name: Возраст qos, сек
+      - type: entities
+        title: Сырые отметки времени
+        show_header_toggle: false
+        entities:
+          - entity: sensor.smartlife_router_snapshot_timestamp
+            name: Snapshot timestamp
+          - entity: sensor.smartlife_router_status_snapshot
+            name: Status timestamp
+          - entity: sensor.smartlife_router_traffic_snapshot
+            name: Traffic timestamp
+          - entity: sensor.smartlife_router_users_snapshot
+            name: Users timestamp
+          - entity: sensor.smartlife_router_qos_snapshot
+            name: QoS timestamp
+      - type: entities
+        title: Статус и система
+        show_header_toggle: false
+        entities:
+          - entity: binary_sensor.smartlife_router_agent_up
+            name: Agent up
+          - entity: sensor.smartlife_router_agent_version
+            name: Agent version
+          - entity: sensor.smartlife_router_agent_server_version
+            name: Server version
+          - entity: binary_sensor.smartlife_router_mihomo_running
+            name: Mihomo running
+          - entity: sensor.smartlife_router_cpu_pct
+            name: CPU %
+          - entity: sensor.smartlife_router_memory_pct
+            name: Memory %
+          - entity: sensor.smartlife_router_uptime_sec
+            name: Uptime, sec
+          - entity: binary_sensor.smartlife_router_wan_up
+            name: WAN up
+      - type: entities
+        title: WAN трафик
+        show_header_toggle: false
+        entities:
+          - entity: sensor.smartlife_router_wan_rx_mbps
+            name: WAN RX Mbps
+          - entity: sensor.smartlife_router_wan_tx_mbps
+            name: WAN TX Mbps
+          - entity: sensor.smartlife_router_wan_rx_bytes
+            name: WAN RX bytes
+          - entity: sensor.smartlife_router_wan_tx_bytes
+            name: WAN TX bytes
+          - entity: sensor.smartlife_router_total_rx_bytes
+            name: Total RX bytes
+          - entity: sensor.smartlife_router_total_tx_bytes
+            name: Total TX bytes
       - type: entities
         title: Пользователи и QoS
+        show_header_toggle: false
         entities:
-          - sensor.smartlife_router_active_users
-          - sensor.smartlife_router_active_devices
-          - sensor.smartlife_router_limited_users
-          - sensor.smartlife_router_blocked_users
-          - sensor.smartlife_router_qos_enabled
-
-      - type: gauge
-        entity: sensor.smartlife_router_cpu
-        name: CPU
-        min: 0
-        max: 100
-        severity:
-          green: 0
-          yellow: 60
-          red: 85
-
-      - type: gauge
-        entity: sensor.smartlife_router_memory
-        name: RAM
-        min: 0
-        max: 100
-        severity:
-          green: 0
-          yellow: 70
-          red: 90
-
-      - type: entities
-        title: Трафик
-        entities:
-          - sensor.smartlife_router_wan_rx
-          - sensor.smartlife_router_wan_tx
-          - sensor.smartlife_router_wan_rx_mbit
-          - sensor.smartlife_router_wan_tx_mbit
-          - sensor.smartlife_router_total_rx
-          - sensor.smartlife_router_total_tx
-
-      - type: history-graph
-        title: CPU / RAM / WAN
-        hours_to_show: 6
-        entities:
-          - sensor.smartlife_router_cpu
-          - sensor.smartlife_router_memory
-          - sensor.smartlife_router_wan_rx_mbit
-          - sensor.smartlife_router_wan_tx_mbit
+          - entity: sensor.smartlife_router_active_users
+            name: Active users
+          - entity: sensor.smartlife_router_active_devices
+            name: Active devices
+          - entity: sensor.smartlife_router_limited_users
+            name: Limited users
+          - entity: sensor.smartlife_router_blocked_users
+            name: Blocked users
+          - entity: binary_sensor.smartlife_router_qos_enabled
+            name: QoS enabled
+          - entity: sensor.smartlife_router_qos_rules_active
+            name: QoS rules active

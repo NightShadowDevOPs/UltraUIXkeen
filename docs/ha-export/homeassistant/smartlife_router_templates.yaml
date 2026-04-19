@@ -1,28 +1,119 @@
 template:
   - sensor:
-      - name: SmartLife Router WAN RX Mbit
-        unique_id: smartlife_router_wan_rx_mbit
-        icon: mdi:download
-        unit_of_measurement: 'Mbit/s'
+      - name: SmartLife Router WAN RX Mbps
+        unique_id: smartlife_router_wan_rx_mbps
+        unit_of_measurement: Mbps
         state_class: measurement
-        state: "{{ ((states('sensor.smartlife_router_wan_rx') | float(0)) / 1000000) | round(2) }}"
-      - name: SmartLife Router WAN TX Mbit
-        unique_id: smartlife_router_wan_tx_mbit
-        icon: mdi:upload
-        unit_of_measurement: 'Mbit/s'
+        icon: mdi:download-network
+        state: >
+          {{ ((state_attr('sensor.smartlife_router_traffic_summary', 'wan_rx_bps') | float(0)) * 8 / 1000000) | round(3) }}
+      - name: SmartLife Router WAN TX Mbps
+        unique_id: smartlife_router_wan_tx_mbps
+        unit_of_measurement: Mbps
         state_class: measurement
-        state: "{{ ((states('sensor.smartlife_router_wan_tx') | float(0)) / 1000000) | round(2) }}"
-      - name: SmartLife Router Summary
-        unique_id: smartlife_router_summary
-        icon: mdi:router-network
-        state: >-
-          CPU {{ states('sensor.smartlife_router_cpu') }}% · RAM {{ states('sensor.smartlife_router_memory') }}% ·
-          Users {{ states('sensor.smartlife_router_active_users') }} · Devices {{ states('sensor.smartlife_router_active_devices') }}
-      - name: SmartLife Router Model
-        unique_id: smartlife_router_model
-        icon: mdi:router-wireless
-        state: "{{ state_attr('sensor.smartlife_router_cpu', 'model') or 'unknown' }}"
-      - name: SmartLife Router Firmware
-        unique_id: smartlife_router_firmware
-        icon: mdi:information-outline
-        state: "{{ state_attr('sensor.smartlife_router_cpu', 'firmware') or 'unknown' }}"
+        icon: mdi:upload-network
+        state: >
+          {{ ((state_attr('sensor.smartlife_router_traffic_summary', 'wan_tx_bps') | float(0)) * 8 / 1000000) | round(3) }}
+      - name: SmartLife Router Snapshot Age Sec
+        unique_id: smartlife_router_snapshot_age_sec
+        unit_of_measurement: s
+        state_class: measurement
+        icon: mdi:clock-check-outline
+        availability: >
+          {{ states('sensor.smartlife_router_snapshot_timestamp') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set ts = states('sensor.smartlife_router_snapshot_timestamp') %}
+          {% set age = (as_timestamp(now()) - as_timestamp(ts, 0)) | int(0) %}
+          {{ [age, 0] | max }}
+        attributes:
+          derived_in: Home Assistant template
+          based_on_entity: sensor.smartlife_router_snapshot_timestamp
+          stale_after_sec: 120
+      - name: SmartLife Router Traffic Age Sec
+        unique_id: smartlife_router_traffic_age_sec
+        unit_of_measurement: s
+        state_class: measurement
+        icon: mdi:clock-outline
+        availability: >
+          {{ states('sensor.smartlife_router_traffic_snapshot') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set ts = states('sensor.smartlife_router_traffic_snapshot') %}
+          {% set age = (as_timestamp(now()) - as_timestamp(ts, 0)) | int(0) %}
+          {{ [age, 0] | max }}
+        attributes:
+          derived_in: Home Assistant template
+          based_on_entity: sensor.smartlife_router_traffic_snapshot
+          expected_refresh_sec: 15
+      - name: SmartLife Router Users Age Sec
+        unique_id: smartlife_router_users_age_sec
+        unit_of_measurement: s
+        state_class: measurement
+        icon: mdi:clock-outline
+        availability: >
+          {{ states('sensor.smartlife_router_users_snapshot') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set ts = states('sensor.smartlife_router_users_snapshot') %}
+          {% set age = (as_timestamp(now()) - as_timestamp(ts, 0)) | int(0) %}
+          {{ [age, 0] | max }}
+        attributes:
+          derived_in: Home Assistant template
+          based_on_entity: sensor.smartlife_router_users_snapshot
+          expected_refresh_sec: 60
+      - name: SmartLife Router QoS Age Sec
+        unique_id: smartlife_router_qos_age_sec
+        unit_of_measurement: s
+        state_class: measurement
+        icon: mdi:clock-outline
+        availability: >
+          {{ states('sensor.smartlife_router_qos_snapshot') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set ts = states('sensor.smartlife_router_qos_snapshot') %}
+          {% set age = (as_timestamp(now()) - as_timestamp(ts, 0)) | int(0) %}
+          {{ [age, 0] | max }}
+        attributes:
+          derived_in: Home Assistant template
+          based_on_entity: sensor.smartlife_router_qos_snapshot
+          expected_refresh_sec: 60
+      - name: SmartLife Router Snapshot Freshness
+        unique_id: smartlife_router_snapshot_freshness
+        icon: >
+          {% set age = states('sensor.smartlife_router_snapshot_age_sec') | int(-1) %}
+          {% if age < 0 %}
+            mdi:help-circle-outline
+          {% elif age <= 45 %}
+            mdi:check-decagram-outline
+          {% elif age <= 120 %}
+            mdi:database-clock-outline
+          {% elif age <= 300 %}
+            mdi:clock-alert-outline
+          {% else %}
+            mdi:cloud-alert-outline
+          {% endif %}
+        availability: >
+          {{ states('sensor.smartlife_router_snapshot_age_sec') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set age = states('sensor.smartlife_router_snapshot_age_sec') | int(-1) %}
+          {% if age < 0 %}
+            нет данных
+          {% elif age <= 45 %}
+            свежий
+          {% elif age <= 120 %}
+            кэш
+          {% elif age <= 300 %}
+            задержка
+          {% else %}
+            устарел
+          {% endif %}
+        attributes:
+          explanation: Home Assistant derived status based on snapshot timestamp only; router-agent JSON contract stays unchanged
+  - binary_sensor:
+      - name: SmartLife Router Snapshot Stale
+        unique_id: smartlife_router_snapshot_stale
+        device_class: problem
+        availability: >
+          {{ states('sensor.smartlife_router_snapshot_age_sec') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {{ (states('sensor.smartlife_router_snapshot_age_sec') | int(-1)) > 120 }}
+        attributes:
+          threshold_sec: 120
+          note: Treat as helper indicator for HA cards/automations; does not change router-agent payload

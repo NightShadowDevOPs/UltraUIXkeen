@@ -1,40 +1,29 @@
-# Current state — validated live on 2026-04-19
+# UltraUIXkeen — Current state
 
-## Confirmed versions
-- UI package target for this release: **v1.2.141**
-- Router-agent on live router: **0.6.31**
-- `status.serverVersion`: **0.6.31**
-- HA contract: **`zash.ha.snapshot.v1`**
-- Preferred HA resource: **`ha_snapshot`**
+## Release target
+- UI package target for this release: **v1.2.142**
+- Router-agent line confirmed on router: **0.6.31**
+- Home Assistant bridge contract: **frozen / do not change payload shape**
+- Current stable HA pull model: **single `ha_snapshot` poll + attribute split inside HA**
+- Current HA UX addition: **freshness / stale helper sensors are computed inside HA only**
 
-## Live checks already confirmed
-### 1) Status
-`wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status"`
-- returns `ok: true`
-- returns `version: 0.6.31`
-- returns `serverVersion: 0.6.31`
+## What is confirmed right now
+- Router and Home Assistant are already delivering `ha_snapshot` correctly after router-agent `0.6.31`.
+- The user sees router data in HA, but some cards periodically show **«Нет данных»**.
+- The agreed safe next step was: do **not** expand the router-agent JSON; instead, show data age / stale-state inside Home Assistant.
+- Heavy extra polling should be avoided so the router is not hammered for the sake of prettier cards.
 
-### 2) Contract meta
-`wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_contract_meta"`
-- returns `agent_version: 0.6.31`
-- returns `preferred_resource: ha_snapshot`
-- returns commands list including `ha_snapshot`
+## Release intent for v1.2.142
+- Не менять структуру данных, которые Ultra / router-agent передают в Home Assistant.
+- Добавить в Home Assistant слой индикации свежести `snapshot` / `traffic` / `users` / `qos` без дополнительной нагрузки на роутер.
+- Обновить handoff-документы, release-plan и карту сущностей под новые helper-сенсоры.
 
-### 3) Aggregated snapshot
-`wget -qO- "http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot"`
-- returns one JSON bundle
-- contains nested sections `status`, `traffic`, `users`, `qos`
-- works after install/restart on the live router
+## Previous release intent for v1.2.141
+- Не менять структуру данных, которые Ultra / router-agent передают в Home Assistant.
+- Выгрузить накопленную проектную память и рабочие договорённости в файлы внутри проекта.
+- Обновить все handoff-документы, чтобы следующий чат можно было начать без потери контекста.
 
-### 4) Home Assistant side
-- метрики поступают
-- пользователь подтвердил, что интеграция работает
-
-## Operational notes
-- На первом прогреве или в редких моментах cache-warmup внутри snapshot могли всплывать нулевые значения в `traffic`, но прямой `ha_traffic` и повторный `ha_snapshot` подтверждали корректные данные.
-- Для практической эксплуатации это означает: UI / HA должны учитывать, что `ha_snapshot` — это агрегат из короткоживущих cached-срезов, а не тяжёлый real-time stream.
-
-## Release intent for v1.2.141
-- Не трогать JSON-структуру для HA.
-- Стабилизировать документный контур проекта.
-- Зафиксировать roadmap следующего этапа без новых agent breaking changes.
+## Important guardrails
+- Не ломать автоматическую проверку SSL-сертификатов прокси-провайдеров.
+- Не возвращаться к `git pull` как к основному сценарию обновления UI на роутере.
+- В docs и handoff-файлах каждый релиз должен фиксировать и сам шаг, и запрос пользователя, а не только итог.

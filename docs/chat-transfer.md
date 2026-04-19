@@ -1,12 +1,17 @@
-# UI Mihomo / Ultra — chat transfer
+# UltraUIXkeen — current chat transfer note
 
-## Текущее состояние
-- Текущая версия UI: **v1.2.141**
-- Router-agent: **0.6.31**
-- Последний подтверждённый пользователем рабочий шаг по HA-контуру: метрики в Home Assistant поступают и подтверждены после live-проверки `ha_snapshot`
-- Репозиторий: `NightShadowDevOPs/UltraUIXkeen`
-- Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
-- Путь на роутере: `/opt/UltraUIXkeen`
+## Current release
+- Текущая версия UI: **v1.2.142**
+- Текущая версия `router-agent`: **0.6.31**
+- Home Assistant bridge contract: **unchanged / frozen**
+
+## Что вошло в v1.2.142
+- поднят UI до `1.2.142`
+- `router-agent` **не менялся**, остаётся `0.6.31`
+- структура JSON для Home Assistant **не менялась**
+- в Home Assistant добавлены helper-сенсоры свежести и stale-индикатор поверх уже существующих timestamp-ов
+- обновлён пример dashboard: теперь в HA видно задержку / устаревание snapshot без усиления нагрузки на роутер
+- обновлены changelog, release-plan, HA handoff docs, request-ledger и transfer-файлы
 
 ## Что вошло в v1.2.141
 - поднят UI до `1.2.141`
@@ -15,21 +20,5 @@
 - накопленный проектный контекст выгружен в docs: `project-memory`, `request-ledger`, `current-state`
 - обновлены changelog, release-plan, HA handoff docs и transfer-файлы
 
-## Что вошло в v1.2.140
-- поднят UI до `1.2.140`
-- поднят `router-agent` до `0.6.31`
-- исправлен `router-agent/install.sh`: embedded CGI внутри инсталлятора синхронизирован с `api.sh`, команда `ha_snapshot` реально доезжает до роутера после установки
-- single-resource HA package на `ha_snapshot` сохранён
-
-## Live-наблюдение
-- роутер отвечает по `http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status`
-- `ha_contract_meta` отвечает корректно и показывает `preferred_resource: ha_snapshot`
-- `ha_snapshot` отвечает единым валидным JSON c блоками `status / traffic / users / qos`
-- на этом стенде для проверки agent лучше использовать `192.168.0.1`, а не `127.0.0.1`
-
-## Что важно помнить дальше
-1. Если меняется `router-agent`, нужно отдельно дать команду обновления агента на роутере.
-2. В релизах всегда нужны: архив релиза, commit message отдельно, команды для роутера отдельно.
-3. В docs обязательно поддерживать файл переноса в новый чат и HA handoff-пакет в актуальном состоянии.
-4. Текущий HA-контур стабилизирован на `ha_snapshot`; без отдельной причины контракт не ломать.
-5. Для тяжёлой аналитики по клиентскому трафику лучше использовать UI проекта, а не нагружать HA роутерной реконструкцией графов.
+## Next suggested step
+- На следующем шаге развивать Host / Traffic diagnostics cards уже поверх стабилизированного HA bridge, не трогая JSON-контракт без отдельного запроса.

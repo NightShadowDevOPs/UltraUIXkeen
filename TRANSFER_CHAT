@@ -1,9 +1,15 @@
-UI Mihomo / Ultra
-==================
+UltraUIXkeen / UI Mihomo Ultra — transfer summary
 
-Текущая версия UI: v1.2.141
-Router-agent: 0.6.31
-Последний подтверждённый рабочий шаг: метрики в Home Assistant поступают после live-проверки ha_snapshot
+Текущая версия UI: v1.2.142
+Текущая версия router-agent: 0.6.31
+
+Что вошло в v1.2.142:
+- поднят UI до 1.2.142
+- router-agent не менялся и остаётся 0.6.31
+- структура данных для Home Assistant не менялась
+- в Home Assistant добавлены helper-сенсоры свежести и stale-индикатор поверх существующих timestamp
+- обновлён пример HA dashboard, чтобы было видно задержку / устаревание данных без дополнительной нагрузки на роутер
+- обновлены changelog, release-plan, transfer docs, request-ledger и HA handoff-пакет
 
 Что вошло в v1.2.141:
 - поднят UI до 1.2.141
@@ -11,15 +17,3 @@ Router-agent: 0.6.31
 - структура данных для Home Assistant не менялась
 - в docs добавлены project-memory, request-ledger и current-state
 - обновлены changelog, release-plan, transfer docs и HA handoff-пакет
-
-Что вошло в v1.2.140:
-- поднят UI до 1.2.140
-- поднят router-agent до 0.6.31
-- исправлен router-agent/install.sh: embedded CGI внутри инсталлятора синхронизирован с api.sh
-- команда ha_snapshot реально доезжает до роутера после установки
-
-Важно:
-- live-проверки agent на этом стенде лучше делать через 192.168.0.1:9099
-- если меняется router-agent, в ответе нужен отдельный блок команды обновления агента
-- текущий HA-контур держать совместимым: preferred_resource = ha_snapshot
-- после обновления полезно проверить status, ha_contract_meta и ha_snapshot
