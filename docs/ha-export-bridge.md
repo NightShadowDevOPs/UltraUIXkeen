@@ -1,3 +1,10 @@
+# HA export bridge notes
+
+## v1.2.148
+- HA handoff bundle synced to router-agent **0.6.32**.
+- Bridge contract intentionally kept stable; this release focuses on router traffic safety and lighter telemetry pressure.
+- Overview traffic-weight chart support remains in place; no HA-side breaking change introduced.
+
 # Home Assistant export bridge notes
 
 ## v1.2.147

@@ -21,7 +21,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.31"
+AGENT_VERSION="0.6.32"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -38,6 +38,11 @@ RCLONE_KEEP_DAYS="${RCLONE_KEEP_DAYS:-30}"
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-${RCLONE_KEEP_DAYS:-30}}"
 HOST_TRAFFIC_STATE_FILE="${HOST_TRAFFIC_STATE_FILE:-/tmp/zash-host-traffic.prev.tsv}"
 HOST_TRAFFIC_TS_FILE="${HOST_TRAFFIC_TS_FILE:-/tmp/zash-host-traffic.prev.ts}"
+UI_QUERY_CACHE_DIR="${UI_QUERY_CACHE_DIR:-/tmp/zash-agent-ui-cache}"
+UI_TRAFFIC_LIVE_TTL_SECS="${UI_TRAFFIC_LIVE_TTL_SECS:-2}"
+UI_HOST_TRAFFIC_TTL_SECS="${UI_HOST_TRAFFIC_TTL_SECS:-3}"
+UI_QOS_STATUS_TTL_SECS="${UI_QOS_STATUS_TTL_SECS:-8}"
+UI_LAN_HOSTS_TTL_SECS="${UI_LAN_HOSTS_TTL_SECS:-20}"
 QOS_HOSTS_FILE="${QOS_HOSTS_FILE:-/opt/zash-agent/var/qos-hosts.db}"
 QOS_CRITICAL_PCT="${QOS_CRITICAL_PCT:-35}"
 QOS_HIGH_PCT="${QOS_HIGH_PCT:-25}"
@@ -87,6 +92,54 @@ reply_ok() {
   echo "Cache-Control: no-store"
   echo
   echo "$1"
+}
+
+ui_cache_norm_key() {
+  printf '%s' "$1" | tr -cs 'A-Za-z0-9._-' '_'
+}
+
+read_ui_json_cache() {
+  key="$(ui_cache_norm_key "$1")"
+  ttl="$2"
+  case "$ttl" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$ttl" -gt 0 ] || return 1
+  cache_dir="$UI_QUERY_CACHE_DIR"
+  [ -n "$cache_dir" ] || return 1
+  payload_file="$cache_dir/$key.json"
+  ts_file="$cache_dir/$key.ts"
+  [ -s "$payload_file" ] || return 1
+  [ -f "$ts_file" ] || return 1
+  now_ts="$(date +%s 2>/dev/null)"
+  ts_val="$(tr -cd '0-9' < "$ts_file" 2>/dev/null)"
+  [ -n "$now_ts" ] || return 1
+  [ -n "$ts_val" ] || return 1
+  age=$((now_ts - ts_val))
+  [ "$age" -ge 0 ] || return 1
+  [ "$age" -lt "$ttl" ] || return 1
+  cat "$payload_file"
+}
+
+write_ui_json_cache() {
+  key="$(ui_cache_norm_key "$1")"
+  payload="$2"
+  cache_dir="$UI_QUERY_CACHE_DIR"
+  [ -n "$cache_dir" ] || return 0
+  mkdir -p "$cache_dir" 2>/dev/null || return 0
+  payload_file="$cache_dir/$key.json"
+  ts_file="$cache_dir/$key.ts"
+  now_ts="$(date +%s 2>/dev/null)"
+  [ -n "$now_ts" ] || now_ts=0
+  tmp_payload="$payload_file.$$.$now_ts.tmp"
+  tmp_ts="$ts_file.$$.$now_ts.tmp"
+  printf '%s' "$payload" > "$tmp_payload" 2>/dev/null || return 0
+  printf '%s' "$now_ts" > "$tmp_ts" 2>/dev/null || {
+    rm -f "$tmp_payload" 2>/dev/null || true
+    return 0
+  }
+  mv "$tmp_payload" "$payload_file" 2>/dev/null || rm -f "$tmp_payload" 2>/dev/null || true
+  mv "$tmp_ts" "$ts_file" 2>/dev/null || rm -f "$tmp_ts" 2>/dev/null || true
 }
 
 reply_text() {
@@ -1083,31 +1136,46 @@ list_extra_traffic_ifaces() {
   done
 }
 
-traffic_live_json() {
-  iface="$WAN_IF"
-  [ -n "$iface" ] || iface="eth0"
-  if ! ip link show "$iface" >/dev/null 2>&1; then
-    iface="$(ip -4 route show default 2>/dev/null | awk '{print $5}' | head -n1)"
+traffic_live_payload_json() {
+  total_down_bps=0
+  total_up_bps=0
+  if data="$(get_iface_bytes "$WAN_IF")"; then
+    set -- $data
+    cur_rx="$1"
+    cur_tx="$2"
+    prev_rx=0
+    prev_tx=0
+    prev_ts=0
+    if [ -f "$TRAFFIC_STATE_FILE" ]; then
+      read prev_rx prev_tx < "$TRAFFIC_STATE_FILE" || true
+    fi
+    if [ -f "$TRAFFIC_TS_FILE" ]; then
+      read prev_ts < "$TRAFFIC_TS_FILE" || true
+    fi
+    now_ts="$(date +%s)"
+    dt=$((now_ts - ${prev_ts:-0}))
+    [ "$dt" -le 0 ] && dt=1
+    drx=$((cur_rx - ${prev_rx:-0}))
+    dtx=$((cur_tx - ${prev_tx:-0}))
+    [ "$drx" -lt 0 ] && drx=0
+    [ "$dtx" -lt 0 ] && dtx=0
+    total_down_bps=$((drx / dt))
+    total_up_bps=$((dtx / dt))
+    echo "$cur_rx $cur_tx" > "$TRAFFIC_STATE_FILE"
+    echo "$now_ts" > "$TRAFFIC_TS_FILE"
   fi
-  [ -n "$iface" ] || iface="$WAN_IF"
-  [ -n "$iface" ] || iface="eth0"
+  printf '{"totalDownBps":%s,"totalUpBps":%s}' "$total_down_bps" "$total_up_bps"
+}
 
-  rx_bytes="$(read_iface_counter "$iface" rx)"
-  tx_bytes="$(read_iface_counter "$iface" tx)"
-  ts_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
-
-  extra_json=""
-  first_extra=1
-  for extra_if in $(list_extra_traffic_ifaces); do
-    ex_rx="$(read_iface_counter "$extra_if" rx)"
-    ex_tx="$(read_iface_counter "$extra_if" tx)"
-    ex_kind="$(traffic_iface_kind "$extra_if")"
-    [ $first_extra -eq 0 ] && extra_json="$extra_json,"
-    first_extra=0
-    extra_json="$extra_json$(printf '{"name":"%s","kind":"%s","rxBytes":%s,"txBytes":%s}' "$(jesc "$extra_if")" "$(jesc "$ex_kind")" "$ex_rx" "$ex_tx")"
-  done
-
-  reply_ok "$(printf '{"ok":true,"iface":"%s","rxBytes":%s,"txBytes":%s,"ts":%s,"extraIfaces":[%s]}' "$(jesc "$iface")" "$rx_bytes" "$tx_bytes" "$ts_ms" "$extra_json")"
+traffic_live_json() {
+  ttl="${UI_TRAFFIC_LIVE_TTL_SECS:-2}"
+  if payload="$(read_ui_json_cache "traffic_live" "$ttl")"; then
+    reply_ok "$payload"
+    return
+  fi
+  payload="$(traffic_live_payload_json)"
+  write_ui_json_cache "traffic_live" "$payload"
+  reply_ok "$payload"
 }
 
 mihomo_config_json() {
@@ -2993,115 +3061,94 @@ host_traffic_collect_bytes_tsv() {
   ' >> "$out_file" || true
 }
 
+host_traffic_live_payload_json() {
+  tmp_curr="$(mktemp)"
+  tmp_json="$(mktemp)"
+  trap 'rm -f "$tmp_curr" "$tmp_json"' EXIT INT TERM
+  collect_host_traffic_snapshot "$tmp_curr"
+  python3 - "$HOST_TRAFFIC_STATE_FILE" "$HOST_TRAFFIC_TS_FILE" "$tmp_curr" "$tmp_json" <<'PY'
+import json
+import sys
+import time
+
+state_path, ts_path, curr_path, json_path = sys.argv[1:5]
+now = int(time.time())
+prev_ts = 0
+try:
+    with open(ts_path, 'r', encoding='utf-8') as fh:
+        prev_ts = int((fh.read() or '0').strip() or '0')
+except Exception:
+    prev_ts = 0
+interval = max(1, now - prev_ts)
+
+def read_rows(path):
+    data = {}
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('	')
+                if len(parts) < 6:
+                    continue
+                ip, down_bytes, up_bytes, clients, bypass, vpn = parts[:6]
+                data[ip] = {
+                    'down_bytes': int(down_bytes or '0'),
+                    'up_bytes': int(up_bytes or '0'),
+                    'clients': int(clients or '0'),
+                    'bypass_down': int(bypass or '0'),
+                    'vpn_down': int(vpn or '0'),
+                }
+    except Exception:
+        return {}
+    return data
+
+prev = read_rows(state_path)
+curr = read_rows(curr_path)
+items = []
+for ip, item in curr.items():
+    prev_item = prev.get(ip, {})
+    down_delta = item['down_bytes'] - int(prev_item.get('down_bytes', 0) or 0)
+    up_delta = item['up_bytes'] - int(prev_item.get('up_bytes', 0) or 0)
+    bypass_delta = item['bypass_down'] - int(prev_item.get('bypass_down', 0) or 0)
+    vpn_delta = item['vpn_down'] - int(prev_item.get('vpn_down', 0) or 0)
+    if down_delta < 0:
+        down_delta = 0
+    if up_delta < 0:
+        up_delta = 0
+    if bypass_delta < 0:
+        bypass_delta = 0
+    if vpn_delta < 0:
+        vpn_delta = 0
+    items.append({
+        'ip': ip,
+        'clients': item['clients'],
+        'downBps': down_delta / interval,
+        'upBps': up_delta / interval,
+        'bypassDownBps': bypass_delta / interval,
+        'vpnDownBps': vpn_delta / interval,
+    })
+
+with open(json_path, 'w', encoding='utf-8') as fh:
+    json.dump({'ok': True, 'intervalSec': interval, 'items': items}, fh, ensure_ascii=False)
+PY
+  cp "$tmp_curr" "$HOST_TRAFFIC_STATE_FILE" 2>/dev/null || cat "$tmp_curr" > "$HOST_TRAFFIC_STATE_FILE"
+  date +%s > "$HOST_TRAFFIC_TS_FILE"
+  cat "$tmp_json"
+  rm -f "$tmp_curr" "$tmp_json" 2>/dev/null || true
+  trap - EXIT INT TERM
+}
+
 host_traffic_live_json() {
-  mkdir -p /tmp >/dev/null 2>&1 || true
-  host_traffic_sync_rules
-
-  hosts_tmp="$(new_tmp_file zash_host_traffic_hosts)"
-  raw_tmp="$(new_tmp_file zash_host_traffic_raw)"
-  current_tmp="$(new_tmp_file zash_host_traffic_current)"
-  [ -n "$hosts_tmp" ] || hosts_tmp="/tmp/zash_host_traffic_hosts.$$.$(date +%s 2>/dev/null || echo 0)"
-  [ -n "$raw_tmp" ] || raw_tmp="/tmp/zash_host_traffic_raw.$$.$(date +%s 2>/dev/null || echo 0)"
-  [ -n "$current_tmp" ] || current_tmp="/tmp/zash_host_traffic_current.$$.$(date +%s 2>/dev/null || echo 0)"
-  prev_tmp="$HOST_TRAFFIC_STATE_FILE"
-  prev_ts_file="$HOST_TRAFFIC_TS_FILE"
-
-  ensure_tmp_file "$hosts_tmp" || { reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  ensure_tmp_file "$raw_tmp" || { rm -f "$hosts_tmp" 2>/dev/null || true; reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  ensure_tmp_file "$current_tmp" || { rm -f "$hosts_tmp" "$raw_tmp" 2>/dev/null || true; reply_ok '{"ok":true,"ts":0,"dtMs":0,"trackedHosts":0,"items":[]}'; return; }
-  collect_tracked_hosts_tsv "$hosts_tmp" || ensure_tmp_file "$hosts_tmp" || true
-  host_traffic_collect_bytes_tsv "$raw_tmp"
-  [ -f "$hosts_tmp" ] || ensure_tmp_file "$hosts_tmp" || true
-  [ -f "$raw_tmp" ] || ensure_tmp_file "$raw_tmp" || true
-  [ -r "$hosts_tmp" ] || ensure_tmp_file "$hosts_tmp" || true
-  [ -r "$raw_tmp" ] || ensure_tmp_file "$raw_tmp" || true
-
-  awk -F'	' '
-    FNR==NR {
-      ip=$1; mac=$2; host=$3; src=$4;
-      if(ip!="") {
-        host_mac[ip]=mac;
-        host_name[ip]=host;
-        host_src[ip]=src;
-        ips[ip]=1;
-      }
-      next
-    }
-    {
-      ip=$1; key=$2; val=$3+0;
-      if(ip!="") {
-        data[ip SUBSEP key]=val;
-        ips[ip]=1;
-      }
-    }
-    END {
-      for (ip in ips) {
-        print ip "	"           (data[ip SUBSEP "bypassDownBytes"] + 0) "	"           (data[ip SUBSEP "bypassUpBytes"] + 0) "	"           (data[ip SUBSEP "vpnDownBytes"] + 0) "	"           (data[ip SUBSEP "vpnUpBytes"] + 0) "	"           host_mac[ip] "	" host_name[ip] "	" host_src[ip];
-      }
-    }
-  ' "$hosts_tmp" "$raw_tmp" 2>/dev/null | sort > "$current_tmp" 2>/dev/null || ensure_tmp_file "$current_tmp" || true
-
-  now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
-  prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '
- ' || true)"
-  echo "$prev_ms" | grep -qE '^[0-9]+$' || prev_ms=0
-  if [ "$prev_ms" -gt 0 ] && [ "$now_ms" -gt "$prev_ms" ]; then
-    dt_ms=$((now_ms - prev_ms))
-  else
-    dt_ms=0
+  ttl="${UI_HOST_TRAFFIC_TTL_SECS:-3}"
+  if payload="$(read_ui_json_cache "host_traffic_live" "$ttl")"; then
+    reply_ok "$payload"
+    return
   fi
-  if [ "$dt_ms" -gt 0 ]; then
-    dt_sec="$(awk -v ms="$dt_ms" 'BEGIN { printf "%.3f", (ms / 1000) }')"
-  else
-    dt_sec="0"
-  fi
-
-  prev_input="/dev/null"
-  [ -f "$prev_tmp" ] && prev_input="$prev_tmp"
-
-  items_json="$(awk -F'	' -v dt="$dt_sec" '
-    function clamp(v) { return (v < 0 ? 0 : v) }
-    function esc(s) {
-      gsub(/\/, "\", s)
-      gsub(/"/, "\"", s)
-      gsub(/
-/, "", s)
-      gsub(/
-/, " ", s)
-      return s
-    }
-    FNR==NR {
-      ip=$1;
-      prev_bd[ip]=$2+0;
-      prev_bu[ip]=$3+0;
-      prev_vd[ip]=$4+0;
-      prev_vu[ip]=$5+0;
-      next
-    }
-    {
-      ip=$1; bd=$2+0; bu=$3+0; vd=$4+0; vu=$5+0; mac=$6; host=$7; src=$8;
-      bypassDownBps = (dt > 0 ? clamp((bd - prev_bd[ip]) / dt) : 0);
-      bypassUpBps = (dt > 0 ? clamp((bu - prev_bu[ip]) / dt) : 0);
-      vpnDownBps = (dt > 0 ? clamp((vd - prev_vd[ip]) / dt) : 0);
-      vpnUpBps = (dt > 0 ? clamp((vu - prev_vu[ip]) / dt) : 0);
-      totalDownBps = bypassDownBps + vpnDownBps;
-      totalUpBps = bypassUpBps + vpnUpBps;
-      if (totalDownBps + totalUpBps <= 1 && bd + bu + vd + vu <= 0) next;
-      if (first == 0) printf ",";
-      first = 0;
-      printf "{"ip":"%s","mac":"%s","hostname":"%s","source":"%s","bypassDownBps":%.3f,"bypassUpBps":%.3f,"vpnDownBps":%.3f,"vpnUpBps":%.3f,"totalDownBps":%.3f,"totalUpBps":%.3f}",         esc(ip), esc(mac), esc(host), esc(src), bypassDownBps, bypassUpBps, vpnDownBps, vpnUpBps, totalDownBps, totalUpBps;
-    }
-  ' "$prev_input" "$current_tmp" 2>/dev/null)"
-
-  cp "$current_tmp" "$prev_tmp" 2>/dev/null || true
-  printf '%s' "$now_ms" > "$prev_ts_file" 2>/dev/null || true
-
-  tracked_hosts="$(wc -l < "$current_tmp" 2>/dev/null | tr -d ' ')"
-  echo "$tracked_hosts" | grep -qE '^[0-9]+$' || tracked_hosts=0
-
-  reply_ok "$(printf '{"ok":true,"ts":%s,"dtMs":%s,"trackedHosts":%s,"items":[%s]}' "$now_ms" "$dt_ms" "$tracked_hosts" "$items_json")"
-
-  rm -f "$hosts_tmp" "$raw_tmp" "$current_tmp" 2>/dev/null || true
+  payload="$(host_traffic_live_payload_json)"
+  write_ui_json_cache "host_traffic_live" "$payload"
+  reply_ok "$payload"
 }
 
 
@@ -3521,35 +3568,59 @@ collect_lan_hosts_tsv() {
   rm -f "$leases_tmp" "$arp_tmp" 2>/dev/null || true
 }
 
+lan_hosts_payload_json() {
+  mapfile="$(mktemp)"
+  hostsfile="$(mktemp)"
+  trap 'rm -f "$mapfile" "$hostsfile"' EXIT INT TERM
+  build_static_arp_map "$mapfile"
+  collect_dnsmasq_leases "$hostsfile"
+  python3 - "$mapfile" "$hostsfile" <<'PY'
+import json
+import sys
+from collections import OrderedDict
+
+map_path, hosts_path = sys.argv[1:3]
+items = OrderedDict()
+
+def merge_item(ip, mac='', hostname=''):
+    if not ip:
+        return
+    entry = items.setdefault(ip, {'ip': ip, 'mac': '', 'hostname': ''})
+    if mac and not entry['mac']:
+        entry['mac'] = mac
+    if hostname and not entry['hostname']:
+        entry['hostname'] = hostname
+
+for path, kind in ((map_path, 'map'), (hosts_path, 'hosts')):
+    try:
+        with open(path, 'r', encoding='utf-8') as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split('	')
+                if kind == 'map' and len(parts) >= 2:
+                    merge_item(parts[0], parts[1], parts[2] if len(parts) > 2 else '')
+                elif kind == 'hosts' and len(parts) >= 1:
+                    merge_item(parts[0], parts[1] if len(parts) > 1 else '', parts[2] if len(parts) > 2 else '')
+    except Exception:
+        continue
+
+print(json.dumps({'ok': True, 'items': list(items.values())}, ensure_ascii=False))
+PY
+  rm -f "$mapfile" "$hostsfile" 2>/dev/null || true
+  trap - EXIT INT TERM
+}
+
 lan_hosts_json() {
-  # Return LAN hosts from DHCP leases and ARP table (best effort).
-  # items: {ip, mac, hostname, source}
-  echo "Content-Type: application/json"
-  echo "Access-Control-Allow-Origin: *"
-  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
-  echo "Access-Control-Allow-Private-Network: true"
-  echo "Cache-Control: no-store"
-  echo
-
-  merged_tmp="/tmp/zash_hosts.$$"
-  collect_lan_hosts_tsv "$merged_tmp"
-
-  printf '{"ok":true,"items":['
-  first=1
-  while IFS='	' read -r ipn macn hostn srcn; do
-    [ -n "$ipn" ] || continue
-    ipj="$(jesc "$ipn")"
-    macj="$(jesc "$macn")"
-    hostj="$(jesc "$hostn")"
-    srcj="$(jesc "$srcn")"
-    [ "$first" -eq 0 ] && printf ','
-    first=0
-    printf '{"ip":"%s","mac":"%s","hostname":"%s","source":"%s"}' "$ipj" "$macj" "$hostj" "$srcj"
-  done < "$merged_tmp"
-  printf ']}'
-
-  rm -f "$merged_tmp" 2>/dev/null || true
+  ttl="${UI_LAN_HOSTS_TTL_SECS:-20}"
+  if payload="$(read_ui_json_cache "lan_hosts" "$ttl")"; then
+    reply_ok "$payload"
+    return
+  fi
+  payload="$(lan_hosts_payload_json)"
+  write_ui_json_cache "lan_hosts" "$payload"
+  reply_ok "$payload"
 }
 
 ip2mac() {
@@ -3906,41 +3977,96 @@ rehydrate_qos_hosts() {
   return 0
 }
 
+qos_status_payload_json() {
+  down_if="$(resolve_shaper_downlink_if)"
+  python3 - "$QOS_HOSTS_FILE" "$WAN_IF" "$down_if" "$SHAPER_IFB_DEV" "$QOS_MODE" <<'PY'
+import json
+import os
+import re
+import subprocess
+import sys
+
+hosts_file, wan_if, down_if, ifb_dev, qos_mode = sys.argv[1:6]
+
+try:
+    raw = open(hosts_file, 'r', encoding='utf-8').read().splitlines()
+except Exception:
+    raw = []
+items = []
+for line in raw:
+    line = line.strip()
+    if not line or line.startswith('#'):
+        continue
+    parts = line.split()
+    if len(parts) < 2:
+        continue
+    ip, profile = parts[0], parts[1]
+    note = ' '.join(parts[2:]).strip() if len(parts) > 2 else ''
+    items.append({'ip': ip, 'profile': profile, 'note': note})
+
+def run_tc(dev):
+    try:
+        return subprocess.run(['tc', '-s', 'class', 'show', 'dev', dev], check=False, capture_output=True, text=True).stdout
+    except Exception:
+        return ''
+
+def parse_tc(output):
+    result = {}
+    current = None
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        m = re.match(r'class htb [^ ]+:(\d+)', line)
+        if m:
+            current = m.group(1)
+            result.setdefault(current, {'bytes': 0, 'packets': 0})
+            continue
+        if current is None:
+            continue
+        m = re.search(r'Sent (\d+) bytes (\d+) pkt', line)
+        if m:
+            result[current] = {'bytes': int(m.group(1)), 'packets': int(m.group(2))}
+    return result
+
+wan_stats = parse_tc(run_tc(wan_if)) if wan_if else {}
+down_stats = parse_tc(run_tc(down_if)) if down_if and down_if != wan_if else {}
+if ifb_dev and ifb_dev != down_if:
+    extra = parse_tc(run_tc(ifb_dev))
+    if extra:
+        down_stats = extra
+
+profile_defaults = {
+    'critical': {'pct': int(os.getenv('QOS_CRITICAL_PCT', '35') or '35'), 'priority': int(os.getenv('QOS_CRITICAL_PRIO', '0') or '0')},
+    'high': {'pct': int(os.getenv('QOS_HIGH_PCT', '25') or '25'), 'priority': int(os.getenv('QOS_HIGH_PRIO', '1') or '1')},
+    'elevated': {'pct': int(os.getenv('QOS_ELEVATED_PCT', '16') or '16'), 'priority': int(os.getenv('QOS_ELEVATED_PRIO', '2') or '2')},
+    'normal': {'pct': int(os.getenv('QOS_NORMAL_PCT', '10') or '10'), 'priority': int(os.getenv('QOS_NORMAL_PRIO', '3') or '3')},
+    'low': {'pct': int(os.getenv('QOS_LOW_PCT', '5') or '5'), 'priority': int(os.getenv('QOS_LOW_PRIO', '5') or '5')},
+    'background': {'pct': int(os.getenv('QOS_BACKGROUND_PCT', '2') or '2'), 'priority': int(os.getenv('QOS_BACKGROUND_PRIO', '7') or '7')},
+}
+
+print(json.dumps({
+    'ok': True,
+    'supported': True,
+    'mode': qos_mode,
+    'wanIf': wan_if,
+    'downlinkIf': down_if,
+    'ifbIf': ifb_dev,
+    'defaults': profile_defaults,
+    'items': items,
+    'wanClasses': wan_stats,
+    'downClasses': down_stats,
+}, ensure_ascii=False))
+PY
+}
+
 qos_status() {
-  echo "Content-Type: application/json"
-  echo "Access-Control-Allow-Origin: *"
-  echo "Access-Control-Allow-Methods: GET, POST, OPTIONS"
-  echo "Access-Control-Allow-Headers: Content-Type, Authorization"
-  echo "Access-Control-Allow-Private-Network: true"
-  echo "Cache-Control: no-store"
-  echo
-
-  shaper_mode_cfg="$(shaper_configured_downlink_mode)"
-  shaper_mode_effective="$(shaper_downlink_mode_effective_passive)"
-  shaper_ifb_ready=false
-  shaper_police_ready_flag=false
-  shaper_ifb_present && shaper_ifb_ready=true
-  shaper_police_ready_passive && shaper_police_ready_flag=true
-
-  printf '{"ok":true,"supported":%s,"wanRateMbit":%s,"lanRateMbit":%s,"qosMode":"%s","qosDownlinkEnabled":%s,"shaperDownlinkMode":"%s","shaperConfiguredMode":"%s","shaperIfbDevice":"%s","shaperIfbReady":%s,"shaperPoliceReady":%s,"shaperPoliceBackend":"%s","defaults":{"critical":{"pct":%s,"priority":%s},"high":{"pct":%s,"priority":%s},"elevated":{"pct":%s,"priority":%s},"normal":{"pct":%s,"priority":%s},"low":{"pct":%s,"priority":%s},"background":{"pct":%s,"priority":%s}},"items":['     "$( [ $have_tc -eq 1 ] && echo true || echo false )" "$WAN_RATE" "$LAN_RATE" "$(jesc "$QOS_MODE")" $( qos_downlink_enabled && echo true || echo false )     "$(jesc "$shaper_mode_effective")" "$(jesc "$shaper_mode_cfg")" "$(jesc "$SHAPER_IFB_DEV")" "$shaper_ifb_ready" "$shaper_police_ready_flag" "$(jesc "hashlimit")"     "$QOS_CRITICAL_PCT" "$QOS_CRITICAL_PRIO" "$QOS_HIGH_PCT" "$QOS_HIGH_PRIO" "$QOS_ELEVATED_PCT" "$QOS_ELEVATED_PRIO" "$QOS_NORMAL_PCT" "$QOS_NORMAL_PRIO" "$QOS_LOW_PCT" "$QOS_LOW_PRIO" "$QOS_BACKGROUND_PCT" "$QOS_BACKGROUND_PRIO"
-  first=1
-  if [ -f "$QOS_HOSTS_FILE" ]; then
-    while read -r ip profile; do
-      [ -n "$ip" ] || continue
-      case "$profile" in critical|high|elevated|normal|low|background) ;; *) continue ;; esac
-      pct="$(qos_profile_pct "$profile")"
-      prio="$(qos_profile_prio "$profile")"
-      up_min="$(qos_min_rate "$WAN_RATE" "$pct")"
-      down_min=0
-      if qos_downlink_enabled; then
-        down_min="$(qos_min_rate "$LAN_RATE" "$pct")"
-      fi
-      [ "$first" -eq 0 ] && printf ','
-      first=0
-      printf '{"ip":"%s","profile":"%s","priority":%s,"upMinMbit":%s,"downMinMbit":%s}' "$(jesc "$ip")" "$profile" "$prio" "$up_min" "$down_min"
-    done < "$QOS_HOSTS_FILE"
+  ttl="${UI_QOS_STATUS_TTL_SECS:-8}"
+  if payload="$(read_ui_json_cache "qos_status" "$ttl")"; then
+    reply_ok "$payload"
+    return
   fi
-  printf ']}'
+  payload="$(qos_status_payload_json)"
+  write_ui_json_cache "qos_status" "$payload"
+  reply_ok "$payload"
 }
 
 cleanup_shape_downlink_for_ip() {

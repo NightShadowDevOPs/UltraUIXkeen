@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.148 — 2026-04-20
+- bumped UI package to `1.2.148`
+- bumped router-agent line to `0.6.32`
+- added short-lived cache for heavy router-agent telemetry endpoints: live traffic, host traffic, QoS status, LAN hosts
+- changed Host QoS card startup to avoid live host traffic polling until it is actually opened or focused
+- synced docs, transfer notes and HA handoff examples to the new baseline
+
 ## v1.2.147 — router traffic jump hotfix and Russian QoS labels
 - raised UI package version to `1.2.147`
 - fixed the broken **Router → Traffic → Открыть** action: it now navigates through the real named route instead of a stale raw string route name

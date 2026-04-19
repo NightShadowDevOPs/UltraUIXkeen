@@ -715,11 +715,31 @@ const profileSummary = (profile: AgentQosProfile) => {
   return `${item.pct || 0}% · prio ${item.priority ?? '—'}`
 }
 
-const refreshAll = async () => {
+const refreshSummary = async () => {
+  const [st, q, h] = await Promise.all([
+    agentStatusAPI(),
+    agentQosStatusAPI(),
+    agentLanHostsAPI(),
+  ])
+  status.value = { ok: !!st.ok, hostQos: !!st.hostQos }
+  qos.value = q.ok ? q : { ok: false, supported: false, items: [], error: q.error }
+  if (q.ok) syncAppliedProfiles()
+  hosts.value = h.ok && h.items ? h.items : []
+  ensureDrafts()
+  if (!st.ok) error.value = st.error || t('agentOfflineTip')
+  else if (!q.ok) error.value = q.error || t('hostQosStatusFailed')
+}
+
+const refreshAll = async ({ includeLive = expanded.value || Boolean(props.focusUser || props.focusIp) }: { includeLive?: boolean } = {}) => {
   if (!agentEnabled.value) return
   loading.value = true
   error.value = ''
   try {
+    if (!includeLive) {
+      await refreshSummary()
+      traffic.value = []
+      return
+    }
     const [st, q, h, tr] = await Promise.all([
       agentStatusAPI(),
       agentQosStatusAPI(),
@@ -792,10 +812,10 @@ useSafePolling({
 })
 
 watch(expanded, async (value) => {
-  if (value) await refreshAll()
+  if (value) await refreshAll({ includeLive: true })
 })
 
 onMounted(async () => {
-  await refreshAll()
+  await refreshAll({ includeLive: expanded.value || Boolean(props.focusUser || props.focusIp) })
 })
 </script>

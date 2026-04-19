@@ -82,7 +82,7 @@ Router-agent нужен для функций, которых нет в Mihomo A
 - Для переноса в новый чат и стабильной работы с проектом добавлены `docs/model-memory-snapshot.md` и `docs/workflow-rules.md`.
 - **Трафик**: рабочий экран разделён на режимы `Устройства` и `Пользователи`, чтобы отдельно видеть живые LAN-хосты/QoS и отдельно — лимиты, блокировки и накопленную статистику по правилам.
 - **Router-agent / Home Assistant**: доступны лёгкие snapshot endpoint'ы `ha_contract_meta`, `ha_snapshot`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`; новый `ha_snapshot` собирает bundle в одном JSON и помогает снизить число параллельных опросов из Home Assistant.
-- **Home Assistant handoff**: в `docs/ha-export/homeassistant/` лежит готовый YAML bundle для быстрого подключения роутера в HA через REST + template sensors. Версионный sync в `status` и `ha_status` доведён до единообразного поведения, а основной HA bundle переведён на agent `0.6.31` с единым `ha_snapshot` resource.
+- **Home Assistant handoff**: в `docs/ha-export/homeassistant/` лежит готовый YAML bundle для быстрого подключения роутера в HA через REST + template sensors. Версионный sync в `status` и `ha_status` доведён до единообразного поведения, а основной HA bundle переведён на agent `0.6.32` с единым `ha_snapshot` resource.
 
 ---
 

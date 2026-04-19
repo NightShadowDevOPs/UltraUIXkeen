@@ -30,3 +30,9 @@
 - Fix the broken **Router → Traffic → Открыть** shortcut shown on the router overview.
 - Keep the user-facing naming Russian and clearer: prefer **QoS устройств / устройства** over leftover Host wording in this flow.
 - Keep the Home Assistant bridge contract unchanged.
+
+## Special request for v1.2.148
+- User explicitly asked to proceed **without harming traffic through the router**.
+- The **Overview diagram with traffic weights** must keep working normally after the hotfix.
+- Any optimization in Traffic/QoS should prefer reducing router load instead of increasing polling density.
+

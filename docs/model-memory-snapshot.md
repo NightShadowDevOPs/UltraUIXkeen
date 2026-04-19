@@ -26,9 +26,11 @@ This is a practical snapshot of long-lived project context that was accumulated 
 - The user prefers every release to include updated docs and transfer files, not only code changes.
 
 ## Current confirmed release baseline
-- Current UI package in this folder: **v1.2.147**
-- Current router-agent line expected with this package: **0.6.31**
+- Current UI package in this folder: **v1.2.148**
+- Current router-agent line expected with this package: **0.6.32**
 - Current HA bridge rule: **JSON contract unchanged**
 
 ## Operator note for a new chat
 When continuing in a new chat, start by checking the current repo contents and the actual router-agent/runtime state before planning the next version. Memory is a map, not the territory.
+
+- `v1.2.148` is the traffic-runtime safety patch: cache short-lived traffic/QoS/LAN payloads in router-agent and load host live traffic on demand.

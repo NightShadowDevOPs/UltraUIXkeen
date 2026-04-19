@@ -1,18 +1,22 @@
-# UltraUIXkeen — Current state
+# Current state — UI Mihomo / Ultra
 
-## Release target
-- UI package target for this release: **v1.2.147**
-- Router-agent line confirmed for this package: **0.6.31**
-- Home Assistant bridge contract: **frozen / do not change payload shape without explicit need**
-- Current stable HA pull model: **single `ha_snapshot` poll + attribute split inside HA**
+## Release baseline
+- UI package target for this release: **v1.2.148**
+- Router-agent line confirmed for this package: **0.6.32**
+- Repo: `NightShadowDevOPs/UltraUIXkeen`
+- Local workspace: `Y:\Мой диск\Git\UltraUIXkeen`
+- Router path: `/opt/UltraUIXkeen`
+- Update path on router: through the UI updater (do **not** treat `git pull` as the main update path)
 
-## What is confirmed right now
-- Router and Home Assistant already exchange data correctly through `ha_snapshot`.
-- The user confirmed that the metrics are coming in and the HA side was checked successfully.
-- `v1.2.147` is a focused router-UI hotfix: repair the broken traffic jump from the Router overview and clean up user-facing QoS naming in Russian.
+## What this package does
+- `v1.2.148` is a router-safe traffic telemetry hotfix.
+- Live traffic/QoS/LAN payloads are now short-term cached inside router-agent so the UI stops hammering the router with heavy parallel reads.
+- Host QoS card now loads expensive live traffic only when the card is opened or when the page is focused on a concrete host/user.
+- Main goal of the release: **do not worsen router traffic/runtime**, while keeping the **Overview traffic-weight chart** alive and feeding it with normal telemetry.
+- HA bridge contract stays compatible; handoff examples are synced to router-agent `0.6.32`.
 
-## Current guardrails
-- Do not casually change the HA JSON contract.
-- Do not break automatic SSL certificate checks for providers.
-- Do not switch back to router-side `git pull` as the default UI update flow.
-- Keep docs / handoff files current in every release.
+## Constraints to keep in mind
+- Do not break provider SSL checks.
+- Do not make the Traffic section heavier again without measuring the router impact.
+- UI update on router still goes through the built-in updater, not through manual git workflow.
+- If router-agent changes again, keep versions in `router-agent/install.sh`, status API, docs and HA handoff bundle aligned.

@@ -1,28 +1,29 @@
-# UltraUIXkeen — Release plan
+# Release plan — UI Mihomo / Ultra
 
-## Current released package
-- **v1.2.147** — Router overview traffic jump hotfix: fixed the broken `Открыть` navigation, routed it into the real Traffic workspace, cleaned up Russian QoS wording, HA bridge left untouched ✅
-- **v1.2.146** — local severity-first sorting / clearer “why this row is here” hints inside diagnostics slices, still without changing HA bridge contract ✅
-- **v1.2.145** — diagnostics drill-in slices and sticky active state: cards now open the full problem subset, active diagnostics stay visible in the toolbar, and Users / Traffic ignores Top N while a diagnostic slice is active ✅
-- **v1.2.144** — actionable diagnostics cards for Host QoS and Traffic / Users: new clickable diagnostics rows, faster drill-in to problem slices, HA bridge contract left untouched ✅
+## Release chain
+- **v1.2.148** — Router-safe traffic telemetry hotfix: added short TTL cache in router-agent for live traffic/QoS/LAN payloads, limited heavy live reads in Host QoS card, preserved Overview traffic-weight diagram ✅
+- **v1.2.149** — Traffic follow-up: validate weight diagram on real router load, review remaining heavy polling points, and polish Traffic workspace without hurting forwarding/QoS runtime
+- **v1.2.150** — QoS/shaping transparency: clearer runtime diagnostics for shaped hosts, downlink/uplink class visibility, cleaner operator UX
+- **later** — broader menu/IA cleanup and Mihomo config workspace separation, without touching stable SSL/provider checks unless explicitly requested
 
-## Upcoming sequence
-- **v1.2.148** — cleanup информационной архитектуры раздела «Трафик» и более явная видимость QoS/shaping.
-- **v1.2.149** — следующий функциональный шаг по traffic UX после стабилизации navigation/QoS контуров.
-- **v1.2.150** — дальнейшая полировка operational UX без изменения HA bridge-контракта.
+## Packaging baseline
+- Latest packaged release: **v1.2.148** (`UltraUIXkeen-v1.2.148.zip`)
+- Latest chat-transfer pack: **v1.2.148** (`UltraUIXkeen-chat-transfer-v1.2.148.zip`)
+- Latest HA handoff pack: **v1.2.148** (`UltraUIXkeen-ha-handoff-v1.2.148.zip`)
+- Latest router-agent line: **0.6.32**
 
-## Package status
-- Latest packaged release: **v1.2.147** (`UltraUIXkeen-v1.2.147.zip`)
-- Latest chat-transfer pack: **v1.2.147** (`UltraUIXkeen-chat-transfer-v1.2.147.zip`)
-- Latest HA handoff pack: **v1.2.147** (`UltraUIXkeen-ha-handoff-v1.2.147.zip`)
+## What shipped in v1.2.148
+- UI raised to **1.2.148**
+- Router-agent raised to **0.6.32**
+- Added tiny server-side cache windows for:
+  - `traffic_live`
+  - `host_traffic_live`
+  - `qos_status`
+  - `lan_hosts`
+- Changed Host QoS card startup path: summary data loads first, live per-host traffic loads only when really needed
+- Synced docs and HA handoff examples to the new agent line
 
-## Router-agent status
-- Confirmed agent line: **0.6.31**
-
-## What shipped in v1.2.147
-- UI raised to **1.2.147**
-- Router-agent remained **0.6.31**
-- Router overview traffic card now jumps into the actual Traffic route instead of a stale route name string
-- The Router overview traffic shortcut now lands in the devices/QoS context
-- Key user-facing QoS labels were cleaned up from Host/hosts wording to Russian device-oriented wording
-- HA JSON contract explicitly kept frozen; no router-agent payload shape changes
+## Operator notes
+- Release intent is defensive: reduce telemetry pressure on the router, not add more pretty-but-expensive polling.
+- Keep watching whether the Overview traffic-weight chart receives normal data under real load.
+- If new UI widgets need frequent traffic polling, prefer reuse of cached payloads or explicit on-demand loading.
