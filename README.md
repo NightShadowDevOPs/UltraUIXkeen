@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.157`
+- UI: `v1.2.158`
 - router-agent: `0.6.32`
-- Focus: уменьшение нагрузки от массовых latency-тестов и сохранение безопасного runtime-поведения роутера
+- Focus: прозрачная очистка provider-panel state при сохранении безопасного runtime-поведения роутера
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 

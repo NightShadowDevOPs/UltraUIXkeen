@@ -10,11 +10,11 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.157**
+- UI: **v1.2.158**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.157` adds cleanup for stale provider-panel records in Tasks UI: disabled providers that remain only in saved UI state can now be removed per-row or in bulk
+- `v1.2.158` makes provider-panel row state explicit in Tasks UI: active runtime rows and saved-only UI residues are now visually separated, and deletion behavior is clearer
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path

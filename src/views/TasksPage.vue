@@ -94,6 +94,7 @@
 				  <div>
 				    <div>{{ $t('providersPanelColumnsExplain') }}</div>
 				    <div class="mt-0.5">{{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}</div>
+				    <div class="mt-0.5 text-xs opacity-70">{{ $t('providersPanelStateSummary', { active: providersPanelActiveCount, saved: providersPanelSavedOnlyCount }) }}</div>
 				  </div>
 				  <button
 				    v-if="providersPanelSavedOnlyCount > 0"
@@ -139,7 +140,8 @@
                     </select>
 
                 <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
-                <span v-if="p.savedOnly" class="badge badge-ghost badge-xs">{{ $t('providerSavedOnlyBadge') }}</span>
+                <span v-if="p.activeRuntime" class="badge badge-primary badge-xs">{{ $t('providerActiveBadge') }}</span>
+                <span v-if="p.hasSavedSettings" class="badge badge-ghost badge-xs">{{ p.savedOnly ? $t('providerSavedOnlyBadge') : $t('providerSavedSettingsBadge') }}</span>
                 <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
               </div>
             </td>
@@ -161,7 +163,7 @@
 							>
 							  {{ $t('open') }}
 							</a>
-              <button type="button" class="btn btn-ghost btn-xs text-error" @click="deleteProviderPanelSettings(p.name)">{{ $t('delete') }}</button>
+              <button type="button" class="btn btn-ghost btn-xs text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
 						  </div>
 						</td>
 						<td>
@@ -2097,6 +2099,9 @@ const providersPanelRenderList = computed(() => {
   }
 
   const activeSet = new Set(activeProviderNames.value)
+  const savedUrlSet = new Set(Object.keys(proxyProviderPanelUrlMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
+  const savedWarnSet = new Set(Object.keys(proxyProviderSslWarnDaysMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
+  const savedIconSet = new Set(Object.keys(proxyProviderIconMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
   const byName = new Map<string, any>()
   for (const it of (providersPanelList.value || []) as any[]) {
     const name = String(it?.name || '').trim()
@@ -2110,15 +2115,20 @@ const providersPanelRenderList = computed(() => {
     .map((name) => {
       const it = byName.get(name)
       const base = it ? { ...it } : { name }
+      const activeRuntime = activeSet.has(name)
+      const hasSavedSettings = savedUrlSet.has(name) || savedWarnSet.has(name) || savedIconSet.has(name)
       return {
         ...base,
         name,
-        savedOnly: !activeSet.has(name),
+        activeRuntime,
+        hasSavedSettings,
+        savedOnly: !activeRuntime && hasSavedSettings,
       }
     })
 })
 
 const providersPanelSavedOnlyCount = computed(() => providersPanelRenderList.value.filter((it: any) => !!it?.savedOnly).length)
+const providersPanelActiveCount = computed(() => providersPanelRenderList.value.filter((it: any) => !!it?.activeRuntime).length)
 
 const fmtSslPanel = (v: any) => {
   const d = parseDateMaybe(v)
@@ -2250,10 +2260,23 @@ const removeSavedOnlyProviderSettings = () => {
   })
 }
 
-const deleteProviderPanelSettings = (name: string) => {
+const providerPanelDeleteTitle = (row: any) => {
+  const name = String(row?.name || '').trim()
+  if (!name) return t('delete')
+  if (row?.activeRuntime && row?.hasSavedSettings) return t('providerPanelDeleteSavedSettingsTitle', { name })
+  if (row?.savedOnly) return t('providerPanelDeleteSavedOnlyTitle', { name })
+  return t('providerPanelDeleteActiveNothingTitle', { name })
+}
+
+const deleteProviderPanelSettings = (rowOrName: any) => {
+  const row = typeof rowOrName === 'string' ? { name: rowOrName } : (rowOrName || {})
+  const name = String(row?.name || '').trim()
   const removed = removeProviderPanelSettings(name)
+  let content = t('providerPanelDeleteNothing', { name })
+  if (removed && row?.activeRuntime) content = t('providerPanelDeleteSavedSettingsDone', { name })
+  else if (removed) content = t('providerPanelDeleteDone', { name })
   showNotification({
-    content: removed ? t('providerPanelDeleteDone', { name: String(name || '').trim() }) : t('providerPanelDeleteNothing', { name: String(name || '').trim() }),
+    content,
     type: removed ? 'alert-success' : 'alert-info',
     timeout: 2200,
   })

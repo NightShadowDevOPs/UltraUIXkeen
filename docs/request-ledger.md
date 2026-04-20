@@ -1,5 +1,11 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-20 — provider-row source transparency after cleanup
+- User request: continue the release flow and make it visually clear why disabled SSL-capable providers remain in the Tasks list.
+- Problem: after the cleanup release, it could still look confusing when an active provider remained visible after delete, because the action removed only saved UI settings while runtime still supplied the row.
+- Action in `v1.2.158`: added explicit row-state badges for active runtime and saved UI state, clarified delete behavior with contextual tooltips/notifications, and ensured saved-only rows disappear cleanly without visual tails.
+- Safety rule preserved: no changes to router-agent, live traffic flow, or provider SSL probing runtime.
+
 ## 2026-04-20 — cleanup saved-only provider-panel rows
 - User request: make a release and clarify how disabled SSL-capable providers should be removed from the Tasks list.
 - Problem: provider rows could survive in Tasks because their panel URL / icon / SSL threshold stayed in saved UI settings even after the provider disappeared from the active contour.
@@ -28,4 +34,3 @@
 - Action in `v1.2.155`: when the traffic card becomes visible again, UI now refreshes immediately so the traffic weights diagram stays responsive in the visible state.
 - Action in `v1.2.156`: manual mass latency tests now run with a small concurrency limit instead of one large parallel burst.
 - Action in `v1.2.156`: effective test URLs are now resolved more consistently in single and bulk/manual latency tests when independent latency URLs are enabled.
-
