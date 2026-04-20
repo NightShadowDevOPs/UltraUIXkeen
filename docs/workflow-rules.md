@@ -14,6 +14,9 @@ For each release, prepare:
 - If `router-agent` changed, provide explicit reinstall / restart / verification commands.
 - If router-side actions are not needed, state that directly.
 
+## Language rule
+- All explanations and supporting release text for this project should be in Russian.
+
 ## Documentation discipline
 Every release must refresh, when relevant:
 - `CHANGELOG.md`

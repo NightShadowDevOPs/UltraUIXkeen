@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.152`
+- UI: `v1.2.155`
 - router-agent: `0.6.32`
-- Focus: viewport-aware lazy polling for Router host status cards too
+- Focus: уменьшение фоновой нагрузки в Overview → Traffic без вреда для живой диаграммы трафика
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 

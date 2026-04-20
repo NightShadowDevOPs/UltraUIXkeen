@@ -1,27 +1,20 @@
 # Release plan — UI Mihomo / Ultra
 
-## Released
-- `v1.2.147` — traffic workspace structure + live refresh hardening + docs sync
-- `v1.2.148` — router-agent telemetry cache for heavy traffic endpoints + Host QoS on-demand live refresh
-- `v1.2.149` — client-side polling dedupe/cache + stable fallback for overview/traffic live graphs
-- `v1.2.150` — lighter secondary Traffic/QoS polling + short cache windows for repeated status/qos/lan-host reads
-- `v1.2.151` — viewport-aware lazy polling for Host QoS and Traffic/Users QoS cards
-- `v1.2.152` — viewport-aware lazy polling for Router Resources and Router agent status cards
+## Recently delivered
+- `v1.2.150` — lighter Host QoS / Users QoS secondary background refresh
+- `v1.2.151` — viewport-aware lazy polling for Host QoS / Users QoS cards
+- `v1.2.152` — viewport-aware lazy polling for Router → Resources / Router agent cards
 - `v1.2.153` — viewport-aware lazy polling for Overview router health card
+- `v1.2.154` — viewport-aware pause for Overview → Traffic secondary host-detail polling
+- `v1.2.155` — reduced main Overview → Traffic live cadence while the card is off-screen
 
-## Current target
-- validate `v1.2.153` on the real router under ordinary and heavier traffic
-- confirm that Overview traffic weights remain live and that router throughput/forwarding is unaffected
-- confirm that off-screen QoS cards, Router host-status cards and the Overview router health widget really stop background polling and resume cleanly when visible again
+## Next likely step
+- validate `v1.2.155` on the real router under ordinary and heavier traffic
+- if stable, pick one more cheap secondary telemetry contour that can be paused or slowed off-screen without harming the main traffic UX
+- separately keep reviewing upstream for safe ideas, but only accept cherry-picks that do not increase constant polling, CPU churn or router runtime risk
 
-## Next candidate release
-- `v1.2.154`
-  - review useful upstream ideas that can be cherry-picked without adding extra background load
-  - selectively inspect one or two more clearly secondary widgets for viewport/lazy refresh opportunities
-  - keep provider SSL checks and the traffic/runtime path untouched unless explicitly requested
-
-## Guardrails
-- do not break automatic SSL certificate checks for proxy providers
-- do not worsen real traffic handling on the router for the sake of UI polish
-- prefer lazy refresh, dedupe and cache over extra permanent polling
-- keep router-agent version in sync in docs/install/status API only when agent code actually changes
+## Non-negotiable guardrails
+- real router traffic must not suffer because of UI work
+- the Overview traffic weights chart must keep working normally
+- provider SSL checks stay untouched unless explicitly requested
+- router updater flow remains the built-in UI updater

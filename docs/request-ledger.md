@@ -16,3 +16,7 @@
 - Action in `v1.2.152`: when those host-status cards return into view, UI triggers a soft runtime refresh without touching the main traffic live contour.
 - Action in `v1.2.153`: added viewport-aware lazy polling to Overview → Router Health so its background `/version` probe pauses while the widget is off-screen.
 - Action in `v1.2.153`: when Router Health returns into view, UI triggers a soft health refresh without touching the main traffic contour or traffic weights chart.
+- Action in `v1.2.154`: added viewport-aware pause for secondary host-detail polling inside Overview → Traffic, while leaving the main live traffic loop intact.
+- Action in `v1.2.154`: slightly thinned Host QoS metadata refresh and expanded-host remote-target refresh to cut background pressure without affecting packet forwarding.
+- Action in `v1.2.155`: slowed the main Overview → Traffic live polling from 4s to 8s while the card is off-screen, but left visible-card cadence unchanged.
+- Action in `v1.2.155`: when the traffic card becomes visible again, UI now refreshes immediately so the traffic weights diagram stays responsive in the visible state.

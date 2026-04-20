@@ -1,3 +1,4 @@
+\
 # Project memory — UI Mihomo / Ultra
 
 ## Stable project facts
@@ -10,11 +11,11 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.153**
+- UI: **v1.2.155**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.153` leaves router-agent untouched and extends viewport-aware lazy polling to `RouterHealth`: the off-screen Overview health widget stops its periodic `/version` probe, then softly refreshes when visible again
+- `v1.2.155` keeps visible Overview → Traffic live updates at 4s, slows off-screen live updates to 8s, and preserves the off-screen pause for secondary host details from `v1.2.154`
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path

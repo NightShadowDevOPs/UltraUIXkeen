@@ -1,5 +1,5 @@
 <template>
-  <div class="card w-full" :style="trafficColorVars">
+  <div ref="trafficCardRef" class="card w-full" :style="trafficColorVars">
     <div class="card-title flex items-center justify-between gap-2 px-4 pt-4">
       <div class="flex min-w-0 flex-col">
         <span>{{ $t('routerTrafficLive') }}</span>
@@ -507,7 +507,7 @@ import { activeConnections } from '@/store/connections'
 import { downloadSpeed, timeSaved, uploadSpeed } from '@/store/overview'
 import { font, theme, tunnelInterfaceDescriptionMap } from '@/store/settings'
 import { usersDbSyncEnabled } from '@/store/usersDbSync'
-import { useDocumentVisibility, useElementSize, useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useElementSize, useElementVisibility, useStorage } from '@vueuse/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -640,6 +640,7 @@ type HostTrafficGroup = HostSiteMeta & {
 const { t } = useI18n()
 const chartRef = ref<HTMLElement | null>(null)
 const colorRef = ref<HTMLElement | null>(null)
+const trafficCardRef = ref<HTMLElement | null>(null)
 
 const initValue = () => new Array(timeSaved).fill(0).map((v, i) => ({ name: i, value: v }))
 const routerDownloadHistory = ref<Point[]>(initValue())
@@ -1234,7 +1235,7 @@ const collectHostSnapshot = (): HostTrafficStat[] => {
 }
 
 const refreshHostTraffic = () => {
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   const now = Date.now()
   const current = collectHostSnapshot()
   const seen = new Set<string>()
@@ -1350,7 +1351,7 @@ const refreshHostHistory = (items: Record<string, HostTrafficState>, ts: number)
 
 const scheduleHostTrafficRefresh = () => {
   if (hostTrafficTimer !== null) window.clearTimeout(hostTrafficTimer)
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   hostTrafficTimer = window.setTimeout(() => {
     refreshHostTraffic()
     scheduleHostTrafficRefresh()
@@ -1741,7 +1742,7 @@ const refreshHostRemoteTargets = async (ip: string, force = false) => {
 }
 
 const refreshExpandedHostRemoteTargets = async (force = false) => {
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   const ips = Object.entries(expandedHostDetails.value)
     .filter(([, expanded]) => !!expanded)
     .map(([ip]) => ip)
@@ -1750,15 +1751,15 @@ const refreshExpandedHostRemoteTargets = async (force = false) => {
 
 const scheduleHostRemoteTargetsRefresh = () => {
   if (hostRemoteTargetsTimer !== null) window.clearTimeout(hostRemoteTargetsTimer)
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   hostRemoteTargetsTimer = window.setTimeout(async () => {
     await refreshExpandedHostRemoteTargets()
     scheduleHostRemoteTargetsRefresh()
-  }, Math.max(12_000, hostRemoteTargetsRefreshMs))
+  }, Math.max(18_000, hostRemoteTargetsRefreshMs))
 }
 
 const refreshLanHosts = async () => {
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   if (!agentEnabled.value) return
   const res = await agentLanHostsAPI()
   if (!res?.ok || !Array.isArray(res.items)) return
@@ -1799,11 +1800,11 @@ const refreshHostQos = async () => {
 
 const scheduleHostQosRefresh = () => {
   if (hostQosTimer !== null) window.clearTimeout(hostQosTimer)
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   hostQosTimer = window.setTimeout(async () => {
     await refreshHostQos()
     scheduleHostQosRefresh()
-  }, 20_000)
+  }, 30_000)
 }
 
 const refreshAgentHostTraffic = async () => {
@@ -1838,7 +1839,7 @@ const refreshAgentHostTraffic = async () => {
 
 const scheduleHostRefresh = () => {
   if (hostsTimer !== null) window.clearTimeout(hostsTimer)
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   hostsTimer = window.setTimeout(async () => {
     await refreshLanHosts()
     scheduleHostRefresh()
@@ -1847,7 +1848,7 @@ const scheduleHostRefresh = () => {
 
 const scheduleAgentHostTrafficRefresh = () => {
   if (hostTrafficAgentTimer !== null) window.clearTimeout(hostTrafficAgentTimer)
-  if (!shouldPollLive()) return
+  if (!shouldPollHostDetails()) return
   hostTrafficAgentTimer = window.setTimeout(async () => {
     await refreshAgentHostTraffic()
     scheduleAgentHostTrafficRefresh()
@@ -2147,8 +2148,50 @@ const options = computed(() => ({
 }))
 
 const documentVisibility = useDocumentVisibility()
+const trafficCardVisible = useElementVisibility(trafficCardRef)
 
 const shouldPollLive = () => documentVisibility.value === 'visible'
+const shouldPollHostDetails = () => shouldPollLive() && trafficCardVisible.value
+const LIVE_POLL_INTERVAL_VISIBLE_MS = 4_000
+const LIVE_POLL_INTERVAL_OFFSCREEN_MS = 8_000
+
+const getLivePollInterval = () => (trafficCardVisible.value ? LIVE_POLL_INTERVAL_VISIBLE_MS : LIVE_POLL_INTERVAL_OFFSCREEN_MS)
+
+const stopHostDetailsPolling = () => {
+  if (hostsTimer !== null) {
+    window.clearTimeout(hostsTimer)
+    hostsTimer = null
+  }
+  if (hostTrafficTimer !== null) {
+    window.clearTimeout(hostTrafficTimer)
+    hostTrafficTimer = null
+  }
+  if (hostTrafficAgentTimer !== null) {
+    window.clearTimeout(hostTrafficAgentTimer)
+    hostTrafficAgentTimer = null
+  }
+  if (hostQosTimer !== null) {
+    window.clearTimeout(hostQosTimer)
+    hostQosTimer = null
+  }
+  if (hostRemoteTargetsTimer !== null) {
+    window.clearTimeout(hostRemoteTargetsTimer)
+    hostRemoteTargetsTimer = null
+  }
+}
+
+const startHostDetailsPolling = () => {
+  if (!shouldPollHostDetails()) return
+  refreshLanHosts()
+  scheduleHostRefresh()
+  refreshAgentHostTraffic()
+  scheduleAgentHostTrafficRefresh()
+  refreshHostQos()
+  scheduleHostQosRefresh()
+  refreshHostTraffic()
+  scheduleHostTrafficRefresh()
+  scheduleHostRemoteTargetsRefresh()
+}
 
 const stopPolling = () => {
   if (pollTimer !== null) {
@@ -2160,7 +2203,7 @@ const stopPolling = () => {
 const scheduleNextPoll = () => {
   stopPolling()
   if (documentVisibility.value !== 'visible') return
-  pollTimer = window.setTimeout(pollTraffic, 4_000)
+  pollTimer = window.setTimeout(pollTraffic, getLivePollInterval())
 }
 
 const computeExtraSpeeds = (items: AgentTrafficLiveIface[], ts: number) => {
@@ -2343,62 +2386,41 @@ onMounted(() => {
   watch(width, resize)
 
   refreshLanHosts()
-  scheduleHostRefresh()
-  pollTraffic()
   refreshAgentHostTraffic()
-  scheduleAgentHostTrafficRefresh()
   refreshHostQos()
-  scheduleHostQosRefresh()
   refreshHostTraffic()
-  scheduleHostTrafficRefresh()
-  scheduleHostRemoteTargetsRefresh()
+  pollTraffic()
+  startHostDetailsPolling()
 
-  watch(activeConnections, refreshHostTraffic, { deep: true })
+  watch(activeConnections, () => {
+    if (!shouldPollHostDetails()) return
+    refreshHostTraffic()
+  }, { deep: true })
 })
 
 watch(documentVisibility, (value) => {
   if (value !== 'visible') {
     stopPolling()
-    if (hostsTimer !== null) { window.clearTimeout(hostsTimer); hostsTimer = null }
-    if (hostTrafficTimer !== null) { window.clearTimeout(hostTrafficTimer); hostTrafficTimer = null }
-    if (hostTrafficAgentTimer !== null) { window.clearTimeout(hostTrafficAgentTimer); hostTrafficAgentTimer = null }
-    if (hostQosTimer !== null) { window.clearTimeout(hostQosTimer); hostQosTimer = null }
-    if (hostRemoteTargetsTimer !== null) { window.clearTimeout(hostRemoteTargetsTimer); hostRemoteTargetsTimer = null }
+    stopHostDetailsPolling()
     return
   }
-  refreshLanHosts()
-  scheduleHostRefresh()
   pollTraffic()
-  refreshAgentHostTraffic()
-  scheduleAgentHostTrafficRefresh()
-  refreshHostQos()
-  scheduleHostQosRefresh()
-  refreshHostTraffic()
-  scheduleHostTrafficRefresh()
-  scheduleHostRemoteTargetsRefresh()
+  startHostDetailsPolling()
+})
+
+watch(trafficCardVisible, (visible) => {
+  if (!shouldPollLive()) return
+  if (!visible) {
+    stopHostDetailsPolling()
+    scheduleNextPoll()
+    return
+  }
+  pollTraffic()
+  startHostDetailsPolling()
 })
 
 onBeforeUnmount(() => {
   stopPolling()
-  if (hostsTimer !== null) {
-    window.clearTimeout(hostsTimer)
-    hostsTimer = null
-  }
-  if (hostTrafficTimer !== null) {
-    window.clearTimeout(hostTrafficTimer)
-    hostTrafficTimer = null
-  }
-  if (hostTrafficAgentTimer !== null) {
-    window.clearTimeout(hostTrafficAgentTimer)
-    hostTrafficAgentTimer = null
-  }
-  if (hostQosTimer !== null) {
-    window.clearTimeout(hostQosTimer)
-    hostQosTimer = null
-  }
-  if (hostRemoteTargetsTimer !== null) {
-    window.clearTimeout(hostRemoteTargetsTimer)
-    hostRemoteTargetsTimer = null
-  }
+  stopHostDetailsPolling()
 })
 </script>

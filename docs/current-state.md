@@ -1,25 +1,25 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-20**
-- UI version: **v1.2.153**
+- UI version: **v1.2.155**
 - router-agent version: **0.6.32**
-- Repository: `NightShadowDevOPs/UltraUIXkeen`
-- Local path: `Y:\Мой диск\Git\UltraUIXkeen`
-- Router path: `/opt/UltraUIXkeen`
+- Main focus: keep reducing router/UI overhead in traffic-related telemetry contours without touching the real traffic forwarding path
 
-## What was done in v1.2.153
-- left router-agent telemetry/runtime logic untouched so the forwarding path stays conservative and safe
-- added viewport-aware lazy polling to the Overview router health card
-- if the Router Health widget is off-screen, its periodic `/version` health probe no longer keeps poking the backend in the background
-- when the card becomes visible again, a soft health refresh is fired so the badge and latency quickly catch up
-- kept the main traffic live path and the Overview weights chart outside this lazy-visibility logic
-- synchronized docs, changelog and chat-transfer bundle for the new release
+## What was done in v1.2.155
+- Overview → Traffic main live polling now keeps the normal 4s cadence only while the traffic card is visible.
+- When the card is off-screen, the same live polling slows down to 8s instead of hammering at the full cadence.
+- When the card becomes visible again, UI performs an immediate live refresh and returns to the normal cadence.
+- Secondary host-detail polling from `v1.2.154` remains viewport-aware and paused off-screen.
+- router-agent stayed at `0.6.32`; this release is UI-side only.
 
-## Current focus
-- reduce remaining UI polling overhead without touching the actual traffic path
-- keep Overview traffic weights chart stable under real router load
-- continue lightening the Traffic workspace carefully, without breaking QoS, host stats or provider SSL checks
+## Current safety rules
+- do not break automatic SSL-certificate checks for providers
+- do not suggest `git pull` as the primary router update path; the built-in UI updater remains the main flow
+- every router command block must begin with `clear`
+- if router-agent changes later, sync version references in `install.sh`, status API and docs
 
-## Next logical step after this release
-- observe `v1.2.153` under real router load
-- if the runtime is stable, move to safe upstream cherry-picks and maybe one more selective viewport pass for other secondary widgets
+## Immediate next step
+- observe `v1.2.155` under real router load
+- confirm that the Overview traffic weights chart still feels normal while visible
+- confirm that off-screen Overview → Traffic polling is quieter than before
+- then review one more cheap secondary contour or a safe upstream cherry-pick that does not raise background load
