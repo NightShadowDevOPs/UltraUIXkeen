@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.156 - safer mass latency tests with lighter router pressure
+- raised UI package version to `1.2.156`
+- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
+- mass latency tests no longer fire all proxy checks in one uncontrolled burst: UI now runs them with a small concurrency limit so router/API pressure stays more even
+- single-proxy and bulk/manual latency tests now resolve the effective test URL more consistently when independent latency URLs are enabled
+- this release is deliberately UI-only and does not touch provider SSL checks, traffic forwarding or the main Overview traffic-weights contour
+- documentation, transfer files and memory snapshot docs refreshed for `v1.2.156`
+
 ## v1.2.155 - slower off-screen overview traffic live polling
 - raised UI package version to `1.2.155`
 - kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release

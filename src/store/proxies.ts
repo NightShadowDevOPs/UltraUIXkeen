@@ -46,6 +46,8 @@ const speedtestUrlWithDefault = computed(() => {
   return speedtestUrl.value || TEST_URL
 })
 
+const LATENCY_TEST_CONCURRENCY = 4
+
 export const getTestUrl = (groupName?: string) => {
   if (!groupName || !independentLatencyTest.value) {
     return speedtestUrlWithDefault.value
@@ -55,6 +57,44 @@ export const getTestUrl = (groupName?: string) => {
     proxyMap.value[groupName] || proxyProviederList.value.find((p) => p.name === groupName)
 
   return proxyNode?.testUrl || speedtestUrlWithDefault.value
+}
+
+const resolveLatencyTestUrl = (proxyName: string, fallbackUrl = speedtestUrlWithDefault.value) => {
+  if (!independentLatencyTest.value) {
+    return fallbackUrl
+  }
+
+  return getTestUrl(proxyName) || fallbackUrl
+}
+
+const runWithConcurrencyLimit = async <T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+) => {
+  const safeLimit = Math.max(1, Math.min(limit, items.length || 1))
+  const results: PromiseSettledResult<R>[] = new Array(items.length)
+  let cursor = 0
+
+  const next = async (): Promise<void> => {
+    const currentIndex = cursor++
+    if (currentIndex >= items.length) {
+      return
+    }
+
+    try {
+      const value = await worker(items[currentIndex], currentIndex)
+      results[currentIndex] = { status: 'fulfilled', value }
+    } catch (reason) {
+      results[currentIndex] = { status: 'rejected', reason }
+    }
+
+    await next()
+  }
+
+  await Promise.all(Array.from({ length: safeLimit }, () => next()))
+
+  return results
 }
 
 export const getLatencyByName = (proxyName: string, groupName?: string) => {
@@ -363,7 +403,7 @@ const latencyTestForSingle = async (proxyName: string, url: string, timeout: num
 
 export const proxyLatencyTest = async (
   proxyName: string,
-  url = speedtestUrlWithDefault.value,
+  url = getTestUrl(proxyName),
   timeout = speedtestTimeout.value,
 ) => {
   const res = await latencyTestForSingle(proxyName, url, timeout)
@@ -415,31 +455,39 @@ const setHistory = (proxyName: string, delay: number) => {
   })
 }
 
-const testLatencyOneByOneWithTip = async (nodes: string[], url = speedtestUrlWithDefault.value) => {
+const testLatencyOneByOneWithTip = async (
+  nodes: string[],
+  fallbackUrl = speedtestUrlWithDefault.value,
+) => {
   let testDone = 0
   let testFailed = 0
 
-  await Promise.allSettled(
-    nodes.map(async (name) => {
-      try {
-        const res = await latencyTestForSingle(name, url, Math.min(3000, speedtestTimeout.value))
-        testDone++
-        if (res.status !== 200) {
-          testFailed++
-          setHistory(name, NOT_CONNECTED)
-        } else {
-          setHistory(name, res.data.delay)
-        }
-        latencyTip(testDone, nodes.length, testFailed)
-        return res
-      } catch (error) {
-        testDone++
+  await runWithConcurrencyLimit(nodes, LATENCY_TEST_CONCURRENCY, async (name) => {
+    const effectiveUrl = resolveLatencyTestUrl(name, fallbackUrl)
+
+    try {
+      const res = await latencyTestForSingle(
+        name,
+        effectiveUrl,
+        Math.min(3000, speedtestTimeout.value),
+      )
+      testDone++
+      if (res.status !== 200) {
         testFailed++
-        latencyTip(testDone, nodes.length, testFailed)
-        throw error
+        setHistory(name, NOT_CONNECTED)
+      } else {
+        setHistory(name, res.data.delay)
       }
-    }),
-  )
+      latencyTip(testDone, nodes.length, testFailed)
+      return res
+    } catch (error) {
+      testDone++
+      testFailed++
+      setHistory(name, NOT_CONNECTED)
+      latencyTip(testDone, nodes.length, testFailed)
+      throw error
+    }
+  })
   await fetchProxies()
 }
 

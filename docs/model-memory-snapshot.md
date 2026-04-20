@@ -2,7 +2,7 @@
 
 ## Working context
 - Date: **2026-04-20**
-- UI version: **v1.2.155**
+- UI version: **v1.2.156**
 - router-agent version: **0.6.32**
 
 ## What changed most recently
@@ -13,6 +13,7 @@
 - `v1.2.153`: Overview router health card pauses its background `/version` probe while off-screen and softly refreshes when visible again
 - `v1.2.154`: Overview traffic card pauses secondary host-detail polling while the card is off-screen; the main live traffic contour stays untouched
 - `v1.2.155`: Overview traffic card now also slows its main live polling cadence while off-screen, but returns to immediate full-speed refresh when the card becomes visible again
+- `v1.2.156`: manual mass latency tests are now concurrency-limited and resolve effective test URLs more consistently when independent latency URLs are enabled
 
 ## Important constraints
 - traffic through the router must not degrade because of UI work
@@ -21,8 +22,8 @@
 - updater flow on the router remains the built-in UI updater
 
 ## Immediate next check
-- verify real-router behavior after `v1.2.155`:
-  1. Overview traffic weights chart updates normally while visible
-  2. off-screen Overview → Traffic polling is quieter than before
-  3. host details / Host QoS metadata polling still stop and resume cleanly
+- verify real-router behavior after `v1.2.156`:
+  1. mass latency tests finish normally, but without an obvious parallel burst on the router
+  2. single and bulk latency tests still use the expected URL logic
+  3. Overview traffic weights chart updates normally while visible
   4. router throughput/latency does not regress

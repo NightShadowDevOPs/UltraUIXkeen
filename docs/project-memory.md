@@ -1,4 +1,3 @@
-\
 # Project memory — UI Mihomo / Ultra
 
 ## Stable project facts
@@ -11,11 +10,11 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.155**
+- UI: **v1.2.156**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.155` keeps visible Overview → Traffic live updates at 4s, slows off-screen live updates to 8s, and preserves the off-screen pause for secondary host details from `v1.2.154`
+- `v1.2.156` limits concurrency for manual mass latency tests and resolves effective latency-test URLs more consistently when independent URLs are enabled
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path

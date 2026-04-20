@@ -20,3 +20,6 @@
 - Action in `v1.2.154`: slightly thinned Host QoS metadata refresh and expanded-host remote-target refresh to cut background pressure without affecting packet forwarding.
 - Action in `v1.2.155`: slowed the main Overview → Traffic live polling from 4s to 8s while the card is off-screen, but left visible-card cadence unchanged.
 - Action in `v1.2.155`: when the traffic card becomes visible again, UI now refreshes immediately so the traffic weights diagram stays responsive in the visible state.
+- Action in `v1.2.156`: manual mass latency tests now run with a small concurrency limit instead of one large parallel burst.
+- Action in `v1.2.156`: effective test URLs are now resolved more consistently in single and bulk/manual latency tests when independent latency URLs are enabled.
+
