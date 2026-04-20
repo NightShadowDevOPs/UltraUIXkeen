@@ -986,7 +986,7 @@ import {
   userTrafficStoreSize,
 } from '@/composables/userTraffic'
 import dayjs from 'dayjs'
-import { useElementVisibility } from '@vueuse/core'
+import { useDocumentVisibility, useElementVisibility } from '@vueuse/core'
 import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { usersDbPullNow } from '@/store/usersDbSync'
@@ -1051,6 +1051,8 @@ const { t } = useI18n()
 const { showTip, hideTip } = useTooltip()
 const cardRef = ref<HTMLElement | null>(null)
 const cardVisible = useElementVisibility(cardRef)
+const documentVisibility = useDocumentVisibility()
+const qosPollingActive = computed(() => cardVisible.value && documentVisibility.value === 'visible')
 
 // --- Bulk actions (profiles / mass apply) ---
 const selectedMap = ref<Record<string, boolean>>({})
@@ -2281,8 +2283,12 @@ const clearUserQos = async (row: Row) => {
 useSafePolling({
   callback: refreshQosStatus,
   intervalMs: 35_000,
-  enabled: () => cardVisible.value,
+  enabled: () => qosPollingActive.value,
   immediate: false,
+})
+
+watch(qosPollingActive, (active, prev) => {
+  if (active && !prev) void refreshQosStatus()
 })
 
 onMounted(() => {

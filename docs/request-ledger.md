@@ -1,5 +1,11 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-20 — pause hidden polling in Tasks live logs without touching HA shape
+- User request: make the next release, keep all explanations in Russian, keep updating documentation and memory snapshot, and do **not** additionally break the router data structure exported to Home Assistant through the agent.
+- Problem: `Задачи → Живые логи` could continue polling every 5 seconds even when the user was not looking at that widget.
+- Action in `v1.2.160`: added visibility-aware pause/resume for the live-logs polling loop and a small badge explaining whether auto-refresh is active or paused.
+- Safety rule preserved: no changes to router-agent, provider SSL probing runtime, real traffic forwarding, or the HA/export JSON shape.
+
 ## 2026-04-20 — off-screen pause for Overview relationship charts
 - User request: continue the work, keep explanations in Russian, and keep reducing load carefully without harming router traffic or the Overview traffic-weights diagram.
 - Problem: Overview relationship charts by sources / clients / rules could continue local snapshot refresh even when the user had not scrolled to them or the tab was hidden.
@@ -40,3 +46,5 @@
 - Action in `v1.2.155`: when the traffic card becomes visible again, UI now refreshes immediately so the traffic weights diagram stays responsive in the visible state.
 - Action in `v1.2.156`: manual mass latency tests now run with a small concurrency limit instead of one large parallel burst.
 - Action in `v1.2.156`: effective test URLs are now resolved more consistently in single and bulk/manual latency tests when independent latency URLs are enabled.
+
+- Action in `v1.2.161`: extended hidden-tab polling pause to Router/System, Router agent, Host QoS and Users QoS cards, without touching router-agent or HA export shape.

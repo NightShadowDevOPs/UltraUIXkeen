@@ -750,12 +750,17 @@ import { showNotification } from '@/helper/notification'
 import dayjs from 'dayjs'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
-import { useElementVisibility, useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useElementVisibility, useStorage } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const status = ref<{ ok: boolean; version?: string; serverVersion?: string; tc?: boolean; wan?: string; lan?: string }>({ ok: false })
 const cardRef = ref<HTMLElement | null>(null)
 const cardVisible = useElementVisibility(cardRef)
+const documentVisibility = useDocumentVisibility()
+const maintenanceLoaded = ref(false)
+const maintenanceLoading = ref(false)
+const statusPollingActive = computed(() => agentEnabled.value && cardVisible.value && documentVisibility.value === 'visible')
+const maintenancePollingActive = computed(() => agentEnabled.value && maintenanceLoaded.value && cardVisible.value && documentVisibility.value === 'visible')
 const maintenanceWorkspaceRef = ref<HTMLElement | null>(null)
 const maintenancePrimaryRef = ref<HTMLElement | null>(null)
 
@@ -823,8 +828,6 @@ const backupArchiveView = ref<'all' | 'current' | 'local' | 'cloud' | 'both'>('a
 const backupArchiveQuery = useStorage('config/agent-backup-archive-query-v1', '')
 const backupArchiveSort = useStorage<'timeDesc' | 'timeAsc' | 'sizeDesc' | 'sizeAsc' | 'nameAsc' | 'nameDesc'>('config/agent-backup-archive-sort-v1', 'timeDesc')
 const backupTargetRemote = useStorage<string>('config/agent-backup-target-remote-v1', '')
-const maintenanceLoaded = ref(false)
-const maintenanceLoading = ref(false)
 
 const restore = ref<any>({ ok: true, running: false })
 const restoreLog = ref('')
@@ -1669,7 +1672,7 @@ const loadMaintenancePanels = async (
 useSafePolling({
   callback: refreshStatus,
   intervalMs: 20_000,
-  enabled: () => agentEnabled.value && cardVisible.value,
+  enabled: () => statusPollingActive.value,
   immediate: false,
 })
 
@@ -1680,20 +1683,21 @@ useSafePolling({
     if (backup.value?.running) await refreshBackup()
   },
   intervalMs: 5_000,
-  enabled: () => agentEnabled.value && maintenanceLoaded.value && cardVisible.value,
+  enabled: () => maintenancePollingActive.value,
   immediate: false,
 })
 
-watch([agentEnabled, agentUrl, agentToken, cardVisible], (value, oldValue) => {
-  const [enabled, url, token, visible] = value
-  const [prevEnabled, prevUrl, prevToken, prevVisible] = oldValue ?? []
+watch([agentEnabled, agentUrl, agentToken, cardVisible, documentVisibility], (value, oldValue) => {
+  const [enabled, url, token, visible, docVisible] = value
+  const [prevEnabled, prevUrl, prevToken, prevVisible, prevDocVisible] = oldValue ?? []
   if (!enabled) maintenanceLoaded.value = false
   const configChanged = url !== prevUrl || token !== prevToken
   if (!enabled) {
     void refreshStatus()
     return
   }
-  if (configChanged || (visible && (!prevEnabled || !prevVisible))) {
+  if (docVisible !== 'visible') return
+  if (configChanged || (visible && (!prevEnabled || !prevVisible || prevDocVisible !== 'visible'))) {
     void refreshStatus()
   }
 }, { immediate: true })

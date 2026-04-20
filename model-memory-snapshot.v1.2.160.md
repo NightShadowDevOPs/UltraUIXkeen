@@ -2,7 +2,7 @@
 
 ## Working context
 - Date: **2026-04-20**
-- UI version: **v1.2.161**
+- UI version: **v1.2.160**
 - router-agent version: **0.6.32**
 
 ## What changed most recently
@@ -18,7 +18,6 @@
 - `v1.2.158`: active vs saved-only provider state is explicit in Tasks UI; delete actions explain whether only saved UI settings were removed or whether the whole orphaned row disappeared
 - `v1.2.159`: Overview relationship charts by sources / clients / rules now pause snapshot polling while off-screen or when the tab is hidden, and resume softly when visible again
 - `v1.2.160`: Tasks → Live Logs now pauses 5-second auto-refresh while the tab is hidden or the logs card is off-screen, then softly refreshes on return; router-agent → HA data shape stays unchanged
-- `v1.2.161`: Router/System, Router agent, Host QoS and Users QoS now also pause background polling while the browser tab is hidden, then softly refresh on return; router-agent → HA data shape stays unchanged
 
 ## Important constraints
 - traffic through the router must not degrade because of UI work
@@ -28,9 +27,9 @@
 - router-agent → Home Assistant data structure must stay stable unless explicitly requested otherwise
 
 ## Immediate next check
-- verify real-router behavior after `v1.2.160` + `v1.2.161`:
+- verify real-router behavior after `v1.2.160`:
   1. Tasks → Live Logs stops background refresh while off-screen
-  2. browser-tab hide/show pauses and resumes logs refresh cleanly for Router/System, Router agent, Host QoS and Users QoS
+  2. browser-tab hide/show pauses and resumes logs refresh cleanly
   3. manual logs refresh still works normally
   4. Overview traffic weights chart still behaves normally when visible
   5. HA/export runtime and real traffic through the router stay normal

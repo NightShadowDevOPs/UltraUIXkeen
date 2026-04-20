@@ -335,7 +335,7 @@
       </div>
     </div>
 
-    <div class="card gap-2 p-3">
+    <div ref="logsCardEl" class="card gap-2 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold">{{ $t('liveLogs') }}</div>
         <div class="flex items-center gap-2">
@@ -361,10 +361,14 @@
           <span class="opacity-60">{{ $t('path') }}:</span>
           <span class="font-mono">{{ logPath || '—' }}</span>
         </div>
-        <label class="flex items-center gap-2">
-          <span>{{ $t('autoRefresh') }}</span>
-          <input type="checkbox" class="toggle toggle-sm" v-model="logsAuto" />
-        </label>
+        <div class="flex flex-wrap items-center gap-2">
+          <span v-if="logsAutoPauseReason" class="badge badge-warning badge-xs">{{ logsAutoPauseReason }}</span>
+          <span v-else-if="logsAuto && agentEnabled" class="badge badge-success badge-xs">{{ $t('autoRefreshActive') }}</span>
+          <label class="flex items-center gap-2">
+            <span>{{ $t('autoRefresh') }}</span>
+            <input type="checkbox" class="toggle toggle-sm" v-model="logsAuto" />
+          </label>
+        </div>
       </div>
 
       <div v-if="!agentEnabled" class="text-sm opacity-70">
@@ -1909,7 +1913,7 @@ import {
 import BackendVersion from '@/components/common/BackendVersion.vue'
 import ProviderIconBadge from '@/components/common/ProviderIconBadge.vue'
 import TopologyActionButtons from '@/components/common/TopologyActionButtons.vue'
-import { useDocumentVisibility, useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useElementVisibility, useStorage } from '@vueuse/core'
 import { getLabelFromBackend, prettyBytesHelper } from '@/helper/utils'
 import { navigateToTopology } from '@/helper/topologyNav'
 import { parseDateMaybe } from '@/helper/providerHealth'
@@ -2772,6 +2776,20 @@ const logText = ref('')
 const logPath = ref('')
 const logOffset = ref(0)
 const logMode = ref<'poll' | 'delta' | 'full'>('poll')
+const logsCardEl = ref<HTMLElement | null>(null)
+const logsCardVisible = useElementVisibility(logsCardEl, { threshold: 0.05 })
+const logsPollingActive = computed(() => (
+  logsAuto.value
+  && agentEnabled.value
+  && documentVisibility.value === 'visible'
+  && (logsCardEl.value ? logsCardVisible.value : true)
+))
+const logsAutoPauseReason = computed(() => {
+  if (!logsAuto.value || !agentEnabled.value) return ''
+  if (documentVisibility.value !== 'visible') return t('autoRefreshPausedTabHidden')
+  if (logsCardEl.value && !logsCardVisible.value) return t('autoRefreshPausedOutOfView')
+  return ''
+})
 
 const refreshLogs = async () => {
   if (!agentEnabled.value) return
@@ -2836,7 +2854,7 @@ const forceRefreshLogs = () => {
 useSafePolling({
   callback: refreshLogs,
   intervalMs: 5_000,
-  enabled: () => logsAuto.value && agentEnabled.value,
+  enabled: () => logsPollingActive.value,
   immediate: false,
 })
 
@@ -2851,15 +2869,19 @@ onMounted(() => {
 watch(documentVisibility, (value) => {
   if (value === 'visible') {
     refreshAgentStatusLite()
-    refreshLogs()
+    if (logsPollingActive.value) refreshLogs()
     checkUpstream()
   }
+})
+
+watch(logsPollingActive, (active, prev) => {
+  if (active && !prev) refreshLogs()
 })
 
 watch([logsAuto, logSource, logLines, agentEnabled], () => {
   logOffset.value = 0
   logText.value = ''
-  if (documentVisibility.value === 'visible') refreshLogs()
+  if (logsPollingActive.value) refreshLogs()
 })
 
 

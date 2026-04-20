@@ -309,7 +309,7 @@ import { prettyBytesHelper } from '@/helper/utils'
 import { agentEnabled } from '@/store/agent'
 import { activeConnections } from '@/store/connections'
 import { mergeRouterHostQosAppliedProfiles, routerHostQosAppliedProfiles, routerHostQosDraftProfiles, routerHostQosExpanded, setRouterHostQosAppliedProfile } from '@/store/routerHostQos'
-import { useElementVisibility } from '@vueuse/core'
+import { useDocumentVisibility, useElementVisibility } from '@vueuse/core'
 import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useSafePolling } from '@/composables/useSafePolling'
 import { useI18n } from 'vue-i18n'
@@ -341,6 +341,9 @@ const { t } = useI18n()
 const loading = ref(false)
 const cardRef = ref<HTMLElement | null>(null)
 const cardVisible = useElementVisibility(cardRef)
+const documentVisibility = useDocumentVisibility()
+const slowPollingActive = computed(() => expanded.value && cardVisible.value && documentVisibility.value === 'visible')
+const livePollingActive = computed(() => expanded.value && cardVisible.value && documentVisibility.value === 'visible')
 
 const error = ref('')
 const query = ref('')
@@ -824,19 +827,23 @@ watch(appliedProfiles, () => {
 useSafePolling({
   callback: () => refreshAll({ includeLive: false, silent: true }),
   intervalMs: 45_000,
-  enabled: () => expanded.value && cardVisible.value,
+  enabled: () => slowPollingActive.value,
   immediate: false,
 })
 
 useSafePolling({
   callback: () => refreshAll({ includeLive: true, silent: true }),
   intervalMs: 12_000,
-  enabled: () => expanded.value && cardVisible.value,
+  enabled: () => livePollingActive.value,
   immediate: false,
 })
 
 watch(expanded, async (value) => {
   if (value) await refreshAll({ includeLive: true })
+})
+
+watch(livePollingActive, (active, prev) => {
+  if (active && !prev) void refreshAll({ includeLive: true, silent: true })
 })
 
 onMounted(async () => {

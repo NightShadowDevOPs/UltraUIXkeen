@@ -156,7 +156,7 @@ import { computed, ref, watch } from 'vue'
 import type { AgentStatus } from '@/api/agent'
 import { useI18n } from 'vue-i18n'
 import { useSafePolling } from '@/composables/useSafePolling'
-import { useElementVisibility } from '@vueuse/core'
+import { useDocumentVisibility, useElementVisibility } from '@vueuse/core'
 
 type FirmwareCheckState = {
   ok: boolean
@@ -177,6 +177,8 @@ type FirmwareCheckState = {
 const { t } = useI18n()
 const cardRef = ref<HTMLElement | null>(null)
 const cardVisible = useElementVisibility(cardRef)
+const documentVisibility = useDocumentVisibility()
+const pollingActive = computed(() => agentEnabled.value && cardVisible.value && documentVisibility.value === 'visible')
 const status = ref<AgentStatus>({ ok: false })
 const debugStatus = ref<AgentStatusDebug>({ ok: false })
 const firmwareCheck = ref<FirmwareCheckState>({ ok: false })
@@ -334,21 +336,21 @@ const handleRefresh = () => {
 useSafePolling({
   callback: refresh,
   intervalMs: 20_000,
-  enabled: () => agentEnabled.value && cardVisible.value,
+  enabled: () => pollingActive.value,
   immediate: false,
 })
 
-watch([agentEnabled, cardVisible], (value, oldValue) => {
-  const [enabled, visible] = value
-  const [prevEnabled, prevVisible] = oldValue ?? []
+watch(agentEnabled, (enabled) => {
   if (!enabled) {
     status.value = { ok: false }
     debugStatus.value = { ok: false }
     firmwareCheck.value = { ok: false }
     detailsLoaded.value = false
-    return
   }
-  if (visible && (!prevEnabled || !prevVisible)) {
+}, { immediate: true })
+
+watch(pollingActive, (active, prev) => {
+  if (active && !prev) {
     void refresh()
   }
 }, { immediate: true })

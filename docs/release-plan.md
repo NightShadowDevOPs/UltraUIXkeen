@@ -1,6 +1,8 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.161` — hidden-tab pause extended to Router/System, Router agent, Host QoS and Users QoS polling loops
+- `v1.2.160` — viewport-aware pause for `Задачи → Живые логи` auto-refresh when the block is off-screen or the tab is hidden
 - `v1.2.159` — viewport-aware pause for Overview relationship/traffic-weight charts when they are off-screen or the tab is hidden
 - `v1.2.158` — explicit active vs saved-state transparency for provider-panel rows in Tasks UI
 - `v1.2.157` — cleanup for disabled/saved-only provider-panel rows in Tasks UI
@@ -12,12 +14,14 @@
 - `v1.2.156` — safer mass latency-test execution with limited concurrency and more consistent test-URL resolution
 
 ## Next likely step
-- validate `v1.2.159` on the real router: диаграммы Overview по источникам / клиентам / правилам должны просыпаться только когда они реально видимы
-- if stable, keep reviewing upstream for safe operational cherry-picks that reduce burst load or redundant UI work
+- validate `v1.2.160` + `v1.2.161` together on the real router
+- if stable, continue upstream review only for safe operational cherry-picks that reduce burst load or redundant UI work
 - continue rejecting anything that increases constant polling, CPU churn or router runtime risk
+- keep HA/export shape frozen unless there is an explicit request to change it
 
 ## Non-negotiable guardrails
 - real router traffic must not suffer because of UI work
 - the Overview traffic weights chart must keep working normally
 - provider SSL checks stay untouched unless explicitly requested
 - router updater flow remains the built-in UI updater
+- router-agent → Home Assistant contract must remain stable by default

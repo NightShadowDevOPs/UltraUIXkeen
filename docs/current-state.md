@@ -1,30 +1,30 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-20**
-- UI version: **v1.2.159**
+- UI version: **v1.2.161**
 - router-agent version: **0.6.32**
-- Main focus: keep reducing router/UI overhead without touching the real traffic forwarding path
+- Main focus: continue cutting pointless UI-side background work without touching the real traffic path or the HA export contract
 
-## What was done in v1.2.159
-- Overview relationship charts now pause their own snapshot polling when the chart widget is outside the viewport or the browser tab is hidden.
-- This was applied to **Overview → Traffic Weights by Sources**, **Overview → Traffic Weights by Clients**, and **Overview → Traffic Weights by Rules**.
-- As soon as the chart becomes visible again, the UI performs a soft refresh and resumes normal cadence.
-- The shared refresh interval setting is still respected; only invisible background churn was cut.
-- `router-agent` stayed at `0.6.32`; this release is UI-side only.
+## What was done in v1.2.161
+- The hidden-tab pause pattern from `Задачи → Живые логи` was extended to several already viewport-aware operational cards.
+- `Router → System`, `Router agent`, `Host QoS` and `Users QoS` no longer keep their background polling alive while the browser tab is hidden.
+- As soon as the tab becomes visible again, those cards do a soft refresh and continue normal polling.
+- `router-agent` stayed at `0.6.32`; this release is UI-side only and does not touch the HA/export contract.
 
 ## What this fixes
-- Previously those Overview charts could keep refreshing their local snapshots even while the user had scrolled past them or switched to another tab.
-- Now the charts stay responsive when visible, but stop doing pointless background work when they cannot be seen.
+- Previously some cards were already off-screen aware but could still continue polling while the browser tab itself was hidden.
+- Now another group of operational widgets avoids pointless hidden-tab reads without changing their visible behavior.
 
 ## Current safety rules
 - do not break automatic SSL-certificate checks for providers
 - do not suggest `git pull` as the primary router update path; the built-in UI updater remains the main flow
 - every router command block must begin with `clear`
+- do not change the router-agent → Home Assistant data structure unless explicitly requested
 - if `router-agent` changes later, sync version references in `install.sh`, status API and docs
 
 ## Immediate next step
-- validate `v1.2.159` on the real router
-- confirm that Overview charts by источникам / клиентам / правилам stop background refresh while off-screen
-- confirm that they wake up normally after returning into view
-- confirm that the Overview traffic weights chart still behaves normally in the visible state
-- then continue upstream review for one more safe cherry-pick that does not raise background load
+- validate `v1.2.160` and `v1.2.161` together on the real router
+- confirm that `Задачи → Живые логи` stops background polling when the block is off-screen
+- confirm that `Router → System`, `Router agent`, `Host QoS` and `Users QoS` also stop polling while the browser tab is hidden
+- confirm that returning to the tab wakes those widgets up cleanly
+- confirm that Overview traffic weights chart and HA/export runtime remain unchanged
