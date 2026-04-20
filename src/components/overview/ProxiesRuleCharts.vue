@@ -533,6 +533,9 @@ import {
   dashboardTransparent,
   font,
   proxiesRelationshipColorMode,
+  proxiesRelationshipPaused,
+  proxiesRelationshipRefreshNonce,
+  proxiesRelationshipRefreshSec,
   proxiesRelationshipTopN,
   proxiesRelationshipWeightMode,
   sourceIPLabelList,
@@ -540,7 +543,7 @@ import {
 } from '@/store/settings'
 import type { Connection } from '@/types'
 import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, ArrowsPointingInIcon, ArrowsPointingOutIcon, BookmarkIcon, CheckIcon, FunnelIcon, LockClosedIcon, LockOpenIcon, NoSymbolIcon, PencilIcon, PlusIcon, PresentationChartLineIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { useElementSize, useStorage } from '@vueuse/core'
+import { useDocumentVisibility, useElementSize, useElementVisibility, useStorage } from '@vueuse/core'
 import { SankeyChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -585,6 +588,8 @@ const updateFontFamily = () => {
 }
 
 const { width, height } = useElementSize(chart)
+const documentVisibility = useDocumentVisibility()
+const elementVisible = useElementVisibility(chart)
 
 // Topology height can be manually resized.
 const defaultTopologyHeight = () => {
@@ -626,6 +631,8 @@ const labelFontSize = computed(() => {
   const w = Number(width.value) || 0
   return isFullScreen.value ? 16 : w >= 1100 ? 15 : w >= 800 ? 14 : 13
 })
+
+const chartPollingActive = computed(() => documentVisibility.value === 'visible' && (isFullScreen.value || elementVisible.value))
 
 const labelWidth = computed(() => {
   const w = (isFullScreen.value ? window.innerWidth : Number(width.value)) || 0
@@ -1176,8 +1183,39 @@ const stopTimer = () => {
 
 const startTimer = () => {
   stopTimer()
-  timer = window.setInterval(refreshSnapshot, 5000)
+  const sec = Math.max(1, Number(proxiesRelationshipRefreshSec.value) || 5)
+  timer = window.setInterval(() => {
+    if (!chartPollingActive.value || proxiesRelationshipPaused.value) return
+    refreshSnapshot()
+  }, sec * 1000)
 }
+
+watch(proxiesRelationshipPaused, (p) => {
+  if (p) {
+    stopTimer()
+    return
+  }
+  if (chartPollingActive.value) refreshSnapshot()
+  startTimer()
+})
+
+watch(proxiesRelationshipRefreshSec, () => {
+  if (!proxiesRelationshipPaused.value) startTimer()
+})
+
+watch(chartPollingActive, (active) => {
+  if (proxiesRelationshipPaused.value) return
+  if (active) {
+    refreshSnapshot()
+    startTimer()
+    return
+  }
+  stopTimer()
+})
+
+watch(proxiesRelationshipRefreshNonce, () => {
+  refreshSnapshot()
+})
 
 const bytesOf = (c: Connection) => {
   const id = (c as any).id || ''
@@ -1812,7 +1850,7 @@ onMounted(() => {
   updateFontFamily()
 
   refreshSnapshot()
-  startTimer()
+  if (!proxiesRelationshipPaused.value && chartPollingActive.value) startTimer()
 
   applyPendingNavFilter()
 

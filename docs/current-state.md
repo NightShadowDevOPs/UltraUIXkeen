@@ -1,21 +1,20 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-20**
-- UI version: **v1.2.158**
+- UI version: **v1.2.159**
 - router-agent version: **0.6.32**
 - Main focus: keep reducing router/UI overhead without touching the real traffic forwarding path
 
-## What was done in v1.2.158
-- In **Tasks → Proxy Providers → Panels** provider rows now expose their source more clearly: active runtime vs saved-only UI state.
-- Active rows are marked explicitly, and rows with persisted UI settings show a separate saved-state badge.
-- Deleting an active row now removes only the saved UI settings and keeps the live runtime row visible.
-- Deleting a saved-only row removes it fully from the table, so no ghost tail remains.
-- Added a small state summary above the table for active vs saved-only counts.
+## What was done in v1.2.159
+- Overview relationship charts now pause their own snapshot polling when the chart widget is outside the viewport or the browser tab is hidden.
+- This was applied to **Overview → Traffic Weights by Sources**, **Overview → Traffic Weights by Clients**, and **Overview → Traffic Weights by Rules**.
+- As soon as the chart becomes visible again, the UI performs a soft refresh and resumes normal cadence.
+- The shared refresh interval setting is still respected; only invisible background churn was cut.
 - `router-agent` stayed at `0.6.32`; this release is UI-side only.
 
 ## What this fixes
-- Previously the delete action could look ambiguous: a provider might stay visible after deletion simply because it was still active at runtime.
-- Now the UI explicitly explains that difference, and the visual state after deletion is much easier to read.
+- Previously those Overview charts could keep refreshing their local snapshots even while the user had scrolled past them or switched to another tab.
+- Now the charts stay responsive when visible, but stop doing pointless background work when they cannot be seen.
 
 ## Current safety rules
 - do not break automatic SSL-certificate checks for providers
@@ -24,7 +23,8 @@
 - if `router-agent` changes later, sync version references in `install.sh`, status API and docs
 
 ## Immediate next step
-- validate `v1.2.158` on the real router
-- confirm that active/saved-only provider states are visually clear in Tasks
-- confirm that active provider panel links and SSL indicators still behave normally
+- validate `v1.2.159` on the real router
+- confirm that Overview charts by источникам / клиентам / правилам stop background refresh while off-screen
+- confirm that they wake up normally after returning into view
+- confirm that the Overview traffic weights chart still behaves normally in the visible state
 - then continue upstream review for one more safe cherry-pick that does not raise background load

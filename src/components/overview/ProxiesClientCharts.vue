@@ -60,7 +60,7 @@ import {
   theme,
 } from '@/store/settings'
 import { ArrowsPointingInIcon, ArrowsPointingOutIcon } from '@heroicons/vue/24/outline'
-import { useElementSize } from '@vueuse/core'
+import { useDocumentVisibility, useElementSize, useElementVisibility } from '@vueuse/core'
 import { SankeyChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -95,10 +95,14 @@ const updateFontFamily = () => {
 }
 
 const { width } = useElementSize(chart)
+const documentVisibility = useDocumentVisibility()
+const elementVisible = useElementVisibility(chart)
 const labelFontSize = computed(() => {
   const w = Number(width.value) || 0
   return isFullScreen.value ? 14 : w >= 1100 ? 13 : w >= 800 ? 12 : 11
 })
+
+const chartPollingActive = computed(() => documentVisibility.value === 'visible' && (isFullScreen.value || elementVisible.value))
 
 const labelForIp = (ip: string) => {
   const item = sourceIPLabelList.value.find((x) => {
@@ -188,20 +192,32 @@ const startTimer = () => {
   stopTimer()
   const sec = Math.max(1, Number(proxiesRelationshipRefreshSec.value) || 5)
   timer = window.setInterval(() => {
-    if (!proxiesRelationshipPaused.value) refreshSnapshot()
+    if (!chartPollingActive.value || proxiesRelationshipPaused.value) return
+    refreshSnapshot()
   }, sec * 1000)
 }
 
 watch(proxiesRelationshipPaused, (p) => {
-  if (p) stopTimer()
-  else {
-    refreshSnapshot()
-    startTimer()
+  if (p) {
+    stopTimer()
+    return
   }
+  if (chartPollingActive.value) refreshSnapshot()
+  startTimer()
 })
 
 watch(proxiesRelationshipRefreshSec, () => {
   if (!proxiesRelationshipPaused.value) startTimer()
+})
+
+watch(chartPollingActive, (active) => {
+  if (proxiesRelationshipPaused.value) return
+  if (active) {
+    refreshSnapshot()
+    startTimer()
+    return
+  }
+  stopTimer()
 })
 
 watch(proxiesRelationshipRefreshNonce, () => {
@@ -465,7 +481,7 @@ onMounted(() => {
   updateFontFamily()
 
   refreshSnapshot()
-  if (!proxiesRelationshipPaused.value) startTimer()
+  if (!proxiesRelationshipPaused.value && chartPollingActive.value) startTimer()
 
   watch(theme, updateColorSet)
   watch(font, updateFontFamily)

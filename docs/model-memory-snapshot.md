@@ -2,7 +2,7 @@
 
 ## Working context
 - Date: **2026-04-20**
-- UI version: **v1.2.158**
+- UI version: **v1.2.159**
 - router-agent version: **0.6.32**
 
 ## What changed most recently
@@ -15,6 +15,7 @@
 - `v1.2.155`: Overview traffic card now also slows its main live polling cadence while off-screen, but returns to immediate full-speed refresh when the card becomes visible again
 - `v1.2.156`: traffic weight collection and batch latency tests were softened without changing the router-agent contract
 - `v1.2.157`: stale proxy-provider panel entries can now be deleted from Tasks UI, one by one or in bulk, when they remain only in saved settings
+- `v1.2.159`: Overview relationship charts by sources / clients / rules now pause snapshot polling while off-screen or when the tab is hidden, and resume softly when visible again
 - `v1.2.158`: active vs saved-only provider state is now explicit in Tasks UI; delete actions explain whether only saved UI settings were removed or whether the whole orphaned row disappeared
 
 ## Important constraints
@@ -24,10 +25,9 @@
 - updater flow on the router remains the built-in UI updater
 
 ## Immediate next check
-- verify real-router behavior after `v1.2.158`:
-  1. active/saved-only provider states are visually clear
-  2. deleting saved settings from an active row leaves the live row intact
-  3. deleting a saved-only row removes it fully
-  4. active provider panel links still open correctly
-  5. SSL dates and warnings still render for active providers
-  6. Overview traffic weights chart and live runtime stay normal
+- verify real-router behavior after `v1.2.159`:
+  1. charts by источникам / клиентам / правилам stop background refresh while off-screen
+  2. those charts wake up cleanly after returning into view
+  3. browser-tab hide/show does not leave stale chart state
+  4. Overview traffic weights chart still behaves normally when visible
+  5. live runtime and real traffic through the router stay normal

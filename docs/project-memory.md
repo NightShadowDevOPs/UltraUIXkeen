@@ -10,11 +10,11 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.158**
+- UI: **v1.2.159**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.158` makes provider-panel row state explicit in Tasks UI: active runtime rows and saved-only UI residues are now visually separated, and deletion behavior is clearer
+- `v1.2.159` pauses Overview relationship-chart snapshot polling when those charts are off-screen or the browser tab is hidden, while preserving their normal visible-state behavior
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path

@@ -1,6 +1,7 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.159` — viewport-aware pause for Overview relationship/traffic-weight charts when they are off-screen or the tab is hidden
 - `v1.2.158` — explicit active vs saved-state transparency for provider-panel rows in Tasks UI
 - `v1.2.157` — cleanup for disabled/saved-only provider-panel rows in Tasks UI
 - `v1.2.151` — viewport-aware lazy polling for Host QoS / Users QoS cards
@@ -11,7 +12,7 @@
 - `v1.2.156` — safer mass latency-test execution with limited concurrency and more consistent test-URL resolution
 
 ## Next likely step
-- validate `v1.2.158` on the real router: удаление provider-panel настроек должно быть визуально понятным и не должно ломать активные panel URL / SSL-индикаторы
+- validate `v1.2.159` on the real router: диаграммы Overview по источникам / клиентам / правилам должны просыпаться только когда они реально видимы
 - if stable, keep reviewing upstream for safe operational cherry-picks that reduce burst load or redundant UI work
 - continue rejecting anything that increases constant polling, CPU churn or router runtime risk
 

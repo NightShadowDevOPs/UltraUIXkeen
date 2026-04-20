@@ -1,5 +1,11 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-20 — off-screen pause for Overview relationship charts
+- User request: continue the work, keep explanations in Russian, and keep reducing load carefully without harming router traffic or the Overview traffic-weights diagram.
+- Problem: Overview relationship charts by sources / clients / rules could continue local snapshot refresh even when the user had not scrolled to them or the tab was hidden.
+- Action in `v1.2.159`: added visibility-aware pause/resume for those chart polling loops, while keeping the shared refresh setting and visible-state behavior intact.
+- Safety rule preserved: no changes to router-agent, live traffic forwarding, provider SSL probing, or the visible-state chart logic.
+
 ## 2026-04-20 — provider-row source transparency after cleanup
 - User request: continue the release flow and make it visually clear why disabled SSL-capable providers remain in the Tasks list.
 - Problem: after the cleanup release, it could still look confusing when an active provider remained visible after delete, because the action removed only saved UI settings while runtime still supplied the row.
