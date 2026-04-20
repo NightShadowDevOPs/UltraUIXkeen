@@ -105,6 +105,8 @@ useSafePolling({
   callback: check,
   intervalMs: 30_000,
   enabled: pollingEnabled,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 watch(cardVisible, (value, oldValue) => {

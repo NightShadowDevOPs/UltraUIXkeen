@@ -2,7 +2,7 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.163`
+- UI: `v1.2.164`
 - router-agent: `0.6.32`
 - Focus: снижение лишних wake-up запросов в UI без изменения router-agent и HA/export shape
 
@@ -19,16 +19,12 @@
 
 ---
 
-## Что важно в v1.2.163
+## Что важно в v1.2.164
 
-- Это следующий safe-патч после `v1.2.162`.
-- Убраны ещё несколько дублирующихся wake-up refresh при возврате вкладки или карточки в активное состояние.
-- Исправлены оставшиеся пересечения между локальными `watch(...active...)` и автопробуждением `useSafePolling` для:
-  - `Router -> System`
-  - `Router -> Router agent`
-  - `Router -> Host QoS`
-  - `Трафик / Пользователи` QoS-статистики
-- Живой polling сохранён, ручное обновление не менялось, `router-agent -> HA` и реальный traffic path не трогались.
+- Это следующий safe-патч после `v1.2.163`.
+- Добит ещё один оставшийся wake-up duplicate в operational-карточках: `Обзор -> Router Health`.
+- Там карточка уже делала собственный refresh при повторном входе в viewport, поэтому helper `useSafePolling` больше не автозапускает ещё один такой же wake-up refresh.
+- Обычный polling cadence, ручное обновление, `router-agent -> HA`, SSL-проверки провайдеров и реальный traffic path не менялись.
 
 ---
 

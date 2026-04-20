@@ -1,25 +1,20 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-21**
-- UI version: **v1.2.163**
+- UI version: **v1.2.164**
 - router-agent version: **0.6.32**
-- Main focus: continue cutting pointless UI-side background wake-ups without touching the real traffic path or the HA export contract
+- Main focus: finish the remaining safe wake-up dedupe tail without touching the real traffic path or the HA export contract
 
-## What was done in v1.2.163
-- This is the next safe patch after `v1.2.162`.
-- Additional duplicated wake-up refreshes were removed in operational cards that already had local `watch(...active...)` refresh logic.
-- Patched zones:
-  - `Router -> System`
-  - `Router -> Router agent`
-  - `Router -> Host QoS`
-  - `Traffic / Users` QoS statistics
-- In these places `useSafePolling` no longer auto-fires on `refreshOnEnable` / `refreshOnVisible`, because the component already performs a targeted refresh when the card becomes active again.
+## What was done in v1.2.164
+- This is the next safe patch after `v1.2.163`.
+- The remaining wake-up duplicate in `Overview -> Router Health` was removed.
+- The card already performs its own refresh when it re-enters the viewport, so `useSafePolling` no longer auto-fires an extra wake-up refresh through `refreshOnEnable` / `refreshOnVisible`.
 - Normal polling cadence, manual refresh behavior and `router-agent -> HA` data shape were left untouched.
 
 ## Why this matters
-- `v1.2.161` and `v1.2.162` already reduced hidden-tab and Tasks wake-up noise.
-- This follow-up removes another class of duplicate refreshes: the component-level watcher and the polling helper were both trying to be helpful at the same time.
-- Result: less pointless wake-up chatter to the router, without changing visible runtime semantics.
+- `v1.2.162` reduced Tasks visible-resume bursts.
+- `v1.2.163` removed similar overlaps in System / Router agent / Host QoS / Users QoS.
+- `v1.2.164` closes the same pattern in Overview router health, so one more invisible “double helpfulness” path is gone.
 
 ## Current safety rules
 - do not break automatic SSL-certificate checks for providers
@@ -29,8 +24,8 @@
 - if `router-agent` changes later, sync version references in `install.sh`, status API and docs
 
 ## Immediate next step
-- validate `v1.2.163` on the real router
-- confirm that quick tab/card resume in Router/System, Router agent, Host QoS and Users QoS no longer produces duplicate wake-up bursts
+- validate `v1.2.164` on the real router
+- confirm that `Overview -> Router Health` no longer performs duplicate wake-up refreshes after returning into view
 - confirm that manual refresh/runtime behavior still feels the same
 - confirm that Overview traffic weights chart and HA/export runtime remain unchanged
-- if stable, continue with one more safe audit of non-traffic operational widgets that still mix visibility watchers with helper-driven polling
+- if stable, continue upstream review only for safe, low-risk load reductions

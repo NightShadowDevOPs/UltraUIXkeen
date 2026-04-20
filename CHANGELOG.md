@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.164 — overview router-health wake-up dedupe
+- убран ещё один дублирующийся wake-up refresh в `Обзор -> Router Health`
+- карточка уже делала собственный refresh при повторном входе в viewport, поэтому у `useSafePolling` отключён дополнительный авто-wake-up по `refreshOnEnable` / `refreshOnVisible`
+- обычный polling cadence, ручное обновление, `router-agent`, HA/export shape, SSL-проверки и traffic/runtime path не менялись
+
 ## v1.2.163 — wake-up dedupe follow-up for operational cards
 - убраны дополнительные дублирующиеся wake-up refresh после hidden-tab / visible-resume для `Router -> System`, `Router -> Router agent`, `Router -> Host QoS` и QoS-статистики в `Трафик / Пользователи`
 - там, где уже были локальные `watch(...active...)` с ручным refresh, у `useSafePolling` отключён автозапуск по `refreshOnEnable` / `refreshOnVisible`, чтобы не было двойных однотипных запросов

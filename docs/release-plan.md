@@ -1,6 +1,7 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.164` — removed the remaining wake-up duplicate in `Overview -> Router Health`
 - `v1.2.163` — wake-up dedupe follow-up for operational cards: System, Router agent, Host QoS and Users QoS stats
 - `v1.2.162` — restored the missed Tasks visible-resume anti-burst patch for router-agent status, live logs and upstream checks
 - `v1.2.161` — hidden-tab pause extended to Router/System, Router agent, Host QoS and Users QoS polling loops
@@ -16,7 +17,7 @@
 - `v1.2.156` — safer mass latency-test execution with limited concurrency and more consistent test-URL resolution
 
 ## Next likely step
-- validate `v1.2.163` on the real router
+- validate `v1.2.164` on the real router
 - if stable, continue upstream review only for safe operational cherry-picks that reduce burst load or redundant UI wake-up work
 - continue rejecting anything that increases constant polling, CPU churn or router runtime risk
 - keep HA/export shape frozen unless there is an explicit request to change it

@@ -1,5 +1,16 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-21 — v1.2.164
+- user approved continuing immediately after `v1.2.163`
+- safe follow-up direction chosen: inspect the remaining non-Tasks visibility/polling overlap candidates
+- found and fixed the remaining wake-up overlap in `Overview -> Router Health`
+- the card already had a viewport re-entry refresh watcher, so `useSafePolling` auto wake-up was disabled there
+- required constraints preserved:
+  - do not touch router-agent
+  - do not change `router-agent -> HA` shape
+  - do not risk live traffic path
+  - keep docs and transfer files updated
+
 ## 2026-04-21 — v1.2.163
 - user approved continuing immediately after `v1.2.162`
 - safe follow-up direction chosen: audit other operational cards for duplicate visible-resume refreshes
