@@ -1,6 +1,7 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.157` — cleanup for disabled/saved-only provider-panel rows in Tasks UI
 - `v1.2.151` — viewport-aware lazy polling for Host QoS / Users QoS cards
 - `v1.2.152` — viewport-aware lazy polling for Router → Resources / Router agent cards
 - `v1.2.153` — viewport-aware lazy polling for Overview router health card
@@ -9,7 +10,7 @@
 - `v1.2.156` — safer mass latency-test execution with limited concurrency and more consistent test-URL resolution
 
 ## Next likely step
-- validate `v1.2.156` on the real router with a bigger proxy list
+- validate `v1.2.157` on the real router: удаление saved-only записей в Tasks UI не должно ломать активные panel URL и SSL-индикаторы
 - if stable, keep reviewing upstream for safe operational cherry-picks that reduce burst load or redundant UI work
 - continue rejecting anything that increases constant polling, CPU churn or router runtime risk
 

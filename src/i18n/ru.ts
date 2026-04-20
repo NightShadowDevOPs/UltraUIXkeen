@@ -431,6 +431,12 @@ agentRestoreConfirm: 'Восстановить из бэкапа? Это пер�
   providersPanelTip: 'URL панели управления хранится на роутере и автоматически синхронизируется между ПК.',
   providersPanelColumnsExplain:
     'Колонки: «Ссылка на панель» — URL, который откроется по кнопке «Открыть». «Порог SSL, дни» — за сколько дней до истечения показывать «SSL скоро» (пусто = общий порог).',
+  providerSavedOnlyBadge: 'сохранён',
+  providersPanelCleanupButton: 'Очистить отключённые ({count})',
+  providersPanelCleanupDone: 'Удалены сохранённые записи провайдеров: {count}.',
+  providersPanelCleanupNothing: 'Лишних сохранённых записей не найдено.',
+  providerPanelDeleteDone: 'Запись провайдера удалена: {name}.',
+  providerPanelDeleteNothing: 'Для провайдера {name} уже нет сохранённых настроек.',
   panelUrl: 'Ссылка на панель',
   providerIcon: 'Иконка',
   providerIconTip: 'Выбери флаг страны для провайдера или 🌐, если провайдер объединяет несколько подписок.',

@@ -431,6 +431,12 @@ agentRestoreConfirm: 'Restore from backup? This will overwrite files on the rout
   providersPanelTip: 'Panel URL is stored on the router and auto-synced across devices.',
   providersPanelColumnsExplain:
     'Columns: “Panel link” is the URL opened by the Open button. “SSL warn days” controls when “SSL soon” is shown (empty = global threshold).',
+  providerSavedOnlyBadge: 'saved',
+  providersPanelCleanupButton: 'Clean disabled ({count})',
+  providersPanelCleanupDone: 'Removed saved-only provider records: {count}.',
+  providersPanelCleanupNothing: 'No extra saved provider records found.',
+  providerPanelDeleteDone: 'Provider record removed: {name}.',
+  providerPanelDeleteNothing: 'No saved settings remain for provider {name}.',
   panelUrl: 'Panel link',
   providerIcon: 'Icon',
   providerIconTip: 'Pick a country flag for the provider, or 🌐 if it aggregates multiple subscriptions.',

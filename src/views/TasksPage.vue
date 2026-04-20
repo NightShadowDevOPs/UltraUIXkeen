@@ -90,9 +90,19 @@
 			  <div v-if="providerSslCacheStatusText" class="mb-2 text-xs" :class="providerSslCacheStatusClass" :title="$t('providerSslRefreshingTip')">{{ providerSslCacheStatusText }}</div>
 			  <div v-if="!providersPanelRenderList.length" class="text-sm opacity-70">—</div>
 			  <div v-else>
-				<div class="mt-1 text-[11px] opacity-60">
-				  <div>{{ $t('providersPanelColumnsExplain') }}</div>
-				  <div class="mt-0.5">{{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}</div>
+				<div class="mt-1 flex flex-wrap items-start justify-between gap-2 text-[11px] opacity-60">
+				  <div>
+				    <div>{{ $t('providersPanelColumnsExplain') }}</div>
+				    <div class="mt-0.5">{{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}</div>
+				  </div>
+				  <button
+				    v-if="providersPanelSavedOnlyCount > 0"
+				    type="button"
+				    class="btn btn-xs btn-outline btn-warning"
+				    @click="removeSavedOnlyProviderSettings()"
+				  >
+				    {{ $t('providersPanelCleanupButton', { count: providersPanelSavedOnlyCount }) }}
+				  </button>
 				</div>
 				
 				<div class="mt-2 overflow-x-auto">
@@ -129,6 +139,7 @@
                     </select>
 
                 <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
+                <span v-if="p.savedOnly" class="badge badge-ghost badge-xs">{{ $t('providerSavedOnlyBadge') }}</span>
                 <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
               </div>
             </td>
@@ -150,6 +161,7 @@
 							>
 							  {{ $t('open') }}
 							</a>
+              <button type="button" class="btn btn-ghost btn-xs text-error" @click="deleteProviderPanelSettings(p.name)">{{ $t('delete') }}</button>
 						  </div>
 						</td>
 						<td>
@@ -2026,9 +2038,8 @@ const toggleProvidersPanelExpanded = () => {
 
 // Render list should include *all* providers known to UI (proxyProviederList), even if agent SSL probe returns only a subset.
 // Also include any providers that exist only in the synced panel-url map (so users can set URLs even before providers load).
-const providersPanelRenderList = computed(() => {
+const activeProviderNames = computed(() => {
   const names = new Set<string>()
-
   try {
     for (const p of (proxyProviederList.value || []) as any[]) {
       const name = String(p?.name || '').trim()
@@ -2040,6 +2051,20 @@ const providersPanelRenderList = computed(() => {
   } catch {
     // ignore
   }
+  try {
+    for (const it of (providersPanelList.value || []) as any[]) {
+      const name = String(it?.name || '').trim()
+      if (!name) continue
+      names.add(name)
+    }
+  } catch {
+    // ignore
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
+})
+
+const providersPanelRenderList = computed(() => {
+  const names = new Set<string>(activeProviderNames.value)
 
   try {
     for (const k of Object.keys(proxyProviderPanelUrlMap.value || {})) {
@@ -2051,6 +2076,27 @@ const providersPanelRenderList = computed(() => {
     // ignore
   }
 
+  try {
+    for (const k of Object.keys(proxyProviderSslWarnDaysMap.value || {})) {
+      const name = String(k || '').trim()
+      if (!name) continue
+      names.add(name)
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    for (const k of Object.keys(proxyProviderIconMap.value || {})) {
+      const name = String(k || '').trim()
+      if (!name) continue
+      names.add(name)
+    }
+  } catch {
+    // ignore
+  }
+
+  const activeSet = new Set(activeProviderNames.value)
   const byName = new Map<string, any>()
   for (const it of (providersPanelList.value || []) as any[]) {
     const name = String(it?.name || '').trim()
@@ -2063,10 +2109,16 @@ const providersPanelRenderList = computed(() => {
     .sort((a, b) => a.localeCompare(b))
     .map((name) => {
       const it = byName.get(name)
-      if (it) return it
-      return { name }
+      const base = it ? { ...it } : { name }
+      return {
+        ...base,
+        name,
+        savedOnly: !activeSet.has(name),
+      }
     })
 })
+
+const providersPanelSavedOnlyCount = computed(() => providersPanelRenderList.value.filter((it: any) => !!it?.savedOnly).length)
 
 const fmtSslPanel = (v: any) => {
   const d = parseDateMaybe(v)
@@ -2147,6 +2199,64 @@ const sslPanelInfo = (name: string, v: any, fromPanel: boolean) => {
 const getPanelNotAfter = (name: string): string => {
   const k = String(name || '').trim()
   return (panelSslNotAfterByName.value || {})[k] || ''
+}
+
+const removeProviderPanelSettings = (name: string) => {
+  const k = String(name || '').trim()
+  if (!k) return false
+
+  let changed = false
+
+  const nextUrls = { ...(proxyProviderPanelUrlMap.value || {}) }
+  if (k in nextUrls) {
+    delete nextUrls[k]
+    proxyProviderPanelUrlMap.value = nextUrls
+    changed = true
+  }
+
+  const nextWarn = { ...(proxyProviderSslWarnDaysMap.value || {}) }
+  if (k in nextWarn) {
+    delete nextWarn[k]
+    proxyProviderSslWarnDaysMap.value = nextWarn
+    changed = true
+  }
+
+  const nextIcons = { ...(proxyProviderIconMap.value || {}) }
+  if (k in nextIcons) {
+    delete nextIcons[k]
+    proxyProviderIconMap.value = nextIcons
+    changed = true
+  }
+
+  const nextPanelNotAfter = { ...(panelSslNotAfterByName.value || {}) }
+  if (k in nextPanelNotAfter) {
+    delete nextPanelNotAfter[k]
+    panelSslNotAfterByName.value = nextPanelNotAfter
+    changed = true
+  }
+
+  return changed
+}
+
+const removeSavedOnlyProviderSettings = () => {
+  const removed = providersPanelRenderList.value
+    .filter((it: any) => !!it?.savedOnly)
+    .reduce((acc, it: any) => acc + (removeProviderPanelSettings(String(it?.name || '').trim()) ? 1 : 0), 0)
+
+  showNotification({
+    content: removed > 0 ? t('providersPanelCleanupDone', { count: removed }) : t('providersPanelCleanupNothing'),
+    type: removed > 0 ? 'alert-success' : 'alert-info',
+    timeout: 2200,
+  })
+}
+
+const deleteProviderPanelSettings = (name: string) => {
+  const removed = removeProviderPanelSettings(name)
+  showNotification({
+    content: removed ? t('providerPanelDeleteDone', { name: String(name || '').trim() }) : t('providerPanelDeleteNothing', { name: String(name || '').trim() }),
+    type: removed ? 'alert-success' : 'alert-info',
+    timeout: 2200,
+  })
 }
 
 const setProviderPanelUrl = (name: string, url: string) => {

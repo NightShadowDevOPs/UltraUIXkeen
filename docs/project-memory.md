@@ -10,14 +10,14 @@
 - Automatic SSL-certificate checks for proxy providers must stay intact
 
 ## Current validated baseline
-- UI: **v1.2.156**
+- UI: **v1.2.157**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.156` limits concurrency for manual mass latency tests and resolves effective latency-test URLs more consistently when independent URLs are enabled
+- `v1.2.157` adds cleanup for stale provider-panel records in Tasks UI: disabled providers that remain only in saved UI state can now be removed per-row or in bulk
 
 ## Current development direction
 - continue reducing overhead in the Traffic workspace without touching the real packet-forwarding path
 - observe what can be borrowed from upstream only when it is cheap operationally and does not add constant polling pressure
 - preserve normal work of the Overview traffic weights chart while lightening the UI/runtime contour
-- avoid flashy background loading in Host QoS cards when only silent auto-refresh is happening
+- keep provider SSL checks stable while cleaning surrounding UI workflows

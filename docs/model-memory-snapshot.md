@@ -2,7 +2,7 @@
 
 ## Working context
 - Date: **2026-04-20**
-- UI version: **v1.2.156**
+- UI version: **v1.2.157**
 - router-agent version: **0.6.32**
 
 ## What changed most recently
@@ -13,7 +13,8 @@
 - `v1.2.153`: Overview router health card pauses its background `/version` probe while off-screen and softly refreshes when visible again
 - `v1.2.154`: Overview traffic card pauses secondary host-detail polling while the card is off-screen; the main live traffic contour stays untouched
 - `v1.2.155`: Overview traffic card now also slows its main live polling cadence while off-screen, but returns to immediate full-speed refresh when the card becomes visible again
-- `v1.2.156`: manual mass latency tests are now concurrency-limited and resolve effective test URLs more consistently when independent latency URLs are enabled
+- `v1.2.156`: traffic weight collection and batch latency tests were softened without changing the router-agent contract
+- `v1.2.157`: stale proxy-provider panel entries can now be deleted from Tasks UI, one by one or in bulk, when they remain only in saved settings
 
 ## Important constraints
 - traffic through the router must not degrade because of UI work
@@ -22,8 +23,8 @@
 - updater flow on the router remains the built-in UI updater
 
 ## Immediate next check
-- verify real-router behavior after `v1.2.156`:
-  1. mass latency tests finish normally, but without an obvious parallel burst on the router
-  2. single and bulk latency tests still use the expected URL logic
-  3. Overview traffic weights chart updates normally while visible
-  4. router throughput/latency does not regress
+- verify real-router behavior after `v1.2.157`:
+  1. saved-only / disabled provider rows are removed correctly
+  2. active provider panel links still open correctly
+  3. SSL dates and warnings still render for active providers
+  4. Overview traffic weights chart and live runtime stay normal

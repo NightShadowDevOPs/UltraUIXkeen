@@ -2,7 +2,7 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.156`
+- UI: `v1.2.157`
 - router-agent: `0.6.32`
 - Focus: уменьшение нагрузки от массовых latency-тестов и сохранение безопасного runtime-поведения роутера
 

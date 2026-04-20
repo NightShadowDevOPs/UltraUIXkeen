@@ -1,5 +1,11 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-20 — cleanup saved-only provider-panel rows
+- User request: make a release and clarify how disabled SSL-capable providers should be removed from the Tasks list.
+- Problem: provider rows could survive in Tasks because their panel URL / icon / SSL threshold stayed in saved UI settings even after the provider disappeared from the active contour.
+- Action in `v1.2.157`: added saved-only marking for such rows and UI cleanup actions — delete one row or bulk-clean all disabled/orphaned rows.
+- Safety rule preserved: no changes to router-agent, live traffic flow, or provider SSL probing runtime.
+
 ## 2026-04-20
 - User request: continue after `v1.2.148` and keep reducing router-side pressure without harming real traffic.
 - User constraint: traffic through the router must not suffer.
