@@ -14,3 +14,5 @@
 - Follow-up request to keep in scope: keep looking at what can be taken safely from upstream, but only if it does not increase background load or endanger runtime traffic.
 - Action in `v1.2.152`: extended the same viewport-aware lazy strategy to Router → Resources and Router agent cards so invisible host-status widgets pause background refresh.
 - Action in `v1.2.152`: when those host-status cards return into view, UI triggers a soft runtime refresh without touching the main traffic live contour.
+- Action in `v1.2.153`: added viewport-aware lazy polling to Overview → Router Health so its background `/version` probe pauses while the widget is off-screen.
+- Action in `v1.2.153`: when Router Health returns into view, UI triggers a soft health refresh without touching the main traffic contour or traffic weights chart.

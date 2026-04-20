@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.153 - viewport-aware lazy polling for overview router health
+- raised UI package version to `1.2.153`
+- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
+- added viewport-aware lazy polling to `RouterHealth`, so the Overview health widget stops periodic `/version` probes while off-screen
+- when the widget returns into view, UI triggers a soft health refresh so the API badge and latency quickly catch up
+- kept the main live traffic contour and Overview traffic weights chart outside this lazy-visibility logic
+- documentation, transfer files and memory snapshot docs refreshed for `v1.2.153`
+
 ## v1.2.152 - viewport-aware lazy polling for router host status cards
 - raised UI package version to `1.2.152`
 - kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release

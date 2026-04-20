@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-base-200/50 relative rounded-lg p-2 text-sm">
+  <div ref="cardRef" class="bg-base-200/50 relative rounded-lg p-2 text-sm">
     <div class="flex items-center justify-between pr-12">
       <div class="font-medium">{{ $t('routerHealth') }}</div>
       <div class="text-xs opacity-60" v-if="lastCheckAt">
@@ -54,7 +54,12 @@ import { prettyBytesHelper, fromNow as fromNowFn } from '@/helper/utils'
 import { activeConnections, lastConnectionsTick } from '@/store/connections'
 import { downloadSpeed, lastMemoryTick, lastTrafficTick, memory, uploadSpeed } from '@/store/overview'
 import { BoltIcon } from '@heroicons/vue/24/outline'
-import { computed, ref } from 'vue'
+import { useElementVisibility } from '@vueuse/core'
+import { computed, ref, watch } from 'vue'
+
+const cardRef = ref<HTMLElement | null>(null)
+const cardVisible = useElementVisibility(cardRef)
+const pollingEnabled = computed(() => cardVisible.value)
 
 const apiOk = ref(true)
 const apiLatencyMs = ref<number | null>(null)
@@ -99,5 +104,12 @@ const check = async () => {
 useSafePolling({
   callback: check,
   intervalMs: 30_000,
+  enabled: pollingEnabled,
+})
+
+watch(cardVisible, (value, oldValue) => {
+  if (value && oldValue === false) {
+    void check()
+  }
 })
 </script>
