@@ -2,7 +2,7 @@
 
 ## Working context
 - Date: **2026-04-21**
-- UI version: **v1.2.163**
+- UI version: **v1.2.162**
 - router-agent version: **0.6.32**
 
 ## What changed most recently
@@ -20,7 +20,6 @@
 - `v1.2.160`: Tasks → Live Logs now pauses 5-second auto-refresh while the tab is hidden or the logs card is off-screen, then softly refreshes on return; router-agent → HA data shape stays unchanged
 - `v1.2.161`: Router/System, Router agent, Host QoS and Users QoS now also pause background polling while the browser tab is hidden, then softly refresh on return; router-agent → HA data shape stays unchanged
 - `v1.2.162`: the missed Tasks visible-resume anti-burst patch is restored; fast tab hide/show should no longer stack identical refreshes for router-agent status, live logs and upstream checks
-- `v1.2.163`: follow-up dedupe for operational cards; where a component already performs its own refresh on re-activation, `useSafePolling` no longer auto-fires again on `refreshOnEnable` / `refreshOnVisible`
 
 ## Important constraints
 - traffic through the router must not degrade because of UI work
@@ -30,9 +29,9 @@
 - router-agent → Home Assistant data structure must stay stable unless explicitly requested otherwise
 
 ## Immediate next check
-- verify real-router behavior after `v1.2.163`:
-  1. quick browser-tab/card resume no longer produces duplicate wake-up bursts in `Router -> System`, `Router -> Router agent`, `Router -> Host QoS` and Users QoS stats
-  2. manual refresh still works normally
+- verify real-router behavior after `v1.2.162`:
+  1. fast browser-tab hide/show no longer produces repeated wake-up bursts in `Задачи`
+  2. manual logs refresh still works normally
   3. Overview traffic weights chart still behaves normally when visible
   4. HA/export runtime and real traffic through the router stay normal
-  5. if needed, audit the next group of non-traffic operational widgets without changing runtime shape
+  5. if needed, audit the next group of visible-resume duplicates in other widgets without changing runtime shape

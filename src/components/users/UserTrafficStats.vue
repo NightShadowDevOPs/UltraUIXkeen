@@ -2285,6 +2285,8 @@ useSafePolling({
   intervalMs: 35_000,
   enabled: () => qosPollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 watch(qosPollingActive, (active, prev) => {

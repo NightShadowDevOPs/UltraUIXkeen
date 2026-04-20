@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.163 — wake-up dedupe follow-up for operational cards
+- убраны дополнительные дублирующиеся wake-up refresh после hidden-tab / visible-resume для `Router -> System`, `Router -> Router agent`, `Router -> Host QoS` и QoS-статистики в `Трафик / Пользователи`
+- там, где уже были локальные `watch(...active...)` с ручным refresh, у `useSafePolling` отключён автозапуск по `refreshOnEnable` / `refreshOnVisible`, чтобы не было двойных однотипных запросов
+- обычный polling cadence, ручные действия, `router-agent`, HA/export shape и traffic/runtime path не менялись
+
+## v1.2.162 — Tasks visible-resume anti-burst restore
+- восстановлен пропущенный safe-патч поверх `v1.2.161`, который не дошёл отдельным архивом
+- страница `Задачи`: возврат на видимую вкладку теперь не должен подряд дёргать одинаковые refresh-запросы для `router-agent status`, `Живые логи` и upstream-проверки
+- visible-resume обновления для этих трёх контуров теперь идут через мягкую очередь с коротким stagger и cooldown
+- обычный polling, ручное обновление и структура данных `router-agent -> HA` не менялись
+- `router-agent` оставлен на `0.6.32`
+
 ## v1.2.157 — cleanup for disabled proxy-provider panel entries
 - Добавлена явная очистка сохранённых записей в блоке **Задачи → Прокси-провайдеры → панели управления**.
 - Строки, которые остались только в локально сохранённых настройках и уже отсутствуют среди активных провайдеров, теперь помечаются бейджем **«сохранён»**.

@@ -829,6 +829,8 @@ useSafePolling({
   intervalMs: 45_000,
   enabled: () => slowPollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 useSafePolling({
@@ -836,6 +838,8 @@ useSafePolling({
   intervalMs: 12_000,
   enabled: () => livePollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 watch(expanded, async (value) => {

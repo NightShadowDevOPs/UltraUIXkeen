@@ -1984,6 +1984,43 @@ const refreshAgentStatusLite = async () => {
   agentStatusLite.value = await agentStatusAPI()
 }
 
+type VisibleResumeKey = 'agentStatus' | 'liveLogs' | 'upstream'
+
+const VISIBLE_RESUME_COOLDOWN_MS = 1800
+const visibleResumeLastAt = reactive<Record<VisibleResumeKey, number>>({
+  agentStatus: 0,
+  liveLogs: 0,
+  upstream: 0,
+})
+const visibleResumeTimers: Partial<Record<VisibleResumeKey, number>> = {}
+
+const cancelVisibleResume = (key: VisibleResumeKey) => {
+  const timer = visibleResumeTimers[key]
+  if (timer !== undefined) {
+    window.clearTimeout(timer)
+    delete visibleResumeTimers[key]
+  }
+}
+
+const queueVisibleResume = (key: VisibleResumeKey, callback: () => void, delayMs = 0) => {
+  cancelVisibleResume(key)
+  const elapsed = Date.now() - visibleResumeLastAt[key]
+  if (visibleResumeLastAt[key] && elapsed < VISIBLE_RESUME_COOLDOWN_MS) return false
+  visibleResumeTimers[key] = window.setTimeout(() => {
+    delete visibleResumeTimers[key]
+    if (documentVisibility.value !== 'visible') return
+    visibleResumeLastAt[key] = Date.now()
+    callback()
+  }, Math.max(0, delayMs))
+  return true
+}
+
+const cancelAllVisibleResume = () => {
+  cancelVisibleResume('agentStatus')
+  cancelVisibleResume('liveLogs')
+  cancelVisibleResume('upstream')
+}
+
 watch([agentEnabled, agentUrl], () => {
   refreshAgentStatusLite()
 })
@@ -2436,6 +2473,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelAllVisibleResume()
   window.removeEventListener('resize', repositionProviderIconPicker)
   window.removeEventListener('scroll', onScrollProviderIconPicker, true)
   document.removeEventListener('keydown', onDocKeydownProviderIconPicker)
@@ -2856,6 +2894,8 @@ useSafePolling({
   intervalMs: 5_000,
   enabled: () => logsPollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 onMounted(() => {
@@ -2867,15 +2907,19 @@ onMounted(() => {
 })
 
 watch(documentVisibility, (value) => {
-  if (value === 'visible') {
-    refreshAgentStatusLite()
-    if (logsPollingActive.value) refreshLogs()
-    checkUpstream()
+  if (value !== 'visible') {
+    cancelAllVisibleResume()
+    return
   }
+  queueVisibleResume('agentStatus', refreshAgentStatusLite, 120)
+  if (logsPollingActive.value) queueVisibleResume('liveLogs', refreshLogs, 260)
+  queueVisibleResume('upstream', checkUpstream, 520)
 })
 
 watch(logsPollingActive, (active, prev) => {
-  if (active && !prev) refreshLogs()
+  if (active && !prev) {
+    queueVisibleResume('liveLogs', refreshLogs, documentVisibility.value === 'visible' ? 260 : 0)
+  }
 })
 
 watch([logsAuto, logSource, logLines, agentEnabled], () => {
@@ -4089,6 +4133,7 @@ useSafePolling({
   callback: checkUpstream,
   intervalMs: 6 * 60 * 60 * 1000,
   immediate: false,
+  refreshOnVisible: false,
 })
 
 // --- Diagnostics report ---

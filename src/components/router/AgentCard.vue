@@ -1674,6 +1674,8 @@ useSafePolling({
   intervalMs: 20_000,
   enabled: () => statusPollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 useSafePolling({

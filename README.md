@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.161`
+- UI: `v1.2.163`
 - router-agent: `0.6.32`
-- Focus: снижение бессмысленного фонового polling в UI без изменения router-agent и HA/export shape
+- Focus: снижение лишних wake-up запросов в UI без изменения router-agent и HA/export shape
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
@@ -16,6 +16,19 @@
   <img src="./readme/pc.png" height="280">
   <img src="./readme/mobile.png" height="280">
 </p>
+
+---
+
+## Что важно в v1.2.163
+
+- Это следующий safe-патч после `v1.2.162`.
+- Убраны ещё несколько дублирующихся wake-up refresh при возврате вкладки или карточки в активное состояние.
+- Исправлены оставшиеся пересечения между локальными `watch(...active...)` и автопробуждением `useSafePolling` для:
+  - `Router -> System`
+  - `Router -> Router agent`
+  - `Router -> Host QoS`
+  - `Трафик / Пользователи` QoS-статистики
+- Живой polling сохранён, ручное обновление не менялось, `router-agent -> HA` и реальный traffic path не трогались.
 
 ---
 
@@ -85,67 +98,16 @@ Router-agent нужен для функций, которых нет в Mihomo A
 - **Router-agent** (Entware): API для расширенных функций и **бэкапы** (в т.ч. в облако через rclone).
 - **Router → QoS устройств**: заготовка приоритизации трафика для LAN-устройств (High / Normal / Low) через `tc` на роутере, без обязательных ручных правок в конфиге.
 - Home Assistant export bundle остаётся совместимым: свежесть / stale-индикаторы для snapshot теперь считаются внутри HA template helpers, без изменения JSON payload от router-agent.
-- Для переноса в новый чат и стабильной работы с проектом добавлены `docs/model-memory-snapshot.md` и `docs/workflow-rules.md`.
+- Для переноса в новый чат и стабильной работы с проектом поддерживаются `docs/model-memory-snapshot.md`, `docs/project-memory.md`, `docs/request-ledger.md`, `docs/chat-transfer.md`.
 - **Трафик**: рабочий экран разделён на режимы `Устройства` и `Пользователи`, чтобы отдельно видеть живые LAN-хосты/QoS и отдельно — лимиты, блокировки и накопленную статистику по правилам.
 - **Router-agent / Home Assistant**: доступны лёгкие snapshot endpoint'ы `ha_contract_meta`, `ha_snapshot`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`; новый `ha_snapshot` собирает bundle в одном JSON и помогает снизить число параллельных опросов из Home Assistant.
 - **Home Assistant handoff**: в `docs/ha-export/homeassistant/` лежит готовый YAML bundle для быстрого подключения роутера в HA через REST + template sensors. Версионный sync в `status` и `ha_status` доведён до единообразного поведения, а основной HA bundle переведён на agent `0.6.32` с единым `ha_snapshot` resource.
 
 ---
 
-## Резервное копирование (UI + конфиги Mihomo + состояние агента)
-
-Router-agent устанавливает `/opt/zash-agent/backup.sh`.
-
-Он собирает архив:
-- `/opt/etc/mihomo/config.yaml` и GEO/правила (если есть),
-- состояние агента (`/opt/zash-agent/var/*`, включая `users-db.json`),
-- **опционально**: скачивает текущий `dist.zip` UI внутрь бэкапа.
-
-Загрузка в облако делается через **rclone** (Google Drive / Yandex Disk WebDAV).
-
-В UI: **Router → Router agent → Backup schedule** можно задать время (по умолчанию **04:00**) и применить cron на роутере.
-
-Подробная инструкция: `docs/backup.md`
-Если в `RCLONE_REMOTE` / `RCLONE_REMOTES` остались старые имена remote, router-agent теперь умеет fallback на реальные remotes из `rclone.conf`: не только для облачной истории/restore в UI, но и для самой выгрузки новых архивов через `backup.sh` / cron.
-
-Справка по агенту: `router-agent/README.md`.
-
----
-
 ## Обновления (как мы работаем)
 
-1) ChatGPT готовит архив дистрибутива (файлы сразу в корне архива).
+1) ChatGPT готовит архив дистрибутива.
 2) Денис распаковывает поверх локального репо → commit & push.
-3) Роутер подтягивает UI из GitHub Release `rolling/dist.zip`.
-
----
-
-## Разработка (локально)
-
-```sh
-pnpm i
-pnpm dev
-pnpm build
-```
-
----
-
-## Upstream
-
-Основа: **Zephyruso/zashboard**. UltraUIXkeen остаётся форком с адаптацией под **Netcraze Ultra + Mihomo**.
-
-
-- На вкладке `Подписки` отдельно разведены режимы `Разовый импорт дома` и `Обновляемая подписка`, чтобы было видно, когда сохранённый клиентом локально конфиг можно использовать вне дома и когда для обновления всё ещё нужен доступ к `router-agent`.
-- В `router-agent` исправлена генерация `format=mihomo`: секция `proxy-groups:` теперь выводится явно, чтобы Clash/Mihomo/Hiddify не получали поломанный YAML с группами `Manual / Auto / Failover / Balance` в неправильном месте.
-- Для V2RayTun на вкладке `Подписки` теперь снова выведены отдельный `format=v2raytun` URL, deeplink `v2raytun://import/...` и QR-режим для живой LAN-проверки; при этом релиз честно оставляет этот поток в статусе экспериментального локального импорта, а не финальной внешней подписки.
-
-
-## Documentation
-
-- `docs/release-plan.md` — ближайший план релизов и статус текущего шага
-- `docs/project-memory.md` — зафиксированный проектный контекст, договорённости и важные ограничения
-- `docs/request-ledger.md` — журнал устойчивых запросов и решений по проекту
-- `docs/current-state.md` — текущее подтверждённое состояние UI / router-agent / HA export
-- `docs/ha-export/` — контракт, примеры JSON и готовый пакет Home Assistant
-- `docs/chat-transfer.md` — файл переноса в новый чат
-
+3) Роутер подтягивает UI из GitHub Release `rolling/dist.zip` через встроенный updater интерфейса.
+4) В каждом релизе обновляются docs и файл переноса в новый чат.

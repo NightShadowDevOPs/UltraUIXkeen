@@ -1,19 +1,25 @@
 # Current state — UI Mihomo / Ultra
 
-- Date: **2026-04-20**
-- UI version: **v1.2.161**
+- Date: **2026-04-21**
+- UI version: **v1.2.163**
 - router-agent version: **0.6.32**
-- Main focus: continue cutting pointless UI-side background work without touching the real traffic path or the HA export contract
+- Main focus: continue cutting pointless UI-side background wake-ups without touching the real traffic path or the HA export contract
 
-## What was done in v1.2.161
-- The hidden-tab pause pattern from `Задачи → Живые логи` was extended to several already viewport-aware operational cards.
-- `Router → System`, `Router agent`, `Host QoS` and `Users QoS` no longer keep their background polling alive while the browser tab is hidden.
-- As soon as the tab becomes visible again, those cards do a soft refresh and continue normal polling.
-- `router-agent` stayed at `0.6.32`; this release is UI-side only and does not touch the HA/export contract.
+## What was done in v1.2.163
+- This is the next safe patch after `v1.2.162`.
+- Additional duplicated wake-up refreshes were removed in operational cards that already had local `watch(...active...)` refresh logic.
+- Patched zones:
+  - `Router -> System`
+  - `Router -> Router agent`
+  - `Router -> Host QoS`
+  - `Traffic / Users` QoS statistics
+- In these places `useSafePolling` no longer auto-fires on `refreshOnEnable` / `refreshOnVisible`, because the component already performs a targeted refresh when the card becomes active again.
+- Normal polling cadence, manual refresh behavior and `router-agent -> HA` data shape were left untouched.
 
-## What this fixes
-- Previously some cards were already off-screen aware but could still continue polling while the browser tab itself was hidden.
-- Now another group of operational widgets avoids pointless hidden-tab reads without changing their visible behavior.
+## Why this matters
+- `v1.2.161` and `v1.2.162` already reduced hidden-tab and Tasks wake-up noise.
+- This follow-up removes another class of duplicate refreshes: the component-level watcher and the polling helper were both trying to be helpful at the same time.
+- Result: less pointless wake-up chatter to the router, without changing visible runtime semantics.
 
 ## Current safety rules
 - do not break automatic SSL-certificate checks for providers
@@ -23,8 +29,8 @@
 - if `router-agent` changes later, sync version references in `install.sh`, status API and docs
 
 ## Immediate next step
-- validate `v1.2.160` and `v1.2.161` together on the real router
-- confirm that `Задачи → Живые логи` stops background polling when the block is off-screen
-- confirm that `Router → System`, `Router agent`, `Host QoS` and `Users QoS` also stop polling while the browser tab is hidden
-- confirm that returning to the tab wakes those widgets up cleanly
+- validate `v1.2.163` on the real router
+- confirm that quick tab/card resume in Router/System, Router agent, Host QoS and Users QoS no longer produces duplicate wake-up bursts
+- confirm that manual refresh/runtime behavior still feels the same
 - confirm that Overview traffic weights chart and HA/export runtime remain unchanged
+- if stable, continue with one more safe audit of non-traffic operational widgets that still mix visibility watchers with helper-driven polling

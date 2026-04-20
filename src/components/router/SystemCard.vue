@@ -338,6 +338,8 @@ useSafePolling({
   intervalMs: 20_000,
   enabled: () => pollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 watch(agentEnabled, (enabled) => {
