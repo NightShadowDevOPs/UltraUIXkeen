@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.2.167 — ui-build visible-resume dedupe
+- глобальная проверка свежести UI-сборки (`sidebar/settings`) больше не тянет лишний fetch HTML на каждый обычный visible-resume после короткой паузы
+- автопроверка новой сборки теперь идёт только если ещё не было успешной проверки или online bundle info реально устарел; мягкий anti-burst cooldown сохранён
+- ручная проверка обновления UI, hard refresh, `router-agent`, HA/export shape, SSL-проверки провайдеров и live traffic path не менялись
+
+# Changelog
+
+## v1.2.166 — router-agent visible-resume anti-burst
+- `Router -> Router agent`: убран лишний visible-resume шум при быстром hide/show вкладки и повторном возврате в видимую область
+- wake-up refresh статуса теперь проходит через мягкий cooldown, чтобы не дёргать одинаковый `agentStatus` подряд при быстрой смене visibility
+- maintenance polling больше не делает дополнительный auto-wake-up на visible/enable; обычный polling cadence, ручные действия и открытие maintenance workspace сохранены
+- `router-agent`, HA/export shape, SSL-проверки провайдеров, live traffic path и обычный runtime polling не менялись
+
 ## v1.2.165 — safe upstream UI hardening
 - после safe upstream review взяты только два низкорисковых UI-хвоста, без новых poller-циклов и без изменений `router-agent`
 - `Прокси`: добавлена защита для `proxiesRef`, чтобы ранний lifecycle / пустой ref не ломал scroll restore и scroll handler

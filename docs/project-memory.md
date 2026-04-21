@@ -11,13 +11,14 @@
 - Do not additionally break the router-agent → Home Assistant data structure unless explicitly requested
 
 ## Current validated baseline
-- UI prepared: **v1.2.165**
+- UI prepared: **v1.2.167**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
+- `v1.2.167` — global UI-build freshness auto-check no longer refetches page HTML on every ordinary visible-resume; it now waits for stale bundle info or a manual check, so the router sees less pointless self-traffic.
+- `v1.2.166` — `Router agent` wake-up cleanup: status refresh on visible resume now has a soft cooldown, and maintenance polling no longer auto-fires again on enable/visible wake-up.
 - `v1.2.165` — safe upstream hardening without touching runtime: protected `proxiesRef` usage in `Прокси` and added a visible empty-state for `Соединения`.
 - `v1.2.164` removed the remaining wake-up duplicate in `Overview -> Router Health`.
-- `v1.2.163` removed another class of duplicate wake-up refreshes in operational cards that already had their own `watch(...active...)` refresh path.
 - `v1.2.162` restored the missed Tasks visible-resume anti-burst patch.
 - All these steps are UI-only; router-agent and HA/export contracts were left untouched.
 
@@ -28,7 +29,8 @@
 - `v1.2.151`–`v1.2.156` progressively reduced invisible Host QoS / Router / Overview background work without touching the live traffic contour.
 
 ## Immediate next step
-- validate `v1.2.165` on the real router
-- confirm that `Прокси` and `Соединения` behave нормально на живом UI без побочных эффектов
+- validate `v1.2.167` on the real router
+- confirm that ordinary tab resume no longer causes pointless extra UI-build auto-checks
+- confirm that manual UI update check still works normally
 - confirm that HA/export runtime and Overview traffic weights stay normal
 - then continue upstream review for low-risk UI-side reductions only

@@ -141,10 +141,13 @@ const maybeCheckFreshUiBuild = (force = false) => {
   refreshCurrentBundleTag()
 
   const now = Date.now()
+  const noSuccessfulCheckYet = !lastUiBuildCheckedAt.value
+  const staleOnlineBundleInfo = !!lastUiBuildCheckedAt.value && now - lastUiBuildCheckedAt.value > AUTO_RECHECK_AFTER_MS
+  const visibleResumeCooldownActive = now - lastAutoCheckAt <= AUTO_CHECK_COOLDOWN_MS
+
   const shouldCheck = force
-    || !lastUiBuildCheckedAt.value
-    || now - lastUiBuildCheckedAt.value > AUTO_RECHECK_AFTER_MS
-    || now - lastAutoCheckAt > AUTO_CHECK_COOLDOWN_MS
+    || noSuccessfulCheckYet
+    || (staleOnlineBundleInfo && !visibleResumeCooldownActive)
 
   if (!shouldCheck) return
 

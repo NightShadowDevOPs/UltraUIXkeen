@@ -1,5 +1,33 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-21 — v1.2.167
+- user asked to continue the safe upstream line
+- chosen direction: trim one more pointless wake-up contour that hits the router itself, without touching `router-agent` or HA/export shape
+- implemented in this step:
+  - global UI-build freshness auto-check now ignores ordinary visible-resume wake-ups when a successful check already exists and the online bundle info is not stale yet
+  - soft anti-burst cooldown is preserved so fast hide/show cycles still do not stack identical checks
+- deliberately preserved:
+  - manual UI update check
+  - hard refresh UI flow
+  - provider SSL checks
+  - `router-agent -> HA` data shape
+  - live traffic/runtime behavior
+
+# Request ledger — UI Mihomo / Ultra
+
+## 2026-04-21 — v1.2.166
+- user asked to continue after the previous safe upstream step
+- chosen direction: keep trimming pointless visible-resume work without touching router runtime or HA/export shape
+- implemented in this step:
+  - `Router -> Router agent`: visible-resume status refresh now goes through a soft cooldown
+  - maintenance polling no longer auto-fires again on enable/visible wake-up
+- deliberately preserved:
+  - ordinary polling cadence
+  - manual refresh / maintenance actions
+  - provider SSL checks
+  - `router-agent -> HA` data shape
+  - live traffic/runtime behavior
+
 ## 2026-04-21 — v1.2.165
 - user asked to continue after upstream review and decide what is actually worth taking
 - chosen direction: only low-risk UI hardening, no new polling experiments and no router-agent changes

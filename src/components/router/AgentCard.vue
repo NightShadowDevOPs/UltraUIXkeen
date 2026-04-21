@@ -1599,6 +1599,16 @@ const refreshStatus = async () => {
   return !!status.value?.ok
 }
 
+const AGENT_STATUS_VISIBLE_REFRESH_COOLDOWN_MS = 2500
+const lastStatusVisibleRefreshAt = ref(0)
+
+const refreshStatusOnVisibleResume = async (force = false) => {
+  const now = Date.now()
+  if (!force && now - lastStatusVisibleRefreshAt.value < AGENT_STATUS_VISIBLE_REFRESH_COOLDOWN_MS) return false
+  lastStatusVisibleRefreshAt.value = now
+  return await refreshStatus()
+}
+
 const scrollMaintenanceWorkspaceIntoView = async () => {
   await nextTick()
   const target = maintenancePrimaryRef.value || maintenanceWorkspaceRef.value
@@ -1687,6 +1697,8 @@ useSafePolling({
   intervalMs: 5_000,
   enabled: () => maintenancePollingActive.value,
   immediate: false,
+  refreshOnEnable: false,
+  refreshOnVisible: false,
 })
 
 watch([agentEnabled, agentUrl, agentToken, cardVisible, documentVisibility], (value, oldValue) => {
@@ -1699,8 +1711,12 @@ watch([agentEnabled, agentUrl, agentToken, cardVisible, documentVisibility], (va
     return
   }
   if (docVisible !== 'visible') return
-  if (configChanged || (visible && (!prevEnabled || !prevVisible || prevDocVisible !== 'visible'))) {
-    void refreshStatus()
+  if (configChanged) {
+    void refreshStatusOnVisibleResume(true)
+    return
+  }
+  if (visible && (!prevEnabled || !prevVisible || prevDocVisible !== 'visible')) {
+    void refreshStatusOnVisibleResume()
   }
 }, { immediate: true })
 </script>

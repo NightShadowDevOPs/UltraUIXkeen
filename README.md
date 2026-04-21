@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.165`
+- UI: `v1.2.167`
 - router-agent: `0.6.32`
-- Focus: безопасный cherry-pick из upstream без роста фоновой нагрузки и без изменения router-agent / HA-export shape
+- Focus: safe visible-resume cleanup для проверки свежести UI-сборки без изменений `router-agent` / HA-export shape
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
@@ -19,12 +19,12 @@
 
 ---
 
-## Что важно в v1.2.165
+## Что важно в v1.2.167
 
-- Это следующий safe-патч после `v1.2.164`, но уже не про wake-up dedupe, а про аккуратный upstream cherry-pick.
-- В `Прокси` добавлена защита для `proxiesRef`, чтобы ранний lifecycle / пустой ref не ломал scroll restore и scroll handler.
-- В `Соединения` добавлен явный empty-state, чтобы пустая таблица не выглядела как сломанный экран.
-- `router-agent`, HA/export shape, SSL-проверки провайдеров, polling cadence и реальный traffic path не менялись.
+- Глобальная проверка свежести UI-сборки (`sidebar/settings`) больше не дёргает лишний fetch HTML при каждом обычном visible-resume после короткой паузы.
+- Автопроверка новой сборки теперь срабатывает только когда ещё не было успешной проверки или когда online bundle info реально устарел, плюс сохраняется мягкий anti-burst cooldown.
+- Ручная проверка обновления UI, hard refresh, `router-agent`, HA/export shape, SSL-проверки провайдеров и реальный traffic path не менялись.
+- Это ещё один safe cleanup-релиз: меньше фоновой суеты и лишних wake-up запросов к самому роутеру, без фокусов с runtime.
 
 ---
 

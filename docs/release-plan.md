@@ -1,6 +1,8 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.167` — UI build visible-resume dedupe: убран лишний fetch index/html при обычном wake-up глобальной проверки свежести UI-сборки
+- `v1.2.166` — Router agent visible-resume anti-burst: soft cooldown for wake-up status refresh plus no extra maintenance auto-wake-up
 - `v1.2.165` — safe upstream UI hardening: `proxiesRef` guard in `Прокси` and empty-state for `Соединения`
 - `v1.2.164` — removed the remaining wake-up duplicate in `Overview -> Router Health`
 - `v1.2.163` — wake-up dedupe follow-up for operational cards: System, Router agent, Host QoS and Users QoS stats
@@ -12,7 +14,7 @@
 - `v1.2.157` — cleanup for disabled/saved-only provider-panel rows in Tasks UI
 
 ## Next likely step
-- validate `v1.2.165` on the real router
+- validate `v1.2.167` on the real router
 - if stable, continue upstream review only for safe operational cherry-picks that reduce UI rough edges or pointless wake-up work
 - reject anything that increases constant polling, CPU churn or router runtime risk
 - keep HA/export shape frozen unless there is an explicit request to change it
