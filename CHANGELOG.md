@@ -1,11 +1,15 @@
 # Changelog
 
+## v1.2.168 — router system visible-resume cooldown
+- `Router -> System`: добавлен мягкий anti-burst cooldown для wake-up refresh при возврате вкладки в visible / повторном входе карточки в активное состояние
+- обычный polling cadence сохранён; ручное обновление и загрузка подробностей не менялись
+- `router-agent`, HA/export shape, SSL-проверки провайдеров и live traffic path не менялись
+- TUN сознательно не включался: для текущего контура он не нужен и отдельно не продвигается в релиз без тестового сценария
+
 ## v1.2.167 — ui-build visible-resume dedupe
 - глобальная проверка свежести UI-сборки (`sidebar/settings`) больше не тянет лишний fetch HTML на каждый обычный visible-resume после короткой паузы
 - автопроверка новой сборки теперь идёт только если ещё не было успешной проверки или online bundle info реально устарел; мягкий anti-burst cooldown сохранён
 - ручная проверка обновления UI, hard refresh, `router-agent`, HA/export shape, SSL-проверки провайдеров и live traffic path не менялись
-
-# Changelog
 
 ## v1.2.166 — router-agent visible-resume anti-burst
 - `Router -> Router agent`: убран лишний visible-resume шум при быстром hide/show вкладки и повторном возврате в видимую область

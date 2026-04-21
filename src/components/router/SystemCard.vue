@@ -333,6 +333,16 @@ const handleRefresh = () => {
   void refresh()
 }
 
+const SYSTEM_CARD_VISIBLE_REFRESH_COOLDOWN_MS = 2500
+const lastVisibleRefreshAt = ref(0)
+
+const refreshOnVisibleResume = async (force = false) => {
+  const now = Date.now()
+  if (!force && now - lastVisibleRefreshAt.value < SYSTEM_CARD_VISIBLE_REFRESH_COOLDOWN_MS) return
+  lastVisibleRefreshAt.value = now
+  await refresh()
+}
+
 useSafePolling({
   callback: refresh,
   intervalMs: 20_000,
@@ -353,7 +363,7 @@ watch(agentEnabled, (enabled) => {
 
 watch(pollingActive, (active, prev) => {
   if (active && !prev) {
-    void refresh()
+    void refreshOnVisibleResume(!prev)
   }
 }, { immediate: true })
 </script>

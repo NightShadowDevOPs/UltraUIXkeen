@@ -1,5 +1,19 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-21 — v1.2.168
+- user decided that TUN should stay disabled because it is not needed in the current router contour
+- user asked to continue the project after that decision
+- chosen direction: trim one more duplicate wake-up hit in `Router -> System` without touching `router-agent`, HA/export shape or live traffic behavior
+- implemented in this step:
+  - `Router -> System` wake-up refresh now goes through a soft cooldown
+  - ordinary polling cadence is preserved
+  - manual refresh and details loading stay unchanged
+- deliberately preserved:
+  - `router-agent -> HA` data shape
+  - provider SSL checks
+  - live traffic/runtime behavior
+  - TUN remains out of the release scope
+
 ## 2026-04-21 — v1.2.167
 - user asked to continue the safe upstream line
 - chosen direction: trim one more pointless wake-up contour that hits the router itself, without touching `router-agent` or HA/export shape
@@ -12,8 +26,6 @@
   - provider SSL checks
   - `router-agent -> HA` data shape
   - live traffic/runtime behavior
-
-# Request ledger — UI Mihomo / Ultra
 
 ## 2026-04-21 — v1.2.166
 - user asked to continue after the previous safe upstream step

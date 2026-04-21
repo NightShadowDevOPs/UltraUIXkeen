@@ -2,9 +2,9 @@
 
 ## Current packaged snapshot
 
-- UI: `v1.2.167`
+- UI: `v1.2.168`
 - router-agent: `0.6.32`
-- Focus: safe visible-resume cleanup для проверки свежести UI-сборки без изменений `router-agent` / HA-export shape
+- Focus: safe visible-resume cooldown for `Router -> System` without changes to `router-agent` / HA-export shape
 
 **UltraUIXkeen** — веб-интерфейс для роутеров **Netcraze Ultra** (Entware + ядро **Mihomo**) с расширениями через `router-agent`.
 
@@ -19,12 +19,12 @@
 
 ---
 
-## Что важно в v1.2.167
+## Что важно в v1.2.168
 
-- Глобальная проверка свежести UI-сборки (`sidebar/settings`) больше не дёргает лишний fetch HTML при каждом обычном visible-resume после короткой паузы.
-- Автопроверка новой сборки теперь срабатывает только когда ещё не было успешной проверки или когда online bundle info реально устарел, плюс сохраняется мягкий anti-burst cooldown.
-- Ручная проверка обновления UI, hard refresh, `router-agent`, HA/export shape, SSL-проверки провайдеров и реальный traffic path не менялись.
-- Это ещё один safe cleanup-релиз: меньше фоновой суеты и лишних wake-up запросов к самому роутеру, без фокусов с runtime.
+- `Router -> System`: быстрые hide/show вкладки и повторный visible-resume больше не должны подряд дёргать одинаковый status-refresh без паузы.
+- Для карточки системной информации добавлен мягкий anti-burst cooldown на wake-up refresh, без изменений обычного polling cadence.
+- Ручное обновление, загрузка деталей, `router-agent`, HA/export shape, SSL-проверки провайдеров и реальный traffic path не менялись.
+- TUN оставлен вне релиза: проектная позиция сейчас — не включать его без отдельной реальной необходимости и без отдельного тестового сценария на роутере.
 
 ---
 
