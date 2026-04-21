@@ -1778,6 +1778,7 @@ usersDbChanged: 'Изменено',
   providerHiddenCount: "Скрыто неисп.: {n}",
   providerNoMatches: "Провайдеры не найдены (возможны фильтры).",
   resetFilters: "Сбросить фильтры",
+  connectionTableEmpty: 'Соединений сейчас нет.',
 
   navSectionMonitor: 'Мониторинг',
   navSectionNetwork: 'Сеть',

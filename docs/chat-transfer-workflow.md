@@ -2,7 +2,7 @@
 
 Use this checklist whenever the project is moved into a fresh chat.
 
-1. Start from the latest release package and documentation set, currently `v1.2.164`.
+1. Start from the latest release package and documentation set, currently `v1.2.165`.
 2. Read in order:
    - `docs/project-memory.md`
    - `docs/current-state.md`
@@ -19,4 +19,4 @@ Use this checklist whenever the project is moved into a fresh chat.
    - router updates use the built-in UI updater, not `git pull`
    - if `router-agent` changes, sync `install.sh`, status API, docs and handoff bundle
 4. Re-confirm with the user what was already verified on the real router before preparing the next step.
-5. For the next safe performance step after `v1.2.164`, prefer low-risk upstream review and only cherry-pick changes that reduce duplicate wake-up work or UI-side burst load without changing runtime shape.
+5. After `v1.2.165`, keep using low-risk upstream review and only cherry-pick changes that harden the UI or reduce pointless wake-up work without changing runtime shape.

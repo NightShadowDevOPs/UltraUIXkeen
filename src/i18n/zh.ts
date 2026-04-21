@@ -1652,6 +1652,7 @@ usersDbChanged: '已更改',
   providerHiddenCount: "已隐藏: {n}",
   providerNoMatches: "未找到提供商（可能有筛选）。",
   resetFilters: "重置筛选",
+  connectionTableEmpty: '当前没有连接。',
 
   navSectionMonitor: '监控',
   navSectionNetwork: '网络',

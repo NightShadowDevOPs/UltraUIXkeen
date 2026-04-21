@@ -1,6 +1,7 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Recently delivered
+- `v1.2.165` — safe upstream UI hardening: `proxiesRef` guard in `Прокси` and empty-state for `Соединения`
 - `v1.2.164` — removed the remaining wake-up duplicate in `Overview -> Router Health`
 - `v1.2.163` — wake-up dedupe follow-up for operational cards: System, Router agent, Host QoS and Users QoS stats
 - `v1.2.162` — restored the missed Tasks visible-resume anti-burst patch for router-agent status, live logs and upstream checks
@@ -9,17 +10,11 @@
 - `v1.2.159` — viewport-aware pause for Overview relationship/traffic-weight charts when they are off-screen or the tab is hidden
 - `v1.2.158` — explicit active vs saved-state transparency for provider-panel rows in Tasks UI
 - `v1.2.157` — cleanup for disabled/saved-only provider-panel rows in Tasks UI
-- `v1.2.151` — viewport-aware lazy polling for Host QoS / Users QoS cards
-- `v1.2.152` — viewport-aware lazy polling for Router → Resources / Router agent cards
-- `v1.2.153` — viewport-aware lazy polling for Overview router health card
-- `v1.2.154` — viewport-aware pause for Overview → Traffic secondary host-detail polling
-- `v1.2.155` — reduced main Overview → Traffic live cadence while the card is off-screen
-- `v1.2.156` — safer mass latency-test execution with limited concurrency and more consistent test-URL resolution
 
 ## Next likely step
-- validate `v1.2.164` on the real router
-- if stable, continue upstream review only for safe operational cherry-picks that reduce burst load or redundant UI wake-up work
-- continue rejecting anything that increases constant polling, CPU churn or router runtime risk
+- validate `v1.2.165` on the real router
+- if stable, continue upstream review only for safe operational cherry-picks that reduce UI rough edges or pointless wake-up work
+- reject anything that increases constant polling, CPU churn or router runtime risk
 - keep HA/export shape frozen unless there is an explicit request to change it
 
 ## Non-negotiable guardrails

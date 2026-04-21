@@ -14,7 +14,18 @@
     @mouseleave="handleMouseUp"
   >
   <SourceIPStats class="mb-2" />
-    <div :style="{ height: `${totalSize}px` }">
+
+    <div
+      v-if="!hasRows"
+      class="rounded-xl border border-base-content/10 bg-base-200/40 p-4 text-sm opacity-80"
+    >
+      {{ t('connectionTableEmpty') }}
+    </div>
+
+    <div
+      v-else
+      :style="{ height: `${totalSize}px` }"
+    >
       <table
         :class="[
           'table-zebra table rounded-none shadow-md',
@@ -540,6 +551,7 @@ const tanstackTable = useVueTable({
 const rows = computed(() => {
   return tanstackTable.getRowModel().rows
 })
+const hasRows = computed(() => rows.value.length > 0)
 
 const parentRef = ref<HTMLElement | null>(null)
 const rowVirtualizerOptions = computed(() => {

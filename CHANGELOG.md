@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.165 — safe upstream UI hardening
+- после safe upstream review взяты только два низкорисковых UI-хвоста, без новых poller-циклов и без изменений `router-agent`
+- `Прокси`: добавлена защита для `proxiesRef`, чтобы ранний lifecycle / пустой ref не ломал scroll restore и scroll handler
+- `Соединения`: добавлен явный empty-state, когда строк нет, чтобы экран не выглядел зависшим или сломанным
+- `router-agent`, HA/export contract, SSL-проверки провайдеров, Overview traffic contour и реальный traffic path не менялись
+
 ## v1.2.164 — overview router-health wake-up dedupe
 - убран ещё один дублирующийся wake-up refresh в `Обзор -> Router Health`
 - карточка уже делала собственный refresh при повторном входе в viewport, поэтому у `useSafePolling` отключён дополнительный авто-wake-up по `refreshOnEnable` / `refreshOnVisible`

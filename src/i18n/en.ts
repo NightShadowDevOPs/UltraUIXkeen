@@ -1776,6 +1776,7 @@ usersDbChanged: 'Changed',
   providerHiddenCount: "Hidden unused: {n}",
   providerNoMatches: "No providers found (filters may be active).",
   resetFilters: "Reset filters",
+  connectionTableEmpty: 'No connections right now.',
 
   navSectionMonitor: 'Monitor',
   navSectionNetwork: 'Network',

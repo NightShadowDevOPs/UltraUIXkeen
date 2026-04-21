@@ -1,5 +1,17 @@
 # Request ledger — UI Mihomo / Ultra
 
+## 2026-04-21 — v1.2.165
+- user asked to continue after upstream review and decide what is actually worth taking
+- chosen direction: only low-risk UI hardening, no new polling experiments and no router-agent changes
+- taken from the review:
+  - `Прокси`: protect `proxiesRef` usage against early / empty ref states
+  - `Соединения`: show a normal empty-state when the table has no rows
+- deliberately rejected in this step:
+  - anything that adds or reshapes polling
+  - anything that touches provider SSL checks
+  - anything that changes `router-agent -> HA` shape
+  - anything that can interfere with live traffic/runtime behavior
+
 ## 2026-04-21 — v1.2.164
 - user approved continuing immediately after `v1.2.163`
 - safe follow-up direction chosen: inspect the remaining non-Tasks visibility/polling overlap candidates

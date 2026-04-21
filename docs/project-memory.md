@@ -11,12 +11,13 @@
 - Do not additionally break the router-agent → Home Assistant data structure unless explicitly requested
 
 ## Current validated baseline
-- UI prepared: **v1.2.164**
+- UI prepared: **v1.2.165**
 - router-agent: **0.6.32**
 
 ## Latest delivered step
-- `v1.2.164` removes the remaining wake-up duplicate in `Overview -> Router Health`. The card already had its own viewport re-entry refresh, so `useSafePolling` no longer auto-fires a second duplicate wake-up.
-- `v1.2.163` removed another class of duplicate wake-up refreshes in operational cards that already had their own `watch(...active...)` refresh path. Patched zones: `Router -> System`, `Router -> Router agent`, `Router -> Host QoS`, `Traffic / Users` QoS statistics.
+- `v1.2.165` — safe upstream hardening without touching runtime: protected `proxiesRef` usage in `Прокси` and added a visible empty-state for `Соединения`.
+- `v1.2.164` removed the remaining wake-up duplicate in `Overview -> Router Health`.
+- `v1.2.163` removed another class of duplicate wake-up refreshes in operational cards that already had their own `watch(...active...)` refresh path.
 - `v1.2.162` restored the missed Tasks visible-resume anti-burst patch.
 - All these steps are UI-only; router-agent and HA/export contracts were left untouched.
 
@@ -27,8 +28,7 @@
 - `v1.2.151`–`v1.2.156` progressively reduced invisible Host QoS / Router / Overview background work without touching the live traffic contour.
 
 ## Immediate next step
-- validate `v1.2.164` on the real router
-- confirm that `Overview -> Router Health` no longer causes duplicate wake-up refreshes
-- confirm that manual refresh still works normally
+- validate `v1.2.165` on the real router
+- confirm that `Прокси` and `Соединения` behave нормально на живом UI без побочных эффектов
 - confirm that HA/export runtime and Overview traffic weights stay normal
 - then continue upstream review for low-risk UI-side reductions only

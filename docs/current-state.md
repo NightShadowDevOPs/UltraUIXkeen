@@ -1,20 +1,20 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-21**
-- UI version: **v1.2.164**
+- UI version: **v1.2.165**
 - router-agent version: **0.6.32**
-- Main focus: finish the remaining safe wake-up dedupe tail without touching the real traffic path or the HA export contract
+- Main focus: safe upstream cherry-pick only where it hardens UI behavior without increasing router load or touching the HA export contract
 
-## What was done in v1.2.164
-- This is the next safe patch after `v1.2.163`.
-- The remaining wake-up duplicate in `Overview -> Router Health` was removed.
-- The card already performs its own refresh when it re-enters the viewport, so `useSafePolling` no longer auto-fires an extra wake-up refresh through `refreshOnEnable` / `refreshOnVisible`.
-- Normal polling cadence, manual refresh behavior and `router-agent -> HA` data shape were left untouched.
+## What was done in v1.2.165
+- После safe upstream review взяты только два низкорисковых UI-хвоста.
+- `Прокси`: добавлена защита для `proxiesRef`, чтобы ранний lifecycle / пустой ref не ломал scroll restore и обработчик scroll.
+- `Соединения`: добавлен явный empty-state, когда в таблице нет строк.
+- `router-agent`, polling cadence, manual refresh, HA/export shape, SSL-проверки провайдеров и реальный traffic path не менялись.
 
 ## Why this matters
-- `v1.2.162` reduced Tasks visible-resume bursts.
-- `v1.2.163` removed similar overlaps in System / Router agent / Host QoS / Users QoS.
-- `v1.2.164` closes the same pattern in Overview router health, so one more invisible “double helpfulness” path is gone.
+- Это не ещё один “хитрый оптимизатор”, который может случайно расковырять runtime.
+- Патч закрывает два UI-хвоста, которые полезны пользователю и почти не несут риска роутеру.
+- После серии wake-up dedupe это нормальный следующий шаг: брать только безопасные куски из upstream, а не тащить всё подряд.
 
 ## Current safety rules
 - do not break automatic SSL-certificate checks for providers
@@ -24,8 +24,8 @@
 - if `router-agent` changes later, sync version references in `install.sh`, status API and docs
 
 ## Immediate next step
-- validate `v1.2.164` on the real router
-- confirm that `Overview -> Router Health` no longer performs duplicate wake-up refreshes after returning into view
-- confirm that manual refresh/runtime behavior still feels the same
-- confirm that Overview traffic weights chart and HA/export runtime remain unchanged
-- if stable, continue upstream review only for safe, low-risk load reductions
+- validate `v1.2.165` on the real router
+- confirm that `Прокси` no longer has fragile behavior around empty / not-yet-mounted `proxiesRef`
+- confirm that `Соединения` shows a normal empty-state instead of a visually broken blank table
+- confirm that Overview traffic weights chart, provider SSL checks and HA/export runtime remain unchanged
+- continue upstream review only for low-risk UI-side improvements

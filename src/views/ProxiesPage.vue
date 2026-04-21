@@ -61,7 +61,7 @@ import { providerHealthFilter, proxyProvidersProtoFilter, showOnlyActiveProxyPro
 import { useElementSize, useSessionStorage } from '@vueuse/core'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-const proxiesRef = ref()
+const proxiesRef = ref<HTMLElement | null>(null)
 const { width } = useElementSize(proxiesRef)
 const scrollStatus = useSessionStorage('cache/proxies-scroll-status', {
   [PROXY_TAB_TYPE.PROVIDER]: 0,
@@ -69,6 +69,7 @@ const scrollStatus = useSessionStorage('cache/proxies-scroll-status', {
 })
 
 const handleScroll = () => {
+  if (!proxiesRef.value) return
   scrollStatus.value[proxiesTabShow.value] = proxiesRef.value.scrollTop
 }
 
@@ -77,6 +78,13 @@ const isProviderToolbarCompact = computed(() => {
 })
 
 const waitTickUntilReady = (startTime = performance.now()) => {
+  if (!proxiesRef.value) {
+    requestAnimationFrame(() => {
+      waitTickUntilReady(startTime)
+    })
+    return
+  }
+
   if (
     performance.now() - startTime > 300 ||
     proxiesRef.value.scrollHeight > scrollStatus.value[proxiesTabShow.value]
