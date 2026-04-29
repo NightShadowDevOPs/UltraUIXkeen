@@ -1,75 +1,51 @@
-# UI Mihomo / Ultra — transfer note for next chat
+# Chat transfer — UI Mihomo Ultra v1.2.176
 
-Дата: **2026-04-29**
+## Where to continue
 
-## Текущий релиз
+Continue from `UltraUIXkeen-v1.2.176.tar.gz`.
 
-- UI release: **v1.2.174**
-- router-agent: **0.6.34**
-- Роутер: **192.168.0.1**
+## Current focus
+
+`v1.2.176` is a deploy-hardening patch before checking/installing the `v1.2.175` zash-agent line on the router.
+
+## Current router layout
+
+- Project path: `/opt/etc/mihomo`
+- Agent runtime: `/opt/zash-agent`
+- Router IP: `192.168.0.1`
 - Agent endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`
-- Runtime path: `/opt/zash-agent`
-- Project path on router: usually `/opt/UltraUIXkeen`
 
-## Что было перед v1.2.174
+## What v1.2.176 contains
 
-В v1.2.173 был исправлен startup self-call: агент больше не должен зависать на старте из-за HTTP-запроса в самого себя (`cmd=rehydrate`). После этого `cmd=status` заработал, но `cmd=ha_snapshot` упал на smoke test:
+- `scripts/apply-zash-agent-v1.2.176.sh`
+- `scripts/check-zash-agent-v1.2.176.sh`
+- `scripts/rollback-zash-agent-v1.2.176.sh`
+- `docs/audit-deploy-decision-v1.2.176.md`
+- `docs/router-agent-deploy-v1.2.176.md`
+- release-docs ZIP with mandatory documentation files.
 
-```text
-HTTP/1.1 502 Bad Gateway
-```
+## Important status
 
-## Что вошло в v1.2.174
+- `ha_snapshot` timeout/502 issue: **fixed in v1.2.174**, confirmed by user smoke test.
+- Runtime agent code in this package: **0.6.35**.
+- TUN: **do not enable** for this project state.
+- Live traffic path: **not changed**.
+- Provider SSL checks: **not changed**.
+- HA contract: **not changed**.
 
-`ha_snapshot` переведён на safe bundle сборку:
+## Next checks after deploy
 
-- не собирает `status`, `traffic`, `users`, `qos` синхронно перед отправкой headers;
-- отдаёт свежий cache;
-- если свежий cache истёк — отдаёт stale-cache;
-- если cache ещё отсутствует — отдаёт stub компонента:
-  - `ok:false`
-  - `stale:true`
-  - `cache_miss:true`
-  - `component:"ha_status|ha_traffic|ha_users|ha_qos"`
-- планирует фоновый refresh под lock `/tmp/zash-ha-snapshot-refresh.lock`;
-- добавляет поля верхнего уровня:
-  - `cache_mode:"stale-while-refresh"`
-  - `refresh_scheduled:true|false`
+1. Run `scripts/check-zash-agent-v1.2.176.sh`.
+2. Confirm `STATUS_HTTP=200` and `STATUS_OK=true`.
+3. Confirm `HA_SNAPSHOT_HTTP=200` and `HA_SNAPSHOT_OK=true`.
+4. Confirm `MIHOMO_PROVIDERS_HTTP=200`.
+5. Confirm UI no longer shows agent unavailable.
+6. Confirm provider list still renders.
 
-## Что не трогать без явной задачи
+## If deployment fails
 
-- TUN
-- Mihomo core
-- Proxy provider SSL checks
-- QoS/shaper
-- live traffic path
-- HA entity naming
-- SmartLife/Home Assistant package YAML
-
-## Что проверять после заливки
+Run:
 
 ```sh
-/opt/bin/wget -S -O- -T 15 'http://192.168.0.1:9099/cgi-bin/api.sh?cmd=status'
-/opt/bin/wget -S -O- -T 15 'http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot'
-sleep 10
-/opt/bin/wget -S -O- -T 15 'http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot'
+/opt/bin/sh scripts/rollback-zash-agent-v1.2.176.sh
 ```
-
-Ожидаемый результат:
-
-- status: `200 OK`, `ok:true`;
-- ha_snapshot: `200 OK`, `ok:true`;
-- первый snapshot может быть cache-miss/stale по вложенным блокам;
-- второй snapshot должен подтянуть больше данных;
-- не должно быть `502`.
-
-## Контракт для HA
-
-Home Assistant должен проверять не только `snapshot.ok`, но и вложенные флаги:
-
-- `snapshot.status.ok`
-- `snapshot.traffic.ok`
-- `snapshot.users.ok`
-- `snapshot.qos.ok`
-
-Один временно stale/cache-miss блок не означает, что агент полностью недоступен.

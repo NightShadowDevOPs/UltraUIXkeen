@@ -1,36 +1,51 @@
-# UI Mihomo / Ultra — transfer note for next chat
+# Chat transfer — UI Mihomo Ultra v1.2.176
 
-Дата: **2026-04-29**
-Текущая версия UI: **v1.2.173**
-Текущая версия router-agent: **0.6.33**
-Репозиторий: `NightShadowDevOPs/UltraUIXkeen`
-Локальная папка: `Y:\Мой диск\Git\UltraUIXkeen`
-Путь на роутере: `/opt/UltraUIXkeen`
+## Where to continue
 
-## Что вошло в v1.2.173
-- Hotfix для `zash-agent`: убран HTTP self-call `cmd=rehydrate` из startup flow.
-- `rehydrate` теперь запускается напрямую через CGI shell invocation, не занимая HTTP-обработчик агента.
-- `ssl-refresh.sh` также переведён на прямой CGI-вызов, чтобы cron не подвешивал browser-facing endpoint.
-- `S99zash-agent stop` стал надёжнее чистить зависшие `uhttpd` и `api.sh` процессы.
-- `start.sh` перед свежим запуском чистит stale CGI children, но не вмешивается в уже живой агент при обычном `start`.
-- Installer умеет автодетектить `MIHOMO_CONFIG` для существующего `agent.env`, если переменная отсутствует или указывает на несуществующий файл.
+Continue from `UltraUIXkeen-v1.2.176.tar.gz`.
 
-## Контекст проблемы
-- На роутере `uhttpd` мог слушать `192.168.0.1:9099`, direct CGI status работал, но HTTP-запросы к агенту зависали или таймаутились.
-- В UI это проявлялось как “Агент включён, но недоступен” и отсутствие списка providers.
-- Работу удалось восстановить ручным stop/kill/start, значит нужен был патч именно на устойчивость запуска/остановки, а не изменение контракта данных.
+## Current focus
 
-## Что важно помнить дальше
-- нельзя ломать автоматическую проверку SSL-сертификатов провайдеров
-- обновление UI на роутере идёт через встроенный updater интерфейса, а не через `git pull`
-- если меняется router-agent, нужно синхронизировать версию в `router-agent/install.sh`, status API, docs и HA handoff bundle
-- отдельно не ломать структуру данных от router-agent в Home Assistant через agent/handoff
-- TUN без отдельной необходимости и отдельного тестового контура не включать
+`v1.2.176` is a deploy-hardening patch before checking/installing the `v1.2.175` zash-agent line on the router.
 
-## Что проверить после обновления позже
-1. `/cgi-bin/api.sh?cmd=status` быстро отвечает по `http://192.168.0.1:9099`.
-2. В UI исчезает ложное состояние “Агент включён, но недоступен”.
-3. Список providers снова отображается.
-4. Provider SSL checks продолжают работать.
-5. HA/export endpoints возвращают прежнюю структуру `ha_snapshot`.
-6. Роутинг/живой трафик/TUN не изменились.
+## Current router layout
+
+- Project path: `/opt/etc/mihomo`
+- Agent runtime: `/opt/zash-agent`
+- Router IP: `192.168.0.1`
+- Agent endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`
+
+## What v1.2.176 contains
+
+- `scripts/apply-zash-agent-v1.2.176.sh`
+- `scripts/check-zash-agent-v1.2.176.sh`
+- `scripts/rollback-zash-agent-v1.2.176.sh`
+- `docs/audit-deploy-decision-v1.2.176.md`
+- `docs/router-agent-deploy-v1.2.176.md`
+- release-docs ZIP with mandatory documentation files.
+
+## Important status
+
+- `ha_snapshot` timeout/502 issue: **fixed in v1.2.174**, confirmed by user smoke test.
+- Runtime agent code in this package: **0.6.35**.
+- TUN: **do not enable** for this project state.
+- Live traffic path: **not changed**.
+- Provider SSL checks: **not changed**.
+- HA contract: **not changed**.
+
+## Next checks after deploy
+
+1. Run `scripts/check-zash-agent-v1.2.176.sh`.
+2. Confirm `STATUS_HTTP=200` and `STATUS_OK=true`.
+3. Confirm `HA_SNAPSHOT_HTTP=200` and `HA_SNAPSHOT_OK=true`.
+4. Confirm `MIHOMO_PROVIDERS_HTTP=200`.
+5. Confirm UI no longer shows agent unavailable.
+6. Confirm provider list still renders.
+
+## If deployment fails
+
+Run:
+
+```sh
+/opt/bin/sh scripts/rollback-zash-agent-v1.2.176.sh
+```

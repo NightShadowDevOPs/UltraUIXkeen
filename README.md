@@ -4,69 +4,56 @@
 
 ## Текущий релиз
 
-- UI release: **v1.2.174**
-- router-agent: **v0.6.34**
+- UI release: **v1.2.176**
+- router-agent runtime/package: **v0.6.35**
 - Дата: **2026-04-29**
-- Тип релиза: **router-agent hotfix**
-- Главная цель: убрать `502 Bad Gateway` на `cmd=ha_snapshot`, когда bundled snapshot пытается синхронно собрать тяжёлые блоки `status`, `traffic`, `users`, `qos` и упирается в CGI timeout `uhttpd`.
+- Тип релиза: **release hardening / deploy safety / audit cleanup**
+- Router IP: **192.168.0.1**
+- Папка проекта на роутере: **`/opt/etc/mihomo`**
+- Runtime-папка агента: **`/opt/zash-agent`**
 
-## Что изменено в v1.2.174
+## Что изменено в v1.2.176
 
-`ha_snapshot` переведён в режим **stale-while-refresh**:
+Это аккуратный патч после строгого аудита документации и перед деплоем `v1.2.175`-линии. Логика роутинга и контракт HA не меняются — здесь не цирк с исчезающими провайдерами, а ремень безопасности перед установкой.
 
-- быстрый ответ отдаётся из свежего cache;
-- если свежего cache нет, используется stale-cache;
-- если cache ещё не создан, компонент возвращается как понятный stub `ok:false`, `stale:true`, `cache_miss:true`;
-- тяжёлое обновление cache запускается в фоне под lock `/tmp/zash-ha-snapshot-refresh.lock`;
-- прямые endpoint-ы `ha_status`, `ha_traffic`, `ha_users`, `ha_qos` не менялись по контракту;
-- live traffic, provider SSL checks, Mihomo core, TUN, QoS и правила маршрутизации не трогались.
+Добавлено/исправлено:
 
-## Почему это нужно
+- добавлен `scripts/check-zash-agent-v1.2.176.sh` с короткими машинно-читаемыми маркерами вместо простыни JSON;
+- добавлен `scripts/apply-zash-agent-v1.2.176.sh`, который ставит packaged agent в `/opt/zash-agent` и затем запускает короткий smoke-check;
+- добавлен `scripts/rollback-zash-agent-v1.2.176.sh` для восстановления последнего backup `/opt/zash-agent.backup-v1.2.176-*` или `/opt/zash-agent.backup-v1.2.175-*`;
+- документация явно фиксирует статус старой проблемы `ha_snapshot -> 502/uhttpd timeout`: **fixed in v1.2.174**, не open issue;
+- формализован release-docs ZIP для project-memory-sync/audit: `release-docs-ui-mihomo-ultra-v1.2.176.zip`.
 
-Проверка показала:
+## Что не менялось
 
-```text
-GET /cgi-bin/api.sh?cmd=ha_snapshot
-HTTP/1.1 502 Bad Gateway
-```
+- Mihomo core и конфиги прокси.
+- TUN mode.
+- Провайдеры и provider SSL checks.
+- QoS/shaper logic.
+- Контракт `ha_snapshot`, `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`.
+- Путь живого трафика.
+- Runtime-код агента остаётся **v0.6.35**.
 
-Причина: bundled snapshot формировался после последовательного вызова нескольких HA-export builders и мог не успеть вернуть HTTP headers до timeout `uhttpd`. Это классический случай “агент задумался, веб-сервер решил, что он умер”. Роутер не философский клуб, поэтому snapshot теперь отвечает быстро.
+## Проверка после применения
 
-## Основной smoke test
+Из папки проекта на роутере, после загрузки файлов релиза:
 
 ```sh
-/opt/bin/wget -S -O- -T 15 'http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot'
+/opt/bin/sh scripts/check-zash-agent-v1.2.176.sh
 ```
 
-Ожидаемо:
+Критичные признаки успеха:
 
-- HTTP `200 OK`;
-- JSON содержит `ok:true`;
-- JSON содержит `cache_mode:"stale-while-refresh"`;
-- при первом cache miss допустимо `refresh_scheduled:true`;
-- второй/следующий вызов должен получить больше реальных данных из cache.
+```text
+STATUS_HTTP=200
+STATUS_OK=true
+HA_SNAPSHOT_HTTP=200
+HA_SNAPSHOT_OK=true
+MIHOMO_PROVIDERS_HTTP=200
+```
 
-## Документация
+Откат:
 
-Обновлены:
-
-- `README.md`
-- `CHANGELOG.md`
-- `docs/current-state.md`
-- `docs/release-plan.md`
-- `docs/model-memory-snapshot.md`
-- `docs/project-memory.md`
-- `docs/chat-transfer.md`
-- `docs/ha-export-bridge.md`
-- `docs/request-ledger.md`
-
-## Важно
-
-`ha_snapshot.ok` означает, что bundle собран и endpoint живой. Состояние блоков надо проверять отдельно:
-
-- `status.ok`
-- `traffic.ok`
-- `users.ok`
-- `qos.ok`
-
-Это важно для Home Assistant / SmartLife, чтобы один временно stale-блок не ломал всю карточку.
+```sh
+/opt/bin/sh scripts/rollback-zash-agent-v1.2.176.sh
+```

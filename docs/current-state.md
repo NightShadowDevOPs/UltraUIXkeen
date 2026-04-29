@@ -1,49 +1,58 @@
 # Current state — UI Mihomo / Ultra
 
 - Date: **2026-04-29**
-- Release: **v1.2.174**
-- Agent: **0.6.34**
+- Release: **v1.2.176**
+- Agent runtime/package: **0.6.35**
 - Router IP: **192.168.0.1**
 - Agent endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`
-- Project path on router: usually `/opt/UltraUIXkeen`
-- Runtime agent path: `/opt/zash-agent`
+- Project path on router: **`/opt/etc/mihomo`**
+- Runtime agent path: **`/opt/zash-agent`**
 
-## Last confirmed problem
+## Confirmed before this release
 
-After v1.2.173 restored the agent startup path, `cmd=status` worked, but HA bundled snapshot smoke test failed:
+`v1.2.174` restored `ha_snapshot` and the user confirmed smoke test:
 
 ```text
-GET http://192.168.0.1:9099/cgi-bin/api.sh?cmd=ha_snapshot
-HTTP/1.1 502 Bad Gateway
+GET /cgi-bin/api.sh?cmd=ha_snapshot
+HTTP/1.1 200 OK
+{"ok":true,"format_version":1,"contract":"zash.ha.snapshot.bundle.v1",...}
 ```
 
-This means `uhttpd` accepted the connection but the CGI did not return valid headers in time, or failed before headers. In this case the most likely cause was synchronous bundled snapshot assembly: `ha_snapshot` called several heavier HA-export builders before writing its own response.
+`cmd=status` also returned `200 OK` before later reinstall/restart work.
 
-## v1.2.174 runtime behavior
+## Why v1.2.176 exists
 
-`cmd=ha_snapshot` now returns quickly:
+Strict audit marked the old `ha_snapshot` timeout as a risk because docs still described it like a known problem in places. Runtime was already fixed, but documentation needed explicit open/fixed ownership.
 
-- takes fresh component data from cache when available;
-- falls back to stale component data when fresh cache expired;
-- returns component-level cache-miss stubs when no cache exists yet;
-- schedules background refresh instead of blocking the HTTP response;
-- exposes `cache_mode:"stale-while-refresh"`;
-- exposes `refresh_scheduled:true|false`.
+`v1.2.176` therefore:
 
-## What did not change
+- keeps agent runtime code at `0.6.35`;
+- keeps HA contract unchanged;
+- marks `ha_snapshot -> 502/uhttpd timeout` as **fixed in v1.2.174**;
+- adds concise deploy checks so the operator can see pass/fail without reading huge JSON;
+- adds rollback script for `/opt/zash-agent` backups.
 
-- Mihomo core configuration.
-- TUN mode.
-- Proxy provider SSL checks as a feature.
-- Provider list parsing.
-- QoS/shaper logic.
-- Existing component endpoints: `ha_status`, `ha_traffic`, `ha_users`, `ha_qos`.
-- HA contract shape: `status`, `traffic`, `users`, `qos` remain separate nested blocks.
+## Current operational layout
+
+The project files on the router are in `/opt/etc/mihomo`. The runtime agent is installed separately in `/opt/zash-agent`.
+
+Do not assume `/opt/UltraUIXkeen` exists on this router.
 
 ## Expected verification after deploy
 
-1. `cmd=status` returns `200 OK`.
-2. `cmd=ha_snapshot` returns `200 OK` instead of `502`.
-3. First `ha_snapshot` may contain cache-miss stubs and `refresh_scheduled:true`.
-4. Repeating `ha_snapshot` after 5–20 seconds should show more real component data from cache.
-5. HA cards should check nested block `ok` flags separately and not treat one stale block as total failure.
+1. `/opt/zash-agent/www/cgi-bin/api.sh` exists and is executable.
+2. `/opt/zash-agent/start.sh` exists and is executable.
+3. `/opt/etc/init.d/S99zash-agent` exists and is executable.
+4. `netstat` shows `192.168.0.1:9099 LISTEN`.
+5. `cmd=status` returns `200 OK` and `ok:true`.
+6. `cmd=ha_snapshot` returns `200 OK` and `ok:true`.
+7. `cmd=mihomo_providers` returns `200 OK`; provider list data is not dumped to logs.
+8. UI no longer shows `Агент включён, но недоступен` when endpoint `status` is reachable.
+
+## Do not change in this patch
+
+- Do not enable TUN.
+- Do not change Mihomo core configuration.
+- Do not change provider SSL checks.
+- Do not change QoS/shaper rules.
+- Do not change HA entity names or contract fields.

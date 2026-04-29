@@ -1,27 +1,24 @@
-# Project memory — UI Mihomo / Ultra
+# Project memory — UI Mihomo Ultra
 
-## Current baseline
+## Current release
 
-- Latest prepared release: **v1.2.174**
-- Agent: **0.6.34**
-- Router: Netcraze / XKeen class device
-- Router IP: **192.168.0.1**
-- Agent bind: `192.168.0.1:9099`
+- Current release: `v1.2.176`.
+- Current packaged agent: `0.6.35`.
+- Router: Netcraze, IP `192.168.0.1`.
+- Project path: `/opt/etc/mihomo`.
+- Runtime agent path: `/opt/zash-agent`.
 
-## Recent chain
+## Current decision
 
-- `v1.2.169`: full router-to-HA contract stabilized.
-- `v1.2.170`: HA export bridge docs and transfer package.
-- `v1.2.171`: traffic page readability and grouping improvements.
-- `v1.2.172`: calmer traffic service state and empty states.
-- `v1.2.173`: startup self-call hotfix for `zash-agent`.
-- `v1.2.174`: `ha_snapshot` anti-timeout hotfix after smoke test returned `502 Bad Gateway`.
+Deploy `v1.2.176` instead of raw `v1.2.175` because audit required clearer issue ownership and rollback/check tooling.
 
-## Key rules for future work
+## Fixed status
 
-- Keep router IP as `192.168.0.1`.
-- Prefer direct CGI shell calls for local maintenance jobs over self-HTTP into the same `uhttpd`.
-- Avoid synchronous heavy work in bundle endpoints before HTTP headers.
-- Keep HA contract stable.
-- Do not conflate bytes/sec with bits/sec.
-- Do not represent `counts.qos_enabled` as boolean.
+`ha_snapshot` 502/CGI timeout is fixed in `v1.2.174` and should not be listed as open unless it reproduces.
+
+## Next operational checks
+
+- `scripts/check-zash-agent-v1.2.176.sh` after upload/deploy.
+- UI agent availability.
+- Provider list visibility.
+- No change in live traffic, TUN, QoS or provider SSL checks.

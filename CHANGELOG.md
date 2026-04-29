@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.2.176 — release hardening after strict audit
+
+- Kept runtime router-agent code at `0.6.35`; no traffic, HA contract, provider SSL check, TUN, QoS or Mihomo core behavior was changed.
+- Added concise smoke checker `scripts/check-zash-agent-v1.2.176.sh` with markers for `status`, `ha_snapshot` and `mihomo_providers`.
+- Added scoped apply script `scripts/apply-zash-agent-v1.2.176.sh` that backs up `/opt/zash-agent`, installs the packaged agent and runs the concise checker.
+- Added rollback helper `scripts/rollback-zash-agent-v1.2.176.sh` for the latest `/opt/zash-agent.backup-v1.2.176-*` or `/opt/zash-agent.backup-v1.2.175-*` backup.
+- Clarified docs/audit status: the old `ha_snapshot` CGI timeout/502 issue is **fixed in v1.2.174**, not an open runtime risk.
+- Added formal release documentation package `release-docs-ui-mihomo-ultra-v1.2.176.zip`.
+
+
+## v1.2.175 — zash-agent deployment path and scoped restart hotfix
+
+- `router-agent` bumped to `0.6.35`.
+- Fixed release/application assumption: project files may live in `/opt/etc/mihomo`, while installed runtime agent lives in `/opt/zash-agent`.
+- Added `scripts/apply-zash-agent-v1.2.175.sh` for direct `/opt/zash-agent` patching from an unpacked release folder.
+- Added `scripts/check-zash-agent-v1.2.175.sh` for repeatable smoke diagnostics.
+- Updated generated `/opt/etc/init.d/S99zash-agent stop`: no more broad `killall uhttpd`; stop is scoped to `/opt/zash-agent/www` processes.
+- Hardened generated `/opt/zash-agent/start.sh` PID check: a stale/foreign PID no longer blocks a real start.
+- Kept HA export contract, provider checks, Mihomo config, QoS/shaper, TUN and live traffic path unchanged.
+
 ## v1.2.174 — HA snapshot anti-timeout hotfix
 
 - `router-agent` bumped to `0.6.34`.

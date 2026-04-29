@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.34"
+AGENT_VERSION="0.6.35"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -195,7 +195,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.34"
+AGENT_VERSION="0.6.35"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -7651,9 +7651,14 @@ PID_FILE="/opt/zash-agent/var/httpd.pid"
 # Clean stale CGI children left from a previous crashed/stopped uhttpd instance.
 # Do this only when we are actually going to start a fresh server; a normal
 # `start` against a live pid remains non-invasive.
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "[zash-agent] already running (pid $(cat "$PID_FILE"))"
-  exit 0
+if [ -f "$PID_FILE" ]; then
+  old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+    if ps w | awk -v p="$old_pid" '$1 == p {print}' | grep -q '/opt/zash-agent/www'; then
+      echo "[zash-agent] already running (pid $old_pid)"
+      exit 0
+    fi
+  fi
 fi
 rm -f "$PID_FILE" 2>/dev/null || true
 ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
@@ -7710,16 +7715,25 @@ case "$1" in
     ;;
   stop)
     PID_FILE="/opt/zash-agent/var/httpd.pid"
+    # Stop only this agent instance. Do not kill every uhttpd on the router:
+    # other local services may also use uhttpd, and broad killall made restart
+    # diagnostics noisy with "free(): invalid pointer" on this firmware build.
     if [ -f "$PID_FILE" ]; then
-      pid="$(cat "$PID_FILE")"
-      kill "$pid" 2>/dev/null || true
-      sleep 1
-      kill -9 "$pid" 2>/dev/null || true
+      pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+      if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        sleep 1
+        kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+      fi
       rm -f "$PID_FILE"
     fi
-    killall uhttpd 2>/dev/null || true
+    ps w | grep '[u]httpd' | grep '/opt/zash-agent/www' | awk '{print $1}' | while read p; do
+      kill "$p" 2>/dev/null || true
+    done
     sleep 1
-    killall -9 uhttpd 2>/dev/null || true
+    ps w | grep '[u]httpd' | grep '/opt/zash-agent/www' | awk '{print $1}' | while read p; do
+      kill -9 "$p" 2>/dev/null || true
+    done
     ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
       kill "$p" 2>/dev/null || true
     done
