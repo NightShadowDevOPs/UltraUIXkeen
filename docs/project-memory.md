@@ -1,24 +1,27 @@
 # Project memory — UI Mihomo / Ultra
 
 ## Current baseline
-- UI prepared: **v1.2.173**
-- router-agent: **0.6.33**
+
+- Latest prepared release: **v1.2.174**
+- Agent: **0.6.34**
+- Router: Netcraze / XKeen class device
 - Router IP: **192.168.0.1**
-- Project path on router: `/opt/UltraUIXkeen`
-- Agent path: `/opt/zash-agent`
+- Agent bind: `192.168.0.1:9099`
 
-## Recent release chain
-- `v1.2.169` — HA export / router-to-HA contract stabilization.
-- `v1.2.170` — compact/advanced split for `Трафик -> Пользователи`.
-- `v1.2.171` — compact/advanced split for `Трафик -> Устройства`.
-- `v1.2.172` — calmer service/empty states for traffic tables.
-- `v1.2.173` — router-agent startup self-call hotfix after observed agent HTTP timeout.
+## Recent chain
 
-## v1.2.173 operational note
-Observed: direct CGI `cmd=status` worked, but HTTP access to `192.168.0.1:9099` timed out and UI did not show providers. Manual cleanup restored work. Patch removes internal HTTP self-calls and hardens process cleanup.
+- `v1.2.169`: full router-to-HA contract stabilized.
+- `v1.2.170`: HA export bridge docs and transfer package.
+- `v1.2.171`: traffic page readability and grouping improvements.
+- `v1.2.172`: calmer traffic service state and empty states.
+- `v1.2.173`: startup self-call hotfix for `zash-agent`.
+- `v1.2.174`: `ha_snapshot` anti-timeout hotfix after smoke test returned `502 Bad Gateway`.
 
-## Do not forget
-- TUN is not needed for the current config.
-- Provider SSL checks must remain intact.
-- HA export contract must not drift without explicit coordination with the HA/SmartLife project.
-- Commands for router should start with `clear`.
+## Key rules for future work
+
+- Keep router IP as `192.168.0.1`.
+- Prefer direct CGI shell calls for local maintenance jobs over self-HTTP into the same `uhttpd`.
+- Avoid synchronous heavy work in bundle endpoints before HTTP headers.
+- Keep HA contract stable.
+- Do not conflate bytes/sec with bits/sec.
+- Do not represent `counts.qos_enabled` as boolean.

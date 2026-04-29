@@ -1,19 +1,34 @@
 # Release plan — UI Mihomo / Ultra
 
 ## Current release
-- `v1.2.173` — zash-agent startup self-call hotfix: remove internal HTTP self-calls from startup/cron, harden stop/start cleanup, auto-detect missing/stale `MIHOMO_CONFIG`.
 
-## Why it was prioritized
-- The router recovered after manual stop/kill/start, but the observed failure showed that agent availability could degrade even when `uhttpd` was listening.
-- Providers UI depends on a responsive agent. If agent HTTP blocks, the interface reports “agent unavailable” and provider data disappears.
-- This patch targets the operational root cause without touching live routing or traffic handling.
+- Release: **v1.2.174**
+- Agent: **0.6.34**
+- Type: hotfix
+- Priority: high, because HA export smoke test returns `502 Bad Gateway`.
 
-## Deferred validation
-- validate `v1.2.173` on router
-- verify status/providers/SSL checks/HA export
-- then verify accumulated traffic-chain releases `v1.2.169`–`v1.2.173`
+## Scope
 
-## Next safe candidates after v1.2.173
-1. QoS/shaping transparency: show saved config vs runtime-applied state more clearly.
-2. Provider diagnostics: clearer distinction between Mihomo controller unavailable, config path missing, empty provider block, and UI parsing issue.
-3. Agent watchdog/status page: a lightweight self-check panel that does not add aggressive polling.
+Patch only router-agent HA snapshot behavior:
+
+- make `cmd=ha_snapshot` fast and timeout-safe;
+- preserve nested HA contract;
+- avoid synchronous heavy rebuild of every component before headers;
+- update documentation and transfer notes.
+
+## Out of scope
+
+- no TUN changes;
+- no Mihomo core changes;
+- no QoS/shaper changes;
+- no provider SSL checker redesign;
+- no Home Assistant entity/package changes;
+- no live traffic path changes.
+
+## Next plan after verification
+
+1. Confirm `ha_snapshot` no longer returns `502`.
+2. Check provider list in UI after agent remains stable for several minutes.
+3. Check HA/SmartLife consumption of `ha_snapshot`.
+4. If needed, tune cache TTLs per block instead of increasing `uhttpd` timeout.
+5. Later: continue optimization of traffic pages and router-agent CPU hotspots.

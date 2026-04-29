@@ -1,8 +1,8 @@
 # router-agent (helper for UltraUIXkeen)
 
-Current version: `0.6.33`
+Current version: `0.6.34`
 
-## v0.6.33 hotfix
+## v0.6.34 hotfix
 - Startup `cmd=rehydrate` runs directly as CGI, not through the agent HTTP endpoint.
 - Cron SSL cache refresh runs directly as CGI.
 - Stop/start cleanup is more reliable for stuck `uhttpd`/`api.sh`.
