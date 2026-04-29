@@ -1,8 +1,13 @@
 <template>
   <div ref="cardRef" class="card">
-    <div class="card-title px-4 pt-4 flex items-center justify-between gap-2">
-      <span>{{ $t('userTraffic') }}</span>
-      <div class="flex items-center gap-2">
+    <div class="card-title px-4 pt-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div class="min-w-0">
+        <span>{{ $t('userTraffic') }}</span>
+        <div class="mt-1 text-xs font-normal opacity-70">
+          {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedModeHint') : $t('trafficWorkspaceCompactModeHint') }}
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2">
         <select class="select select-sm" v-model="preset">
           <option value="1h">{{ $t('last1h') }}</option>
           <option value="24h">{{ $t('last24h') }}</option>
@@ -14,46 +19,72 @@
           <option :value="0">{{ $t('all') }}</option>
           <option v-for="n in [10, 20, 30, 50, 100]" :key="n" :value="n">top {{ n }}</option>
         </select>
-	      <button type="button" class="btn btn-sm" @click="reportDialogOpen = true">
+        <button type="button" class="btn btn-sm" @click="reportDialogOpen = true">
           {{ $t('reports') }}
         </button>
-	      <button type="button" class="btn btn-sm" @click="clearHistory">
+        <button type="button" class="btn btn-sm" @click="clearHistory">
           {{ $t('clearHistory') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm"
+          :class="advancedToolsVisible ? 'btn-primary' : 'btn-ghost'"
+          @click="toggleAdvancedTools"
+        >
+          {{ advancedToolsVisible ? $t('trafficWorkspaceHideAdvancedTools') : $t('trafficWorkspaceShowAdvancedTools') }}
         </button>
       </div>
     </div>
 
     <div class="card-body gap-3">
-      <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-75">
-        {{ $t('hostQosBulkHint') }}
+      <div class="rounded-2xl border border-base-content/10 bg-base-100/70 px-3 py-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">
+              {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedMode') : $t('trafficWorkspaceCompactMode') }}
+            </div>
+            <div class="mt-1 text-xs opacity-70">
+              {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedModeHint') : $t('trafficWorkspaceCompactModeHint') }}
+            </div>
+          </div>
+          <span class="badge" :class="advancedToolsVisible ? 'badge-primary' : 'badge-ghost'">
+            {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedMode') : $t('trafficWorkspaceCompactMode') }}
+          </span>
+        </div>
       </div>
 
-      <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="text-sm font-semibold">QoS runtime</div>
-          <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
-          <span v-else-if="!agentRuntimeReady" class="badge badge-error">{{ $t('offline') }}</span>
-          <span v-else-if="qosStatus.ok && (qosStatus.supported || qosAppliedIpCount)" class="badge badge-success">{{ $t('online') }}</span>
-          <span v-else-if="agentRuntimeReady && !qosStatus.supported" class="badge badge-warning">no-tc</span>
-          <span v-else class="badge badge-error">runtime error</span>
-          <span v-if="qosStatus.qosMode === 'wan-only'" class="badge badge-info">Safe QoS · uplink/WAN only</span>
-          <span class="badge badge-ghost">WAN {{ qosStatus.wanRateMbit || '—' }} Мбит</span>
-          <span class="badge badge-ghost">LAN {{ qosStatus.lanRateMbit || '—' }} Мбит</span>
-          <span class="badge badge-ghost">Agent IP: {{ qosAppliedIpCount }}</span>
+      <div v-if="advancedToolsVisible" class="space-y-3">
+        <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2 text-sm opacity-75">
+          {{ $t('hostQosBulkHint') }}
         </div>
-        <div class="mt-1 text-xs opacity-70">
-          <template v-if="qosStatus.qosMode === 'wan-only'">
-            {{ $t('hostQosWanOnlyRuntimeTip') }}
-          </template>
-          <template v-else-if="qosStatus.ok && qosStatus.supported">
-            Runtime получен с router-agent. По строкам ниже видно, на какие IP профиль реально подтверждён агентом.
-          </template>
-          <template v-else-if="agentRuntimeReady && !qosStatus.supported">
-            router-agent доступен, но tc/QoS на нём недоступен.
-          </template>
-          <template v-else>
-            Нет подтверждённого QoS runtime от router-agent.
-          </template>
+
+        <div class="rounded-lg border border-base-content/10 bg-base-200/30 px-3 py-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="text-sm font-semibold">QoS runtime</div>
+            <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
+            <span v-else-if="!agentRuntimeReady" class="badge badge-error">{{ $t('offline') }}</span>
+            <span v-else-if="qosStatus.ok && (qosStatus.supported || qosAppliedIpCount)" class="badge badge-success">{{ $t('online') }}</span>
+            <span v-else-if="agentRuntimeReady && !qosStatus.supported" class="badge badge-warning">no-tc</span>
+            <span v-else class="badge badge-error">runtime error</span>
+            <span v-if="qosStatus.qosMode === 'wan-only'" class="badge badge-info">Safe QoS · uplink/WAN only</span>
+            <span class="badge badge-ghost">WAN {{ qosStatus.wanRateMbit || '—' }} Мбит</span>
+            <span class="badge badge-ghost">LAN {{ qosStatus.lanRateMbit || '—' }} Мбит</span>
+            <span class="badge badge-ghost">Agent IP: {{ qosAppliedIpCount }}</span>
+          </div>
+          <div class="mt-1 text-xs opacity-70">
+            <template v-if="qosStatus.qosMode === 'wan-only'">
+              {{ $t('hostQosWanOnlyRuntimeTip') }}
+            </template>
+            <template v-else-if="qosStatus.ok && qosStatus.supported">
+              Runtime получен с router-agent. По строкам ниже видно, на какие IP профиль реально подтверждён агентом.
+            </template>
+            <template v-else-if="agentRuntimeReady && !qosStatus.supported">
+              router-agent доступен, но tc/QoS на нём недоступен.
+            </template>
+            <template v-else>
+              Нет подтверждённого QoS runtime от router-agent.
+            </template>
+          </div>
         </div>
       </div>
       <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -109,7 +140,7 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-1 gap-2 xl:grid-cols-4">
+      <div v-if="advancedToolsVisible" class="grid grid-cols-1 gap-2 xl:grid-cols-4">
         <button
           v-for="card in diagnosticsCards"
           :key="card.key"
@@ -201,6 +232,21 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="rounded-2xl border border-base-content/10 bg-base-100/70 px-3 py-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">{{ trafficUsersServiceStateTitle }}</div>
+            <div class="mt-1 text-xs opacity-70">{{ trafficUsersServiceStateHint }}</div>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+            <span class="badge badge-ghost">{{ $t('trafficWorkspaceUsersShownRows', { shown: rows.length }) }}</span>
+            <span class="badge badge-ghost">{{ $t('buckets') }}: {{ buckets }}</span>
+            <span v-if="trafficFilter || workspaceFocus !== 'all' || activeTrafficDiagnosticKey !== 'all'" class="badge badge-warning badge-outline">{{ $t('trafficWorkspaceFilteredBadge') }}</span>
+          </div>
+        </div>
+        <div class="mt-2 text-xs opacity-60">{{ $t('trafficWorkspaceUserGroupingHint') }}</div>
       </div>
 
 
@@ -729,7 +775,20 @@
             </tr>
 
             <tr v-if="!rows.length">
-              <td colspan="10" class="text-center opacity-60">{{ $t('noContent') }}</td>
+              <td colspan="10" class="py-8">
+                <div class="mx-auto flex max-w-xl flex-col items-center gap-2 rounded-2xl border border-dashed border-base-content/15 bg-base-200/30 px-4 py-5 text-center">
+                  <div class="text-sm font-semibold">{{ trafficUsersEmptyTitle }}</div>
+                  <div class="text-xs opacity-70">{{ trafficUsersEmptyHint }}</div>
+                  <button
+                    v-if="trafficFilter || workspaceFocus !== 'all' || activeTrafficDiagnosticKey !== 'all'"
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    @click="resetUserTrafficFilters"
+                  >
+                    {{ $t('trafficWorkspaceResetFilters') }}
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1723,6 +1782,8 @@ const topN = ref<number>(30)
 const trafficFilter = ref('')
 const workspaceFocus = ref<'all' | 'limited' | 'blocked' | 'devices' | 'noDevices'>('all')
 const activeTrafficDiagnosticKey = ref<'all' | 'missing-devices' | 'stored-only-qos' | 'near-limit' | 'active-traffic'>('all')
+const ADVANCED_TOOLS_STORAGE_KEY = 'traffic/user-advanced-tools-visible-v1'
+const advancedToolsVisible = ref(false)
 
 type SortKey = 'user' | 'keys' | 'dl' | 'ul' | 'total'
 const sortKey = ref<SortKey>('total')
@@ -1735,6 +1796,11 @@ const setSort = (k: SortKey) => {
     sortKey.value = k
     sortDir.value = k === 'user' || k === 'keys' ? 'asc' : 'desc'
   }
+}
+
+const toggleAdvancedTools = () => {
+  advancedToolsVisible.value = !advancedToolsVisible.value
+  if (!advancedToolsVisible.value) activeTrafficDiagnosticKey.value = 'all'
 }
 
 const customFrom = ref(dayjs().subtract(24, 'hour').format('YYYY-MM-DDTHH:mm'))
@@ -2038,6 +2104,38 @@ watch(cardVisible, async (visible) => {
   await refreshQosStatus()
 })
 
+const trafficUsersServiceStateTitle = computed(() => {
+  if (!rows.value.length) return trafficFilter.value || workspaceFocus.value !== 'all' || activeTrafficDiagnosticKey.value !== 'all'
+    ? t('trafficWorkspaceFilterEmptyTitle')
+    : t('trafficWorkspaceUsersEmptyTitle')
+  return t('trafficWorkspaceUsersServiceTitle')
+})
+
+const trafficUsersServiceStateHint = computed(() => {
+  if (!rows.value.length) return trafficFilter.value || workspaceFocus.value !== 'all' || activeTrafficDiagnosticKey.value !== 'all'
+    ? t('trafficWorkspaceFilterEmptyHint')
+    : t('trafficWorkspaceUsersEmptyHint')
+  return t('trafficWorkspaceUsersServiceHint')
+})
+
+const trafficUsersEmptyTitle = computed(() => (
+  trafficFilter.value || workspaceFocus.value !== 'all' || activeTrafficDiagnosticKey.value !== 'all'
+    ? t('trafficWorkspaceFilterEmptyTitle')
+    : t('trafficWorkspaceUsersEmptyTitle')
+))
+
+const trafficUsersEmptyHint = computed(() => (
+  trafficFilter.value || workspaceFocus.value !== 'all' || activeTrafficDiagnosticKey.value !== 'all'
+    ? t('trafficWorkspaceFilterEmptyHint')
+    : t('trafficWorkspaceUsersEmptyHint')
+))
+
+const resetUserTrafficFilters = () => {
+  trafficFilter.value = ''
+  workspaceFocus.value = 'all'
+  activeTrafficDiagnosticKey.value = 'all'
+}
+
 const workspaceShortcutRow = computed<Row | null>(() => {
   if (props.focusUser || props.focusIp) {
     return rows.value.find((row) => rowMatchesFocus(row)) || null
@@ -2293,7 +2391,16 @@ watch(qosPollingActive, (active, prev) => {
   if (active && !prev) void refreshQosStatus()
 })
 
+watch(advancedToolsVisible, (value) => {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(ADVANCED_TOOLS_STORAGE_KEY, value ? '1' : '0')
+  } catch {}
+})
+
 onMounted(() => {
+  try {
+    if (typeof window !== 'undefined') advancedToolsVisible.value = window.localStorage.getItem(ADVANCED_TOOLS_STORAGE_KEY) === '1'
+  } catch {}
   bootstrapRouterAgentForLan()
   void (async () => {
     await ensureAgentReady()

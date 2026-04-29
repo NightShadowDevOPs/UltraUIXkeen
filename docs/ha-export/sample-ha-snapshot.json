@@ -3,7 +3,7 @@
   "format_version": 1,
   "timestamp": "2026-04-19T14:06:30Z",
   "contract": "zash.ha.snapshot.bundle.v1",
-  "agent_version": "0.6.32",
+  "agent_version": "0.6.33",
   "status": {
     "ok": true,
     "format_version": 1,
@@ -15,8 +15,8 @@
     },
     "agent": {
       "up": true,
-      "version": "0.6.32",
-      "serverVersion": "0.6.32"
+      "version": "0.6.33",
+      "serverVersion": "0.6.33"
     },
     "mihomo": {
       "running": true,

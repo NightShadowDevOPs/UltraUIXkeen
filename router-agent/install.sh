@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.32"
+AGENT_VERSION="0.6.33"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -120,6 +120,57 @@ else
   echo "[zash-agent] using existing $AGENT_DIR/agent.env"
 fi
 
+# v0.6.33: existing installs may not have MIHOMO_CONFIG or may point to a stale
+# default path. Detect the active config without overwriting a valid explicit path.
+detect_mihomo_config() {
+  for f in \
+    /opt/etc/mihomo/config.yaml \
+    /opt/etc/mihomo/config.yml \
+    /opt/etc/openclash/config.yaml \
+    /etc/mihomo/config.yaml \
+    /etc/mihomo/config.yml \
+    /etc/openclash/config/config.yaml \
+    /etc/openclash/config.yaml \
+    /opt/mihomo/config.yaml
+  do
+    [ -f "$f" ] || continue
+    if grep -qE '^[[:space:]]*proxy-providers:' "$f" 2>/dev/null; then
+      echo "$f"
+      return 0
+    fi
+  done
+  for f in \
+    /opt/etc/mihomo/config.yaml \
+    /opt/etc/mihomo/config.yml \
+    /opt/etc/openclash/config.yaml \
+    /etc/mihomo/config.yaml \
+    /etc/mihomo/config.yml \
+    /etc/openclash/config/config.yaml \
+    /etc/openclash/config.yaml \
+    /opt/mihomo/config.yaml
+  do
+    [ -f "$f" ] || continue
+    echo "$f"
+    return 0
+  done
+  return 1
+}
+
+current_mihomo_config="$(sed -n 's/^MIHOMO_CONFIG="\(.*\)"$/\1/p; s/^MIHOMO_CONFIG=\([^#[:space:]]*\).*$/\1/p' "$AGENT_DIR/agent.env" 2>/dev/null | head -n1)"
+if [ -z "$current_mihomo_config" ] || [ ! -f "$current_mihomo_config" ]; then
+  detected_mihomo_config="$(detect_mihomo_config 2>/dev/null || true)"
+  if [ -n "$detected_mihomo_config" ]; then
+    if grep -q '^MIHOMO_CONFIG=' "$AGENT_DIR/agent.env" 2>/dev/null; then
+      sed -i "s#^MIHOMO_CONFIG=.*#MIHOMO_CONFIG=\"$detected_mihomo_config\"#" "$AGENT_DIR/agent.env"
+    else
+      printf '\nMIHOMO_CONFIG="%s"\n' "$detected_mihomo_config" >> "$AGENT_DIR/agent.env"
+    fi
+    echo "[zash-agent] MIHOMO_CONFIG auto-detected: $detected_mihomo_config"
+  else
+    echo "[zash-agent] WARNING: Mihomo config was not auto-detected; provider features may be unavailable" >&2
+  fi
+fi
+
 cat > "$AGENT_DIR/www/cgi-bin/api.sh" <<'EOF'
 #!/opt/bin/sh
 
@@ -144,7 +195,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.32"
+AGENT_VERSION="0.6.33"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -7519,17 +7570,13 @@ set -eu
 ENV_FILE="/opt/zash-agent/agent.env"
 [ -f "$ENV_FILE" ] && . "$ENV_FILE"
 
-PORT="${PORT:-9099}"
-BIND_IP="${BIND_IP:-127.0.0.1}"
-HOST="$BIND_IP"
-[ "$HOST" = "0.0.0.0" ] && HOST="127.0.0.1"
-
-WGET_BIN="$(command -v wget 2>/dev/null || true)"
-[ -n "$WGET_BIN" ] || WGET_BIN="/opt/bin/wget"
-URL="http://$HOST:$PORT/cgi-bin/api.sh?cmd=ssl_cache_refresh&keep=1&cron=1"
-
-"$WGET_BIN" -qO- "$URL" >/dev/null 2>&1 \
-  || busybox wget -qO- "$URL" >/dev/null 2>&1 \
+# Run the heavy SSL cache refresh directly as CGI instead of calling our own
+# uhttpd endpoint. This avoids self-deadlocks when uhttpd is busy with UI/API
+# requests and keeps the browser-facing agent responsive.
+REQUEST_METHOD=GET \
+QUERY_STRING='cmd=ssl_cache_refresh&keep=1&cron=1' \
+/opt/bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1 \
+  || /bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1 \
   || true
 EOF
 
@@ -7548,10 +7595,21 @@ LAN_IF="${LAN_IF:-br0}"
 
 PID_FILE="/opt/zash-agent/var/httpd.pid"
 
+# Clean stale CGI children left from a previous crashed/stopped uhttpd instance.
+# Do this only when we are actually going to start a fresh server; a normal
+# `start` against a live pid remains non-invasive.
 if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
   echo "[zash-agent] already running (pid $(cat "$PID_FILE"))"
   exit 0
 fi
+rm -f "$PID_FILE" 2>/dev/null || true
+ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
+  kill "$p" 2>/dev/null || true
+done
+sleep 1
+ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
+  kill -9 "$p" 2>/dev/null || true
+done
 
 echo "[zash-agent] starting uhttpd on $BIND_IP:$PORT"
 
@@ -7575,12 +7633,14 @@ fi
 "$UHTTPD_BIN" -f -p "$BIND_IP:$PORT" -h /opt/zash-agent/www -x /cgi-bin -t 15 -T 15 >>"$LOG_FILE" 2>&1 </dev/null &
 echo $! > "$PID_FILE"
 
-# Re-apply saved shaping rules
-HOST="$BIND_IP"
-[ "$HOST" = "0.0.0.0" ] && HOST="127.0.0.1"
+# Re-apply saved shaping rules directly as CGI. Avoid an HTTP self-call here:
+# uhttpd on small routers can get stuck if startup rehydrate occupies the only
+# request worker while the UI is already polling status/providers.
 sleep 1
 (
-  wget -T 5 -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 ||   busybox wget -T 5 -qO- "http://$HOST:$PORT/cgi-bin/api.sh?cmd=rehydrate" >/dev/null 2>&1 ||   true
+  REQUEST_METHOD=GET QUERY_STRING='cmd=rehydrate' /opt/bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1 \
+    || /bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1 \
+    || true
 ) &
 
 EOF
@@ -7600,11 +7660,19 @@ case "$1" in
     if [ -f "$PID_FILE" ]; then
       pid="$(cat "$PID_FILE")"
       kill "$pid" 2>/dev/null || true
+      sleep 1
+      kill -9 "$pid" 2>/dev/null || true
       rm -f "$PID_FILE"
     fi
     killall uhttpd 2>/dev/null || true
+    sleep 1
+    killall -9 uhttpd 2>/dev/null || true
     ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
       kill "$p" 2>/dev/null || true
+    done
+    sleep 1
+    ps w | grep '/opt/zash-agent/www/cgi-bin/api.sh' | grep -v grep | awk '{print $1}' | while read p; do
+      kill -9 "$p" 2>/dev/null || true
     done
     # Remove firewall allow rule (best effort)
     ENV_FILE="/opt/zash-agent/agent.env"

@@ -1,5 +1,15 @@
 # router-agent (helper for UltraUIXkeen)
 
+Current version: `0.6.33`
+
+## v0.6.33 hotfix
+- Startup `cmd=rehydrate` runs directly as CGI, not through the agent HTTP endpoint.
+- Cron SSL cache refresh runs directly as CGI.
+- Stop/start cleanup is more reliable for stuck `uhttpd`/`api.sh`.
+- Existing `agent.env` gets `MIHOMO_CONFIG` auto-detection if missing or stale.
+
+# router-agent (helper for UltraUIXkeen)
+
 This is an **optional** helper agent that runs on the router and enables "adult" features that are not available via Mihomo API:
 
 - Per-client **bandwidth shaping** (Mbps) via `tc` (recommended)

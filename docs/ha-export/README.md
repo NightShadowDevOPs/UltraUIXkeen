@@ -23,6 +23,6 @@
 
 ## Contract stability
 - В релизе `v1.2.141` структура JSON для Home Assistant намеренно не менялась.
-- Текущий handoff baseline: `ha_snapshot` + `router-agent 0.6.32`.
+- Текущий handoff baseline: `ha_snapshot` + `router-agent 0.6.33`.
 - Следующие UI-релизы по возможности должны использовать уже существующие поля и timestamps, не ломая этот контракт без отдельной причины.
 

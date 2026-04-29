@@ -1,13 +1,18 @@
 <template>
   <div ref="cardRef" class="card gap-3 p-3">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="font-semibold">{{ $t('hostQosTitle') }}</div>
-        <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
-        <span v-else-if="status.ok && (qos.supported || status.hostQos)" class="badge badge-success">{{ $t('online') }}</span>
-        <span v-else-if="status.ok && !(qos.supported || status.hostQos)" class="badge badge-warning">no-tc</span>
-        <span v-else class="badge badge-error">{{ $t('offline') }}</span>
-        <span v-if="qos.qosMode === 'wan-only'" class="badge badge-info">safe qos</span>
+    <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="font-semibold">{{ $t('hostQosTitle') }}</div>
+          <span v-if="!agentEnabled" class="badge badge-ghost">{{ $t('disabled') }}</span>
+          <span v-else-if="status.ok && (qos.supported || status.hostQos)" class="badge badge-success">{{ $t('online') }}</span>
+          <span v-else-if="status.ok && !(qos.supported || status.hostQos)" class="badge badge-warning">no-tc</span>
+          <span v-else class="badge badge-error">{{ $t('offline') }}</span>
+          <span v-if="qos.qosMode === 'wan-only'" class="badge badge-info">safe qos</span>
+        </div>
+        <div class="mt-1 text-xs font-normal opacity-70">
+          {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedModeHint') : $t('trafficWorkspaceCompactModeHint') }}
+        </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 text-xs opacity-70">
@@ -16,6 +21,14 @@
         </span>
         <span class="badge badge-ghost">{{ $t('hostQosTrackedHosts', { count: rows.length }) }}</span>
         <span class="badge badge-ghost">{{ $t('hostQosAppliedHosts', { count: appliedCount }) }}</span>
+        <button
+          type="button"
+          class="btn btn-sm"
+          :class="advancedToolsVisible ? 'btn-primary' : 'btn-ghost'"
+          @click="toggleAdvancedTools"
+        >
+          {{ advancedToolsVisible ? $t('trafficWorkspaceHideAdvancedTools') : $t('trafficWorkspaceShowAdvancedTools') }}
+        </button>
         <button type="button" class="btn btn-sm btn-ghost" @click="expanded = !expanded">
           {{ expanded ? $t('collapse') : $t('expand') }}
         </button>
@@ -23,6 +36,22 @@
           <span v-if="loading" class="loading loading-spinner loading-xs"></span>
           <span v-else>{{ $t('refresh') }}</span>
         </button>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-base-content/10 bg-base-100/70 px-3 py-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm font-semibold">
+            {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedMode') : $t('trafficWorkspaceCompactMode') }}
+          </div>
+          <div class="mt-1 text-xs opacity-70">
+            {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedModeHint') : $t('trafficWorkspaceCompactModeHint') }}
+          </div>
+        </div>
+        <span class="badge" :class="advancedToolsVisible ? 'badge-primary' : 'badge-ghost'">
+          {{ advancedToolsVisible ? $t('trafficWorkspaceAdvancedMode') : $t('trafficWorkspaceCompactMode') }}
+        </span>
       </div>
     </div>
 
@@ -86,7 +115,7 @@
     </div>
 
     <div
-      v-if="expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)"
+      v-if="advancedToolsVisible && expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)"
       class="grid grid-cols-1 gap-2 xl:grid-cols-4"
     >
       <button
@@ -116,7 +145,7 @@
     </div>
 
     <template v-if="expanded && agentEnabled && status.ok && (qos.supported || status.hostQos)">
-      <div class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
+      <div v-if="advancedToolsVisible" class="rounded-lg border border-base-content/10 bg-base-200/30 p-3 text-sm">
         <div>{{ $t('hostQosIntro') }}</div>
         <div class="mt-1 text-xs opacity-70">{{ $t('hostQosShapeOverrideTip') }}</div>
         <div v-if="qos.qosMode === 'wan-only'" class="mt-1 text-xs text-info/80">Safe mode: uplink/WAN only</div>
@@ -154,6 +183,21 @@
 
       <div v-if="error" class="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
         {{ error }}
+      </div>
+
+      <div class="rounded-2xl border border-base-content/10 bg-base-100/70 px-3 py-3">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">{{ trafficDeviceServiceStateTitle }}</div>
+            <div class="mt-1 text-xs opacity-70">{{ trafficDeviceServiceStateHint }}</div>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2 text-xs">
+            <span class="badge badge-ghost">{{ $t('trafficWorkspaceShownRows', { shown: filteredRows.length, total: rows.length }) }}</span>
+            <span v-if="query || profileFilter !== 'all' || activeDiagnosticKey !== 'all'" class="badge badge-warning badge-outline">{{ $t('trafficWorkspaceFilteredBadge') }}</span>
+            <span v-if="loading" class="badge badge-info">{{ $t('loading') }}</span>
+          </div>
+        </div>
+        <div class="mt-2 text-xs opacity-60">{{ $t('trafficWorkspaceDeviceGroupingHint') }}</div>
       </div>
 
       <div class="overflow-x-auto rounded-lg border border-base-content/10 bg-base-100/50">
@@ -281,7 +325,20 @@
               </td>
             </tr>
             <tr v-if="!filteredRows.length">
-              <td colspan="5" class="py-6 text-center text-sm opacity-60">{{ $t('hostQosNoHosts') }}</td>
+              <td colspan="5" class="py-8">
+                <div class="mx-auto flex max-w-xl flex-col items-center gap-2 rounded-2xl border border-dashed border-base-content/15 bg-base-200/30 px-4 py-5 text-center">
+                  <div class="text-sm font-semibold">{{ hostQosEmptyTitle }}</div>
+                  <div class="text-xs opacity-70">{{ hostQosEmptyHint }}</div>
+                  <button
+                    v-if="query || profileFilter !== 'all' || activeDiagnosticKey !== 'all'"
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    @click="resetDeviceFilters"
+                  >
+                    {{ $t('trafficWorkspaceResetFilters') }}
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -348,6 +405,9 @@ const livePollingActive = computed(() => expanded.value && cardVisible.value && 
 const error = ref('')
 const query = ref('')
 const profileFilter = ref<'all' | AgentQosProfile | 'blocked' | 'limited'>('all')
+const activeDiagnosticKey = ref<'all' | 'active-traffic' | 'unlabeled' | 'pending'>('all')
+const HOST_QOS_ADVANCED_TOOLS_STORAGE_KEY = 'traffic/devices-advanced-tools-visible-v1'
+const advancedToolsVisible = ref(false)
 const status = ref<{ ok: boolean; hostQos?: boolean }>({ ok: false })
 const qos = ref<AgentQosStatus>({ ok: false, supported: false, items: [] })
 const hosts = ref<AgentLanHost[]>([])
@@ -380,6 +440,11 @@ const openUserTraffic = (row: Pick<Row, 'displayName' | 'hostname' | 'ip'>) => {
   const user = linkedUserLabel(row)
   if (!user) return
   emit('open-user-focus', { user, ip: row.ip })
+}
+
+const toggleAdvancedTools = () => {
+  advancedToolsVisible.value = !advancedToolsVisible.value
+  if (!advancedToolsVisible.value) activeDiagnosticKey.value = 'all'
 }
 
 watch(
@@ -637,6 +702,40 @@ const activeDiagnosticTitle = computed(() =>
   diagnosticsCards.value.find((card) => card.key === activeDiagnosticKey.value)?.title || '',
 )
 
+const trafficDeviceServiceStateTitle = computed(() => {
+  if (loading.value) return t('trafficWorkspaceLoadingTitle')
+  if (error.value) return t('trafficWorkspaceServiceErrorTitle')
+  if (!rows.value.length) return t('trafficWorkspaceDevicesEmptyTitle')
+  if (!filteredRows.value.length) return t('trafficWorkspaceFilterEmptyTitle')
+  return t('trafficWorkspaceDevicesServiceTitle')
+})
+
+const trafficDeviceServiceStateHint = computed(() => {
+  if (loading.value) return t('trafficWorkspaceLoadingHint')
+  if (error.value) return t('trafficWorkspaceServiceErrorHint')
+  if (!rows.value.length) return t('trafficWorkspaceDevicesEmptyHint')
+  if (!filteredRows.value.length) return t('trafficWorkspaceFilterEmptyHint')
+  return t('trafficWorkspaceDevicesServiceHint')
+})
+
+const hostQosEmptyTitle = computed(() => {
+  if (loading.value) return t('trafficWorkspaceLoadingTitle')
+  if (!rows.value.length) return t('trafficWorkspaceDevicesEmptyTitle')
+  return t('trafficWorkspaceFilterEmptyTitle')
+})
+
+const hostQosEmptyHint = computed(() => {
+  if (loading.value) return t('trafficWorkspaceLoadingHint')
+  if (!rows.value.length) return t('trafficWorkspaceDevicesEmptyHint')
+  return t('trafficWorkspaceFilterEmptyHint')
+})
+
+const resetDeviceFilters = () => {
+  query.value = ''
+  profileFilter.value = 'all'
+  activeDiagnosticKey.value = 'all'
+}
+
 const syncAppliedProfiles = () => {
   const next: Record<string, AgentQosProfile> = {}
   for (const item of qos.value.items || []) {
@@ -846,11 +945,21 @@ watch(expanded, async (value) => {
   if (value) await refreshAll({ includeLive: true })
 })
 
+watch(advancedToolsVisible, (value) => {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(HOST_QOS_ADVANCED_TOOLS_STORAGE_KEY, value ? '1' : '0')
+  } catch {}
+  if (!value) activeDiagnosticKey.value = 'all'
+})
+
 watch(livePollingActive, (active, prev) => {
   if (active && !prev) void refreshAll({ includeLive: true, silent: true })
 })
 
 onMounted(async () => {
+  try {
+    if (typeof window !== 'undefined') advancedToolsVisible.value = window.localStorage.getItem(HOST_QOS_ADVANCED_TOOLS_STORAGE_KEY) === '1'
+  } catch {}
   await refreshAll({ includeLive: expanded.value || Boolean(props.focusUser || props.focusIp) })
 })
 </script>

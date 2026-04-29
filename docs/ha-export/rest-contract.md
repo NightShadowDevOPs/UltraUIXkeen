@@ -18,7 +18,7 @@
   "format_version": 1,
   "timestamp": "2026-04-19T13:16:21Z",
   "contract": "zash.ha.snapshot.v1",
-  "agent_version": "0.6.32",
+  "agent_version": "0.6.33",
   "preferred_resource": "ha_snapshot"
 }
 ```

@@ -1,87 +1,31 @@
 # Changelog
 
-## v1.2.168 — router system visible-resume cooldown
-- `Router -> System`: добавлен мягкий anti-burst cooldown для wake-up refresh при возврате вкладки в visible / повторном входе карточки в активное состояние
-- обычный polling cadence сохранён; ручное обновление и загрузка подробностей не менялись
-- `router-agent`, HA/export shape, SSL-проверки провайдеров и live traffic path не менялись
-- TUN сознательно не включался: для текущего контура он не нужен и отдельно не продвигается в релиз без тестового сценария
+## v1.2.173 — zash-agent startup self-call hotfix
+- `router-agent` bumped to `0.6.33`.
+- Fixed a startup fragility where `start.sh` called `cmd=rehydrate` through the same local `uhttpd` that was still coming up. Rehydrate now runs directly as a CGI shell command, so UI/API requests do not wait behind that self-call.
+- `ssl-refresh.sh` now runs `cmd=ssl_cache_refresh` directly as CGI instead of calling the agent HTTP endpoint from cron.
+- `S99zash-agent stop` now cleans stuck `uhttpd` and `api.sh` processes more reliably.
+- Installer auto-detects and fills `MIHOMO_CONFIG` for existing `agent.env` when it is missing or points to a non-existing file.
+- UI polling, HA/export contract, provider SSL checks as a feature, live traffic path and TUN were intentionally left unchanged.
 
-## v1.2.167 — ui-build visible-resume dedupe
-- глобальная проверка свежести UI-сборки (`sidebar/settings`) больше не тянет лишний fetch HTML на каждый обычный visible-resume после короткой паузы
-- автопроверка новой сборки теперь идёт только если ещё не было успешной проверки или online bundle info реально устарел; мягкий anti-burst cooldown сохранён
-- ручная проверка обновления UI, hard refresh, `router-agent`, HA/export shape, SSL-проверки провайдеров и live traffic path не менялись
+## v1.2.172 — traffic calmer service and empty states
+- `Трафик -> Устройства`: добавлена спокойная service-state сводка над таблицей с количеством показанных строк, индикатором активных фильтров и подсказкой по группировке IP/MAC.
+- `Трафик -> Пользователи`: добавлена аналогичная сводка состояния с количеством строк, bucket-count и пояснением по объединению saved labels, browser traffic buckets и live runtime.
+- Empty-state в обеих таблицах стал осмысленным: отдельно различаются отсутствие данных и отсутствие совпадений под текущий фильтр/диагностический срез.
+- Из empty-state можно сбросить фильтры/фокус/диагностический срез одной кнопкой.
+- `router-agent`, HA/export контракт, polling cadence, provider SSL checks, live traffic path и TUN не менялись.
 
-## v1.2.166 — router-agent visible-resume anti-burst
-- `Router -> Router agent`: убран лишний visible-resume шум при быстром hide/show вкладки и повторном возврате в видимую область
-- wake-up refresh статуса теперь проходит через мягкий cooldown, чтобы не дёргать одинаковый `agentStatus` подряд при быстрой смене visibility
-- maintenance polling больше не делает дополнительный auto-wake-up на visible/enable; обычный polling cadence, ручные действия и открытие maintenance workspace сохранены
-- `router-agent`, HA/export shape, SSL-проверки провайдеров, live traffic path и обычный runtime polling не менялись
 
-## v1.2.165 — safe upstream UI hardening
-- после safe upstream review взяты только два низкорисковых UI-хвоста, без новых poller-циклов и без изменений `router-agent`
-- `Прокси`: добавлена защита для `proxiesRef`, чтобы ранний lifecycle / пустой ref не ломал scroll restore и scroll handler
-- `Соединения`: добавлен явный empty-state, когда строк нет, чтобы экран не выглядел зависшим или сломанным
-- `router-agent`, HA/export contract, SSL-проверки провайдеров, Overview traffic contour и реальный traffic path не менялись
+## v1.2.171 — traffic devices compact/advanced split
+- `Трафик -> Устройства`: добавлен явный split между `Кратким режимом` и `Расширенным режимом`.
+- В кратком режиме экран оставляет основной рабочий контур: поиск, фильтры, таблицу устройств и действия, без развёрнутых служебных блоков поверх списка.
+- Диагностические карточки, runtime-summary и служебные подсказки теперь раскрываются отдельной кнопкой `Показать диагностику` / `Скрыть диагностику`.
+- Состояние режима сохраняется локально в браузере для текущего оператора.
+- Дополнительно зафиксирован отсутствовавший `activeDiagnosticKey`, чтобы скрытие диагностики всегда возвращало нейтральный срез `all`.
+- `router-agent`, HA/export контракт, polling cadence, provider SSL checks, live traffic path и TUN не менялись.
 
-## v1.2.164 — overview router-health wake-up dedupe
-- убран ещё один дублирующийся wake-up refresh в `Обзор -> Router Health`
-- карточка уже делала собственный refresh при повторном входе в viewport, поэтому у `useSafePolling` отключён дополнительный авто-wake-up по `refreshOnEnable` / `refreshOnVisible`
-- обычный polling cadence, ручное обновление, `router-agent`, HA/export shape, SSL-проверки и traffic/runtime path не менялись
-
-## v1.2.163 — wake-up dedupe follow-up for operational cards
-- убраны дополнительные дублирующиеся wake-up refresh после hidden-tab / visible-resume для `Router -> System`, `Router -> Router agent`, `Router -> Host QoS` и QoS-статистики в `Трафик / Пользователи`
-- там, где уже были локальные `watch(...active...)` с ручным refresh, у `useSafePolling` отключён автозапуск по `refreshOnEnable` / `refreshOnVisible`, чтобы не было двойных однотипных запросов
-- обычный polling cadence, ручные действия, `router-agent`, HA/export shape и traffic/runtime path не менялись
-
-## v1.2.162 — Tasks visible-resume anti-burst restore
-- восстановлен пропущенный safe-патч поверх `v1.2.161`, который не дошёл отдельным архивом
-- страница `Задачи`: возврат на видимую вкладку теперь не должен подряд дёргать одинаковые refresh-запросы для `router-agent status`, `Живые логи` и upstream-проверки
-- visible-resume обновления для этих трёх контуров теперь идут через мягкую очередь с коротким stagger и cooldown
-- обычный polling, ручное обновление и структура данных `router-agent -> HA` не менялись
-- `router-agent` оставлен на `0.6.32`
-
-## v1.2.157 — cleanup for disabled proxy-provider panel entries
-- Добавлена явная очистка сохранённых записей в блоке **Задачи → Прокси-провайдеры → панели управления**.
-- Строки, которые остались только в локально сохранённых настройках и уже отсутствуют среди активных провайдеров, теперь помечаются бейджем **«сохранён»**.
-- Появилась массовая кнопка **«Очистить отключённые»** и удаление конкретной строки прямо из таблицы.
-- При удалении чистятся связанные UI-настройки: URL панели, индивидуальный SSL-порог и иконка провайдера.
-- Это исправляет хвост, из-за которого отключённые SSL-провайдеры оставались висеть в списке задач даже после исчезновения из активного контура.
-
-## v1.2.156 - safer mass latency tests with lighter router pressure
-- raised UI package version to `1.2.156`
-- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
-- mass latency tests no longer fire all proxy checks in one uncontrolled burst: UI now runs them with a small concurrency limit so router/API pressure stays more even
-- single-proxy and bulk/manual latency tests now resolve the effective test URL more consistently when independent latency URLs are enabled
-- this release is deliberately UI-only and does not touch provider SSL checks, traffic forwarding or the main Overview traffic-weights contour
-- documentation, transfer files and memory snapshot docs refreshed for `v1.2.156`
-
-## v1.2.155 - slower off-screen overview traffic live polling
-- raised UI package version to `1.2.155`
-- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
-- kept the Overview traffic live contour active, but when the traffic card is outside the viewport its main live polling now slows down from 4s to 8s instead of running at full cadence
-- when the traffic card comes back into view, UI performs an immediate live refresh and returns to the normal 4s cadence so the Overview traffic-weights diagram feels normal while visible
-- secondary host-detail polling remains viewport-aware as delivered in `v1.2.154`
-- documentation, transfer files and memory snapshot docs refreshed for `v1.2.155`
-
-## v1.2.154 - lighter host-side background refresh in overview traffic card
-- raised UI package version to `1.2.154`
-- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
-- added viewport-aware pause for secondary host-detail polling inside Overview → Traffic: off-screen host metadata refresh no longer keeps spinning when the traffic card is outside the viewport
-- kept the main live traffic contour untouched so the Overview traffic weights chart continues to update normally
-- slightly slowed secondary expanded-host remote-target refresh and Host QoS metadata refresh to reduce background pressure without affecting packet forwarding
-- documentation, transfer files and memory snapshot docs refreshed for `v1.2.154`
-
-## v1.2.153 - viewport-aware lazy polling for overview router health
-- raised UI package version to `1.2.153`
-- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
-- added viewport-aware lazy polling to `RouterHealth`: when the Overview router health card is outside the viewport, its periodic `/version` probe pauses instead of continuing to spin in the background
-- when the card becomes visible again, UI triggers a soft refresh so API badge / latency state returns quickly without a manual reload
-- kept the main traffic live contour untouched so the Overview traffic weights chart keeps behaving normally
-- documentation, transfer files and memory snapshot docs refreshed for `v1.2.153`
-
-## v1.2.152 - viewport-aware lazy polling for router resources and router agent cards
-- raised UI package version to `1.2.152`
-- kept `router-agent` unchanged at `0.6.32`; no backend telemetry/API contract changes in this release
-- extended viewport-aware lazy polling to Router → Resources and router-agent cards so off-screen host-status widgets stop background refresh until they are actually visible
-- when those cards return into view, UI now performs a soft runtime refresh without disturbing the main traffic live contour
-- documentation, transfer files and memory snapshot docs refreshed for `v1.2.152`
+## v1.2.170 — traffic users compact/advanced split
+- `Трафик -> Пользователи`: добавлен явный split между `Кратким режимом` и `Расширенным режимом`.
+- В кратком режиме экран оставляет только рабочие фильтры, фокус по пользователю и основной список, чтобы раздел меньше шумел при обычной работе.
+- Диагностика, QoS runtime summary и служебные подсказки теперь раскрываются отдельной кнопкой `Показать диагностику`, без изменения polling, router-agent и HA/export контракта.
+- Состояние режима сохраняется локально в браузере для текущего оператора.
