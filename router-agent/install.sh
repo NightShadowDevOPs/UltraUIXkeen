@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.35"
+AGENT_VERSION="0.6.36"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -195,7 +195,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.35"
+AGENT_VERSION="0.6.36"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -3049,6 +3049,36 @@ ensure_tmp_file() {
   [ -f "$tmp_path" ]
 }
 
+# BusyBox sort on some router builds does not support GNU-style `sort -o`.
+# If `sort -o file file` is used there, sorted TSV rows can leak to CGI stdout
+# before HTTP headers and Home Assistant reports "Invalid header token".
+safe_sort_unique_file() {
+  f="$1"
+  [ -n "$f" ] || return 0
+  [ -f "$f" ] || return 0
+  tmp="${f}.sort.$$"
+  if sort -u "$f" > "$tmp" 2>/dev/null; then
+    mv -f "$tmp" "$f" 2>/dev/null || rm -f "$tmp" 2>/dev/null || true
+  else
+    rm -f "$tmp" 2>/dev/null || true
+  fi
+  return 0
+}
+
+safe_sort_file() {
+  f="$1"
+  shift
+  [ -n "$f" ] || return 0
+  [ -f "$f" ] || return 0
+  tmp="${f}.sort.$$"
+  if sort "$@" "$f" > "$tmp" 2>/dev/null; then
+    mv -f "$tmp" "$f" 2>/dev/null || rm -f "$tmp" 2>/dev/null || true
+  else
+    rm -f "$tmp" 2>/dev/null || true
+  fi
+  return 0
+}
+
 collect_routed_tunnel_hosts_tsv() {
   out_file="$1"
   [ -n "$out_file" ] || return 1
@@ -3103,7 +3133,7 @@ collect_routed_tunnel_hosts_tsv() {
     printf '%s\t\t\t%s\n' "$ip_" "$source" >> "$out_file"
   done < "$cand_tmp"
 
-  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+  safe_sort_unique_file "$out_file" || true
   rm -f "$local_ips_tmp" "$cand_tmp" 2>/dev/null || true
 }
 
@@ -3477,7 +3507,7 @@ host_remote_targets_json() {
       "$target" "$scope" "$kind" "$via" "$proto" "$up_bytes" "$down_bytes" "$count" >> "$current_tmp"
   done < "$agg_tmp"
 
-  sort -o "$current_tmp" "$current_tmp" 2>/dev/null || true
+  safe_sort_file "$current_tmp" || true
 
   now_ms="$(( $(date +%s 2>/dev/null || echo 0) * 1000 ))"
   prev_ms="$(cat "$prev_ts_file" 2>/dev/null | tr -d '\r\n ' || true)"
@@ -5951,7 +5981,7 @@ ha_limited_rules_tsv() {
     done < "$QOS_HOSTS_FILE"
   fi
 
-  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+  safe_sort_unique_file "$out_file" || true
 }
 
 ha_blocked_rules_tsv() {
@@ -5987,7 +6017,7 @@ ha_blocked_rules_tsv() {
     printf '%s\t%s\t%s\n' "$name_" "$reason_" "$key_" >> "$out_file" 2>/dev/null || true
   done < "$BLOCKS_FILE"
 
-  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+  safe_sort_unique_file "$out_file" || true
 }
 
 ha_qos_rules_tsv() {
@@ -6036,7 +6066,7 @@ ha_qos_rules_tsv() {
     done < "$BLOCKS_FILE"
   fi
 
-  sort -u -o "$out_file" "$out_file" 2>/dev/null || true
+  safe_sort_unique_file "$out_file" || true
 }
 
 ha_json_users_from_tsv() {
@@ -6357,9 +6387,9 @@ ha_users_json() {
   mkdir -p "$(ha_cache_dir)" >/dev/null 2>&1 || true
   ha_host_traffic_snapshot_tsv "$hosts_rates_file" "$(ha_cache_dir)/users-state.tsv" "$(ha_cache_dir)/users-state.ts"
   ha_build_user_rates_tsv "$hosts_rates_file" "$labels_file" "$users_rates_file" || true
-  sort -t'\t' -k2,2nr -k3,3nr "$users_rates_file" -o "$users_rates_file" 2>/dev/null || true
+  safe_sort_file "$users_rates_file" -t "$(printf '\t')" -k2,2nr -k3,3nr || true
   ha_build_device_rates_tsv "$hosts_rates_file" "$labels_file" "$devices_rates_file" || true
-  sort -t'\t' -k3,3nr -k4,4nr "$devices_rates_file" -o "$devices_rates_file" 2>/dev/null || true
+  safe_sort_file "$devices_rates_file" -t "$(printf '\t')" -k3,3nr -k4,4nr || true
   ha_limited_rules_tsv "$limited_file" "$hosts_file" "$labels_file" || true
   ha_blocked_rules_tsv "$blocked_file" "$hosts_file" "$labels_file" || true
 
@@ -6507,17 +6537,64 @@ ha_snapshot_json() {
   reply_ok "$payload"
 }
 
+# Strict HA CGI guard: no helper stdout is allowed before HTTP headers.
+# The wrapped endpoint writes to a temp file first. If legacy helper output leaked
+# before Content-Type, it is moved to a local log and only a valid HTTP response is
+# returned to Home Assistant.
+ha_strict_endpoint() {
+  fn="$1"
+  tmp="$(new_tmp_file zash_ha_strict_response)"
+  [ -n "$tmp" ] || tmp="/tmp/zash_ha_strict_response.$$"
+  log_file="/opt/zash-agent/var/ha-strict.log"
+  mkdir -p /opt/zash-agent/var >/dev/null 2>&1 || true
+
+  "$fn" > "$tmp" 2>>"$log_file"
+  rc=$?
+
+  first_line="$(sed -n '1p' "$tmp" 2>/dev/null || true)"
+  case "$first_line" in
+    Content-Type:*)
+      cat "$tmp" 2>/dev/null
+      rm -f "$tmp" 2>/dev/null || true
+      return 0
+      ;;
+  esac
+
+  header_line="$(grep -n '^Content-Type:' "$tmp" 2>/dev/null | head -n 1 | cut -d: -f1)"
+  if echo "$header_line" | grep -qE '^[0-9]+$' && [ "$header_line" -gt 0 ]; then
+    if [ "$header_line" -gt 1 ]; then
+      {
+        printf '%s cmd=%s strict_prefix_leak=true fn=%s rc=%s
+' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo date)" "$cmd" "$fn" "$rc"
+        sed -n "1,$((header_line-1))p" "$tmp" 2>/dev/null
+      } >> "$log_file" 2>/dev/null || true
+    fi
+    tail -n +"$header_line" "$tmp" 2>/dev/null
+    rm -f "$tmp" 2>/dev/null || true
+    return 0
+  fi
+
+  {
+    printf '%s cmd=%s strict_no_header=true fn=%s rc=%s
+' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo date)" "$cmd" "$fn" "$rc"
+    sed -n '1,40p' "$tmp" 2>/dev/null
+  } >> "$log_file" 2>/dev/null || true
+  rm -f "$tmp" 2>/dev/null || true
+  reply_ok "$(printf '{"ok":false,"format_version":1,"timestamp":"%s","error":"strict-output-violation","cmd":"%s"}' "$(jesc "$(ha_now_iso)")" "$(jesc "$cmd")")"
+  return 0
+}
+
 # Save a lightweight trace of requests (best effort).
 agent_log
 
 case "$cmd" in
   status|"") status ;;
-  ha_contract_meta) ha_contract_meta_json ;;
-  ha_snapshot) ha_snapshot_json ;;
-  ha_status) ha_status_json ;;
-  ha_traffic) ha_traffic_json ;;
-  ha_users) ha_users_json ;;
-  ha_qos) ha_qos_json ;;
+  ha_contract_meta) ha_strict_endpoint ha_contract_meta_json ;;
+  ha_snapshot) ha_strict_endpoint ha_snapshot_json ;;
+  ha_status) ha_strict_endpoint ha_status_json ;;
+  ha_traffic) ha_strict_endpoint ha_traffic_json ;;
+  ha_users) ha_strict_endpoint ha_users_json ;;
+  ha_qos) ha_strict_endpoint ha_qos_json ;;
   status_debug) status_debug ;;
   neighbors) neighbors ;;
   lan_hosts) lan_hosts_json ;;

@@ -22,3 +22,8 @@ Deploy `v1.2.176` instead of raw `v1.2.175` because audit required clearer issue
 - UI agent availability.
 - Provider list visibility.
 - No change in live traffic, TUN, QoS or provider SSL checks.
+
+
+## v1.2.177 — router-agent HA strict JSON hotfix
+
+Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.

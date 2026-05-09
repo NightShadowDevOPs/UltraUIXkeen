@@ -21,3 +21,8 @@ No HA export contract changes in `v1.2.176`.
 ## v1.2.176 note
 
 This release only improves deploy/check/rollback documentation and scripts around `zash-agent`. It does not rename HA entities and does not change payload shape.
+
+
+## v1.2.177 — router-agent HA strict JSON hotfix
+
+Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.

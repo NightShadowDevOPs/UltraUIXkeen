@@ -63,3 +63,8 @@
 - `ha_snapshot` is the recommended normalized source for HA/SmartLife.
 - `*_bps` in contract means bytes/sec.
 - `counts.qos_enabled` is a counter, not a boolean.
+
+
+## v1.2.177 — router-agent HA strict JSON hotfix
+
+Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.

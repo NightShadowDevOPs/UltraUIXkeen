@@ -57,3 +57,8 @@ MIHOMO_PROVIDERS_HTTP=200
 ```sh
 /opt/bin/sh scripts/rollback-zash-agent-v1.2.176.sh
 ```
+
+
+## v1.2.177 — router-agent HA strict JSON hotfix
+
+Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.

@@ -26,3 +26,8 @@ Continue UI Mihomo Ultra from release `v1.2.176`.
 - Do not break provider SSL checks.
 - Do not mix SmartLife/HA consumer implementation with router-agent contract producer.
 - For release archives, keep docs updated and include chat-transfer information.
+
+
+## v1.2.177 — router-agent HA strict JSON hotfix
+
+Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.
