@@ -1,13 +1,8 @@
-# Current state — UI Mihomo Ultra v1.2.179
+# Current State — UI Mihomo Ultra / zash-agent v1.2.180
 
-- Project slug: `ui-mihomo-ultra`
-- Project name: `UI Mihomo Ultra`
-- Current release: `v1.2.179`
-- Previous accepted/handoff release: `v1.2.178`
-- Agent marker expected after apply: `0.6.37`
-- Router IP: `192.168.0.1`
-- Project path on router: `/opt/etc/mihomo`
-- Runtime agent path: `/opt/zash-agent`
-- Endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`
-
-`v1.2.179` should be used instead of `UltraUIXkeen-main.zip` for deployment packaging and future chat transfer.
+- UI version: `1.2.180`.
+- zash-agent runtime target: `0.6.37`.
+- Router endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`.
+- Agent listens on router LAN IP, not on `127.0.0.1`.
+- HA source of truth: `cmd=ha_snapshot`.
+- This release adds watchdog/restart helper scripts for the agent only.

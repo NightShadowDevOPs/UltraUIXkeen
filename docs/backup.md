@@ -1,12 +1,12 @@
-# Backup notes — v1.2.179
+# Backup notes — v1.2.180
 
 Backup script path in release archive:
 
-`scripts/backup-zash-agent-v1.2.179.sh`
+`scripts/backup-zash-agent-v1.2.180.sh`
 
 The script creates a lightweight backup under:
 
-`/opt/zash-agent.backup-v1.2.179-<timestamp>`
+`/opt/zash-agent.backup-v1.2.180-<timestamp>`
 
 It copies only selected installed agent files required for rollback:
 

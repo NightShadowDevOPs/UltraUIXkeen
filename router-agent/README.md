@@ -2,9 +2,9 @@
 
 Current packaged agent version: `0.6.37`
 
-## v1.2.179 packaging note
+## v1.2.180 packaging note
 
-`v1.2.179` is a packaging/documentation/static-cleanup release built from:
+`v1.2.180` is a packaging/documentation/static-cleanup release built from:
 
 - UI/source baseline `v1.2.177`;
 - zash-agent lightweight apply hotfix `v1.2.178`;

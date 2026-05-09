@@ -1,4 +1,4 @@
-# HA export bridge status — v1.2.179
+# HA export bridge status — v1.2.180
 
 The release keeps the existing Home Assistant endpoint contract:
 
