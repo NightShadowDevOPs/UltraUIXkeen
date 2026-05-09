@@ -1,0 +1,26 @@
+{
+  "project_slug": "ui-mihomo-ultra",
+  "project_name": "UI Mihomo Ultra",
+  "accepted_release_or_checkpoint": "v1.2.179",
+  "previous_accepted_release_or_checkpoint": "v1.2.178",
+  "current_candidate": null,
+  "runtime_state": {
+    "deployed_by_assistant": false,
+    "router_ip": "192.168.0.1",
+    "project_path_on_router": "/opt/etc/mihomo",
+    "agent_runtime_path": "/opt/zash-agent",
+    "agent_endpoint": "http://192.168.0.1:9099/cgi-bin/api.sh",
+    "expected_agent_version_after_apply": "0.6.37",
+    "mihomo_core_changed": false,
+    "tun_changed": false,
+    "qos_changed": false,
+    "routing_changed": false,
+    "provider_ssl_changed": false
+  },
+  "open_risks": [
+    "Runtime router smoke check has not been executed by the assistant in this environment.",
+    "User must apply package on router and check endpoint HTTP 200 responses."
+  ],
+  "next_safe_step": "Upload/extract release package on router and run /opt/bin/sh scripts/check-zash-agent-v1.2.179.sh before apply, then apply if current state matches expectations.",
+  "created_at": "2026-05-09T19:30:00+03:00"
+}

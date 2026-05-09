@@ -1,0 +1,52 @@
+# Checks and status — v1.2.179
+
+ARTIFACT_NAMING_STATUS=OK
+PROJECT_SLUG_STATUS=OK
+VERSION_FORMAT_STATUS=OK
+RELEASE_ARCHIVE_NAME_STATUS=OK
+DOCS_ARCHIVE_NAME_STATUS=OK
+TRANSFER_ARCHIVE_NAME_STATUS=OK
+ARCHIVE_OVERWRITE_CHECK_STATUS=OK
+EXPECTED_RELEASE_ARCHIVE=release-ui-mihomo-ultra-v1.2.179.zip
+EXPECTED_DOCS_ARCHIVE=release-docs-ui-mihomo-ultra-v1.2.179.zip
+EXPECTED_TRANSFER_ARCHIVE=release-transfer-ui-mihomo-ultra-v1.2.179.zip
+ACTUAL_RELEASE_ARCHIVE=release-ui-mihomo-ultra-v1.2.179.zip
+ACTUAL_DOCS_ARCHIVE=release-docs-ui-mihomo-ultra-v1.2.179.zip
+ACTUAL_TRANSFER_ARCHIVE=release-transfer-ui-mihomo-ultra-v1.2.179.zip
+
+DOCS_PACKAGE_STATUS=OK
+MISSING_DOCS=none
+TRANSFER_PACKAGE_STATUS=OK
+MISSING_TRANSFER_DOCS=none
+
+SYNTAX_CHECK_STATUS=OK
+SHELL_SCRIPT_NUL_STATUS=OK
+SHELL_SCRIPT_NUL_FILES=none
+STATIC_SAFETY_STATUS=OK
+SECRETS_POLICY_STATUS=OK
+PRIVATE_KEY_BLOCKS_FOUND=0
+BEARER_VALUE_HITS=0
+PASSWORD_VALUE_HITS=0
+
+BACKUP_SCRIPT_STATUS=OK
+BACKUP_SCRIPT_PATH=scripts/backup-zash-agent-v1.2.179.sh
+BACKUP_SCRIPT_UPDATED_STATUS=OK
+BACKUP_SCRIPT_CHECK_STATUS=OK
+BACKUP_LOCATION_STATUS=UNKNOWN
+NO_BACKUP_DELETE_STATUS=OK
+
+SMOKE_STATUS=NOT_RUN_ON_ROUTER
+DEPLOYMENT_ALLOWED_STATUS=WARN
+RELEASE_ARTIFACT_STATUS=OK
+
+## Syntax targets
+
+- `router-agent/install.sh`: RC=0
+- `scripts/apply-zash-agent-v1.2.179.sh`: RC=0
+- `scripts/check-zash-agent-v1.2.179.sh`: RC=0
+- `scripts/rollback-zash-agent-v1.2.179.sh`: RC=0
+- `scripts/backup-zash-agent-v1.2.179.sh`: RC=0
+
+## Notes
+
+`DEPLOYMENT_ALLOWED_STATUS=WARN` because the package is ready, but router runtime smoke checks were not executed in this local environment. Run `scripts/check-zash-agent-v1.2.179.sh` on the router before apply.

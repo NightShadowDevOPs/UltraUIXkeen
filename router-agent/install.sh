@@ -3,7 +3,7 @@ set -e
 
 AGENT_DIR="/opt/zash-agent"
 PORT="9099"
-AGENT_VERSION="0.6.36"
+AGENT_VERSION="0.6.37"
 
 echo "[zash-agent] installing into $AGENT_DIR"
 
@@ -195,7 +195,7 @@ MIHOMO_CFG_META="${MIHOMO_CFG_META:-$MIHOMO_CFG_DIR/meta.json}"
 MIHOMO_CFG_REVS_DIR="${MIHOMO_CFG_REVS_DIR:-$MIHOMO_CFG_DIR/revs}"
 MIHOMO_CFG_REVS_MAX="${MIHOMO_CFG_REVS_MAX:-10}"
 TOKEN="${TOKEN:-}"
-AGENT_VERSION="0.6.36"
+AGENT_VERSION="0.6.37"
 MIHOMO_CONFIG="${MIHOMO_CONFIG:-/opt/etc/mihomo/config.yaml}"
 MIHOMO_LOG="${MIHOMO_LOG:-}"
 GEOIP_URL="${GEOIP_URL:-https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip-lite.dat}"
@@ -4683,10 +4683,8 @@ status_debug() {
   [ -n "$hostname" ] || hostname="router"
 
   model=""
-  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d ' 
-' | head -n 1)"
-  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d ' 
-' | head -n 1)"
+  [ -r /tmp/sysinfo/model ] && model="$(cat /tmp/sysinfo/model 2>/dev/null | tr -d '\000\n' | head -n 1)"
+  [ -n "$model" ] || [ ! -r /proc/device-tree/model ] || model="$(cat /proc/device-tree/model 2>/dev/null | tr -d '\000\n' | head -n 1)"
   [ -n "$model" ] || model="$(uname -m 2>/dev/null | tr -d '
 ' | head -n 1)"
 

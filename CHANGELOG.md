@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.179 — normalized release package after v1.2.178 hotfix
+
+- Merged the agent-only `v1.2.178` lightweight apply fix into the main release package.
+- Kept installed zash-agent marker at `0.6.37`.
+- Replaced full `/opt/zash-agent` tar backup flow with lightweight file backup in current apply/backup scripts.
+- Added current `apply`, `check`, `rollback` and `backup` scripts for `v1.2.179`.
+- Removed stale root transfer/scratch artifacts from the release archive.
+- Fixed stale documentation references to older UI/agent versions.
+- Replaced literal NUL bytes in `router-agent/install.sh` with textual `\000` escaping.
+- Added separate docs and transfer packages according to universal release rules `v9.10.2`.
+- Did not change Mihomo core, TUN, QoS semantics, routing rules or provider SSL checks.
+
 ## v1.2.176 — release hardening after strict audit
 
 - Kept runtime router-agent code at `0.6.35`; no traffic, HA contract, provider SSL check, TUN, QoS or Mihomo core behavior was changed.

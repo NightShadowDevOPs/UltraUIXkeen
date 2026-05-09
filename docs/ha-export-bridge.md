@@ -1,28 +1,14 @@
-# HA export bridge — v1.2.176
+# HA export bridge status — v1.2.179
 
-No HA export contract changes in `v1.2.176`.
+The release keeps the existing Home Assistant endpoint contract:
 
-## Stable contract endpoints
+- `ha_status`
+- `ha_traffic`
+- `ha_users`
+- `ha_qos`
+- `ha_snapshot`
+- `ha_contract_meta`
 
-- `cmd=ha_contract_meta`
-- `cmd=ha_snapshot`
-- `cmd=ha_status`
-- `cmd=ha_traffic`
-- `cmd=ha_users`
-- `cmd=ha_qos`
+`v1.2.177` strict JSON protection is preserved. Shell helper stdout must not pollute HTTP headers or JSON bodies.
 
-## Important contract rules
-
-- `ha_snapshot` remains the preferred bundle source for Home Assistant / SmartLife.
-- `*_bps` fields mean **bytes/sec**, not bits/sec.
-- `counts.qos_enabled` is a counter, not a boolean.
-- Consumer should check top-level `ok` and each nested component `status.ok`, `traffic.ok`, `users.ok`, `qos.ok` separately.
-
-## v1.2.176 note
-
-This release only improves deploy/check/rollback documentation and scripts around `zash-agent`. It does not rename HA entities and does not change payload shape.
-
-
-## v1.2.177 — router-agent HA strict JSON hotfix
-
-Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.
+`v1.2.178` lightweight apply fix is preserved. The installer should not hang on a full compressed backup of `/opt/zash-agent`.
