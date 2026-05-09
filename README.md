@@ -1,8 +1,8 @@
-# UI Mihomo Ultra v1.2.180
+# UI Mihomo Ultra v1.2.181
 
 Router UI and zash-agent maintenance package.
 
-## v1.2.180
+## v1.2.181
 
 Adds a scoped zash-agent watchdog:
 

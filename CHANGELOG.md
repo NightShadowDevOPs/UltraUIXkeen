@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v1.2.180 — zash-agent watchdog
+## v1.2.181 — zash-agent watchdog
 
 - Added scoped restart helper for zash-agent uhttpd.
 - Added watchdog that validates `status` and `ha_snapshot` before deciding to restart.
@@ -10,12 +10,12 @@
 
 # Changelog
 
-## v1.2.180 — normalized release package after v1.2.178 hotfix
+## v1.2.181 — normalized release package after v1.2.178 hotfix
 
 - Merged the agent-only `v1.2.178` lightweight apply fix into the main release package.
 - Kept installed zash-agent marker at `0.6.37`.
 - Replaced full `/opt/zash-agent` tar backup flow with lightweight file backup in current apply/backup scripts.
-- Added current `apply`, `check`, `rollback` and `backup` scripts for `v1.2.180`.
+- Added current `apply`, `check`, `rollback` and `backup` scripts for `v1.2.181`.
 - Removed stale root transfer/scratch artifacts from the release archive.
 - Fixed stale documentation references to older UI/agent versions.
 - Replaced literal NUL bytes in `router-agent/install.sh` with textual `\000` escaping.

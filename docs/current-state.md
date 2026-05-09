@@ -1,6 +1,6 @@
-# Current State — UI Mihomo Ultra / zash-agent v1.2.180
+# Current State — UI Mihomo Ultra / zash-agent v1.2.181
 
-- UI version: `1.2.180`.
+- UI version: `1.2.181`.
 - zash-agent runtime target: `0.6.37`.
 - Router endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`.
 - Agent listens on router LAN IP, not on `127.0.0.1`.

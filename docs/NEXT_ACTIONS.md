@@ -1,6 +1,11 @@
-# Next Actions
+# Next actions
 
-1. Apply watchdog on router.
-2. Verify cron and logs.
-3. Observe if watchdog catches zash-agent hangs.
-4. Optionally expose watchdog status in UI/HA later.
+Project: UI Mihomo Ultra / zash-agent
+Release: v1.2.181
+Title: Agent Maintenance: backup retention and log rotation
+
+1. Push v1.2.181 to GitHub.
+2. Use raw download or source checkout to install `router-agent/maintenance.sh` and `install-maintenance.sh`.
+3. Run `maintenance.sh dry-run`.
+4. Run check script.
+5. Later add UI indicators for watchdog/maintenance.

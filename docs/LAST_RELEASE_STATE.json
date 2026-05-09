@@ -1,9 +1,29 @@
 {
-  "version": "v1.2.180",
-  "ui_version": "1.2.180",
-  "agent_version": "0.6.37",
-  "router_ip": "192.168.0.1",
-  "agent_endpoint": "http://192.168.0.1:9099/cgi-bin/api.sh",
-  "watchdog": "added",
-  "runtime_smoke": "not_run_on_router"
+  "project_slug": "ui-mihomo-ultra",
+  "project_name": "UI Mihomo Ultra / zash-agent",
+  "release_version": "v1.2.181",
+  "release_title": "Agent Maintenance: backup retention and log rotation",
+  "created_at_utc": "2026-05-09T23:33:06.846430+00:00",
+  "source_baseline": "release-ui-mihomo-ultra-v1.2.180.zip",
+  "runtime_status": "not deployed by this package; raw/apply installer required for router-agent scripts",
+  "safety_scope": [
+    "no Mihomo core changes",
+    "no TUN changes",
+    "no QoS/routing changes",
+    "no provider SSL changes",
+    "no users-db/shapers/provider cache deletion"
+  ],
+  "live_context": {
+    "ui_version": "1.2.180/1.2.181 package target",
+    "agent_version": "0.6.37",
+    "watchdog": "installed previously via raw v1.2.180, cron every 2 minutes",
+    "cron_file": "/opt/var/spool/cron/crontabs/root",
+    "manual_cleanup_done": "zash-agent reduced from ~837.9M to ~154.7M by keeping last 7 backups and rotating agent.log",
+    "pre_cleanup": {
+      "backups_count": 32,
+      "delete_candidates": 25,
+      "would_free_mb": 636,
+      "agent_log_bytes": 51468140
+    }
+  }
 }

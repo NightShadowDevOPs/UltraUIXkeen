@@ -1,5 +1,5 @@
 #!/opt/bin/sh
-# UI Mihomo Ultra v1.2.180 — zash-agent watchdog.
+# UI Mihomo Ultra v1.2.181 — zash-agent watchdog.
 # Checks status + ha_snapshot and restarts only zash-agent uhttpd when it is stuck.
 # Safe scope: no Mihomo core, no TUN, no QoS/routing changes, no router reboot.
 set -u
@@ -88,6 +88,8 @@ write_state() {
     echo "FAIL_COUNT=${FAIL_COUNT:-0}"
     echo "LAST_RESTART=${LAST_RESTART:-0}"
     echo "LAST_CHECK=$(now_epoch)"
+    echo "LAST_CHECK_ISO=$(now_human)"
+    echo "LAST_STATUS=${LAST_STATUS:-unknown}"
   } > "$STATE_FILE" 2>/dev/null || true
 }
 
@@ -97,6 +99,7 @@ if check_agent >/tmp/zash-watchdog-last.$$ 2>/dev/null; then
   CHECK_LINE="$(cat /tmp/zash-watchdog-last.$$ 2>/dev/null)"
   rm -f /tmp/zash-watchdog-last.$$ 2>/dev/null || true
   FAIL_COUNT=0
+  LAST_STATUS=OK
   write_state
   log "WATCHDOG_OK BASE_URL=$BASE_URL $CHECK_LINE"
   echo "WATCHDOG_STATUS=OK $CHECK_LINE"
@@ -110,6 +113,7 @@ now="$(now_epoch)"
 log "WATCHDOG_FAIL_COUNT=$FAIL_COUNT THRESHOLD=$FAIL_THRESHOLD BASE_URL=$BASE_URL $CHECK_LINE"
 
 if [ "$FAIL_COUNT" -lt "$FAIL_THRESHOLD" ]; then
+  LAST_STATUS=WARN_FAIL_COUNT
   write_state
   echo "WATCHDOG_STATUS=WARN_FAIL_COUNT FAIL_COUNT=$FAIL_COUNT THRESHOLD=$FAIL_THRESHOLD $CHECK_LINE"
   exit 0
@@ -117,12 +121,14 @@ fi
 
 age=$((now - LAST_RESTART))
 if [ "$LAST_RESTART" -gt 0 ] && [ "$age" -lt "$RESTART_COOLDOWN_SECS" ]; then
+  LAST_STATUS=WARN_COOLDOWN
   write_state
   echo "WATCHDOG_STATUS=WARN_COOLDOWN FAIL_COUNT=$FAIL_COUNT COOLDOWN_LEFT=$((RESTART_COOLDOWN_SECS - age)) $CHECK_LINE"
   exit 0
 fi
 
 if [ ! -x "$RESTART_SCRIPT" ]; then
+  LAST_STATUS=FAIL_NO_RESTART_SCRIPT
   write_state
   log "WATCHDOG_RESTART=FAIL_NO_RESTART_SCRIPT path=$RESTART_SCRIPT"
   echo "WATCHDOG_STATUS=FAIL_NO_RESTART_SCRIPT"
@@ -137,6 +143,7 @@ if check_agent >/tmp/zash-watchdog-after.$$ 2>/dev/null; then
   AFTER_LINE="$(cat /tmp/zash-watchdog-after.$$ 2>/dev/null)"
   rm -f /tmp/zash-watchdog-after.$$ 2>/dev/null || true
   FAIL_COUNT=0
+  LAST_STATUS=RESTARTED_OK
   write_state
   log "WATCHDOG_RESTART=OK $AFTER_LINE"
   echo "WATCHDOG_STATUS=RESTARTED_OK $AFTER_LINE"
@@ -144,6 +151,7 @@ if check_agent >/tmp/zash-watchdog-after.$$ 2>/dev/null; then
 fi
 AFTER_LINE="$(cat /tmp/zash-watchdog-after.$$ 2>/dev/null)"
 rm -f /tmp/zash-watchdog-after.$$ 2>/dev/null || true
+LAST_STATUS=RESTARTED_BUT_STILL_FAIL
 write_state
 log "WATCHDOG_RESTART=FAIL_AFTER_RESTART $AFTER_LINE"
 echo "WATCHDOG_STATUS=RESTARTED_BUT_STILL_FAIL $AFTER_LINE"
