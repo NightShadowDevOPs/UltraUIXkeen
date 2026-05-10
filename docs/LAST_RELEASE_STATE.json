@@ -1,13 +1,36 @@
 {
   "project_slug": "ui-mihomo-ultra",
   "project_name": "UI Mihomo Ultra",
-  "release_version": "v1.2.184",
-  "release_title": "Watchdog false-positive hotfix",
+  "release_version": "v1.2.187",
+  "release_title": "HA Snapshot CPU/Load Fresh Metrics Hotfix",
   "zash_agent_runtime": "0.6.37",
-  "scope": "watchdog transport policy only",
+  "scope": "router-agent ha_snapshot status.system CPU/load overlay only",
   "status": "prepared",
+  "baseline": {
+    "ui_release": "v1.2.186 installed before this hotfix",
+    "router_agent_version": "0.6.37",
+    "api_endpoint": "http://192.168.0.1:9099/cgi-bin/api.sh",
+    "current_problem": "cmd=status CPU is live, but ha_snapshot.status.system.cpu_pct can remain stale/fallback 50"
+  },
+  "safety": {
+    "home_assistant_touched": false,
+    "ha_db_touched": false,
+    "native_ha_energy_touched": false,
+    "smartlife_boiler_touched": false,
+    "router_reboot_required": false,
+    "mihomo_core_touched": false,
+    "qos_or_routing_touched": false
+  },
+  "artifacts": [
+    "release-ui-mihomo-ultra-v1.2.187.zip",
+    "release-docs-ui-mihomo-ultra-v1.2.187.zip",
+    "release-transfer-ui-mihomo-ultra-v1.2.187.zip"
+  ],
+  "runtime_delivery": "raw/manual router installer: router-agent/install-ha-snapshot-cpu-hotfix.sh",
+  "check_script": "scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh",
   "notes": [
-    "watchdog no longer restarts on BUNDLE_OK=false when status and snapshot root are OK",
-    "raw/manual delivery required for router-agent scripts"
+    "ha_snapshot status component is overlaid with fresh CPU/load before response assembly",
+    "overlaid status_payload is written back to ha_status cache to avoid recurring stale CPU",
+    "load object is added under ha_snapshot.status.system as load1/load5/load15"
   ]
 }

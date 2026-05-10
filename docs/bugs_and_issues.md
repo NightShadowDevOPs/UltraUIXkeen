@@ -1,9 +1,11 @@
-# Bugs and issues v1.2.184
+# BUGS_AND_ISSUES — v1.2.187
 
-## Fixed / addressed
+## Исправляется в релизе
 
-- UI показывал `1.2.181` после установки agent hotfix `v1.2.182`. Причина: старый frontend bundle/cache, а не состояние `restart-agent.sh`.
+- `ha_snapshot.status.system.cpu_pct` мог оставаться `50`, хотя `cmd=status` отдавал живой CPU.
+- `ha_snapshot.status.system.load` отсутствовал, хотя `cmd=status` уже отдаёт `load1/load5/load15`.
 
-## Still possible
+## Остаётся наблюдать
 
-- Если файлы роутера уже обновлены, но браузер показывает старую версию, причина может быть в PWA/service worker/browser cache.
+- Проверить 3–5 последовательных samples после установки: `status_cpu` и `snapshot_cpu` должны быть близкими, без постоянного `50`.
+- Если endpoint снова начнёт залипать, использовать установленный watchdog/restart helper, не трогая Mihomo core.

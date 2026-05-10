@@ -1,3 +1,10 @@
-# Build report v1.2.184
+# BUILD_REPORT — v1.2.187
 
-Build in this packaging environment was not executed because dependency installation/build pipeline is external to this release packaging step. Source version was bumped and static release artifacts were produced. Router-side verification script included.
+This release is a source/runtime hotfix package. No frontend rebuild was required for the router-agent API patch.
+
+Static checks to perform in packaging:
+
+- Shell syntax for new scripts.
+- Marker presence in `router-agent/install.sh`.
+- Required release/docs/transfer artifact naming.
+- No secret markers in scripts/docs.

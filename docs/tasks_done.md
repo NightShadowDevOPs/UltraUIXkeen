@@ -1,5 +1,6 @@
-# Tasks done v1.2.184
+# TASKS_DONE — v1.2.187
 
-- Зафиксирован факт: `v1.2.182` agent helper установлен, но UI assets на роутере показывали `1.2.181`.
-- Подготовлен version-sync релиз `v1.2.184`.
-- Добавлен компактный check script, чтобы не получать простыни вывода.
+- Зафиксирована причина залипания CPU: stale/fallback значение внутри `ha_snapshot`, а не HA/Lovelace.
+- Подготовлен router-agent hotfix для fresh CPU/load overlay в snapshot.
+- Добавлены installer/check/backup/rollback scripts.
+- Документация и transfer package обновлены под v1.2.187.

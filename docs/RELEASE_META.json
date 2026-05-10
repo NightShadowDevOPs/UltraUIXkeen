@@ -1,8 +1,8 @@
 {
   "project_slug": "ui-mihomo-ultra",
   "project_name": "UI Mihomo Ultra",
-  "release_version": "v1.2.186",
-  "release_title": "HA Direct Endpoint Cache-First Hotfix",
-  "created_at": "2026-05-10T08:35:00Z",
+  "release_version": "v1.2.187",
+  "release_title": "HA Snapshot CPU/Load Fresh Metrics Hotfix",
+  "created_at": "2026-05-10T12:05:00Z",
   "artifact_kind": "source-release"
 }

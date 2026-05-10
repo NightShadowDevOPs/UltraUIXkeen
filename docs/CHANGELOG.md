@@ -1,12 +1,19 @@
-# Changelog v1.2.184
+# CHANGELOG — v1.2.187
 
-## v1.2.184
+## Added
 
-- Bumped UI package version to `1.2.184`.
-- Added `scripts/check-ui-version-v1.2.184.sh` for compact router-side version scan.
-- Added `scripts/backup-ui-version-state-v1.2.184.sh` for safe frontend directory backup.
-- Updated docs/transfer package for UI bundle version sync.
-- No agent runtime marker bump: zash-agent remains `0.6.37`.
+- `router-agent/install-ha-snapshot-cpu-hotfix.sh`
+- `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh`
 
-## v1.2.184
-- Fixed zash-agent watchdog false-positive restarts when status and top-level ha_snapshot are OK but nested bundle diagnostics report BUNDLE_OK=false.
+## Changed
+
+- `router-agent/install.sh`: добавлена логика live overlay для `ha_snapshot.status.system.cpu_pct` и `status.system.load`.
+- `package.json`: версия `1.2.187`.
+
+## Not changed
+
+- Mihomo core/TUN/QoS/routing/provider SSL.
+- Home Assistant/HA DB/native Energy/SmartLife boiler.

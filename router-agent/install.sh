@@ -6569,6 +6569,32 @@ ha_snapshot_refresh_bg() {
   return 0
 }
 
+ha_snapshot_status_live_system_overlay() {
+  payload="$1"
+  # v1.2.187 ha_snapshot live CPU/load overlay: HA snapshot status must not keep stale fallback CPU=50.
+  printf '%s' "$payload" | grep -q '"system":{' || { printf '%s' "$payload"; return 0; }
+  live_status="$(status_cache_get 5 2>/dev/null || true)"
+  cpu_pct="$(printf '%s' "$live_status" | sed -n 's/.*"cpuPct":\([0-9][0-9.]*\).*/\1/p' | head -n 1)"
+  load1="$(printf '%s' "$live_status" | sed -n 's/.*"load1":"\([^"]*\)".*/\1/p' | head -n 1)"
+  load5="$(printf '%s' "$live_status" | sed -n 's/.*"load5":"\([^"]*\)".*/\1/p' | head -n 1)"
+  load15="$(printf '%s' "$live_status" | sed -n 's/.*"load15":"\([^"]*\)".*/\1/p' | head -n 1)"
+  if ! echo "$cpu_pct" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+    cpu_pct="$(status_cpu_pct_sample 2>/dev/null || echo 0)"
+  fi
+  if [ -r /proc/loadavg ]; then
+    [ -n "$load1" ] || load1="$(awk '{print $1}' /proc/loadavg 2>/dev/null)"
+    [ -n "$load5" ] || load5="$(awk '{print $2}' /proc/loadavg 2>/dev/null)"
+    [ -n "$load15" ] || load15="$(awk '{print $3}' /proc/loadavg 2>/dev/null)"
+  fi
+  echo "$cpu_pct" | grep -qE '^[0-9]+(\.[0-9]+)?$' || cpu_pct=0
+  echo "$load1" | grep -qE '^[0-9]+(\.[0-9]+)?$' || load1=0
+  echo "$load5" | grep -qE '^[0-9]+(\.[0-9]+)?$' || load5=0
+  echo "$load15" | grep -qE '^[0-9]+(\.[0-9]+)?$' || load15=0
+  overlaid="$(printf '%s' "$payload" | sed -e 's/"load":{[^}]*},//g' -e "s/\"cpu_pct\":[0-9][0-9.]*/\"cpu_pct\":$cpu_pct,\"load\":{\"load1\":$load1,\"load5\":$load5,\"load15\":$load15}/")"
+  printf '%s' "$overlaid" | grep -q '"load":{' || overlaid="$payload"
+  printf '%s' "$overlaid"
+}
+
 ha_snapshot_json() {
   HA_SNAPSHOT_NEEDS_REFRESH="0"
   status_payload="$(ha_snapshot_component_json ha_status "$HA_STATUS_TTL_SECS")"
@@ -6579,6 +6605,9 @@ ha_snapshot_json() {
   [ "$HA_SNAPSHOT_NEEDS_REFRESH" = "1" ] && ha_snapshot_refresh_bg || true
 
   [ -n "$status_payload" ] || status_payload='{"ok":false,"error":"empty-status"}'
+  # v1.2.187: keep HA snapshot system CPU/load fresh even when ha_status component cache is stale.
+  status_payload="$(ha_snapshot_status_live_system_overlay "$status_payload")"
+  ha_cache_put ha_status "$status_payload" >/dev/null 2>&1 || true
   [ -n "$traffic_payload" ] || traffic_payload='{"ok":false,"error":"empty-traffic"}'
   [ -n "$users_payload" ] || users_payload='{"ok":false,"error":"empty-users"}'
   [ -n "$qos_payload" ] || qos_payload='{"ok":false,"error":"empty-qos"}'

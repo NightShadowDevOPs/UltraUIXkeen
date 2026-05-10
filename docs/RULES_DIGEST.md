@@ -1,8 +1,10 @@
-# Rules digest
+# RULES_DIGEST — v1.2.187
 
-- Use release prefix artifacts only: `release-*`.
-- No checkpoint artifact names.
-- Do not deploy/restart/mutate runtime without explicit decision.
-- No secrets/tokens/full URLs in docs/archives.
-- Router terminal output must stay compact, 10–15 lines.
-- UI updater does not deploy `router-agent/*` scripts; agent runtime uses raw/manual install path.
+- Use universal release rules v9.10.2.
+- Required artifacts: release ZIP, docs ZIP, transfer ZIP.
+- No checkpoint prefixes.
+- No deploy/runtime mutation unless user explicitly runs installer.
+- Runtime router-agent scripts must be delivered via raw/manual installer path; UI updater alone is not enough.
+- Keep terminal output compact, ideally 10–15 lines.
+- Never include tokens, private keys, Bearer strings, full subscription URLs or secrets.
+- No Home Assistant / HA DB / native Energy / SmartLife boiler changes for this router-agent hotfix.

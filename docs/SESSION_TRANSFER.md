@@ -1,11 +1,21 @@
-# Session transfer v1.2.184
+# SESSION_TRANSFER — v1.2.187
 
-Release `v1.2.184` is a UI version sync release. It does not change router-agent runtime logic. After pushing/updating UI, verify installed assets.
+## Summary
 
-Expected compact check result:
+Prepared router-agent-only release v1.2.187 to fix stale CPU in HA snapshot bundle.
 
-```text
-OLD_181_FILES=0
-NEW_183_FILES>0
-DECISION=UI_FILES_OK_OR_BROWSER_CACHE
-```
+## Facts
+
+- `cmd=status` CPU is live.
+- `cmd=ha_snapshot` CPU could stay at `50`.
+- HA uses `sensor.smartlife_router_cpu` from `ha_snapshot.status.system.cpu_pct`.
+- v1.2.187 overlays snapshot status CPU/load with fresh status/cache/proc data.
+
+## Files
+
+- `router-agent/install-ha-snapshot-cpu-hotfix.sh`
+- `router-agent/install.sh`
+- `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh`
+- `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh`
