@@ -1,6 +1,6 @@
-# Session transfer v1.2.183
+# Session transfer v1.2.184
 
-Release `v1.2.183` is a UI version sync release. It does not change router-agent runtime logic. After pushing/updating UI, verify installed assets.
+Release `v1.2.184` is a UI version sync release. It does not change router-agent runtime logic. After pushing/updating UI, verify installed assets.
 
 Expected compact check result:
 

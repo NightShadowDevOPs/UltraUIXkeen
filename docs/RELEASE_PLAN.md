@@ -1,6 +1,6 @@
-# Release plan v1.2.183
+# Release plan v1.2.184
 
-1. Обновить `package.json` до `1.2.183`.
+1. Обновить `package.json` до `1.2.184`.
 2. Добавить release docs и transfer state.
 3. Добавить read-only check script для проверки старых UI version strings на роутере.
 4. Не менять Mihomo core/TUN/QoS/routing/provider SSL/users-db/shapers.

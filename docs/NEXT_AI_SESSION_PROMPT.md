@@ -1,1 +1,1 @@
-Continue UI Mihomo Ultra / router-agent from `v1.2.183`. Verify UI bundle version on router with `scripts/check-ui-version-v1.2.183.sh`. If installed files no longer contain `1.2.181` but browser still shows old version, treat it as PWA/browser cache. Keep router command output compact.
+Continue UI Mihomo Ultra / router-agent from `v1.2.184`. Verify UI bundle version on router with `scripts/check-ui-version-v1.2.184.sh`. If installed files no longer contain `1.2.181` but browser still shows old version, treat it as PWA/browser cache. Keep router command output compact.

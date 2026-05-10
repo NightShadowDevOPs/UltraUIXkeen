@@ -1,6 +1,6 @@
-# Current state after v1.2.183
+# Current state after v1.2.184
 
-- UI package version: `1.2.183`.
+- UI package version: `1.2.184`.
 - zash-agent runtime: `0.6.37`.
 - Watchdog: installed, OK.
 - Maintenance: installed, OK.

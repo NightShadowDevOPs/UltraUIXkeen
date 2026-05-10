@@ -1,15 +1,13 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "release_version": "v1.2.183",
-  "last_known_good_agent_runtime": "0.6.37",
-  "router_state_before_release": {
-    "watchdog": "OK, cron every 2 minutes",
-    "maintenance": "OK, 7 backups retained, /opt/zash-agent around 154.7M after manual cleanup",
-    "restart_helper": "v1.2.182 installed, prefers /opt/etc/init.d/S99zash-agent restart",
-    "ui_issue": "installed frontend assets still contained 1.2.181 in CSS bundles"
-  },
-  "next_verification": [
-    "Run scripts/check-ui-version-v1.2.183.sh on router after UI update",
-    "If files are OK but browser shows old version, clear PWA/browser cache"
+  "project_name": "UI Mihomo Ultra",
+  "release_version": "v1.2.184",
+  "release_title": "Watchdog false-positive hotfix",
+  "zash_agent_runtime": "0.6.37",
+  "scope": "watchdog transport policy only",
+  "status": "prepared",
+  "notes": [
+    "watchdog no longer restarts on BUNDLE_OK=false when status and snapshot root are OK",
+    "raw/manual delivery required for router-agent scripts"
   ]
 }

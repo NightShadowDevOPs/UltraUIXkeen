@@ -1,6 +1,6 @@
-# UI Mihomo Ultra / UltraUIXkeen — release docs v1.2.183
+# UI Mihomo Ultra / UltraUIXkeen — release docs v1.2.184
 
-Release: v1.2.183 — UI Version Bundle Sync Hotfix.
+Release: v1.2.184 — UI Version Bundle Sync Hotfix.
 
 Назначение: синхронизировать отображаемую версию UI bundle после v1.2.182. На роутере агентский hotfix уже установлен, но frontend assets всё ещё содержали `1.2.181`.
 

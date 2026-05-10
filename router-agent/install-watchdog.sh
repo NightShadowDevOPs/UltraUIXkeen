@@ -1,5 +1,5 @@
 #!/opt/bin/sh
-# UI Mihomo Ultra v1.2.180 — install zash-agent watchdog from release source directory.
+# UI Mihomo Ultra v1.2.184 — install zash-agent watchdog from release source directory.
 # Usage: /opt/bin/sh router-agent/install-watchdog.sh
 set -u
 
@@ -13,9 +13,13 @@ SH_BIN="/opt/bin/sh"
 [ -x "$SH_BIN" ] || SH_BIN="/bin/sh"
 
 mkdir -p "$AGENT_DIR/var" "$LOG_DIR" 2>/dev/null || true
-[ -f "$SCRIPT_DIR/restart-agent.sh" ] || { echo 'INSTALL_WATCHDOG_STATUS=FAIL_RESTART_SOURCE_MISSING'; exit 1; }
 [ -f "$SCRIPT_DIR/watchdog.sh" ] || { echo 'INSTALL_WATCHDOG_STATUS=FAIL_WATCHDOG_SOURCE_MISSING'; exit 1; }
-cp -p "$SCRIPT_DIR/restart-agent.sh" "$AGENT_DIR/restart-agent.sh" 2>/dev/null || { echo 'INSTALL_WATCHDOG_STATUS=FAIL_COPY_RESTART'; exit 1; }
+if [ -f "$SCRIPT_DIR/restart-agent.sh" ]; then
+  cp -p "$SCRIPT_DIR/restart-agent.sh" "$AGENT_DIR/restart-agent.sh" 2>/dev/null || { echo 'INSTALL_WATCHDOG_STATUS=FAIL_COPY_RESTART'; exit 1; }
+elif [ ! -x "$AGENT_DIR/restart-agent.sh" ]; then
+  echo 'INSTALL_WATCHDOG_STATUS=FAIL_RESTART_SOURCE_MISSING'
+  exit 1
+fi
 cp -p "$SCRIPT_DIR/watchdog.sh" "$AGENT_DIR/watchdog.sh" 2>/dev/null || { echo 'INSTALL_WATCHDOG_STATUS=FAIL_COPY_WATCHDOG'; exit 1; }
 chmod +x "$AGENT_DIR/restart-agent.sh" "$AGENT_DIR/watchdog.sh" 2>/dev/null || true
 

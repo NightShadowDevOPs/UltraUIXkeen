@@ -1,4 +1,4 @@
-# Release v1.2.183 — UI Version Bundle Sync Hotfix
+# Release v1.2.184 — UI Version Bundle Sync Hotfix
 
 Дата: 2026-05-10
 
@@ -9,7 +9,7 @@
 
 ## Изменения
 
-- `package.json` обновлён до `1.2.183`.
+- `package.json` обновлён до `1.2.184`.
 - Добавлена документация по UI bundle sync.
 - Добавлены компактные router-check scripts для проверки, где в установленном UI осталась старая версия.
 - `zash-agent` runtime marker не менялся: актуальная runtime-версия агента остаётся `0.6.37`.
@@ -29,7 +29,7 @@
 Запустить компактный check script из релиза или выполнить эквивалентную проверку:
 
 ```sh
-/opt/bin/sh scripts/check-ui-version-v1.2.183.sh
+/opt/bin/sh scripts/check-ui-version-v1.2.184.sh
 ```
 
 Ожидаемо:
@@ -37,7 +37,7 @@
 ```text
 OLD_181_FILES=0
 NEW_183_FILES>0
-PACKAGE_VERSION=1.2.183
+PACKAGE_VERSION=1.2.184
 ```
 
 Если `OLD_181_FILES=0`, но в браузере всё ещё видна старая версия — причина в PWA/browser cache, а не в файлах роутера.

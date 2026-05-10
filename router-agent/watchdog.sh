@@ -1,7 +1,8 @@
 #!/opt/bin/sh
-# UI Mihomo Ultra v1.2.181 — zash-agent watchdog.
-# Checks status + ha_snapshot and restarts only zash-agent uhttpd when it is stuck.
-# Safe scope: no Mihomo core, no TUN, no QoS/routing changes, no router reboot.
+# UI Mihomo Ultra v1.2.184 — zash-agent watchdog.
+# Checks status + ha_snapshot transport health and restarts only zash-agent when transport is stuck.
+# v1.2.184 fixes false positive restarts: nested ha_snapshot bundle fields are diagnostic only.
+# Safe scope: no Mihomo core, no TUN, no QoS/routing changes, no provider SSL changes, no router reboot.
 set -u
 
 AGENT_DIR="/opt/zash-agent"
@@ -11,7 +12,6 @@ PORT="${PORT:-9099}"
 BIND_IP="${BIND_IP:-192.168.0.1}"
 [ "$BIND_IP" = "0.0.0.0" ] && PROBE_IP="192.168.0.1" || PROBE_IP="$BIND_IP"
 BASE_URL="${ZASH_AGENT_BASE_URL:-http://$PROBE_IP:$PORT/cgi-bin/api.sh}"
-WATCHDOG_INTERVAL_HINT="${ZASH_AGENT_WATCHDOG_INTERVAL_HINT:-2min}"
 FAIL_THRESHOLD="${ZASH_AGENT_WATCHDOG_FAIL_THRESHOLD:-2}"
 RESTART_COOLDOWN_SECS="${ZASH_AGENT_WATCHDOG_RESTART_COOLDOWN_SECS:-300}"
 STATUS_TIMEOUT="${ZASH_AGENT_WATCHDOG_STATUS_TIMEOUT:-8}"
@@ -22,6 +22,8 @@ LOCK_DIR="$STATE_DIR/watchdog.lock"
 LOG_DIR="/opt/var/log/zash-agent"
 LOG_FILE="$LOG_DIR/watchdog.log"
 RESTART_SCRIPT="$AGENT_DIR/restart-agent.sh"
+SH_BIN="/opt/bin/sh"
+[ -x "$SH_BIN" ] || SH_BIN="/bin/sh"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR" 2>/dev/null || true
 now_epoch() { date +%s 2>/dev/null || echo 0; }
@@ -53,8 +55,8 @@ fetch_body() {
   wget -q -T "$timeout" -O "$out" "$BASE_URL?cmd=$cmd" 2>/dev/null
   return $?
 }
+body_has() { grep -qF "$2" "$1" 2>/dev/null; }
 
-body_has() { grep -q "$2" "$1" 2>/dev/null; }
 check_agent() {
   tmp_base="/tmp/zash-agent-watchdog.$$"
   status_body="$tmp_base.status"
@@ -63,15 +65,22 @@ check_agent() {
   fetch_body ha_snapshot "$SNAPSHOT_TIMEOUT" "$snapshot_body"; snapshot_rc=$?
 
   status_ok=false; snapshot_ok=false; bundle_ok=false
+  bundle_status_ok=false; bundle_traffic_ok=false; bundle_users_ok=false; bundle_qos_ok=false
   body_has "$status_body" '"ok":true' && status_ok=true
   body_has "$snapshot_body" '"ok":true' && snapshot_ok=true
-  if body_has "$snapshot_body" '"status":{"ok":true' && body_has "$snapshot_body" '"traffic":{"ok":true' && body_has "$snapshot_body" '"users":{"ok":true' && body_has "$snapshot_body" '"qos":{"ok":true'; then
+  body_has "$snapshot_body" '"status":{"ok":true' && bundle_status_ok=true
+  body_has "$snapshot_body" '"traffic":{"ok":true' && bundle_traffic_ok=true
+  body_has "$snapshot_body" '"users":{"ok":true' && bundle_users_ok=true
+  body_has "$snapshot_body" '"qos":{"ok":true' && bundle_qos_ok=true
+  if [ "$bundle_status_ok" = true ] && [ "$bundle_traffic_ok" = true ] && [ "$bundle_users_ok" = true ] && [ "$bundle_qos_ok" = true ]; then
     bundle_ok=true
   fi
   rm -f "$status_body" "$snapshot_body" 2>/dev/null || true
 
-  echo "STATUS_RC=$status_rc STATUS_OK=$status_ok SNAPSHOT_RC=$snapshot_rc SNAPSHOT_OK=$snapshot_ok BUNDLE_OK=$bundle_ok"
-  [ "$status_rc" -eq 0 ] && [ "$snapshot_rc" -eq 0 ] && [ "$status_ok" = true ] && [ "$snapshot_ok" = true ] && [ "$bundle_ok" = true ]
+  echo "STATUS_RC=$status_rc STATUS_OK=$status_ok SNAPSHOT_RC=$snapshot_rc SNAPSHOT_OK=$snapshot_ok BUNDLE_OK=$bundle_ok BUNDLE_STATUS_OK=$bundle_status_ok BUNDLE_TRAFFIC_OK=$bundle_traffic_ok BUNDLE_USERS_OK=$bundle_users_ok BUNDLE_QOS_OK=$bundle_qos_ok POLICY=transport_ok"
+  # v1.2.184 policy: restart only when transport/root health is bad.
+  # A partial nested bundle is a data/cache issue, not a reason to restart uhttpd.
+  [ "$status_rc" -eq 0 ] && [ "$snapshot_rc" -eq 0 ] && [ "$status_ok" = true ] && [ "$snapshot_ok" = true ]
 }
 
 read_state() {
@@ -94,7 +103,6 @@ write_state() {
 }
 
 read_state
-CHECK_LINE="$(check_agent)"
 if check_agent >/tmp/zash-watchdog-last.$$ 2>/dev/null; then
   CHECK_LINE="$(cat /tmp/zash-watchdog-last.$$ 2>/dev/null)"
   rm -f /tmp/zash-watchdog-last.$$ 2>/dev/null || true
@@ -136,7 +144,7 @@ if [ ! -x "$RESTART_SCRIPT" ]; then
 fi
 
 log 'WATCHDOG_RESTART=BEGIN'
-/opt/bin/sh "$RESTART_SCRIPT" >> "$LOG_FILE" 2>&1 || /bin/sh "$RESTART_SCRIPT" >> "$LOG_FILE" 2>&1 || true
+$SH_BIN "$RESTART_SCRIPT" >> "$LOG_FILE" 2>&1 || /bin/sh "$RESTART_SCRIPT" >> "$LOG_FILE" 2>&1 || true
 LAST_RESTART="$(now_epoch)"
 sleep 5
 if check_agent >/tmp/zash-watchdog-after.$$ 2>/dev/null; then

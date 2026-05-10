@@ -1,11 +1,11 @@
 #!/bin/sh
-# UI Mihomo Ultra v1.2.183 — compact installed UI version check.
+# UI Mihomo Ultra v1.2.184 — compact installed UI version check.
 # Read-only. Prints <= 15 lines.
 set +e
 cd /opt/etc/mihomo 2>/dev/null || cd /opt/etc 2>/dev/null || true
 old="1.2.181"
-new="1.2.183"
-echo "== UI version check v1.2.183 =="
+new="1.2.184"
+echo "== UI version check v1.2.184 =="
 echo "PWD=$(pwd)"
 old_files=$(grep -Rsl "$old" ./ui ./messire ./zash ./ultraui 2>/dev/null | wc -l)
 new_files=$(grep -Rsl "$new" ./ui ./messire ./zash ./ultraui 2>/dev/null | wc -l)

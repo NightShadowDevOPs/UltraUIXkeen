@@ -91,8 +91,11 @@
 
 Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.
 
-## v1.2.183 — UI Version Bundle Sync Hotfix
+## v1.2.184 — UI Version Bundle Sync Hotfix
 
-- Синхронизация версии UI bundle после v1.2.182: source/package version bumped to `1.2.183`.
+- Синхронизация версии UI bundle после v1.2.182: source/package version bumped to `1.2.184`.
 - Agent runtime остаётся `0.6.37`; restart/watchdog/maintenance уже установлены отдельно raw-командами.
 - Scope: только UI version sync/docs/check scripts, без Mihomo/TUN/QoS/routing/provider SSL.
+
+## v1.2.184
+- Fixed zash-agent watchdog false-positive restarts when status and top-level ha_snapshot are OK but nested bundle diagnostics report BUNDLE_OK=false.
