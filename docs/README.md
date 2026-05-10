@@ -1,7 +1,5 @@
-# UI Mihomo Ultra / UltraUIXkeen — release docs v1.2.184
+# UI Mihomo Ultra v1.2.186 — HA Direct Endpoint Cache-First Hotfix
 
-Release: v1.2.184 — UI Version Bundle Sync Hotfix.
+This release keeps zash-agent runtime marker `0.6.37` and optimizes HA direct endpoints (`ha_status`, `ha_users`, `ha_qos`, `ha_traffic`) by returning stale cache immediately and refreshing stale data in background.
 
-Назначение: синхронизировать отображаемую версию UI bundle после v1.2.182. На роутере агентский hotfix уже установлен, но frontend assets всё ещё содержали `1.2.181`.
-
-Главное: agent runtime остаётся `0.6.37`; этот релиз не меняет runtime агента и сетевую логику.
+Scope: zash-agent API cache behavior only. No Mihomo core, TUN, QoS/routing, provider SSL, users-db, shapers.db, UI behavior, or router reboot changes.

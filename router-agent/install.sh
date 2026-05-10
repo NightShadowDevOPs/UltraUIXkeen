@@ -6173,6 +6173,16 @@ ha_status_json() {
     return
   fi
 
+  # v1.2.186 direct HA cache-first stale fallback for ha_status: return stale cache immediately and refresh in background.
+  if [ "${HA_DIRECT_REFRESH:-0}" != "1" ]; then
+    cached_payload="$(ha_cache_get_any ha_status 2>/dev/null || true)"
+    if [ -n "$cached_payload" ]; then
+      ha_direct_refresh_bg ha_status
+      reply_ok "$cached_payload"
+      return
+    fi
+  fi
+
   hosts_file="$(new_tmp_file zash_ha_status_hosts)"
   labels_file="$(new_tmp_file zash_ha_status_labels)"
   users_file="$(new_tmp_file zash_ha_status_users)"
@@ -6284,6 +6294,16 @@ ha_traffic_json() {
     return
   fi
 
+  # v1.2.186 direct HA cache-first stale fallback for ha_traffic: return stale cache immediately and refresh in background.
+  if [ "${HA_DIRECT_REFRESH:-0}" != "1" ]; then
+    cached_payload="$(ha_cache_get_any ha_traffic 2>/dev/null || true)"
+    if [ -n "$cached_payload" ]; then
+      ha_direct_refresh_bg ha_traffic
+      reply_ok "$cached_payload"
+      return
+    fi
+  fi
+
   current_file="$(new_tmp_file zash_ha_traffic_current)"
   rates_file="$(new_tmp_file zash_ha_traffic_rates)"
   [ -n "$current_file" ] || current_file="/tmp/zash_ha_traffic_current.$$"
@@ -6364,6 +6384,16 @@ ha_users_json() {
     return
   fi
 
+  # v1.2.186 direct HA cache-first stale fallback for ha_users: return stale cache immediately and refresh in background.
+  if [ "${HA_DIRECT_REFRESH:-0}" != "1" ]; then
+    cached_payload="$(ha_cache_get_any ha_users 2>/dev/null || true)"
+    if [ -n "$cached_payload" ]; then
+      ha_direct_refresh_bg ha_users
+      reply_ok "$cached_payload"
+      return
+    fi
+  fi
+
   labels_file="$(new_tmp_file zash_ha_users_labels)"
   hosts_rates_file="$(new_tmp_file zash_ha_users_hosts_rates)"
   users_rates_file="$(new_tmp_file zash_ha_users_user_rates)"
@@ -6422,6 +6452,16 @@ ha_qos_json() {
     return
   fi
 
+  # v1.2.186 direct HA cache-first stale fallback for ha_qos: return stale cache immediately and refresh in background.
+  if [ "${HA_DIRECT_REFRESH:-0}" != "1" ]; then
+    cached_payload="$(ha_cache_get_any ha_qos 2>/dev/null || true)"
+    if [ -n "$cached_payload" ]; then
+      ha_direct_refresh_bg ha_qos
+      reply_ok "$cached_payload"
+      return
+    fi
+  fi
+
   labels_file="$(new_tmp_file zash_ha_qos_labels)"
   hosts_file="$(new_tmp_file zash_ha_qos_hosts)"
   limited_file="$(new_tmp_file zash_ha_qos_limited)"
@@ -6474,6 +6514,18 @@ ha_cache_get_any() {
   cat "$payload_f" 2>/dev/null
 }
 
+ha_direct_refresh_bg() {
+  name="$1"
+  case "$name" in ha_status|ha_traffic|ha_users|ha_qos) ;; *) return 0 ;; esac
+  lock_dir="/tmp/zash-ha-direct-refresh-$name.lock"
+  (
+    mkdir "$lock_dir" >/dev/null 2>&1 || exit 0
+    trap 'rmdir "$lock_dir" >/dev/null 2>&1 || true' EXIT INT TERM
+    HA_DIRECT_REFRESH=1 REQUEST_METHOD=GET QUERY_STRING="cmd=$name" /opt/bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1       || HA_DIRECT_REFRESH=1 REQUEST_METHOD=GET QUERY_STRING="cmd=$name" /bin/sh /opt/zash-agent/www/cgi-bin/api.sh >/dev/null 2>&1       || true
+  ) >/dev/null 2>&1 &
+  return 0
+}
+
 ha_snapshot_stub_json() {
   component="$1"
   reason="$2"
@@ -6507,6 +6559,7 @@ ha_snapshot_refresh_bg() {
   lock_dir="/tmp/zash-ha-snapshot-refresh.lock"
   mkdir "$lock_dir" >/dev/null 2>&1 || return 0
   (
+    HA_DIRECT_REFRESH=1
     ha_status_json >/dev/null 2>&1 || true
     ha_traffic_json >/dev/null 2>&1 || true
     ha_users_json >/dev/null 2>&1 || true
@@ -6577,7 +6630,7 @@ ha_strict_endpoint() {
 ' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo date)" "$cmd" "$fn" "$rc"
     sed -n '1,40p' "$tmp" 2>/dev/null
   } >> "$log_file" 2>/dev/null || true
-  # v1.2.185 strict endpoint cache fallback: if a heavy HA endpoint generated
+  # v1.2.186 strict endpoint cache fallback: if a heavy HA endpoint generated
   # a valid cache but did not emit headers through the strict wrapper, return
   # that cached payload instead of reporting strict-output-violation.
   case "$cmd" in

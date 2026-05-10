@@ -1,4 +1,4 @@
-# UI Mihomo Ultra v1.2.185 — Strict Output Cache Fallback Hotfix
+# UI Mihomo Ultra v1.2.186 — Strict Output Cache Fallback Hotfix
 
 ## Scope
 

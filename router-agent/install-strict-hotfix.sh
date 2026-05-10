@@ -1,5 +1,5 @@
 #!/opt/bin/sh
-# UI Mihomo Ultra v1.2.185 — zash-agent HA strict endpoint hotfix installer.
+# UI Mihomo Ultra v1.2.186 — zash-agent HA strict endpoint hotfix installer.
 # Patches only /opt/zash-agent/www/cgi-bin/api.sh strict wrapper fallback.
 # Does not touch Mihomo core, TUN, QoS/routing, provider SSL, users-db, shapers.db or router reboot.
 set -u
@@ -7,7 +7,7 @@ set -u
 API_FILE="/opt/zash-agent/www/cgi-bin/api.sh"
 BACKUP_DIR="/opt/zash-agent/var/backups"
 TS="$(date '+%Y%m%d-%H%M%S' 2>/dev/null || echo now)"
-MARKER="v1.2.185 strict endpoint cache fallback"
+MARKER="v1.2.186 strict endpoint cache fallback"
 
 mkdir -p "$BACKUP_DIR" /opt/zash-agent/var 2>/dev/null || true
 
@@ -32,7 +32,7 @@ if ! grep -q 'strict-output-violation' "$API_FILE" 2>/dev/null; then
   exit 1
 fi
 
-BACKUP_FILE="$BACKUP_DIR/api.sh.before-strict-hotfix-v1.2.185.$TS"
+BACKUP_FILE="$BACKUP_DIR/api.sh.before-strict-hotfix-v1.2.186.$TS"
 cp "$API_FILE" "$BACKUP_FILE" || {
   echo "INSTALL_STRICT_STATUS=FAIL"
   echo "REASON=BACKUP_FAILED"
@@ -45,7 +45,7 @@ BEGIN { seen=0; inserted=0 }
 {
   if ($0 ~ /strict_no_header=true/) seen=1
   if (seen==1 && inserted==0 && $0 ~ /^[[:space:]]*rm -f "\$tmp"/) {
-    print "  # v1.2.185 strict endpoint cache fallback: if a heavy HA endpoint generated"
+    print "  # v1.2.186 strict endpoint cache fallback: if a heavy HA endpoint generated"
     print "  # a valid cache but did not emit headers through the strict wrapper, return"
     print "  # that cached payload instead of reporting strict-output-violation."
     print "  case \"$cmd\" in"

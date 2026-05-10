@@ -13,7 +13,7 @@ Adds a scoped zash-agent watchdog:
 
 Current agent runtime target: `0.6.37`.
 
-## v1.2.185 — UI Version Bundle Sync Hotfix
+## v1.2.186 — UI Version Bundle Sync Hotfix
 
 - Синхронизация версии UI bundle после v1.2.182: source/package version bumped to `1.2.184`.
 - Agent runtime остаётся `0.6.37`; restart/watchdog/maintenance уже установлены отдельно raw-командами.
