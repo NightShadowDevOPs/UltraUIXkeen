@@ -1,24 +1,8 @@
-# Changelog
+# Changelog v1.2.182
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
-
-## v1.2.181
-
-Added:
-- `router-agent/maintenance.sh`
-- `router-agent/install-maintenance.sh`
-- `scripts/apply-zash-agent-maintenance-v1.2.181.sh`
-- `scripts/check-zash-agent-maintenance-v1.2.181.sh`
-- `scripts/backup-zash-agent-maintenance-v1.2.181.sh`
-- `scripts/rollback-zash-agent-maintenance-v1.2.181.sh`
-
-Changed:
-- Package version bumped to `1.2.181`.
-- Watchdog state can now include `LAST_CHECK_ISO` and `LAST_STATUS`.
-- Maintenance checks use `/opt/var/spool/cron/crontabs/root` as the confirmed router cron path.
-
-Not changed:
-- zash-agent runtime marker remains `0.6.37`.
-- Mihomo core/TUN/QoS/routing/provider SSL unchanged.
+- Changed restart helper to prefer `/opt/etc/init.d/S99zash-agent restart`.
+- Added status + ha_snapshot bundle validation after service restart.
+- Kept scoped manual fallback if service restart does not restore the API.
+- Added release scripts for apply/check/backup/rollback.
+- Updated docs and transfer package.
+- Minor installer housekeeping: `install-maintenance.sh` now copies itself to `/opt/zash-agent/install-maintenance.sh` when run.

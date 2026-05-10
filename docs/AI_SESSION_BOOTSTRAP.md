@@ -1,7 +1,5 @@
 # AI session bootstrap
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
+Continue from v1.2.182.
 
-Continue from v1.2.181. Do not assume UI updater deploys router-agent scripts. Use raw/apply installer for runtime scripts. Keep terminal commands short because the router terminal breaks long one-liners.
+The restart helper should prefer `/opt/etc/init.d/S99zash-agent restart` and validate both `status` and `ha_snapshot`. UI updater does not deploy router-agent scripts; use raw/manual commands for runtime agent files.

@@ -1,20 +1,7 @@
-# Release plan
+# Release plan v1.2.182
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
-
-Scope:
-1. Add `/opt/zash-agent/maintenance.sh` support.
-2. Keep only last 7 daily `zash-backup-*.tar.gz` files.
-3. Rotate `/opt/zash-agent/var/agent.log` when it exceeds 10 MiB.
-4. Keep 3 compressed `agent.log.*.gz` copies.
-5. Add install/check/apply/rollback scripts for maintenance.
-6. Update docs and transfer notes that UI updater does not deliver router-agent scripts.
-
-Out of scope:
-- Mihomo core.
-- TUN.
-- QoS/routing.
-- Provider SSL checks.
-- users-db, shapers.db, provider cache deletion.
+1. Update `router-agent/restart-agent.sh`.
+2. Add install/check/backup/rollback scripts for restart helper hotfix.
+3. Keep runtime scope narrow: zash-agent restart only.
+4. Preserve Mihomo core, TUN, QoS/routing, provider SSL, users-db and shapers.
+5. Deliver router-agent runtime changes through raw/manual commands because UI updater does not deploy agent scripts.

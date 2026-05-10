@@ -1,9 +1,5 @@
 # Files manifest
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
-
 - `.dockerignore`
 - `.editorconfig`
 - `.gitattributes`
@@ -18,6 +14,7 @@ Title: Agent Maintenance: backup retention and log rotation
 - `README.md`
 - `docs/AI_SESSION_BOOTSTRAP.md`
 - `docs/BUGS_AND_ISSUES.md`
+- `docs/BUILD_REPORT.md`
 - `docs/CHANGELOG.md`
 - `docs/CHECKS_AND_STATUS.md`
 - `docs/DO_NOT_DO.md`
@@ -42,6 +39,7 @@ Title: Agent Maintenance: backup retention and log rotation
 - `docs/release-v1.2.179.md`
 - `docs/release-v1.2.180.md`
 - `docs/release-v1.2.181.md`
+- `docs/release-v1.2.182.md`
 - `env.d.ts`
 - `eslint.config.js`
 - `index.html`
@@ -60,18 +58,23 @@ Title: Agent Maintenance: backup retention and log rotation
 - `readme/pc.png`
 - `router-agent/README.md`
 - `router-agent/install-maintenance.sh`
+- `router-agent/install-restart-agent.sh`
 - `router-agent/install-watchdog.sh`
 - `router-agent/install.sh`
 - `router-agent/maintenance.sh`
 - `router-agent/restart-agent.sh`
 - `router-agent/watchdog.sh`
 - `scripts/apply-zash-agent-maintenance-v1.2.181.sh`
+- `scripts/apply-zash-agent-restart-v1.2.182.sh`
 - `scripts/apply-zash-agent-watchdog-v1.2.180.sh`
 - `scripts/backup-zash-agent-maintenance-v1.2.181.sh`
+- `scripts/backup-zash-agent-restart-v1.2.182.sh`
 - `scripts/backup-zash-agent-watchdog-v1.2.180.sh`
 - `scripts/check-zash-agent-maintenance-v1.2.181.sh`
+- `scripts/check-zash-agent-restart-v1.2.182.sh`
 - `scripts/check-zash-agent-watchdog-v1.2.180.sh`
 - `scripts/rollback-zash-agent-maintenance-v1.2.181.sh`
+- `scripts/rollback-zash-agent-restart-v1.2.182.sh`
 - `scripts/rollback-zash-agent-watchdog-v1.2.180.sh`
 - `src/App.vue`
 - `src/api/agent.ts`

@@ -1,11 +1,7 @@
 # Next actions
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
-
-1. Push v1.2.181 to GitHub.
-2. Use raw download or source checkout to install `router-agent/maintenance.sh` and `install-maintenance.sh`.
-3. Run `maintenance.sh dry-run`.
-4. Run check script.
-5. Later add UI indicators for watchdog/maintenance.
+1. Push v1.2.182 to GitHub.
+2. Install restart helper via raw/manual path.
+3. Run check script.
+4. Avoid unnecessary restart test if service is healthy, or test only during controlled maintenance.
+5. Next larger area: CPU/load diagnostics and UI visibility for watchdog/maintenance.

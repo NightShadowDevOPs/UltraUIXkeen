@@ -1,7 +1,8 @@
 # Project memory dump
 
-Project: UI Mihomo Ultra / zash-agent
-Release: v1.2.181
-Title: Agent Maintenance: backup retention and log rotation
-
-v1.2.180 watchdog was installed via GitHub raw download. It installed `/opt/zash-agent/restart-agent.sh` and `/opt/zash-agent/watchdog.sh`; cron line is every 2 minutes in `/opt/var/spool/cron/crontabs/root`. Manual cleanup later reduced `/opt/zash-agent` from about 837.9M to 154.7M by deleting old backups and rotating agent.log. v1.2.181 formalizes this as maintenance tooling.
+- UI updater updates frontend bundle only.
+- zash-agent runtime scripts are delivered by raw/manual commands.
+- v1.2.180 installed watchdog through raw GitHub path.
+- v1.2.181 installed maintenance through raw GitHub path.
+- v1.2.182 updates restart helper to prefer init service restart.
+- zash-agent endpoint is on `192.168.0.1:9099`, not `127.0.0.1:9099`.

@@ -1,5 +1,5 @@
 #!/opt/bin/sh
-# UI Mihomo Ultra v1.2.181 — install zash-agent maintenance script and daily cron.
+# UI Mihomo Ultra v1.2.182 — install zash-agent maintenance script and daily cron.
 set -u
 
 SCRIPT_PATH="$0"
@@ -14,6 +14,8 @@ mkdir -p "$AGENT_DIR/var" 2>/dev/null || true
 [ -f "$SCRIPT_DIR/maintenance.sh" ] || { echo 'INSTALL_MAINTENANCE_STATUS=FAIL_SOURCE_MISSING'; exit 1; }
 cp -p "$SCRIPT_DIR/maintenance.sh" "$AGENT_DIR/maintenance.sh" 2>/dev/null || { echo 'INSTALL_MAINTENANCE_STATUS=FAIL_COPY'; exit 1; }
 chmod +x "$AGENT_DIR/maintenance.sh" 2>/dev/null || true
+cp -p "$SCRIPT_PATH" "$AGENT_DIR/install-maintenance.sh" 2>/dev/null || true
+chmod +x "$AGENT_DIR/install-maintenance.sh" 2>/dev/null || true
 
 cron_tab=""
 for f in /opt/var/spool/cron/crontabs/root /opt/etc/crontabs/root /etc/crontabs/root /var/spool/cron/crontabs/root; do
@@ -39,3 +41,4 @@ echo 'INSTALL_MAINTENANCE_STATUS=OK'
 echo "MAINTENANCE_CRON=$SCHEDULE"
 echo "MAINTENANCE_CRON_FILE=$cron_tab"
 echo 'MAINTENANCE_FILE=/opt/zash-agent/maintenance.sh'
+echo 'INSTALL_MAINTENANCE_FILE=/opt/zash-agent/install-maintenance.sh'

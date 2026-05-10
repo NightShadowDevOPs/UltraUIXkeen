@@ -1,29 +1,22 @@
 {
   "project_slug": "ui-mihomo-ultra",
   "project_name": "UI Mihomo Ultra / zash-agent",
-  "release_version": "v1.2.181",
-  "release_title": "Agent Maintenance: backup retention and log rotation",
-  "created_at_utc": "2026-05-09T23:33:06.846430+00:00",
-  "source_baseline": "release-ui-mihomo-ultra-v1.2.180.zip",
-  "runtime_status": "not deployed by this package; raw/apply installer required for router-agent scripts",
-  "safety_scope": [
-    "no Mihomo core changes",
-    "no TUN changes",
-    "no QoS/routing changes",
-    "no provider SSL changes",
-    "no users-db/shapers/provider cache deletion"
-  ],
-  "live_context": {
-    "ui_version": "1.2.180/1.2.181 package target",
-    "agent_version": "0.6.37",
-    "watchdog": "installed previously via raw v1.2.180, cron every 2 minutes",
-    "cron_file": "/opt/var/spool/cron/crontabs/root",
-    "manual_cleanup_done": "zash-agent reduced from ~837.9M to ~154.7M by keeping last 7 backups and rotating agent.log",
-    "pre_cleanup": {
-      "backups_count": 32,
-      "delete_candidates": 25,
-      "would_free_mb": 636,
-      "agent_log_bytes": 51468140
-    }
+  "release_version": "v1.2.182",
+  "release_title": "Agent Restart Service Hotfix",
+  "created_at_utc": "2026-05-09T23:59:52.946263+00:00",
+  "artifact_naming_status": "OK",
+  "docs_package_status": "OK",
+  "transfer_package_status": "OK",
+  "static_safety_status": "OK",
+  "backup_script_status": "OK",
+  "release_artifact_status": "OK",
+  "runtime_smoke_status": "NOT_RUN_ON_ROUTER_FROM_PACKAGE",
+  "runtime_status_known_from_user": {
+    "v1.2.181_maintenance": "OK",
+    "watchdog": "OK",
+    "agent_status_endpoint": "OK",
+    "agent_size_after_cleanup": "154.7M",
+    "service_restart_supported": true,
+    "init_service": "/opt/etc/init.d/S99zash-agent"
   }
 }
