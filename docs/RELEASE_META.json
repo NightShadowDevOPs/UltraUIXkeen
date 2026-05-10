@@ -1,7 +1,7 @@
 {
   "project_slug": "ui-mihomo-ultra",
   "project_name": "UI Mihomo Ultra",
-  "release_version": "v1.2.184",
+  "release_version": "v1.2.185",
   "release_title": "Watchdog false-positive hotfix",
   "zash_agent_runtime": "0.6.37",
   "scope": "watchdog transport policy only"

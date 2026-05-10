@@ -6577,6 +6577,22 @@ ha_strict_endpoint() {
 ' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo date)" "$cmd" "$fn" "$rc"
     sed -n '1,40p' "$tmp" 2>/dev/null
   } >> "$log_file" 2>/dev/null || true
+  # v1.2.185 strict endpoint cache fallback: if a heavy HA endpoint generated
+  # a valid cache but did not emit headers through the strict wrapper, return
+  # that cached payload instead of reporting strict-output-violation.
+  case "$cmd" in
+    ha_status|ha_traffic|ha_users|ha_qos)
+      cached_payload="$(ha_cache_get_any "$cmd" 2>/dev/null || true)"
+      if [ -n "$cached_payload" ]; then
+        printf '%s cmd=%s strict_cache_fallback=true fn=%s rc=%s
+' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo date)" "$cmd" "$fn" "$rc" >> "$log_file" 2>/dev/null || true
+        rm -f "$tmp" 2>/dev/null || true
+        reply_ok "$cached_payload"
+        return 0
+      fi
+      ;;
+  esac
+
   rm -f "$tmp" 2>/dev/null || true
   reply_ok "$(printf '{"ok":false,"format_version":1,"timestamp":"%s","error":"strict-output-violation","cmd":"%s"}' "$(jesc "$(ha_now_iso)")" "$(jesc "$cmd")")"
   return 0
