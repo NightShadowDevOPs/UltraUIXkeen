@@ -1,11 +1,9 @@
-# Bugs and issues
+# Bugs and issues v1.2.183
 
-## Fixed / improved
+## Fixed / addressed
 
-- Previous `restart-agent.sh` manually killed scoped uhttpd/CGI and then used `S99zash-agent start`, but did not prefer `S99zash-agent restart`.
+- UI показывал `1.2.181` после установки agent hotfix `v1.2.182`. Причина: старый frontend bundle/cache, а не состояние `restart-agent.sh`.
 
-## Still known
+## Still possible
 
-- UI updater does not deliver `router-agent/` or `scripts/` files to router runtime.
-- Agent runtime changes must use raw/manual installer path.
-- Do not test restart unnecessarily while API is healthy unless applying this release intentionally.
+- Если файлы роутера уже обновлены, но браузер показывает старую версию, причина может быть в PWA/service worker/browser cache.

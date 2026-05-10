@@ -1,9 +1,8 @@
 # Rules digest
 
-- Use universal release rules v9.10.2.
-- Use artifacts named `release-*`, `release-docs-*`, `release-transfer-*`.
-- Do not use checkpoint prefixes.
-- Keep release docs and transfer docs separate from main release archive.
-- Do not include secrets.
-- Do not touch Mihomo core, TUN, QoS/routing, provider SSL, users-db or shapers unless explicitly requested.
-- Router terminal dislikes long one-liners; provide short commands.
+- Use release prefix artifacts only: `release-*`.
+- No checkpoint artifact names.
+- Do not deploy/restart/mutate runtime without explicit decision.
+- No secrets/tokens/full URLs in docs/archives.
+- Router terminal output must stay compact, 10–15 lines.
+- UI updater does not deploy `router-agent/*` scripts; agent runtime uses raw/manual install path.

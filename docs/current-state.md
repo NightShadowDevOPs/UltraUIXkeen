@@ -1,8 +1,8 @@
-# Current State — UI Mihomo Ultra / zash-agent v1.2.181
+# Current state after v1.2.183
 
-- UI version: `1.2.181`.
-- zash-agent runtime target: `0.6.37`.
-- Router endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`.
-- Agent listens on router LAN IP, not on `127.0.0.1`.
-- HA source of truth: `cmd=ha_snapshot`.
-- This release adds watchdog/restart helper scripts for the agent only.
+- UI package version: `1.2.183`.
+- zash-agent runtime: `0.6.37`.
+- Watchdog: installed, OK.
+- Maintenance: installed, OK.
+- Restart helper: `v1.2.182` service restart hotfix installed.
+- This release: UI version bundle sync only.

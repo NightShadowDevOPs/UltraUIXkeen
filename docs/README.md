@@ -1,11 +1,7 @@
-# UI Mihomo Ultra / zash-agent — v1.2.182
+# UI Mihomo Ultra / UltraUIXkeen — release docs v1.2.183
 
-Agent Restart Service Hotfix.
+Release: v1.2.183 — UI Version Bundle Sync Hotfix.
 
-This release changes only `zash-agent` restart behavior. The helper now prefers the installed Entware init service restart and keeps the previous scoped fallback.
+Назначение: синхронизировать отображаемую версию UI bundle после v1.2.182. На роутере агентский hotfix уже установлен, но frontend assets всё ещё содержали `1.2.181`.
 
-Artifacts:
-
-- `release-ui-mihomo-ultra-v1.2.182.zip`
-- `release-docs-ui-mihomo-ultra-v1.2.182.zip`
-- `release-transfer-ui-mihomo-ultra-v1.2.182.zip`
+Главное: agent runtime остаётся `0.6.37`; этот релиз не меняет runtime агента и сетевую логику.

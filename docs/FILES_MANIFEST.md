@@ -40,6 +40,7 @@
 - `docs/release-v1.2.180.md`
 - `docs/release-v1.2.181.md`
 - `docs/release-v1.2.182.md`
+- `docs/release-v1.2.183.md`
 - `env.d.ts`
 - `eslint.config.js`
 - `index.html`
@@ -67,9 +68,11 @@
 - `scripts/apply-zash-agent-maintenance-v1.2.181.sh`
 - `scripts/apply-zash-agent-restart-v1.2.182.sh`
 - `scripts/apply-zash-agent-watchdog-v1.2.180.sh`
+- `scripts/backup-ui-version-state-v1.2.183.sh`
 - `scripts/backup-zash-agent-maintenance-v1.2.181.sh`
 - `scripts/backup-zash-agent-restart-v1.2.182.sh`
 - `scripts/backup-zash-agent-watchdog-v1.2.180.sh`
+- `scripts/check-ui-version-v1.2.183.sh`
 - `scripts/check-zash-agent-maintenance-v1.2.181.sh`
 - `scripts/check-zash-agent-restart-v1.2.182.sh`
 - `scripts/check-zash-agent-watchdog-v1.2.180.sh`

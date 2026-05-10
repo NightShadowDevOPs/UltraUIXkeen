@@ -1,7 +1,7 @@
 # Next actions
 
-1. Push v1.2.182 to GitHub.
-2. Install restart helper via raw/manual path.
-3. Run check script.
-4. Avoid unnecessary restart test if service is healthy, or test only during controlled maintenance.
-5. Next larger area: CPU/load diagnostics and UI visibility for watchdog/maintenance.
+1. Push `v1.2.183` to GitHub.
+2. Update UI on router using the existing UI update path.
+3. Run compact version check.
+4. If browser still displays old version, clear PWA/browser cache.
+5. Then continue router CPU/load optimization.

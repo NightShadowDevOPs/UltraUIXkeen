@@ -1,5 +1,9 @@
 # AI session bootstrap
 
-Continue from v1.2.182.
-
-The restart helper should prefer `/opt/etc/init.d/S99zash-agent restart` and validate both `status` and `ha_snapshot`. UI updater does not deploy router-agent scripts; use raw/manual commands for runtime agent files.
+Continue from release `v1.2.183`.
+Important state:
+- Watchdog installed and OK.
+- Maintenance installed and OK.
+- Restart helper `v1.2.182` installed and prefers service restart.
+- `v1.2.183` is only UI version/bundle sync.
+- Keep commands compact, max 10–15 lines of output.

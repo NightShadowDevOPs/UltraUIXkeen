@@ -1,5 +1,11 @@
-# Session transfer
+# Session transfer v1.2.183
 
-Release v1.2.182 prepared as Agent Restart Service Hotfix. It updates `router-agent/restart-agent.sh` to prefer `/opt/etc/init.d/S99zash-agent restart`, with scoped fallback preserved.
+Release `v1.2.183` is a UI version sync release. It does not change router-agent runtime logic. After pushing/updating UI, verify installed assets.
 
-Current router state before release: maintenance OK, watchdog OK, status endpoint OK, zash-agent size about 154.7M.
+Expected compact check result:
+
+```text
+OLD_181_FILES=0
+NEW_183_FILES>0
+DECISION=UI_FILES_OK_OR_BROWSER_CACHE
+```

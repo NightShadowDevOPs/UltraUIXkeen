@@ -1,8 +1,5 @@
-# Tasks done
+# Tasks done v1.2.183
 
-- Confirmed router has `/opt/etc/init.d/S99zash-agent`.
-- Confirmed service supports `start|stop|restart`.
-- Confirmed previous restart helper did not use service restart first.
-- Prepared v1.2.182 restart helper hotfix.
-- Preserved previous scoped fallback behavior.
-- Added maintenance installer self-copy polish so its status output matches installed files.
+- Зафиксирован факт: `v1.2.182` agent helper установлен, но UI assets на роутере показывали `1.2.181`.
+- Подготовлен version-sync релиз `v1.2.183`.
+- Добавлен компактный check script, чтобы не получать простыни вывода.

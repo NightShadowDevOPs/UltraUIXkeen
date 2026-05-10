@@ -1,22 +1,29 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "project_name": "UI Mihomo Ultra / zash-agent",
-  "release_version": "v1.2.182",
-  "release_title": "Agent Restart Service Hotfix",
-  "created_at_utc": "2026-05-09T23:59:52.946263+00:00",
+  "project_name": "UI Mihomo Ultra / UltraUIXkeen",
+  "release_version": "v1.2.183",
+  "release_title": "UI Version Bundle Sync Hotfix",
+  "created_at": "2026-05-10T10:00:00+03:00",
+  "previous_release": "v1.2.182",
   "artifact_naming_status": "OK",
   "docs_package_status": "OK",
   "transfer_package_status": "OK",
   "static_safety_status": "OK",
-  "backup_script_status": "OK",
   "release_artifact_status": "OK",
+  "backup_script_status": "OK",
   "runtime_smoke_status": "NOT_RUN_ON_ROUTER_FROM_PACKAGE",
-  "runtime_status_known_from_user": {
-    "v1.2.181_maintenance": "OK",
-    "watchdog": "OK",
-    "agent_status_endpoint": "OK",
-    "agent_size_after_cleanup": "154.7M",
-    "service_restart_supported": true,
-    "init_service": "/opt/etc/init.d/S99zash-agent"
-  }
+  "scope": [
+    "package.json version bump to 1.2.183",
+    "UI bundle version sync documentation",
+    "compact installed UI version check script"
+  ],
+  "not_changed": [
+    "Mihomo core",
+    "TUN",
+    "QoS/routing",
+    "provider SSL",
+    "users-db",
+    "shapers",
+    "zash-agent runtime marker 0.6.37"
+  ]
 }

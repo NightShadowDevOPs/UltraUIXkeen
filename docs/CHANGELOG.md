@@ -1,8 +1,9 @@
-# Changelog v1.2.182
+# Changelog v1.2.183
 
-- Changed restart helper to prefer `/opt/etc/init.d/S99zash-agent restart`.
-- Added status + ha_snapshot bundle validation after service restart.
-- Kept scoped manual fallback if service restart does not restore the API.
-- Added release scripts for apply/check/backup/rollback.
-- Updated docs and transfer package.
-- Minor installer housekeeping: `install-maintenance.sh` now copies itself to `/opt/zash-agent/install-maintenance.sh` when run.
+## v1.2.183
+
+- Bumped UI package version to `1.2.183`.
+- Added `scripts/check-ui-version-v1.2.183.sh` for compact router-side version scan.
+- Added `scripts/backup-ui-version-state-v1.2.183.sh` for safe frontend directory backup.
+- Updated docs/transfer package for UI bundle version sync.
+- No agent runtime marker bump: zash-agent remains `0.6.37`.

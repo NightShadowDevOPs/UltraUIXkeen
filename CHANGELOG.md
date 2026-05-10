@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## v1.2.181 — zash-agent watchdog
+## v1.2.182 — zash-agent watchdog
 
 - Added scoped restart helper for zash-agent uhttpd.
 - Added watchdog that validates `status` and `ha_snapshot` before deciding to restart.
@@ -10,12 +10,12 @@
 
 # Changelog
 
-## v1.2.181 — normalized release package after v1.2.178 hotfix
+## v1.2.182 — normalized release package after v1.2.178 hotfix
 
 - Merged the agent-only `v1.2.178` lightweight apply fix into the main release package.
 - Kept installed zash-agent marker at `0.6.37`.
 - Replaced full `/opt/zash-agent` tar backup flow with lightweight file backup in current apply/backup scripts.
-- Added current `apply`, `check`, `rollback` and `backup` scripts for `v1.2.181`.
+- Added current `apply`, `check`, `rollback` and `backup` scripts for `v1.2.182`.
 - Removed stale root transfer/scratch artifacts from the release archive.
 - Fixed stale documentation references to older UI/agent versions.
 - Replaced literal NUL bytes in `router-agent/install.sh` with textual `\000` escaping.
@@ -91,3 +91,8 @@
 
 Закрыт риск невалидных HTTP responses для Home Assistant: строки `shape`, `wireguard-route` и другой stdout от shell helpers больше не могут попасть перед `Content-Type: application/json`. Добавлены безопасная сортировка без `sort -o` и strict wrapper для HA endpoints. Агент: `0.6.36`.
 
+## v1.2.183 — UI Version Bundle Sync Hotfix
+
+- Синхронизация версии UI bundle после v1.2.182: source/package version bumped to `1.2.183`.
+- Agent runtime остаётся `0.6.37`; restart/watchdog/maintenance уже установлены отдельно raw-командами.
+- Scope: только UI version sync/docs/check scripts, без Mihomo/TUN/QoS/routing/provider SSL.

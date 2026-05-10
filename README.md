@@ -1,8 +1,8 @@
-# UI Mihomo Ultra v1.2.181
+# UI Mihomo Ultra v1.2.182
 
 Router UI and zash-agent maintenance package.
 
-## v1.2.181
+## v1.2.182
 
 Adds a scoped zash-agent watchdog:
 
@@ -12,3 +12,9 @@ Adds a scoped zash-agent watchdog:
 - installs cron line tagged `zash-agent-watchdog`.
 
 Current agent runtime target: `0.6.37`.
+
+## v1.2.183 — UI Version Bundle Sync Hotfix
+
+- Синхронизация версии UI bundle после v1.2.182: source/package version bumped to `1.2.183`.
+- Agent runtime остаётся `0.6.37`; restart/watchdog/maintenance уже установлены отдельно raw-командами.
+- Scope: только UI version sync/docs/check scripts, без Mihomo/TUN/QoS/routing/provider SSL.

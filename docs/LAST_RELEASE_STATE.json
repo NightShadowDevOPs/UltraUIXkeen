@@ -1,22 +1,15 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "project_name": "UI Mihomo Ultra / zash-agent",
-  "release_version": "v1.2.182",
-  "release_title": "Agent Restart Service Hotfix",
-  "created_at_utc": "2026-05-09T23:59:52.946263+00:00",
-  "artifact_naming_status": "OK",
-  "docs_package_status": "OK",
-  "transfer_package_status": "OK",
-  "static_safety_status": "OK",
-  "backup_script_status": "OK",
-  "release_artifact_status": "OK",
-  "runtime_smoke_status": "NOT_RUN_ON_ROUTER_FROM_PACKAGE",
-  "runtime_status_known_from_user": {
-    "v1.2.181_maintenance": "OK",
-    "watchdog": "OK",
-    "agent_status_endpoint": "OK",
-    "agent_size_after_cleanup": "154.7M",
-    "service_restart_supported": true,
-    "init_service": "/opt/etc/init.d/S99zash-agent"
-  }
+  "release_version": "v1.2.183",
+  "last_known_good_agent_runtime": "0.6.37",
+  "router_state_before_release": {
+    "watchdog": "OK, cron every 2 minutes",
+    "maintenance": "OK, 7 backups retained, /opt/zash-agent around 154.7M after manual cleanup",
+    "restart_helper": "v1.2.182 installed, prefers /opt/etc/init.d/S99zash-agent restart",
+    "ui_issue": "installed frontend assets still contained 1.2.181 in CSS bundles"
+  },
+  "next_verification": [
+    "Run scripts/check-ui-version-v1.2.183.sh on router after UI update",
+    "If files are OK but browser shows old version, clear PWA/browser cache"
+  ]
 }
