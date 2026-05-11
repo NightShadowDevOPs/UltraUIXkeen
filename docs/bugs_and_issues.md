@@ -1,15 +1,9 @@
-# BUGS_AND_ISSUES — v1.2.187
+# Bugs and issues — v1.2.191
 
-## Исправляется в релизе
+## Fixed / improved
+- Provider table now has a place to track hosting payment dates manually.
+- URL input columns were tightened to reduce table sprawl.
 
-- `ha_snapshot.status.system.cpu_pct` мог оставаться `50`, хотя `cmd=status` отдавал живой CPU.
-- `ha_snapshot.status.system.load` отсутствовал, хотя `cmd=status` уже отдаёт `load1/load5/load15`.
-
-## Остаётся наблюдать
-
-- Проверить 3–5 последовательных samples после установки: `status_cpu` и `snapshot_cpu` должны быть близкими, без постоянного `50`.
-- Если endpoint снова начнёт залипать, использовать установленный watchdog/restart helper, не трогая Mihomo core.
-
-## v1.2.190
-
-UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.
+## Known limitations
+- Payment date is manual; the UI does not query hosting provider billing APIs.
+- The check script verifies source presence only; final visual acceptance is done in UI after deployment/build.

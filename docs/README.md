@@ -1,11 +1,18 @@
-# UI Mihomo Ultra v1.2.190
+# UI Mihomo Ultra / router-agent — v1.2.191
 
-Provider panel links UI polish release.
+Provider Hosting Payment Dates UI.
 
-Current behavior:
+This is a UI/users-db settings release. It adds manual hosting payment due dates per provider and keeps the provider link/SSL mechanism intact.
 
-- SSL certificate checks remain based on subscription URLs.
-- Public panel URL and SSH/local panel URL are separate provider metadata fields.
-- Provider access table has aligned columns, shorter URL fields and provider names displayed as badges.
+## Scope
+- UI provider checks table.
+- Local/shared users-db settings.
+- Documentation and compact check script.
 
-See `release-v1.2.190.md` and `chat_transfer_v1.2.190.md`.
+## Not in scope
+- router-agent runtime endpoint changes;
+- Mihomo core;
+- TUN/QoS/routing;
+- provider SSL logic;
+- SSH tunnels;
+- router reboot.

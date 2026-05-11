@@ -1,39 +1,15 @@
-
-## v1.2.189 — Provider Access Links UI
-
-- Добавлено ручное поле `Панель · SSH` для провайдеров.
-- Разделены ссылки `Подписка`, `Панель · Internet`, `Панель · SSH`.
-- `providerPanelSshUrls` включён в users-db sync.
-- SSL-проверка остаётся по ссылке подписки, без перехода на панель.
-
-# Changelog — v1.2.188
-
-- Added provider link metadata split: subscription URL, Internet panel URL, optional SSH/local panel URL.
-- Added router-agent `panelSshUrl` field sourced from manual `providerPanelSshUrls` map.
-- Marked provider SSL checks as subscription-first (`sslCheckSource=subscription`) while preserving diagnostic panel SSL fields.
-- Added compact provider table link badges for subscription/panel Internet/panel SSH.
-- No changes to Mihomo core, TUN, QoS/routing, users rules, provider URLs, HA, HA DB, Energy or boiler.
-
-# CHANGELOG — v1.2.187
+# Changelog — v1.2.191
 
 ## Added
-
-- `router-agent/install-ha-snapshot-cpu-hotfix.sh`
-- `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh`
+- Added manual hosting payment due-date field for each proxy provider in the provider checks table.
+- Added payment status text: not set, today, expired, warning within 7 days, or OK with days left.
+- Added persistence through shared users-db settings as `providerHostingDueDates` / `proxyProviderHostingDueDateMap`.
 
 ## Changed
-
-- `router-agent/install.sh`: добавлена логика live overlay для `ha_snapshot.status.system.cpu_pct` и `status.system.load`.
-- `package.json`: версия `1.2.187`.
+- Provider access URL inputs are narrower to keep table columns aligned.
+- Removing provider manual settings now also clears hosting payment due date for that provider.
 
 ## Not changed
-
-- Mihomo core/TUN/QoS/routing/provider SSL.
-- Home Assistant/HA DB/native Energy/SmartLife boiler.
-
-## v1.2.190
-
-UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.
+- No router-agent runtime endpoint change.
+- No Mihomo core, TUN, QoS, routing, provider SSL, users-db structure-breaking migration, or router reboot.
+- SSL certificate checks continue to use subscription URL as the SSL source after v1.2.188.

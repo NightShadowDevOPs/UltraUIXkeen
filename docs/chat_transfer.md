@@ -1,9 +1,13 @@
-Продолжаем UI Mihomo Ultra / router-agent после v1.2.187.
+# Chat transfer — v1.2.191
 
-v1.2.187 — router-agent hotfix для залипшего CPU в Home Assistant Router Contract: `cmd=status` отдавал живой CPU, а `cmd=ha_snapshot` мог возвращать stale/fallback `status.system.cpu_pct=50`. Подготовлен installer `router-agent/install-ha-snapshot-cpu-hotfix.sh`, marker `v1.2.187 ha_snapshot live CPU/load overlay`, check script `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`.
+Continue UI Mihomo Ultra / router-agent from this state:
 
-Не трогать Home Assistant, HA DB, native Energy, SmartLife boiler, Mihomo core, TUN, QoS/routing, provider SSL, users-db, shapers.db. Вывод диагностик держать в 10–15 строк.
+- Router IP: `192.168.0.1`.
+- Agent endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`.
+- Runtime agent version: `0.6.37`.
+- Stable releases already applied: watchdog/maintenance/restart/strict/cache-first and snapshot CPU fixes up to v1.2.187.
+- Provider links work from v1.2.188+: subscription URL, public panel URL, optional SSH panel URL.
+- v1.2.190 improved provider name display and aligned provider URL columns.
+- v1.2.191 adds manual hosting payment due-date tracking per provider; dates are saved through users-db sync.
 
-## v1.2.190
-
-UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.
+Next likely task: after panels are closed to Internet, verify browser access through PC-side SSH tunnels and update each provider `panel SSH` URL to `https://127.0.0.1:<local_port>/...`.

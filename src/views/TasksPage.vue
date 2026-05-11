@@ -118,6 +118,7 @@
 					  <tr>
 						<th class="align-middle">{{ $t('provider') }}</th>
 						<th class="align-middle">{{ $t('providerAccessLinks') }}</th>
+						<th class="align-middle">{{ $t('hostingPaymentDue') }}</th>
 						<th class="align-middle">{{ $t('sslWarnDays') }}</th>
 						<th class="align-middle">{{ $t('sslExpires') }}</th>
 					  </tr>
@@ -158,7 +159,7 @@
 							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
 							  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
 							</div>
-							<div class="grid grid-cols-[110px_minmax(160px,320px)_64px] items-center gap-2">
+							<div class="grid grid-cols-[90px_minmax(120px,220px)_56px] items-center gap-2">
 							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
 							  <input
 								type="text"
@@ -167,10 +168,10 @@
 								:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
 								@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
 							  />
-							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-14 px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-12 px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
 							  <span v-else class="w-14" />
 							</div>
-							<div class="grid grid-cols-[110px_minmax(160px,320px)_64px_56px] items-center gap-2">
+							<div class="grid grid-cols-[90px_minmax(120px,220px)_56px_52px] items-center gap-2">
 							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
 							  <input
 								type="text"
@@ -179,10 +180,27 @@
 								:value="providerPanelSshUrl(p)"
 								@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
 							  />
-							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs w-14 px-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs w-12 px-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
 							  <span v-else class="w-14" />
-							  <button type="button" class="btn btn-ghost btn-xs w-12 px-1 text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
+							  <button type="button" class="btn btn-ghost btn-xs w-11 px-1 text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
 							</div>
+						  </div>
+						</td>
+						<td class="align-middle">
+						  <div class="flex max-w-[190px] flex-col gap-1">
+							<input
+							  type="date"
+							  class="input input-bordered input-xs w-36"
+							  :value="proxyProviderHostingDueDateMap[p.name] || ''"
+							  @input="onProviderHostingDueDateInput(p.name, $event)"
+							/>
+							<span
+							  class="text-[10px] font-semibold"
+							  :class="hostingPaymentInfo(p.name).cls"
+							  :title="hostingPaymentInfo(p.name).title"
+							>
+							  {{ hostingPaymentInfo(p.name).text }}
+							</span>
 						  </div>
 						</td>
 						<td>
@@ -1942,7 +1960,7 @@ import { countryCodeToFlagEmoji, normalizeProviderIcon } from '@/helper/provider
 import { FLAG_CODES } from '@/helper/flagIcons'
 import { activeBackend, backendList } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
-import { proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
+import { proxyProviderHostingDueDateMap, proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProvidersSslRefreshing, fetchAgentProviders, panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl, refreshAgentProviderSslCache } from '@/store/providerHealth'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
@@ -2319,6 +2337,13 @@ const removeProviderPanelSettings = (name: string) => {
     changed = true
   }
 
+  const nextHosting = { ...(proxyProviderHostingDueDateMap.value || {}) }
+  if (k in nextHosting) {
+    delete nextHosting[k]
+    proxyProviderHostingDueDateMap.value = nextHosting
+    changed = true
+  }
+
   const nextIcons = { ...(proxyProviderIconMap.value || {}) }
   if (k in nextIcons) {
     delete nextIcons[k]
@@ -2388,6 +2413,35 @@ const setProviderPanelSshUrl = (name: string, url: string) => {
   if (!v) delete cur[k]
   else cur[k] = v
   proxyProviderPanelSshUrlMap.value = cur
+}
+
+const setProviderHostingDueDate = (name: string, value: string) => {
+  const k = String(name || '').trim()
+  if (!k) return
+  const v = String(value || '').trim()
+  const cur = { ...(proxyProviderHostingDueDateMap.value || {}) }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) cur[k] = v
+  else delete cur[k]
+  proxyProviderHostingDueDateMap.value = cur
+}
+
+const onProviderHostingDueDateInput = (name: string, event: Event) => {
+  const value = String((event.target as HTMLInputElement | null)?.value || '')
+  setProviderHostingDueDate(name, value)
+}
+
+const hostingPaymentInfo = (name: string) => {
+  const raw = String((proxyProviderHostingDueDateMap.value || {})[String(name || '').trim()] || '').trim()
+  if (!raw) return { text: t('hostingPaymentNotSet'), cls: 'text-base-content/45', title: '' }
+  const due = new Date(`${raw}T00:00:00`)
+  if (Number.isNaN(due.getTime())) return { text: t('hostingPaymentBadDate'), cls: 'text-error', title: raw }
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const days = Math.ceil((due.getTime() - today.getTime()) / 86400000)
+  if (days < 0) return { text: t('hostingPaymentExpired', { days: Math.abs(days) }), cls: 'text-error', title: raw }
+  if (days === 0) return { text: t('hostingPaymentToday'), cls: 'text-error', title: raw }
+  if (days <= 7) return { text: t('hostingPaymentWarn', { days }), cls: 'text-warning', title: raw }
+  return { text: t('hostingPaymentOk', { days }), cls: 'text-success', title: raw }
 }
 
 // ---- Provider icon (flag/globe) ----

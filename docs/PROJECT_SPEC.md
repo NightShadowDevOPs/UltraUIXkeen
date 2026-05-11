@@ -1,16 +1,14 @@
-# PROJECT_SPEC — UI Mihomo Ultra / router-agent
+# Project spec — UI Mihomo Ultra / router-agent
 
-UI Mihomo Ultra is a router UI and local router-agent integration for Netcraze Ultra / Mihomo monitoring and control.
+## Current provider access model
+Each provider can have:
+- subscription URL — used for subscription and SSL certificate source;
+- public panel URL — legacy/Internet panel address for reference while panels are still public;
+- SSH panel URL — manually entered browser URL such as `https://127.0.0.1:<port>/...` after panel is moved behind SSH tunnel;
+- hosting payment due date — manually entered date in `YYYY-MM-DD` format.
 
-Current runtime focus:
-
-- zash-agent HTTP API on `192.168.0.1:9099`.
-- Home Assistant Router Contract via `ha_snapshot` bundle.
-- Watchdog and maintenance scripts installed under `/opt/zash-agent`.
-- Safe raw/manual router-agent installers are required because UI updater delivers frontend bundle and does not reliably deliver runtime scripts.
-
-v1.2.187 changes only router-agent `ha_snapshot` CPU/load mapping/cache behavior.
-
-## v1.2.190
-
-UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.
+## Important safety constraints
+- Do not break current provider checks.
+- Do not move panels behind SSH automatically.
+- Do not open router SSH tunnels for provider panels.
+- Do not touch Mihomo core, TUN, QoS/routing, users-db records beyond new optional settings, provider SSL checks, shapers, or router reboot.
