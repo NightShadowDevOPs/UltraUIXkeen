@@ -146,24 +146,23 @@
               </div>
             </td>
 						<td>
-						  <div class="flex items-center gap-2">
-							<input
-							  type="text"
-							  class="input input-bordered input-xs flex-1 min-w-[220px]"
-							  :placeholder="$t('providerPanelUrlPlaceholder')"
-							  :value="proxyProviderPanelUrlMap[p.name] || ''"
-							  @input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
-							/>
-							<a
-							  v-if="proxyProviderPanelUrlMap[p.name]"
-							  class="btn btn-ghost btn-xs"
-							  :href="proxyProviderPanelUrlMap[p.name]"
-							  target="_blank"
-							  rel="noreferrer"
-							>
-							  {{ $t('open') }}
-							</a>
+						  <div class="space-y-1">
+							<div class="flex items-center gap-2">
+							  <input
+								type="text"
+								class="input input-bordered input-xs flex-1 min-w-[220px]"
+								:placeholder="$t('providerPanelUrlPlaceholder')"
+								:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
+								@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
+							  />
+							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
               <button type="button" class="btn btn-ghost btn-xs text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
+							</div>
+							<div class="flex flex-wrap gap-1 text-[10px]">
+							  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
+							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
+							  <a v-if="p.panelSshUrl" class="badge badge-outline gap-1" :href="p.panelSshUrl" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
+							</div>
 						  </div>
 						</td>
 						<td>
@@ -186,10 +185,10 @@
 						<td>
 						  <span
 							class="text-[11px] font-mono"
-                            :class="sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).cls"
-                            :title="sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).title"
+                            :class="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).cls"
+                            :title="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).title"
 						  >
-                            {{ sslPanelInfo(p.name, getPanelNotAfter(p.name) || p.panelSslNotAfter || p.sslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).text }}
+                            {{ sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).text }}
 						  </span>
 						</td>
 					  </tr>
@@ -2047,7 +2046,7 @@ const copyRouterUiUrl = async (asYaml: boolean) => {
 // --- Proxy providers: shared management panel URLs (synced via users DB) ---
 const providersPanelBusy = ref(false)
 const providersPanelError = ref('')
-const providersPanelList = ref<Array<{ name: string; url?: string; host?: string; port?: string; sslNotAfter?: string; panelUrl?: string; panelSslNotAfter?: string }>>([])
+const providersPanelList = ref<Array<{ name: string; url?: string; host?: string; port?: string; sslNotAfter?: string; sslCheckSource?: string; panelUrl?: string; panelSshUrl?: string; panelSslNotAfter?: string; panelSslCheckSource?: string }>>([])
 const providersPanelExpanded = ref<boolean>(false)
 const providersPanelAt = ref<number>(0)
 
@@ -2250,6 +2249,11 @@ const sslPanelInfo = (name: string, v: any, fromPanel: boolean) => {
 const getPanelNotAfter = (name: string): string => {
   const k = String(name || '').trim()
   return (panelSslNotAfterByName.value || {})[k] || ''
+}
+
+const providerPanelInternetUrl = (p: { name?: string; panelUrl?: string }): string => {
+  const name = String(p?.name || '').trim()
+  return (name && (proxyProviderPanelUrlMap.value || {})[name]) || p?.panelUrl || ''
 }
 
 const removeProviderPanelSettings = (name: string) => {

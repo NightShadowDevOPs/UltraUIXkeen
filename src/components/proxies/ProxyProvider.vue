@@ -732,15 +732,17 @@ const sslExpireInfo = computed(() => {
 
   const probeNa = (panelSslNotAfterByName.value || {})[props.name] || ''
 
-  const raw2: any = raw || probeNa || agentP?.panelSslNotAfter || agentP?.sslNotAfter
+  // Prefer the provider subscription TLS certificate. Public panel TLS is diagnostic only:
+  // panels may be moved behind SSH localhost forwards and closed from Internet.
+  const raw2: any = raw || agentP?.sslNotAfter || probeNa || agentP?.panelSslNotAfter
   const src: string = raw
     ? 'sub'
-    : probeNa
-      ? 'panel-probe'
-      : agentP?.panelSslNotAfter
-        ? 'panel'
-        : agentP?.sslNotAfter
-          ? 'provider'
+    : agentP?.sslNotAfter
+      ? 'provider'
+      : probeNa
+        ? 'panel-probe'
+        : agentP?.panelSslNotAfter
+          ? 'panel'
           : 'none'
 
   const checkedMs = src === 'panel-probe' ? panelSslCheckedAt.value : agentProvidersAt.value

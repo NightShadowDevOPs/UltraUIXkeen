@@ -513,7 +513,7 @@ users_db_panel_urls_lines() {
   # Extract providerPanelUrls map from users-db JSON as lines: name<TAB>url
   # We support a few legacy filenames to be robust across upgrades.
   file=""
-  for f in "$USERS_DB_FILE" "/opt/zash-agent/var/users_db.json" "/opt/zash-agent/var/usersdb.json"; do
+  for f in "${USERS_DB_FILE:-}" "/opt/zash-agent/var/users-db.json" "/opt/zash-agent/var/users_db.json" "/opt/zash-agent/var/usersdb.json"; do
     if [ -f "$f" ]; then
       file="$f"
       break
@@ -531,6 +531,28 @@ users_db_panel_urls_lines() {
   return 0
 }
 
+
+
+
+users_db_panel_ssh_urls_lines() {
+  # Extract providerPanelSshUrls map from users-db JSON as lines: name<TAB>url.
+  # These URLs are manually managed and normally point to local SSH-forwards, e.g. https://127.0.0.1:port/...
+  file=""
+  for f in "${USERS_DB_FILE:-}" "/opt/zash-agent/var/users-db.json" "/opt/zash-agent/var/users_db.json" "/opt/zash-agent/var/usersdb.json"; do
+    if [ -f "$f" ]; then
+      file="$f"
+      break
+    fi
+  done
+  [ -n "$file" ] || return 0
+
+  data="$(head -c 2097152 "$file" 2>/dev/null | tr -d '\n\r')"
+  part="$(printf '%s' "$data" | sed -nE 's/.*"providerPanelSshUrls"[[:space:]]*:[[:space:]]*\{([^}]*)\}.*/\1/p' | head -n1)"
+  [ -n "$part" ] || return 0
+
+  printf '%s' "$part" | tr ',' '\n' | sed -nE 's/^[[:space:]]*"([^"]+)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1\t\2/p'
+  return 0
+}
 
 
 safe_list_proxy_provider_lines() {
@@ -1369,6 +1391,7 @@ mihomo_providers_json() {
 
   checkedAtSec="$(date +%s 2>/dev/null || echo 0)"
   panel_map="$(users_db_panel_urls_lines)"
+  panel_ssh_map="$(users_db_panel_ssh_urls_lines)"
   provider_lines="$(safe_list_proxy_provider_lines)"
   tab="$(printf '	' 2>/dev/null || echo ' ')"
   refresh_pending=0
@@ -1427,6 +1450,7 @@ mihomo_providers_json() {
     fi
 
     panel_url="$(panel_url_for_provider "$pname" "$panel_map")"
+    panel_ssh_url="$(panel_url_for_provider "$pname" "$panel_ssh_map")"
     cache_fields="$(ssl_cache_fields_for_provider "$pname")"
     not_after=""
     panel_na=""
@@ -1445,10 +1469,11 @@ mihomo_providers_json() {
     esc_host="$(printf '%s' "$host" | sed 's/"/\\\\\"/g')"
     esc_port="$(printf '%s' "$port" | sed 's/"/\\\\\"/g')"
     esc_na="$(printf '%s' "$not_after" | sed 's/"/\\\\\"/g')"
-    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\\\"/g')"
-    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\\\"/g')"
+    esc_purl="$(printf '%s' "$panel_url" | sed 's/"/\\\"/g')"
+    esc_pssh="$(printf '%s' "$panel_ssh_url" | sed 's/"/\\\"/g')"
+    esc_pna="$(printf '%s' "$panel_na" | sed 's/"/\\\"/g')"
 
-    out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"panelUrl\":\"$esc_purl\",\"panelSslNotAfter\":\"$esc_pna\"}"
+    out="$out{\"name\":\"$esc_name\",\"url\":\"$esc_url\",\"host\":\"$esc_host\",\"port\":\"$esc_port\",\"sslNotAfter\":\"$esc_na\",\"sslCheckSource\":\"subscription\",\"panelUrl\":\"$esc_purl\",\"panelSshUrl\":\"$esc_pssh\",\"panelSslNotAfter\":\"$esc_pna\",\"panelSslCheckSource\":\"panel\"}"
   done <<__MPR_LINES__
 $provider_lines
 __MPR_LINES__

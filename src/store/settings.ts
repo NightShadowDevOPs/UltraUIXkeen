@@ -289,6 +289,9 @@ export const sourceIPLabelList = useStorage<SourceIPLabel[]>('config/source-ip-l
 // Shared (synced via router-agent users DB): optional management panel URL per proxy-provider
 export const proxyProviderPanelUrlMap = useStorage<Record<string, string>>('config/proxy-provider-panel-url-map', {})
 
+// Shared (synced via router-agent users DB): optional SSH/local management panel URL per proxy-provider
+export const proxyProviderPanelSshUrlMap = useStorage<Record<string, string>>('config/proxy-provider-panel-ssh-url-map', {})
+
 // Shared (synced via router-agent users DB): optional per-provider icon (country flag or globe)
 // Values: '' (unset), 'globe', or ISO 3166-1 alpha-2 like 'RU', 'US'
 export const proxyProviderIconMap = useStorage<Record<string, string>>('config/proxy-provider-icon-map', {})

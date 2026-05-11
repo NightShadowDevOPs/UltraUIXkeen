@@ -1012,8 +1012,11 @@ export const agentMihomoProvidersAPI = async (force = false): Promise<{
     host?: string
     port?: string
     sslNotAfter?: string
+    sslCheckSource?: string
     panelUrl?: string
+    panelSshUrl?: string
     panelSslNotAfter?: string
+    panelSslCheckSource?: string
   }>
   error?: string
 }> => {
