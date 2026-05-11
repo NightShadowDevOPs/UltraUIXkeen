@@ -111,7 +111,7 @@
 					<thead>
 					  <tr>
 						<th class="w-[160px]">{{ $t('provider') }}</th>
-						<th>{{ $t('panelUrl') }}</th>
+						<th>{{ $t('providerAccessLinks') }}</th>
 						<th class="w-[140px]">{{ $t('sslWarnDays') }}</th>
 						<th class="w-[190px]">{{ $t('sslExpires') }}</th>
 					  </tr>
@@ -146,8 +146,14 @@
               </div>
             </td>
 						<td>
-						  <div class="space-y-1">
+						  <div class="space-y-2 min-w-[360px]">
+							<div class="flex flex-wrap items-center gap-1 text-[10px]">
+							  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
+							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
+							  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
+							</div>
 							<div class="flex items-center gap-2">
+							  <span class="w-20 shrink-0 text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
 							  <input
 								type="text"
 								class="input input-bordered input-xs flex-1 min-w-[220px]"
@@ -156,12 +162,18 @@
 								@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
 							  />
 							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
-              <button type="button" class="btn btn-ghost btn-xs text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
 							</div>
-							<div class="flex flex-wrap gap-1 text-[10px]">
-							  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
-							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
-							  <a v-if="p.panelSshUrl" class="badge badge-outline gap-1" :href="p.panelSshUrl" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
+							<div class="flex items-center gap-2">
+							  <span class="w-20 shrink-0 text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
+							  <input
+								type="text"
+								class="input input-bordered input-xs flex-1 min-w-[220px]"
+								:placeholder="$t('providerPanelSshUrlPlaceholder')"
+								:value="providerPanelSshUrl(p)"
+								@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
+							  />
+							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <button type="button" class="btn btn-ghost btn-xs text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
 							</div>
 						  </div>
 						</td>
@@ -1922,7 +1934,7 @@ import { countryCodeToFlagEmoji, normalizeProviderIcon } from '@/helper/provider
 import { FLAG_CODES } from '@/helper/flagIcons'
 import { activeBackend, backendList } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
-import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
+import { proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProvidersSslRefreshing, fetchAgentProviders, panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl, refreshAgentProviderSslCache } from '@/store/providerHealth'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
@@ -2119,6 +2131,16 @@ const providersPanelRenderList = computed(() => {
   }
 
   try {
+    for (const k of Object.keys(proxyProviderPanelSshUrlMap.value || {})) {
+      const name = String(k || '').trim()
+      if (!name) continue
+      names.add(name)
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
     for (const k of Object.keys(proxyProviderSslWarnDaysMap.value || {})) {
       const name = String(k || '').trim()
       if (!name) continue
@@ -2140,6 +2162,7 @@ const providersPanelRenderList = computed(() => {
 
   const activeSet = new Set(activeProviderNames.value)
   const savedUrlSet = new Set(Object.keys(proxyProviderPanelUrlMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
+  const savedSshUrlSet = new Set(Object.keys(proxyProviderPanelSshUrlMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
   const savedWarnSet = new Set(Object.keys(proxyProviderSslWarnDaysMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
   const savedIconSet = new Set(Object.keys(proxyProviderIconMap.value || {}).map((k) => String(k || '').trim()).filter(Boolean))
   const byName = new Map<string, any>()
@@ -2156,7 +2179,7 @@ const providersPanelRenderList = computed(() => {
       const it = byName.get(name)
       const base = it ? { ...it } : { name }
       const activeRuntime = activeSet.has(name)
-      const hasSavedSettings = savedUrlSet.has(name) || savedWarnSet.has(name) || savedIconSet.has(name)
+      const hasSavedSettings = savedUrlSet.has(name) || savedSshUrlSet.has(name) || savedWarnSet.has(name) || savedIconSet.has(name)
       return {
         ...base,
         name,
@@ -2256,6 +2279,11 @@ const providerPanelInternetUrl = (p: { name?: string; panelUrl?: string }): stri
   return (name && (proxyProviderPanelUrlMap.value || {})[name]) || p?.panelUrl || ''
 }
 
+const providerPanelSshUrl = (p: { name?: string; panelSshUrl?: string }): string => {
+  const name = String(p?.name || '').trim()
+  return (name && (proxyProviderPanelSshUrlMap.value || {})[name]) || p?.panelSshUrl || ''
+}
+
 const removeProviderPanelSettings = (name: string) => {
   const k = String(name || '').trim()
   if (!k) return false
@@ -2266,6 +2294,13 @@ const removeProviderPanelSettings = (name: string) => {
   if (k in nextUrls) {
     delete nextUrls[k]
     proxyProviderPanelUrlMap.value = nextUrls
+    changed = true
+  }
+
+  const nextSshUrls = { ...(proxyProviderPanelSshUrlMap.value || {}) }
+  if (k in nextSshUrls) {
+    delete nextSshUrls[k]
+    proxyProviderPanelSshUrlMap.value = nextSshUrls
     changed = true
   }
 
@@ -2335,6 +2370,16 @@ const setProviderPanelUrl = (name: string, url: string) => {
   if (!v) delete cur[k]
   else cur[k] = v
   proxyProviderPanelUrlMap.value = cur
+}
+
+const setProviderPanelSshUrl = (name: string, url: string) => {
+  const k = String(name || '').trim()
+  if (!k) return
+  const v = String(url || '').trim()
+  const cur = { ...(proxyProviderPanelSshUrlMap.value || {}) }
+  if (!v) delete cur[k]
+  else cur[k] = v
+  proxyProviderPanelSshUrlMap.value = cur
 }
 
 // ---- Provider icon (flag/globe) ----

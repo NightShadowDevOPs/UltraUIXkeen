@@ -1,3 +1,11 @@
+
+## v1.2.189 — Provider Access Links UI
+
+- Добавлено ручное поле `Панель · SSH` для провайдеров.
+- Разделены ссылки `Подписка`, `Панель · Internet`, `Панель · SSH`.
+- `providerPanelSshUrls` включён в users-db sync.
+- SSL-проверка остаётся по ссылке подписки, без перехода на панель.
+
 # Changelog — v1.2.188
 
 - Added provider link metadata split: subscription URL, Internet panel URL, optional SSH/local panel URL.

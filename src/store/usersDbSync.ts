@@ -6,7 +6,7 @@ import { useStorage } from '@vueuse/core'
 import { debounce, isEqual } from 'lodash'
 import { computed, ref, watch } from 'vue'
 import { agentEnabled } from './agent'
-import { proxyProviderIconMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault, tunnelInterfaceDescriptionMap } from './settings'
+import { proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sourceIPLabelList, sslNearExpiryDaysDefault, tunnelInterfaceDescriptionMap } from './settings'
 import { userLimits, type UserLimit, type UserLimitsStore } from './userLimits'
 
 /**
@@ -51,6 +51,11 @@ export const usersDbLastSyncedProviderPanelUrls = useStorage<Record<string, stri
   {},
 )
 
+export const usersDbLastSyncedProviderPanelSshUrls = useStorage<Record<string, string>>(
+  'runtime/users-db-last-synced-provider-panel-ssh-urls-v1',
+  {},
+)
+
 export const usersDbLastSyncedProviderIcons = useStorage<Record<string, string>>(
   'runtime/users-db-last-synced-provider-icons-v1',
   {},
@@ -85,6 +90,7 @@ export const usersDbSyncActive = computed(() => {
 type UsersDbPayload = {
   labels: SourceIPLabel[]
   providerPanelUrls: Record<string, string>
+  providerPanelSshUrls: Record<string, string>
   providerIcons: Record<string, string>
   sslNearExpiryDaysDefault: number
   providerSslWarnDaysMap: Record<string, number>
@@ -364,11 +370,12 @@ const mergeUserLimits = (remote: UserLimitsStore, local: UserLimitsStore): UserL
 const normalizePayload = (p: UsersDbPayload): UsersDbPayload => {
   const labels = sortLabels(sanitizeLabels(p?.labels || []))
   const urls = sanitizeUrlMap(p?.providerPanelUrls || {})
+  const sshUrls = sanitizeUrlMap((p as any)?.providerPanelSshUrls || (p as any)?.proxyProviderPanelSshUrls || (p as any)?.proxyProviderPanelSshUrlMap || {})
   const icons = sanitizeIconMap((p as any)?.providerIcons || (p as any)?.proxyProviderIcons || (p as any)?.proxyProviderIconMap || {})
   const sslNear = sanitizeInt((p as any)?.sslNearExpiryDaysDefault, 2, 0, 365)
   const warnMap = sanitizeNumMap((p as any)?.providerSslWarnDaysMap)
   const tunnelMap = sanitizeTunnelDescriptionMap((p as any)?.tunnelInterfaceDescriptions || (p as any)?.tunnelInterfaceDescriptionMap || {})
-  return { labels, providerPanelUrls: urls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap, tunnelInterfaceDescriptions: tunnelMap, userLimits: sanitizeUserLimits((p as any)?.userLimits) }
+  return { labels, providerPanelUrls: urls, providerPanelSshUrls: sshUrls, providerIcons: icons, sslNearExpiryDaysDefault: sslNear, providerSslWarnDaysMap: warnMap, tunnelInterfaceDescriptions: tunnelMap, userLimits: sanitizeUserLimits((p as any)?.userLimits) }
 }
 
 const labelSig = (x: any) => {
@@ -557,6 +564,7 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
       return {
         labels: sanitizeLabels(v),
         providerPanelUrls: {},
+        providerPanelSshUrls: {},
         providerIcons: {},
         sslNearExpiryDaysDefault: 2,
         providerSslWarnDaysMap: {},
@@ -580,6 +588,15 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
             ? sanitizeUrlMap(v.proxyProviderPanelUrls)
             : v.proxyProviderPanelUrlMap && typeof v.proxyProviderPanelUrlMap === 'object'
               ? sanitizeUrlMap(v.proxyProviderPanelUrlMap)
+              : {}
+
+      const sshUrls =
+        v.providerPanelSshUrls && typeof v.providerPanelSshUrls === 'object'
+          ? sanitizeUrlMap(v.providerPanelSshUrls)
+          : v.proxyProviderPanelSshUrls && typeof v.proxyProviderPanelSshUrls === 'object'
+            ? sanitizeUrlMap(v.proxyProviderPanelSshUrls)
+            : v.proxyProviderPanelSshUrlMap && typeof v.proxyProviderPanelSshUrlMap === 'object'
+              ? sanitizeUrlMap(v.proxyProviderPanelSshUrlMap)
               : {}
 
       const iconsRaw =
@@ -606,6 +623,7 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
       return {
         labels,
         providerPanelUrls: urls,
+        providerPanelSshUrls: sshUrls,
         providerIcons: icons,
         sslNearExpiryDaysDefault: sslNear,
         providerSslWarnDaysMap: warnMap,
@@ -616,14 +634,15 @@ const safeParsePayload = (raw: string): UsersDbPayload => {
   } catch {
     // ignore
   }
-  return { labels: [], providerPanelUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {}, tunnelInterfaceDescriptions: {}, userLimits: {} }
+  return { labels: [], providerPanelUrls: {}, providerPanelSshUrls: {}, providerIcons: {}, sslNearExpiryDaysDefault: 2, providerSslWarnDaysMap: {}, tunnelInterfaceDescriptions: {}, userLimits: {} }
 }
 
 const buildPayloadForWrite = (p: UsersDbPayload) => {
   return {
-    version: 3,
+    version: 4,
     labels: p.labels || [],
     providerPanelUrls: p.providerPanelUrls || {},
+    providerPanelSshUrls: (p as any).providerPanelSshUrls || {},
     providerIcons: (p as any).providerIcons || {},
     sslNearExpiryDaysDefault: p.sslNearExpiryDaysDefault,
     providerSslWarnDaysMap: p.providerSslWarnDaysMap || {},
@@ -667,6 +686,15 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
     urls[kk] = vv
   }
 
+  const sshUrls = { ...((rN as any).providerPanelSshUrls || {}) }
+  for (const [k, v] of Object.entries((lN as any).providerPanelSshUrls || {})) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    const vv = String(v || '').trim()
+    if (!vv) continue
+    sshUrls[kk] = vv
+  }
+
   const icons = { ...(rN.providerIcons || {}) }
   for (const [k, v] of Object.entries(lN.providerIcons || {})) {
     const kk = String(k || '').trim()
@@ -705,6 +733,7 @@ const mergePayload = (remote: UsersDbPayload, local: UsersDbPayload): UsersDbPay
   return normalizePayload({
     labels,
     providerPanelUrls: urls,
+    providerPanelSshUrls: sshUrls,
     providerIcons: icons,
     sslNearExpiryDaysDefault: sslNear,
     providerSslWarnDaysMap: warnMap,
@@ -719,6 +748,7 @@ const payloadEqual = (a: UsersDbPayload, b: UsersDbPayload) => {
   return (
     isEqual(an.labels || [], bn.labels || []) &&
     isEqual(an.providerPanelUrls || {}, bn.providerPanelUrls || {}) &&
+    isEqual((an as any).providerPanelSshUrls || {}, (bn as any).providerPanelSshUrls || {}) &&
     isEqual((an as any).providerIcons || {}, (bn as any).providerIcons || {}) &&
     an.sslNearExpiryDaysDefault === bn.sslNearExpiryDaysDefault &&
     isEqual(an.providerSslWarnDaysMap || {}, bn.providerSslWarnDaysMap || {}) &&
@@ -731,6 +761,7 @@ const setLocalFromPayload = (p: UsersDbPayload) => {
   const n = normalizePayload(p)
   sourceIPLabelList.value = (n.labels || []) as any
   proxyProviderPanelUrlMap.value = (n.providerPanelUrls || {}) as any
+  proxyProviderPanelSshUrlMap.value = ((n as any).providerPanelSshUrls || {}) as any
   proxyProviderIconMap.value = ((n as any).providerIcons || {}) as any
   sslNearExpiryDaysDefault.value = n.sslNearExpiryDaysDefault
   proxyProviderSslWarnDaysMap.value = (n.providerSslWarnDaysMap || {}) as any
@@ -742,6 +773,7 @@ const getLocalPayload = (): UsersDbPayload => {
   return normalizePayload({
     labels: (sourceIPLabelList.value || []) as any,
     providerPanelUrls: (proxyProviderPanelUrlMap.value || {}) as any,
+    providerPanelSshUrls: (proxyProviderPanelSshUrlMap.value || {}) as any,
     providerIcons: (proxyProviderIconMap.value || {}) as any,
     sslNearExpiryDaysDefault: sslNearExpiryDaysDefault.value,
     providerSslWarnDaysMap: (proxyProviderSslWarnDaysMap.value || {}) as any,
@@ -753,6 +785,7 @@ const getLocalPayload = (): UsersDbPayload => {
 const markSynced = (p: UsersDbPayload) => {
   usersDbLastSyncedLabels.value = (p.labels || []) as any
   usersDbLastSyncedProviderPanelUrls.value = (p.providerPanelUrls || {}) as any
+  usersDbLastSyncedProviderPanelSshUrls.value = ((p as any).providerPanelSshUrls || {}) as any
   usersDbLastSyncedProviderIcons.value = ((p as any).providerIcons || {}) as any
   usersDbLastSyncedSslNearExpiryDaysDefault.value = p.sslNearExpiryDaysDefault
   usersDbLastSyncedProviderSslWarnDaysMap.value = (p.providerSslWarnDaysMap || {}) as any
@@ -844,6 +877,7 @@ export const usersDbPullNow = async () => {
       const remoteEmpty =
         remotePayload.labels.length === 0 &&
         Object.keys(remotePayload.providerPanelUrls || {}).length === 0 &&
+        Object.keys((remotePayload as any).providerPanelSshUrls || {}).length === 0 &&
         Object.keys(remotePayload.providerSslWarnDaysMap || {}).length === 0 &&
         Object.keys((remotePayload as any).tunnelInterfaceDescriptions || {}).length === 0 &&
         Object.keys(remotePayload.userLimits || {}).length === 0 &&
@@ -852,6 +886,7 @@ export const usersDbPullNow = async () => {
       const localHasData =
         localPayload.labels.length > 0 ||
         Object.keys(localPayload.providerPanelUrls || {}).length > 0 ||
+        Object.keys((localPayload as any).providerPanelSshUrls || {}).length > 0 ||
         Object.keys(localPayload.providerSslWarnDaysMap || {}).length > 0 ||
         Object.keys((localPayload as any).tunnelInterfaceDescriptions || {}).length > 0 ||
         Object.keys(localPayload.userLimits || {}).length > 0 ||
@@ -1072,6 +1107,16 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
     }
   }
 
+  // ---- ssh panel urls ----
+  const mergedSshUrls: Record<string, string> = { ...((rN as any).providerPanelSshUrls || {}) }
+  for (const [k, v] of Object.entries((lN as any).providerPanelSshUrls || {})) {
+    const kk = String(k || '').trim()
+    if (!kk) continue
+    const vv = String(v || '').trim()
+    if (!vv) continue
+    mergedSshUrls[kk] = vv
+  }
+
   // ---- provider icons ----
   const mergedIcons: Record<string, string> = { ...(rN.providerIcons || {}) }
   for (const [k, v] of Object.entries(lN.providerIcons || {})) {
@@ -1174,6 +1219,7 @@ const smartMergePayload = (remote: UsersDbPayload, local: UsersDbPayload, choice
   return normalizePayload({
     labels: sanitizeLabels(mergedLabels as any),
     providerPanelUrls: sanitizeUrlMap(mergedUrls),
+    providerPanelSshUrls: sanitizeUrlMap(mergedSshUrls),
     providerIcons: sanitizeIconMap(mergedIcons),
     sslNearExpiryDaysDefault: mergedSslNear,
     providerSslWarnDaysMap: sanitizeNumMap(mergedWarn),
@@ -1253,7 +1299,7 @@ export const initUsersDbSync = () => {
   )
 
   watch(
-    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap, tunnelInterfaceDescriptionMap, userLimits],
+    [sourceIPLabelList, proxyProviderPanelUrlMap, proxyProviderPanelSshUrlMap, proxyProviderIconMap, sslNearExpiryDaysDefault, proxyProviderSslWarnDaysMap, tunnelInterfaceDescriptionMap, userLimits],
     () => {
       if (suppressPushCount > 0) {
         suppressPushCount -= 1
