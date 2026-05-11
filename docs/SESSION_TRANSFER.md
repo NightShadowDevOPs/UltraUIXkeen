@@ -1,25 +1,16 @@
-# SESSION_TRANSFER — v1.2.187
+# SESSION_TRANSFER v1.2.192
 
-## Summary
+This release is safe to hand off to another chat/session.
 
-Prepared router-agent-only release v1.2.187 to fix stale CPU in HA snapshot bundle.
+Release scope:
 
-## Facts
+- UI-only provider table alignment.
+- No runtime router-agent mutation.
+- No HA or SmartLife changes.
 
-- `cmd=status` CPU is live.
-- `cmd=ha_snapshot` CPU could stay at `50`.
-- HA uses `sensor.smartlife_router_cpu` from `ha_snapshot.status.system.cpu_pct`.
-- v1.2.187 overlays snapshot status CPU/load with fresh status/cache/proc data.
+Important behavior:
 
-## Files
-
-- `router-agent/install-ha-snapshot-cpu-hotfix.sh`
-- `router-agent/install.sh`
-- `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh`
-- `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh`
-## v1.2.190 session note
-
-Provider access links table was polished: names are badges, columns are aligned, URL fields are shorter. This is UI-only and does not change router-agent provider/SSL mechanics.
-
+- `Панель · Internet` and `Панель · SSH` are metadata/navigation fields.
+- The SSH panel URL is filled manually; there is no automatic SSH tunnel creation on the router.
+- Hosting payment dates are filled manually per provider.
+- SSL expiry should continue to use subscription certificate data.

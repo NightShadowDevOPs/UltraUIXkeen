@@ -1,23 +1,20 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "project_name": "UI Mihomo Ultra / router-agent",
-  "release_version": "v1.2.190",
-  "release_title": "Provider panel links UI polish",
-  "created_at": "2026-05-11T12:20:00Z",
-  "scope": "UI-only provider table layout polish",
-  "runtime_mutation": false,
-  "router_agent_changed": false,
-  "home_assistant_touched": false,
-  "ha_db_touched": false,
-  "native_ha_energy_touched": false,
-  "smartlife_boiler_touched": false,
-  "ssl_source": "subscription_url_unchanged",
-  "gate_markers": {
-    "ARTIFACT_NAMING_STATUS": "OK",
-    "DOCS_PACKAGE_STATUS": "OK",
-    "TRANSFER_PACKAGE_STATUS": "OK",
-    "STATIC_SAFETY_STATUS": "OK",
-    "RELEASE_ARTIFACT_STATUS": "OK",
-    "BACKUP_SCRIPT_STATUS": "NOT_APPLICABLE_UI_ONLY"
+  "release_version": "v1.2.192",
+  "runtime_agent_version": "0.6.37",
+  "status": "prepared",
+  "scope": "ui-only provider table layout",
+  "router_runtime_changed": false,
+  "home_assistant_changed": false,
+  "mihomo_core_changed": false,
+  "provider_ssl_logic_changed": false,
+  "users_db_changed": false,
+  "shapers_db_changed": false,
+  "checks": {
+    "col_count": 5,
+    "th_count": 5,
+    "provider_name_badge": true,
+    "short_url_input": true,
+    "table_fixed": true
   }
 }

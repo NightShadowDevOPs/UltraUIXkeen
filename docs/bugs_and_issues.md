@@ -1,9 +1,3 @@
-# Bugs and issues — v1.2.191
+# bugs_and_issues v1.2.192
 
-## Fixed / improved
-- Provider table now has a place to track hosting payment dates manually.
-- URL input columns were tightened to reduce table sprawl.
-
-## Known limitations
-- Payment date is manual; the UI does not query hosting provider billing APIs.
-- The check script verifies source presence only; final visual acceptance is done in UI after deployment/build.
+Fixed visual table column mismatch. Open: fill hosting due dates and SSH panel URLs manually after deployment.

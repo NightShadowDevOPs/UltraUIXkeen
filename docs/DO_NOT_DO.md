@@ -1,8 +1,8 @@
-# DO_NOT_DO — v1.2.187
+# DO_NOT_DO
 
-- Do not restart or reboot the router for this hotfix.
-- Do not touch Mihomo core, TUN, QoS/routing, provider SSL checks, `users-db`, `shapers.db`.
-- Do not touch Home Assistant, HA DB, native Home Assistant Energy or SmartLife boiler.
-- Do not assume UI updater delivered router-agent runtime scripts.
-- Do not output long diagnostic dumps; keep checks compact.
-- Do not expose secrets or token paths.
+- Do not expose hidden panel tokens or subscription tokens in documentation.
+- Do not convert panel checks back to public panel SSL checks.
+- Do not assume UI updater deploys router-agent scripts.
+- Do not run broad `killall uhttpd`.
+- Do not use long diagnostic dumps.
+- Do not change Home Assistant or SmartLife runtime for this release.

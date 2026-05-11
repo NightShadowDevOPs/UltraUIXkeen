@@ -1,5 +1,12 @@
-Продолжаем UI Mihomo Ultra / router-agent после v1.2.187.
+# NEXT_AI_SESSION_PROMPT
 
-v1.2.187 — router-agent hotfix для залипшего CPU в Home Assistant Router Contract: `cmd=status` отдавал живой CPU, а `cmd=ha_snapshot` мог возвращать stale/fallback `status.system.cpu_pct=50`. Подготовлен installer `router-agent/install-ha-snapshot-cpu-hotfix.sh`, marker `v1.2.187 ha_snapshot live CPU/load overlay`, check script `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh`.
+Continue UI Mihomo Ultra / router-agent from v1.2.192. The provider/server table has been aligned: 5 columns, visible provider name badge, shorter URL inputs, existing subscription/panel Internet/panel SSH open buttons preserved.
 
-Не трогать Home Assistant, HA DB, native Energy, SmartLife boiler, Mihomo core, TUN, QoS/routing, provider SSL, users-db, shapers.db. Вывод диагностик держать в 10–15 строк.
+Next likely tasks:
+
+1. Verify visual layout after deploy in browser.
+2. Fill hosting payment due dates per provider.
+3. After public panels are closed, manually fill panel SSH URLs and check that buttons open via local PC SSH forwards.
+4. Keep SSL certificate checks based on subscription URL, not panel URL.
+
+Keep diagnostics compact: 10–15 lines.

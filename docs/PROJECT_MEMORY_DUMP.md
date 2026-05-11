@@ -1,9 +1,18 @@
-# PROJECT_MEMORY_DUMP — v1.2.187
+# PROJECT_MEMORY_DUMP v1.2.192
 
-- v1.2.181 maintenance/log/backup retention installed.
-- v1.2.182 restart helper prefers `/opt/etc/init.d/S99zash-agent restart`.
-- v1.2.183 UI version sync fixed.
-- v1.2.184 watchdog policy fixed false positives; `BUNDLE_OK=false` alone no longer restarts agent if transport is OK.
-- v1.2.185 strict endpoint fallback fixed direct HA endpoint JSON.
-- v1.2.186 direct HA endpoints became cache-first and fast.
-- v1.2.187 prepared to fix stale/fallback `ha_snapshot.status.system.cpu_pct=50` and add load mapping.
+Router/UI context:
+
+- Router IP: `192.168.0.1`.
+- zash-agent endpoint: `/cgi-bin/api.sh` on port `9099`.
+- Agent runtime marker remains `0.6.37` for recent hotfixes.
+- Provider list currently has subscription URL and Internet panel URL. SSH-local panel URL is a manually entered field.
+- SSL expiry data should be based on subscription URL/cert, not panel public URL.
+- Hosting payment due dates are manually maintained per provider.
+
+Recent accepted fixes:
+
+- Watchdog/maintenance installed and stable.
+- HA cache-first direct endpoints fixed.
+- HA snapshot CPU/load fixed.
+- Provider links and hosting date UI implemented.
+- Current release only aligns visual table layout.

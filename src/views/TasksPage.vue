@@ -106,133 +106,135 @@
 				  </button>
 				</div>
 				
-				<div class="mt-2 overflow-x-auto">
-				  <table class="table table-zebra table-sm min-w-[1120px] table-fixed">
-					<colgroup>
-					  <col class="w-[330px]" />
-					  <col class="w-[500px]" />
-					  <col class="w-[130px]" />
-					  <col class="w-[190px]" />
-					</colgroup>
-					<thead>
-					  <tr>
-						<th class="align-middle">{{ $t('provider') }}</th>
-						<th class="align-middle">{{ $t('providerAccessLinks') }}</th>
-						<th class="align-middle">{{ $t('hostingPaymentDue') }}</th>
-						<th class="align-middle">{{ $t('sslWarnDays') }}</th>
-						<th class="align-middle">{{ $t('sslExpires') }}</th>
-					  </tr>
-					</thead>
-					<tbody>
-					  <tr v-for="p in providersPanelRenderList" :key="p.name">
-						<td class="align-middle font-mono text-xs">
-              <div class="flex min-w-0 items-center gap-2">
+					<div class="mt-2 overflow-x-auto rounded-lg">
+					  <table class="table table-zebra table-sm min-w-[1320px] table-fixed">
+						<colgroup>
+						  <col class="w-[320px]" />
+						  <col class="w-[430px]" />
+						  <col class="w-[170px]" />
+						  <col class="w-[150px]" />
+						  <col class="w-[250px]" />
+						</colgroup>
+						<thead>
+						  <tr>
+							<th class="align-middle whitespace-nowrap">{{ $t('provider') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('providerAccessLinks') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('hostingPaymentDue') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('sslWarnDays') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('sslExpires') }}</th>
+						  </tr>
+						</thead>
+						<tbody>
+						  <tr v-for="p in providersPanelRenderList" :key="p.name">
+							<td class="align-middle">
+							  <div class="grid min-w-0 grid-cols-[40px_104px_minmax(0,1fr)] items-center gap-2">
 								<button
-                      type="button"
-                      class="btn btn-ghost btn-xs h-7 w-10 shrink-0 px-0"
-                      @click.stop="(e) => openProviderIconPicker(e, p.name)"
-                      :title="$t('providerIcon')"
-                    >
-                      <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
-                    </button>
-                    <select
-                      class="select select-bordered select-xs w-24 shrink-0"
-                      :value="getProviderIconRaw(p.name)"
-                      @change="(e) => setProviderIcon(p.name, ((e.target as HTMLSelectElement)?.value || ''))"
-                      :title="$t('providerIcon')"
-                    >
-                      <option value="">—</option>
-                      <option value="globe">🌐 globe</option>
-                      <option v-for="cc in providerIconCountries" :key="`sel-${p.name}-${cc}`" :value="cc">{{ fmtProviderIcon(cc) }}</option>
-                    </select>
-
-                <span class="badge badge-outline badge-sm max-w-[120px] shrink-0 truncate px-2" :title="p.name">{{ p.name }}</span>
-                <span v-if="p.activeRuntime" class="badge badge-primary badge-xs shrink-0">{{ $t('providerActiveBadge') }}</span>
-                <span v-if="p.hasSavedSettings" class="badge badge-ghost badge-xs shrink-0">{{ p.savedOnly ? $t('providerSavedOnlyBadge') : $t('providerSavedSettingsBadge') }}</span>
-                <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
-              </div>
-            </td>
-						<td class="align-middle">
-						  <div class="space-y-2">
-							<div class="flex flex-wrap items-center gap-1 text-[10px]">
-							  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
-							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
-							  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
-							</div>
-							<div class="grid grid-cols-[90px_minmax(120px,220px)_56px] items-center gap-2">
-							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
-							  <input
-								type="text"
-								class="input input-bordered input-xs w-full"
-								:placeholder="$t('providerPanelUrlPlaceholder')"
-								:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
-								@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
-							  />
-							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-12 px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
-							  <span v-else class="w-14" />
-							</div>
-							<div class="grid grid-cols-[90px_minmax(120px,220px)_56px_52px] items-center gap-2">
-							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
-							  <input
-								type="text"
-								class="input input-bordered input-xs w-full"
-								:placeholder="$t('providerPanelSshUrlPlaceholder')"
-								:value="providerPanelSshUrl(p)"
-								@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
-							  />
-							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs w-12 px-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
-							  <span v-else class="w-14" />
-							  <button type="button" class="btn btn-ghost btn-xs w-11 px-1 text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
-							</div>
-						  </div>
-						</td>
-						<td class="align-middle">
-						  <div class="flex max-w-[190px] flex-col gap-1">
-							<input
-							  type="date"
-							  class="input input-bordered input-xs w-36"
-							  :value="proxyProviderHostingDueDateMap[p.name] || ''"
-							  @input="onProviderHostingDueDateInput(p.name, $event)"
-							/>
-							<span
-							  class="text-[10px] font-semibold"
-							  :class="hostingPaymentInfo(p.name).cls"
-							  :title="hostingPaymentInfo(p.name).title"
-							>
-							  {{ hostingPaymentInfo(p.name).text }}
-							</span>
-						  </div>
-						</td>
-						<td>
-						  <div class="flex items-center gap-2">
-							<input
-							  type="number"
-							  min="0"
-							  max="365"
-							  class="input input-bordered input-xs w-20"
-							  :placeholder="String(sslNearExpiryDaysDefault)"
-							  :value="getProviderSslWarnOverride(p.name) === null ? '' : String(getProviderSslWarnOverride(p.name))"
-							  @input="(e) => setProviderSslWarnOverride(p.name, (e && e.target && e.target.value) || '')"
-							/>
-							<button type="button" class="btn btn-ghost btn-xs" @click="clearProviderSslWarnOverride(p.name)">
-							  {{ $t('clear') }}
-							</button>
-						  </div>
-						  <div class="mt-0.5 text-[10px] opacity-60">{{ $t('sslWarnDaysHint', { d: sslNearExpiryDaysDefault }) }}</div>
-						</td>
-						<td>
-						  <span
-							class="text-[11px] font-mono"
-                            :class="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).cls"
-                            :title="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).title"
-						  >
-                            {{ sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).text }}
-						  </span>
-						</td>
-					  </tr>
-					</tbody>
-				  </table>
-				</div>
+								  type="button"
+								  class="btn btn-ghost btn-xs h-7 w-10 shrink-0 px-0"
+								  @click.stop="(e) => openProviderIconPicker(e, p.name)"
+								  :title="$t('providerIcon')"
+								>
+								  <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
+								</button>
+								<select
+								  class="select select-bordered select-xs w-[104px] shrink-0"
+								  :value="getProviderIconRaw(p.name)"
+								  @change="(e) => setProviderIcon(p.name, ((e.target as HTMLSelectElement)?.value || ''))"
+								  :title="$t('providerIcon')"
+								>
+								  <option value="">—</option>
+								  <option value="globe">🌐 globe</option>
+								  <option v-for="cc in providerIconCountries" :key="`sel-${p.name}-${cc}`" :value="cc">{{ fmtProviderIcon(cc) }}</option>
+								</select>
+								<span class="badge badge-outline badge-sm min-w-0 max-w-[170px] justify-start truncate px-2 font-mono text-xs" :title="p.name">{{ p.name }}</span>
+							  </div>
+							  <div class="mt-1 flex min-w-0 flex-wrap items-center gap-1 pl-[152px]">
+								<span v-if="p.activeRuntime" class="badge badge-primary badge-xs shrink-0">{{ $t('providerActiveBadge') }}</span>
+								<span v-if="p.hasSavedSettings" class="badge badge-ghost badge-xs shrink-0">{{ p.savedOnly ? $t('providerSavedOnlyBadge') : $t('providerSavedSettingsBadge') }}</span>
+								<TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
+							  </div>
+							</td>
+							<td class="align-middle">
+							  <div class="w-[390px] max-w-full space-y-1.5">
+								<div class="flex flex-wrap items-center gap-1 text-[10px]">
+								  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
+								  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
+								  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
+								</div>
+								<div class="grid grid-cols-[68px_220px_46px] items-center gap-1.5">
+								  <span class="text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
+								  <input
+									type="text"
+									class="input input-bordered input-xs w-[220px]"
+									:placeholder="$t('providerPanelUrlPlaceholder')"
+									:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
+									@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
+								  />
+								  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-[46px] px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+								  <span v-else class="w-[46px]" />
+								</div>
+								<div class="grid grid-cols-[68px_220px_46px_46px] items-center gap-1.5">
+								  <span class="text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
+								  <input
+									type="text"
+									class="input input-bordered input-xs w-[220px]"
+									:placeholder="$t('providerPanelSshUrlPlaceholder')"
+									:value="providerPanelSshUrl(p)"
+									@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
+								  />
+								  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs w-[46px] px-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+								  <span v-else class="w-[46px]" />
+								  <button type="button" class="btn btn-ghost btn-xs w-[46px] px-1 text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
+								</div>
+							  </div>
+							</td>
+							<td class="align-middle">
+							  <div class="flex w-[150px] flex-col gap-1">
+								<input
+								  type="date"
+								  class="input input-bordered input-xs w-36"
+								  :value="proxyProviderHostingDueDateMap[p.name] || ''"
+								  @input="onProviderHostingDueDateInput(p.name, $event)"
+								/>
+								<span
+								  class="truncate text-[10px] font-semibold"
+								  :class="hostingPaymentInfo(p.name).cls"
+								  :title="hostingPaymentInfo(p.name).title"
+								>
+								  {{ hostingPaymentInfo(p.name).text }}
+								</span>
+							  </div>
+							</td>
+							<td class="align-middle">
+							  <div class="flex w-[140px] items-center gap-1.5">
+								<input
+								  type="number"
+								  min="0"
+								  max="365"
+								  class="input input-bordered input-xs w-16"
+								  :placeholder="String(sslNearExpiryDaysDefault)"
+								  :value="getProviderSslWarnOverride(p.name) === null ? '' : String(getProviderSslWarnOverride(p.name))"
+								  @input="(e) => setProviderSslWarnOverride(p.name, (e && e.target && e.target.value) || '')"
+								/>
+								<button type="button" class="btn btn-ghost btn-xs w-16 px-1" @click="clearProviderSslWarnOverride(p.name)">
+								  {{ $t('clear') }}
+								</button>
+							  </div>
+							  <div class="mt-0.5 w-[140px] truncate text-[10px] opacity-60" :title="$t('sslWarnDaysHint', { d: sslNearExpiryDaysDefault })">{{ $t('sslWarnDaysHint', { d: sslNearExpiryDaysDefault }) }}</div>
+							</td>
+							<td class="align-middle">
+							  <span
+								class="block max-w-[230px] truncate text-[11px] font-mono"
+	                            :class="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).cls"
+	                            :title="sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).title"
+							  >
+	                            {{ sslPanelInfo(p.name, p.sslNotAfter || getPanelNotAfter(p.name) || p.panelSslNotAfter, Boolean(getPanelNotAfter(p.name) || p.panelSslNotAfter)).text }}
+							  </span>
+							</td>
+						  </tr>
+						</tbody>
+					  </table>
+					</div>
 
           <!-- Provider icon picker (teleported to body to avoid clipping in overflow containers) -->
           <Teleport to="body">

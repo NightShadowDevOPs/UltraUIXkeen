@@ -1,32 +1,16 @@
-# CHECKS_AND_STATUS — v1.2.187
+# CHECKS_AND_STATUS v1.2.192
 
-## Static checks
+Static checks performed locally on release source:
 
-- ARTIFACT_NAMING_STATUS=OK
-- DOCS_PACKAGE_STATUS=OK
-- TRANSFER_PACKAGE_STATUS=OK
-- STATIC_SAFETY_STATUS=OK
-- RELEASE_ARTIFACT_STATUS=OK
-- BACKUP_SCRIPT_STATUS=OK
+```text
+CHECK_PROVIDER_TABLE_LAYOUT_VERSION=v1.2.192
+SOURCE_FILE_PRESENT=yes
+PACKAGE_VERSION=version:1.2.192
+COL_COUNT=5
+TH_COUNT=5
+HAS_PROVIDER_NAME_BADGE=yes
+HAS_SHORT_URL_INPUT=yes
+HAS_TABLE_FIXED=yes
+```
 
-## Runtime baseline before release
-
-- router-agent endpoint: `http://192.168.0.1:9099/cgi-bin/api.sh`
-- `cmd=status`: HTTP 200, JSON OK, live CPU.
-- `cmd=ha_status/ha_traffic/ha_users/ha_qos/ha_snapshot`: HTTP 200, JSON OK after v1.2.185/v1.2.186.
-- watchdog: `FAIL_COUNT=0`, `LAST_STATUS=OK`.
-
-## Expected post-install check
-
-Run `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh` or the compact command from release response. Expected output is no more than ~8 lines.
-## v1.2.190 checks
-
-- ARTIFACT_NAMING_STATUS=OK
-- DOCS_PACKAGE_STATUS=OK
-- TRANSFER_PACKAGE_STATUS=OK
-- STATIC_SAFETY_STATUS=OK
-- RELEASE_ARTIFACT_STATUS=OK
-- BACKUP_SCRIPT_STATUS=NOT_APPLICABLE_UI_ONLY
-- Runtime mutation: none.
-- Router-agent restart: not required.
-
+Runtime deploy was not executed by the release builder.

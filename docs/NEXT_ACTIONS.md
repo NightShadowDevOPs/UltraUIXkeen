@@ -1,13 +1,7 @@
-# NEXT_ACTIONS — v1.2.187
+# NEXT_ACTIONS
 
-1. Commit/push release v1.2.187 to GitHub.
-2. On router, download and run `router-agent/install-ha-snapshot-cpu-hotfix.sh` via raw GitHub URL.
-3. Run compact verification: 5 samples comparing `cmd=status` CPU and `ha_snapshot.status.system.cpu_pct`.
-4. Confirm Home Assistant Router Contract CPU updates dynamically.
-5. If confirmed, mark v1.2.187 as installed baseline.
-## After v1.2.190
-
-- Verify providers table visually after UI update.
-- If layout is accepted, consider adding per-provider validation hints for SSH/local panel URL reachability on the PC side.
-- Keep SSL checks on subscription URL.
-
+1. Deploy/update UI to v1.2.192.
+2. Check provider table visually: provider names, access links, hosting date, SSL threshold, SSL expiry should be aligned.
+3. Fill hosting due dates provider-by-provider.
+4. Later, after SSH forwarding setup on PC, fill `Панель · SSH` per provider.
+5. Verify that public panel closure does not break subscriptions and SSL checks.
