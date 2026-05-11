@@ -1,14 +1,15 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "release_version": "v1.2.193",
-  "title": "Provider Hosting Recurring Payments UI",
+  "release_version": "v1.2.194",
+  "title": "Provider Hosting Persistence Status UI",
   "status": "prepared",
   "runtime_router_agent_version": "0.6.37",
   "changes": {
-    "hosting_due_date_periods": true,
-    "hosting_paid_button": true,
-    "colored_days_left_badges": true,
-    "users_db_providerHostingPeriodMonths": true
+    "hosting_payment_save_status_badge": true,
+    "hosting_payment_save_now_button": true,
+    "hosting_payment_saved_count": true,
+    "users_db_bootstrap_includes_providerHosting_fields": true,
+    "compact_persistence_check_script": true
   },
   "not_touched": [
     "Mihomo core",

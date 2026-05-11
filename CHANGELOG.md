@@ -1,3 +1,5 @@
+- v1.2.194: added visible hosting payment persistence status, explicit Save now button, saved records counter, and users-db bootstrap safety for provider hosting fields.
+
 # CHANGELOG
 
 ## v1.2.182 — zash-agent watchdog

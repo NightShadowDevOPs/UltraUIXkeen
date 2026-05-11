@@ -1,3 +1,5 @@
+- Verify v1.2.194 in UI by editing one hosting payment date, pressing Save now, and checking router users-db fields.
+
 # NEXT_ACTIONS
 
 1. Deploy/update UI to v1.2.192.

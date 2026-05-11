@@ -95,24 +95,43 @@
 				    <div>{{ $t('providersPanelColumnsExplain') }}</div>
 				    <div class="mt-0.5">{{ $t('sslSource') }} • {{ $t('checkedAt') }}: {{ fmtTs(providersPanelAt) }}</div>
 				    <div class="mt-0.5 text-xs opacity-70">{{ $t('providersPanelStateSummary', { active: providersPanelActiveCount, saved: providersPanelSavedOnlyCount }) }}</div>
+				    <div class="mt-1 flex flex-wrap items-center gap-2 text-xs opacity-90">
+				      <span class="opacity-60">{{ $t('hostingPersistence') }}:</span>
+				      <span class="badge badge-xs" :class="providerHostingSyncBadge.cls">{{ providerHostingSyncBadge.text }}</span>
+				      <span class="badge badge-ghost badge-xs">{{ $t('providerHostingSavedCount', { count: providerHostingSavedCount }) }}</span>
+				      <span v-if="usersDbRemoteRev" class="badge badge-ghost badge-xs">rev {{ usersDbRemoteRev }}</span>
+				      <span v-if="usersDbLastPushAt" class="text-[10px] opacity-60">{{ $t('providerHostingLastSaved') }}: {{ fmtTs(usersDbLastPushAt) }}</span>
+				    </div>
 				  </div>
-				  <button
-				    v-if="providersPanelSavedOnlyCount > 0"
-				    type="button"
-				    class="btn btn-xs btn-outline btn-warning"
-				    @click="removeSavedOnlyProviderSettings()"
-				  >
-				    {{ $t('providersPanelCleanupButton', { count: providersPanelSavedOnlyCount }) }}
-				  </button>
+				  <div class="flex flex-wrap items-center gap-2">
+				    <button
+				      type="button"
+				      class="btn btn-xs btn-outline"
+				      :disabled="providerHostingSaveBusy || !agentEnabled || !usersDbSyncEnabled"
+				      @click="saveProviderHostingSettingsNow()"
+				    >
+				      {{ providerHostingSaveBusy ? $t('saving') : $t('saveNow') }}
+				    </button>
+				    <button
+				      v-if="providersPanelSavedOnlyCount > 0"
+				      type="button"
+				      class="btn btn-xs btn-outline btn-warning"
+				      @click="removeSavedOnlyProviderSettings()"
+				    >
+				      {{ $t('providersPanelCleanupButton', { count: providersPanelSavedOnlyCount }) }}
+				    </button>
+				  </div>
 				</div>
 				
 					<div class="mt-2 overflow-x-auto rounded-lg">
 					  <table class="table table-zebra table-sm min-w-[1320px] table-fixed">
 						<colgroup>
 						  <col class="w-[320px]" />
-						  <col class="w-[430px]" />
-						  <col class="w-[170px]" />
+						  <col class="w-[410px]" />
 						  <col class="w-[150px]" />
+						  <col class="w-[150px]" />
+						  <col class="w-[145px]" />
+						  <col class="w-[155px]" />
 						  <col class="w-[250px]" />
 						</colgroup>
 						<thead>
@@ -157,17 +176,17 @@
 							  </div>
 							</td>
 							<td class="align-middle">
-							  <div class="w-[390px] max-w-full space-y-1.5">
+							  <div class="w-[372px] max-w-full space-y-1.5">
 								<div class="flex flex-wrap items-center gap-1 text-[10px]">
 								  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
 								  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
 								  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
 								</div>
-								<div class="grid grid-cols-[68px_220px_46px] items-center gap-1.5">
+								<div class="grid grid-cols-[68px_190px_46px] items-center gap-1.5">
 								  <span class="text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
 								  <input
 									type="text"
-									class="input input-bordered input-xs w-[220px]"
+									class="input input-bordered input-xs w-[190px]"
 									:placeholder="$t('providerPanelUrlPlaceholder')"
 									:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
 									@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
@@ -175,11 +194,11 @@
 								  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-[46px] px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
 								  <span v-else class="w-[46px]" />
 								</div>
-								<div class="grid grid-cols-[68px_220px_46px_46px] items-center gap-1.5">
+								<div class="grid grid-cols-[68px_190px_46px_46px] items-center gap-1.5">
 								  <span class="text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
 								  <input
 									type="text"
-									class="input input-bordered input-xs w-[220px]"
+									class="input input-bordered input-xs w-[190px]"
 									:placeholder="$t('providerPanelSshUrlPlaceholder')"
 									:value="providerPanelSshUrl(p)"
 									@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
@@ -3142,6 +3161,46 @@ const usersDbBadge = computed(() => {
   return { text: t('pendingChanges'), cls: 'badge-warning' }
 })
 
+
+
+const providerHostingSaveBusy = ref(false)
+
+const providerHostingSavedCount = computed(() => {
+  const names = new Set<string>()
+  for (const p of providersPanelRenderList.value || []) {
+    const n = String((p as any)?.name || '').trim()
+    if (n) names.add(n)
+  }
+  let count = 0
+  for (const name of names) {
+    const date = String((proxyProviderHostingDueDateMap.value || {})[name] || '').trim()
+    const period = Number((proxyProviderHostingPeriodMonthsMap.value || {})[name] || 0)
+    if (date || period > 0) count += 1
+  }
+  return count
+})
+
+const providerHostingSyncBadge = computed(() => {
+  if (!usersDbSyncEnabled.value) return { text: t('syncOff'), cls: 'badge-ghost' }
+  if (!agentEnabled.value) return { text: t('localOnly'), cls: 'badge-ghost' }
+  if (usersDbLastError.value) return { text: t('saveError'), cls: 'badge-error' }
+  if (usersDbPhase.value === 'pushing') return { text: t('saving'), cls: 'badge-warning' }
+  if (usersDbPhase.value === 'pulling') return { text: t('checking'), cls: 'badge-info' }
+  if (usersDbPhase.value === 'conflict') return { text: t('conflict'), cls: 'badge-warning' }
+  if (usersDbLocalDirty.value) return { text: t('pendingSave'), cls: 'badge-warning' }
+  if (usersDbLastPushAt.value || usersDbRemoteRev.value) return { text: t('saved'), cls: 'badge-success' }
+  return { text: t('syncReady'), cls: 'badge-info' }
+})
+
+const saveProviderHostingSettingsNow = async () => {
+  if (!agentEnabled.value || !usersDbSyncEnabled.value || providerHostingSaveBusy.value) return
+  providerHostingSaveBusy.value = true
+  try {
+    await usersDbPushNow()
+  } finally {
+    providerHostingSaveBusy.value = false
+  }
+}
 
 const usersDbConflictSummary = computed(() => {
   const d = usersDbConflictDiff.value

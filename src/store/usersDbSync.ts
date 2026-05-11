@@ -927,6 +927,8 @@ export const usersDbPullNow = async () => {
         remotePayload.labels.length === 0 &&
         Object.keys(remotePayload.providerPanelUrls || {}).length === 0 &&
         Object.keys((remotePayload as any).providerPanelSshUrls || {}).length === 0 &&
+        Object.keys((remotePayload as any).providerHostingDueDates || {}).length === 0 &&
+        Object.keys((remotePayload as any).providerHostingPeriodMonths || {}).length === 0 &&
         Object.keys(remotePayload.providerSslWarnDaysMap || {}).length === 0 &&
         Object.keys((remotePayload as any).tunnelInterfaceDescriptions || {}).length === 0 &&
         Object.keys(remotePayload.userLimits || {}).length === 0 &&
@@ -936,6 +938,8 @@ export const usersDbPullNow = async () => {
         localPayload.labels.length > 0 ||
         Object.keys(localPayload.providerPanelUrls || {}).length > 0 ||
         Object.keys((localPayload as any).providerPanelSshUrls || {}).length > 0 ||
+        Object.keys((localPayload as any).providerHostingDueDates || {}).length > 0 ||
+        Object.keys((localPayload as any).providerHostingPeriodMonths || {}).length > 0 ||
         Object.keys(localPayload.providerSslWarnDaysMap || {}).length > 0 ||
         Object.keys((localPayload as any).tunnelInterfaceDescriptions || {}).length > 0 ||
         Object.keys(localPayload.userLimits || {}).length > 0 ||

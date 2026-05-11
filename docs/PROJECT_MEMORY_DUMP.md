@@ -1,3 +1,5 @@
+- v1.2.194 added provider hosting payment persistence visibility: saved badge, dirty/saving/error states, saved count, last saved timestamp/rev, Save now button.
+
 # PROJECT_MEMORY_DUMP v1.2.192
 
 Router/UI context:

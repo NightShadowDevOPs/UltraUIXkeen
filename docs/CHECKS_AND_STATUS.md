@@ -1,3 +1,5 @@
+- v1.2.194 static check: source patched; runtime verification is `scripts/check-provider-hosting-persistence-v1.2.194.sh`.
+
 # CHECKS_AND_STATUS v1.2.192
 
 Static checks performed locally on release source:

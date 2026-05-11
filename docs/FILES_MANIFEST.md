@@ -1,3 +1,9 @@
+- scripts/check-provider-hosting-persistence-v1.2.194.sh
+- docs/release-v1.2.194.md
+- src/views/TasksPage.vue
+- src/store/usersDbSync.ts
+- src/i18n/ru.ts, src/i18n/en.ts, src/i18n/zh.ts
+
 # FILES_MANIFEST — v1.2.193
 
 Main changed files:

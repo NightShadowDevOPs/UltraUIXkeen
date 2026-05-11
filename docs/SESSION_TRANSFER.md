@@ -1,3 +1,5 @@
+- Latest release v1.2.194 focuses on provider hosting payment persistence visibility. Continue from provider payment table UX and router users-db verification.
+
 # SESSION_TRANSFER v1.2.192
 
 This release is safe to hand off to another chat/session.
