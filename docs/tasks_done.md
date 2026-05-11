@@ -11,3 +11,6 @@
 - Сохранение SSH-адресов добавлено в users-db sync.
 - Зафиксировано: SSL-проверки остаются по subscription URL, публичные panel URL можно будет закрывать отдельно.
 
+## v1.2.190
+
+UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.

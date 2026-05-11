@@ -1,7 +1,11 @@
-# UI Mihomo Ultra v1.2.189
+# UI Mihomo Ultra v1.2.190
 
-Provider Access Links UI release.
+Provider panel links UI polish release.
 
-Main change: provider rows now separate subscription URL, Internet panel URL, and SSH panel URL. SSL checks continue to use subscription URLs.
+Current behavior:
 
-See `release-v1.2.189.md` and `chat_transfer_v1.2.189.md`.
+- SSL certificate checks remain based on subscription URLs.
+- Public panel URL and SSH/local panel URL are separate provider metadata fields.
+- Provider access table has aligned columns, shorter URL fields and provider names displayed as badges.
+
+See `release-v1.2.190.md` and `chat_transfer_v1.2.190.md`.

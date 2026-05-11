@@ -107,19 +107,25 @@
 				</div>
 				
 				<div class="mt-2 overflow-x-auto">
-				  <table class="table table-zebra table-sm">
+				  <table class="table table-zebra table-sm min-w-[1120px] table-fixed">
+					<colgroup>
+					  <col class="w-[330px]" />
+					  <col class="w-[500px]" />
+					  <col class="w-[130px]" />
+					  <col class="w-[190px]" />
+					</colgroup>
 					<thead>
 					  <tr>
-						<th class="w-[160px]">{{ $t('provider') }}</th>
-						<th>{{ $t('providerAccessLinks') }}</th>
-						<th class="w-[140px]">{{ $t('sslWarnDays') }}</th>
-						<th class="w-[190px]">{{ $t('sslExpires') }}</th>
+						<th class="align-middle">{{ $t('provider') }}</th>
+						<th class="align-middle">{{ $t('providerAccessLinks') }}</th>
+						<th class="align-middle">{{ $t('sslWarnDays') }}</th>
+						<th class="align-middle">{{ $t('sslExpires') }}</th>
 					  </tr>
 					</thead>
 					<tbody>
 					  <tr v-for="p in providersPanelRenderList" :key="p.name">
-						<td class="font-mono text-xs">
-              <div class="flex items-center gap-2">
+						<td class="align-middle font-mono text-xs">
+              <div class="flex min-w-0 items-center gap-2">
 								<button
                       type="button"
                       class="btn btn-ghost btn-xs h-7 w-10 shrink-0 px-0"
@@ -129,7 +135,7 @@
                       <ProviderIconBadge :icon="getProviderIconRaw(p.name)" />
                     </button>
                     <select
-                      class="select select-bordered select-xs w-24"
+                      class="select select-bordered select-xs w-24 shrink-0"
                       :value="getProviderIconRaw(p.name)"
                       @change="(e) => setProviderIcon(p.name, ((e.target as HTMLSelectElement)?.value || ''))"
                       :title="$t('providerIcon')"
@@ -139,41 +145,43 @@
                       <option v-for="cc in providerIconCountries" :key="`sel-${p.name}-${cc}`" :value="cc">{{ fmtProviderIcon(cc) }}</option>
                     </select>
 
-                <span class="min-w-0 truncate" :title="p.name">{{ p.name }}</span>
-                <span v-if="p.activeRuntime" class="badge badge-primary badge-xs">{{ $t('providerActiveBadge') }}</span>
-                <span v-if="p.hasSavedSettings" class="badge badge-ghost badge-xs">{{ p.savedOnly ? $t('providerSavedOnlyBadge') : $t('providerSavedSettingsBadge') }}</span>
+                <span class="badge badge-outline badge-sm max-w-[120px] shrink-0 truncate px-2" :title="p.name">{{ p.name }}</span>
+                <span v-if="p.activeRuntime" class="badge badge-primary badge-xs shrink-0">{{ $t('providerActiveBadge') }}</span>
+                <span v-if="p.hasSavedSettings" class="badge badge-ghost badge-xs shrink-0">{{ p.savedOnly ? $t('providerSavedOnlyBadge') : $t('providerSavedSettingsBadge') }}</span>
                 <TopologyActionButtons :stage="'P'" :value="p.name" :grouped="true" />
               </div>
             </td>
-						<td>
-						  <div class="space-y-2 min-w-[360px]">
+						<td class="align-middle">
+						  <div class="space-y-2">
 							<div class="flex flex-wrap items-center gap-1 text-[10px]">
 							  <a v-if="p.url" class="badge badge-outline gap-1" :href="p.url" target="_blank" rel="noreferrer">{{ $t('subscriptionUrlShort') }}</a>
 							  <a v-if="providerPanelInternetUrl(p)" class="badge badge-outline gap-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelInternetUrlShort') }}</a>
 							  <a v-if="providerPanelSshUrl(p)" class="badge badge-outline gap-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('panelSshUrlShort') }}</a>
 							</div>
-							<div class="flex items-center gap-2">
-							  <span class="w-20 shrink-0 text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
+							<div class="grid grid-cols-[110px_minmax(160px,320px)_64px] items-center gap-2">
+							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelInternetUrlShort') }}</span>
 							  <input
 								type="text"
-								class="input input-bordered input-xs flex-1 min-w-[220px]"
+								class="input input-bordered input-xs w-full"
 								:placeholder="$t('providerPanelUrlPlaceholder')"
 								:value="proxyProviderPanelUrlMap[p.name] || p.panelUrl || ''"
 								@input="(e) => setProviderPanelUrl(p.name, (e && e.target && e.target.value) || '')"
 							  />
-							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <a v-if="providerPanelInternetUrl(p)" class="btn btn-ghost btn-xs w-14 px-1" :href="providerPanelInternetUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <span v-else class="w-14" />
 							</div>
-							<div class="flex items-center gap-2">
-							  <span class="w-20 shrink-0 text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
+							<div class="grid grid-cols-[110px_minmax(160px,320px)_64px_56px] items-center gap-2">
+							  <span class="shrink-0 text-[10px] opacity-60">{{ $t('panelSshUrlShort') }}</span>
 							  <input
 								type="text"
-								class="input input-bordered input-xs flex-1 min-w-[220px]"
+								class="input input-bordered input-xs w-full"
 								:placeholder="$t('providerPanelSshUrlPlaceholder')"
 								:value="providerPanelSshUrl(p)"
 								@input="(e) => setProviderPanelSshUrl(p.name, (e && e.target && e.target.value) || '')"
 							  />
-							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
-							  <button type="button" class="btn btn-ghost btn-xs text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
+							  <a v-if="providerPanelSshUrl(p)" class="btn btn-ghost btn-xs w-14 px-1" :href="providerPanelSshUrl(p)" target="_blank" rel="noreferrer">{{ $t('open') }}</a>
+							  <span v-else class="w-14" />
+							  <button type="button" class="btn btn-ghost btn-xs w-12 px-1 text-error" :title="providerPanelDeleteTitle(p)" @click="deleteProviderPanelSettings(p)">{{ $t('delete') }}</button>
 							</div>
 						  </div>
 						</td>

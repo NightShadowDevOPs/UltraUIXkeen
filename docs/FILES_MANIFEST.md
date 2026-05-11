@@ -1,307 +1,312 @@
-# Files manifest
+# Files manifest — v1.2.190
 
-.dockerignore
-.editorconfig
-.gitattributes
-.gitignore
-.lintstagedrc.yaml
-.prettierrc.json
-CHANGELOG.md
-CURRENT_CHAT_TRANSFER_NOTE.md
-Caddyfile
-Dockerfile
-LICENSE
-README.md
-docs/AI_SESSION_BOOTSTRAP.md
-docs/BUGS_AND_ISSUES.md
-docs/BUILD_REPORT.md
-docs/CHANGELOG.md
-docs/CHECKS_AND_STATUS.md
-docs/DO_NOT_DO.md
-docs/FILES_MANIFEST.md
-docs/LAST_RELEASE_STATE.json
-docs/NEXT_ACTIONS.md
-docs/NEXT_AI_SESSION_PROMPT.md
-docs/PROJECT_MEMORY_DUMP.md
-docs/PROJECT_SPEC.md
-docs/README.md
-docs/README_v1.2.188.md
-docs/README_v1.2.189.md
-docs/RELEASE_META.json
-docs/RELEASE_PLAN.md
-docs/RULES_DIGEST.md
-docs/SESSION_TRANSFER.md
-docs/TASKS_DONE.md
-docs/backup.md
-docs/bugs_and_issues.md
-docs/changelog.md
-docs/chat-transfer.md
-docs/chat_transfer.md
-docs/chat_transfer_v1.2.188.md
-docs/chat_transfer_v1.2.189.md
-docs/current-state.md
-docs/ha-export-bridge.md
-docs/mihomo-config-management.md
-docs/project_spec.md
-docs/provider-ssl-checks.md
-docs/release-v1.2.179.md
-docs/release-v1.2.180.md
-docs/release-v1.2.181.md
-docs/release-v1.2.182.md
-docs/release-v1.2.183.md
-docs/release-v1.2.184.md
-docs/release-v1.2.185.md
-docs/release-v1.2.187.md
-docs/release-v1.2.188.md
-docs/release-v1.2.189.md
-docs/release_meta.json
-docs/release_meta_v1.2.188.json
-docs/release_meta_v1.2.189.json
-docs/release_plan.md
-docs/session_summary.md
-docs/tasks_done.md
-env.d.ts
-eslint.config.js
-index.html
-package.json
-pnpm-lock.yaml
-postcss.config.js
-public/apple-touch-icon.png
-public/favicon.ico
-public/favicon.svg
-public/icon.svg
-public/pwa-192x192.png
-public/pwa-512x512.png
-public/pwa-maskable-192x192.png
-public/pwa-maskable-512x512.png
-readme/mobile.png
-readme/pc.png
-router-agent/README.md
-router-agent/install-ha-cache-first.sh
-router-agent/install-ha-snapshot-cpu-hotfix.sh
-router-agent/install-maintenance.sh
-router-agent/install-provider-links-hotfix.sh
-router-agent/install-restart-agent.sh
-router-agent/install-strict-hotfix.sh
-router-agent/install-watchdog.sh
-router-agent/install.sh
-router-agent/maintenance.sh
-router-agent/restart-agent.sh
-router-agent/watchdog.sh
-scripts/apply-zash-agent-cache-first-v1.2.186.sh
-scripts/apply-zash-agent-maintenance-v1.2.181.sh
-scripts/apply-zash-agent-restart-v1.2.182.sh
-scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh
-scripts/apply-zash-agent-strict-v1.2.185.sh
-scripts/apply-zash-agent-watchdog-v1.2.180.sh
-scripts/apply-zash-agent-watchdog-v1.2.184.sh
-scripts/backup-ui-version-state-v1.2.183.sh
-scripts/backup-zash-agent-cache-first-v1.2.186.sh
-scripts/backup-zash-agent-maintenance-v1.2.181.sh
-scripts/backup-zash-agent-restart-v1.2.182.sh
-scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh
-scripts/backup-zash-agent-strict-v1.2.185.sh
-scripts/backup-zash-agent-watchdog-v1.2.180.sh
-scripts/backup-zash-agent-watchdog-v1.2.184.sh
-scripts/check-provider-links-v1.2.188.sh
-scripts/check-ui-version-v1.2.183.sh
-scripts/check-zash-agent-cache-first-v1.2.186.sh
-scripts/check-zash-agent-maintenance-v1.2.181.sh
-scripts/check-zash-agent-restart-v1.2.182.sh
-scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh
-scripts/check-zash-agent-strict-v1.2.185.sh
-scripts/check-zash-agent-watchdog-v1.2.180.sh
-scripts/check-zash-agent-watchdog-v1.2.184.sh
-scripts/rollback-zash-agent-cache-first-v1.2.186.sh
-scripts/rollback-zash-agent-maintenance-v1.2.181.sh
-scripts/rollback-zash-agent-restart-v1.2.182.sh
-scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh
-scripts/rollback-zash-agent-strict-v1.2.185.sh
-scripts/rollback-zash-agent-watchdog-v1.2.180.sh
-scripts/rollback-zash-agent-watchdog-v1.2.184.sh
-src/App.vue
-src/api/agent.ts
-src/api/geoip.ts
-src/api/index.ts
-src/api/latency.ts
-src/assets/NotoColorEmoji-flagsonly.ttf
-src/assets/TwemojiMozilla-flags.woff2
-src/assets/load-fonts.ts
-src/assets/main.css
-src/assets/metacubex.jpg
-src/assets/sing-box.svg
-src/assets/theme.css
-src/components/common/BackendVersion.vue
-src/components/common/CollapseCard.vue
-src/components/common/DialogWrapper.vue
-src/components/common/GlobalSearchModal.vue
-src/components/common/ImportSettings.vue
-src/components/common/PageTitleBar.vue
-src/components/common/ProviderIconBadge.vue
-src/components/common/QrCodeSvg.vue
-src/components/common/TextInput.vue
-src/components/common/TopologyActionButtons.vue
-src/components/common/VirtualScroller.vue
-src/components/connections/ConnectionCard.tsx
-src/components/connections/ConnectionCardList.vue
-src/components/connections/ConnectionDetails.vue
-src/components/connections/ConnectionTable.vue
-src/components/connections/SourceIPStats.vue
-src/components/logs/LogsCard.vue
-src/components/overview/BasicCharts.vue
-src/components/overview/ChartsCard.vue
-src/components/overview/ConnectionHistory.vue
-src/components/overview/ConnectionStatus.vue
-src/components/overview/ConnectionsCharts.vue
-src/components/overview/IPCheck.vue
-src/components/overview/MemoryCharts.vue
-src/components/overview/NetcrazeTrafficCard.vue
-src/components/overview/NetworkCard.vue
-src/components/overview/ProxiesCharts.vue
-src/components/overview/ProxiesClientCharts.vue
-src/components/overview/ProxiesRuleCharts.vue
-src/components/overview/ProxiesSourcesCharts.vue
-src/components/overview/RouterHealth.vue
-src/components/overview/SpeedCharts.vue
-src/components/overview/StatisticsStats.vue
-src/components/proxies/LatencyTag.vue
-src/components/proxies/ProxiesByProvider.vue
-src/components/proxies/ProxiesContent.vue
-src/components/proxies/ProxyGroup.vue
-src/components/proxies/ProxyGroupForMobile.vue
-src/components/proxies/ProxyGroupNow.vue
-src/components/proxies/ProxyIcon.vue
-src/components/proxies/ProxyName.vue
-src/components/proxies/ProxyNodeCard.vue
-src/components/proxies/ProxyNodeGrid.vue
-src/components/proxies/ProxyPreview.vue
-src/components/proxies/ProxyProvider.vue
-src/components/proxies/ProxyProvidersHealthSummary.vue
-src/components/router/AgentCard.vue
-src/components/router/ConnectionInfoCard.vue
-src/components/router/HostQosCard.vue
-src/components/router/SystemCard.vue
-src/components/rules/RuleCard.vue
-src/components/rules/RuleProvider.vue
-src/components/rules/RulesTable.vue
-src/components/settings/BackendSettings.vue
-src/components/settings/BackendSwitch.vue
-src/components/settings/ConnectionCardSettings.vue
-src/components/settings/ConnectionsSettings.vue
-src/components/settings/CustomTheme.vue
-src/components/settings/DnsQuery.vue
-src/components/settings/EditBackendModal.vue
-src/components/settings/GeneralSettings.vue
-src/components/settings/IconSettings.vue
-src/components/settings/LanguageSelect.vue
-src/components/settings/MihomoConfigEditor.vue
-src/components/settings/OverviewCard.vue
-src/components/settings/OverviewSettings.vue
-src/components/settings/ProxiesSettings.vue
-src/components/settings/SourceIPInput.vue
-src/components/settings/SourceIPLabels.vue
-src/components/settings/TableSettings.vue
-src/components/settings/ThemeSelector.vue
-src/components/settings/TunnelDescriptionsSettings.vue
-src/components/settings/UpgradeCoreModal.vue
-src/components/settings/ZashboardSettings.vue
-src/components/sidebar/CommonCtrl.vue
-src/components/sidebar/ConnectionCtrl.tsx
-src/components/sidebar/ConnectionTabs.vue
-src/components/sidebar/LogsCtrl.tsx
-src/components/sidebar/OverviewCarousel.vue
-src/components/sidebar/ProxiesCtrl.tsx
-src/components/sidebar/RulesCtrl.tsx
-src/components/sidebar/SideBar.vue
-src/components/sidebar/SourceIPFilter.vue
-src/components/sidebar/VerticalInfos.vue
-src/components/users/UserTrafficStats.vue
-src/composables/bouncein.ts
-src/composables/bus.ts
-src/composables/calculateMaxProxies.ts
-src/composables/connections.ts
-src/composables/keyboard.ts
-src/composables/overview.ts
-src/composables/proxies.ts
-src/composables/renderProxies.ts
-src/composables/settings.ts
-src/composables/statistics.ts
-src/composables/swipe.ts
-src/composables/uiBuild.ts
-src/composables/useSafePolling.ts
-src/composables/userLimitProfiles.ts
-src/composables/userLimits.ts
-src/composables/userTraffic.ts
-src/constant/index.ts
-src/helper/autoImportSettings.ts
-src/helper/b64.ts
-src/helper/dayjs.ts
-src/helper/flagIcons.ts
-src/helper/index.ts
-src/helper/indexeddb.ts
-src/helper/mihomoConfigAdvanced.ts
-src/helper/mihomoConfigDns.ts
-src/helper/mihomoConfigGroups.ts
-src/helper/mihomoConfigProviders.ts
-src/helper/mihomoConfigProxies.ts
-src/helper/mihomoConfigRuleProviders.ts
-src/helper/mihomoConfigRules.ts
-src/helper/navFocus.ts
-src/helper/notification.ts
-src/helper/providerHealth.ts
-src/helper/providerIcon.ts
-src/helper/proxyProto.ts
-src/helper/sourceip.ts
-src/helper/tooltip.ts
-src/helper/topologyNav.ts
-src/helper/tunnelDescriptions.ts
-src/helper/utils.ts
-src/i18n/en.ts
-src/i18n/index.ts
-src/i18n/ru.ts
-src/i18n/zh.ts
-src/main.ts
-src/router/index.ts
-src/store/agent.ts
-src/store/config.ts
-src/store/connections.ts
-src/store/globalSearch.ts
-src/store/jobs.ts
-src/store/logs.ts
-src/store/overview.ts
-src/store/providerActivity.ts
-src/store/providerHealth.ts
-src/store/proxies.ts
-src/store/routerHostQos.ts
-src/store/rules.ts
-src/store/settings.ts
-src/store/setup.ts
-src/store/smart.ts
-src/store/userLimitProfiles.ts
-src/store/userLimitSnapshots.ts
-src/store/userLimits.ts
-src/store/usersDbSync.ts
-src/types/global.d.ts
-src/types/index.d.ts
-src/views/ConnectionsPage.vue
-src/views/HomePage.vue
-src/views/LogsPage.vue
-src/views/MihomoPage.vue
-src/views/OverviewPage.vue
-src/views/PoliciesPage.vue
-src/views/ProxiesPage.vue
-src/views/ProxiesRoutePage.vue
-src/views/ProxyProvidersRoutePage.vue
-src/views/RouterPage.vue
-src/views/RulesPage.vue
-src/views/SettingsPage.vue
-src/views/SetupPage.vue
-src/views/SubscriptionsPage.vue
-src/views/TasksPage.vue
-src/views/TrafficPage.vue
-src/views/UsersPage.vue
-tailwind.config.ts
-tsconfig.app.json
-tsconfig.json
-tsconfig.node.json
-vite.config.ts
+- `.dockerignore` — 14 bytes — sha256 `ece6a99d81ee0330`
+- `.editorconfig` — 153 bytes — sha256 `ff49ebd3061b15d8`
+- `.gitattributes` — 283 bytes — sha256 `49f3ab873cb03094`
+- `.gitignore` — 312 bytes — sha256 `ca4dbc1d92803950`
+- `.lintstagedrc.yaml` — 143 bytes — sha256 `662ce9bf9da8d4a6`
+- `.prettierrc.json` — 249 bytes — sha256 `b8c784e3bbf6e74f`
+- `CHANGELOG.md` — 6392 bytes — sha256 `74f72a066332163c`
+- `CURRENT_CHAT_TRANSFER_NOTE.md` — 1644 bytes — sha256 `a53f5c9ff52bd5be`
+- `Caddyfile` — 67 bytes — sha256 `a826facbd32cbe27`
+- `Dockerfile` — 326 bytes — sha256 `d3e5b996940ff4ff`
+- `LICENSE` — 1063 bytes — sha256 `cb831c8556419547`
+- `README.md` — 790 bytes — sha256 `12b94e828194fe43`
+- `docs/AI_SESSION_BOOTSTRAP.md` — 932 bytes — sha256 `c8b43aa7f978023a`
+- `docs/BUGS_AND_ISSUES.md` — 1325 bytes — sha256 `dc9251621d5d5b48`
+- `docs/BUILD_REPORT.md` — 351 bytes — sha256 `5dc50a97482c71e6`
+- `docs/CHANGELOG.md` — 1911 bytes — sha256 `3b3d0808d6cd2253`
+- `docs/CHECKS_AND_STATUS.md` — 955 bytes — sha256 `e1347443cac45788`
+- `docs/DO_NOT_DO.md` — 429 bytes — sha256 `a3ce52ab9f08e045`
+- `docs/FILES_MANIFEST.md` — 24855 bytes — sha256 `b94f67f8357b543a`
+- `docs/LAST_RELEASE_STATE.json` — 767 bytes — sha256 `acdaac06c8e87ae9`
+- `docs/NEXT_ACTIONS.md` — 634 bytes — sha256 `c33eeda6d65eea67`
+- `docs/NEXT_AI_SESSION_PROMPT.md` — 724 bytes — sha256 `afe684edf055944a`
+- `docs/PROJECT_MEMORY_DUMP.md` — 549 bytes — sha256 `f9433eafea9a66d8`
+- `docs/PROJECT_SPEC.md` — 597 bytes — sha256 `c337189a097d5706`
+- `docs/README.md` — 394 bytes — sha256 `48f5eaddbfbee5ae`
+- `docs/README_v1.2.188.md` — 914 bytes — sha256 `ab10908cdeb16787`
+- `docs/README_v1.2.189.md` — 266 bytes — sha256 `520e6d6788ea9dd8`
+- `docs/README_v1.2.190.md` — 297 bytes — sha256 `071bf814977d3fef`
+- `docs/RELEASE_META.json` — 767 bytes — sha256 `acdaac06c8e87ae9`
+- `docs/RELEASE_PLAN.md` — 666 bytes — sha256 `61f19e28e9b0f774`
+- `docs/RULES_DIGEST.md` — 578 bytes — sha256 `b89503d4d15a8ebe`
+- `docs/SESSION_TRANSFER.md` — 889 bytes — sha256 `93a2f7aca8a87f8e`
+- `docs/TASKS_DONE.md` — 992 bytes — sha256 `fa6cf68280d58f11`
+- `docs/backup.md` — 526 bytes — sha256 `b31695cdca72bea6`
+- `docs/bugs_and_issues.md` — 906 bytes — sha256 `43f3cf7bf95e4862`
+- `docs/changelog.md` — 1745 bytes — sha256 `9fed8b55f82637de`
+- `docs/chat-transfer.md` — 248 bytes — sha256 `7cf76a7ffe554782`
+- `docs/chat_transfer.md` — 886 bytes — sha256 `60527b9b3cbe4867`
+- `docs/chat_transfer_v1.2.188.md` — 1026 bytes — sha256 `99abac52c28662f4`
+- `docs/chat_transfer_v1.2.189.md` — 1644 bytes — sha256 `a53f5c9ff52bd5be`
+- `docs/chat_transfer_v1.2.190.md` — 926 bytes — sha256 `bf4152ffd5a5c6cc`
+- `docs/current-state.md` — 297 bytes — sha256 `c717b5aa17739d30`
+- `docs/files_manifest_v1.2.190.json` — 47693 bytes — sha256 `af52973e41be83b9`
+- `docs/ha-export-bridge.md` — 439 bytes — sha256 `76a1e9753a904876`
+- `docs/mihomo-config-management.md` — 249 bytes — sha256 `27661b716f8076fd`
+- `docs/project_spec.md` — 759 bytes — sha256 `b8726ab53e544b19`
+- `docs/provider-ssl-checks.md` — 160 bytes — sha256 `fa678d88e4f6e33d`
+- `docs/release-v1.2.179.md` — 581 bytes — sha256 `4031444688963c73`
+- `docs/release-v1.2.180.md` — 1111 bytes — sha256 `e4dfa0b10fe42240`
+- `docs/release-v1.2.181.md` — 1318 bytes — sha256 `5562fe8f7c547be4`
+- `docs/release-v1.2.182.md` — 1160 bytes — sha256 `91dbfbf5430f1e35`
+- `docs/release-v1.2.183.md` — 1750 bytes — sha256 `3165401477241719`
+- `docs/release-v1.2.184.md` — 587 bytes — sha256 `44f15accc680d0ec`
+- `docs/release-v1.2.185.md` — 1682 bytes — sha256 `1e49a7a3d08e6f7a`
+- `docs/release-v1.2.187.md` — 1709 bytes — sha256 `4577ebbd5b7837a5`
+- `docs/release-v1.2.188.md` — 2157 bytes — sha256 `d72bdd821ad54db0`
+- `docs/release-v1.2.189.md` — 3064 bytes — sha256 `19f38acd3b2b0ee9`
+- `docs/release-v1.2.190.md` — 1580 bytes — sha256 `6acc89cfb3a11b8c`
+- `docs/release_meta.json` — 767 bytes — sha256 `acdaac06c8e87ae9`
+- `docs/release_meta_v1.2.188.json` — 266 bytes — sha256 `063854a0b73b524b`
+- `docs/release_meta_v1.2.189.json` — 808 bytes — sha256 `16887a5a17df994e`
+- `docs/release_plan.md` — 828 bytes — sha256 `34ef9d6e54b06b2f`
+- `docs/session_summary.md` — 412 bytes — sha256 `f755a1dc98327afc`
+- `docs/tasks_done.md` — 962 bytes — sha256 `df9fe8b9bf5a172c`
+- `env.d.ts` — 38 bytes — sha256 `65996936fbb04291`
+- `eslint.config.js` — 749 bytes — sha256 `c0b826d32044b044`
+- `index.html` — 865 bytes — sha256 `73cb210721b44e37`
+- `package.json` — 2540 bytes — sha256 `8ed5c07f79f32dbc`
+- `pnpm-lock.yaml` — 242801 bytes — sha256 `d35fc542d16635a9`
+- `postcss.config.js` — 124 bytes — sha256 `e49a388576c4fca2`
+- `public/apple-touch-icon.png` — 1556 bytes — sha256 `1eb59e46390931b4`
+- `public/favicon.ico` — 1823 bytes — sha256 `492e8cf10b21b448`
+- `public/favicon.svg` — 1211 bytes — sha256 `303f0bf729e33967`
+- `public/icon.svg` — 1217 bytes — sha256 `fbf65ed03158c62c`
+- `public/pwa-192x192.png` — 2580 bytes — sha256 `7ab62d63f1a03373`
+- `public/pwa-512x512.png` — 7404 bytes — sha256 `ceb00eb50e8bf9bb`
+- `public/pwa-maskable-192x192.png` — 1451 bytes — sha256 `09faa994a626e9b1`
+- `public/pwa-maskable-512x512.png` — 4711 bytes — sha256 `44517d6237a7cb80`
+- `readme/mobile.png` — 232046 bytes — sha256 `f4365dc510ac7641`
+- `readme/pc.png` — 625674 bytes — sha256 `c687ad28645baf64`
+- `router-agent/README.md` — 859 bytes — sha256 `f2d39a42109ac7b6`
+- `router-agent/install-ha-cache-first.sh` — 4962 bytes — sha256 `b25461a0b9129eec`
+- `router-agent/install-ha-snapshot-cpu-hotfix.sh` — 4998 bytes — sha256 `44b5628b648ddf43`
+- `router-agent/install-maintenance.sh` — 2161 bytes — sha256 `f9648c01db87b291`
+- `router-agent/install-provider-links-hotfix.sh` — 3491 bytes — sha256 `12479bcea153f8d0`
+- `router-agent/install-restart-agent.sh` — 1032 bytes — sha256 `e3083aeebbf063ca`
+- `router-agent/install-strict-hotfix.sh` — 3085 bytes — sha256 `ec5a728b068b5abd`
+- `router-agent/install-watchdog.sh` — 2400 bytes — sha256 `304c3c5c1a03c5ec`
+- `router-agent/install.sh` — 277460 bytes — sha256 `d2f1e85e7904f7f2`
+- `router-agent/maintenance.sh` — 4273 bytes — sha256 `14e46fcb491c373b`
+- `router-agent/restart-agent.sh` — 4587 bytes — sha256 `c9943fbb3709efa9`
+- `router-agent/watchdog.sh` — 6413 bytes — sha256 `1266b717046dd014`
+- `scripts/apply-zash-agent-cache-first-v1.2.186.sh` — 283 bytes — sha256 `5a6eb5627baba7bb`
+- `scripts/apply-zash-agent-maintenance-v1.2.181.sh` — 715 bytes — sha256 `8c83116be74609a3`
+- `scripts/apply-zash-agent-restart-v1.2.182.sh` — 710 bytes — sha256 `09542f694c0482d5`
+- `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh` — 292 bytes — sha256 `67bdbd6612f682bb`
+- `scripts/apply-zash-agent-strict-v1.2.185.sh` — 277 bytes — sha256 `15f2c057c8d4561a`
+- `scripts/apply-zash-agent-watchdog-v1.2.180.sh` — 1784 bytes — sha256 `606e0e7c5c1a68ea`
+- `scripts/apply-zash-agent-watchdog-v1.2.184.sh` — 674 bytes — sha256 `3c06b1b1014de03a`
+- `scripts/backup-ui-version-state-v1.2.183.sh` — 607 bytes — sha256 `5b620d0c1686d4a6`
+- `scripts/backup-zash-agent-cache-first-v1.2.186.sh` — 528 bytes — sha256 `af1958f9a2a71651`
+- `scripts/backup-zash-agent-maintenance-v1.2.181.sh` — 546 bytes — sha256 `114c73c2473734a9`
+- `scripts/backup-zash-agent-restart-v1.2.182.sh` — 592 bytes — sha256 `e80bfe2c0a0999f7`
+- `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh` — 532 bytes — sha256 `df405de827b2e2a8`
+- `scripts/backup-zash-agent-strict-v1.2.185.sh` — 508 bytes — sha256 `b3848238f42f598f`
+- `scripts/backup-zash-agent-watchdog-v1.2.180.sh` — 834 bytes — sha256 `d8888fe8d88d81e3`
+- `scripts/backup-zash-agent-watchdog-v1.2.184.sh` — 353 bytes — sha256 `5aa35e804642601d`
+- `scripts/check-provider-links-v1.2.188.sh` — 1229 bytes — sha256 `81b75e12315cef08`
+- `scripts/check-provider-links-v1.2.189.sh` — 1289 bytes — sha256 `ad1a9bc2bc0b3f88`
+- `scripts/check-ui-version-v1.2.183.sh` — 927 bytes — sha256 `3ab1a965adba3a42`
+- `scripts/check-zash-agent-cache-first-v1.2.186.sh` — 574 bytes — sha256 `ad7ab36fbd0ba056`
+- `scripts/check-zash-agent-maintenance-v1.2.181.sh` — 1933 bytes — sha256 `4d4c3afe5bfe1170`
+- `scripts/check-zash-agent-restart-v1.2.182.sh` — 1438 bytes — sha256 `ed8b912a1823ee62`
+- `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh` — 923 bytes — sha256 `0684d778c1547f2d`
+- `scripts/check-zash-agent-strict-v1.2.185.sh` — 655 bytes — sha256 `5e61c9c49b6962fb`
+- `scripts/check-zash-agent-watchdog-v1.2.180.sh` — 2275 bytes — sha256 `5823e30fd9f161ae`
+- `scripts/check-zash-agent-watchdog-v1.2.184.sh` — 441 bytes — sha256 `cb845fe237f4726c`
+- `scripts/rollback-zash-agent-cache-first-v1.2.186.sh` — 572 bytes — sha256 `feb71eb77373ac24`
+- `scripts/rollback-zash-agent-maintenance-v1.2.181.sh` — 516 bytes — sha256 `237866cc36e5c117`
+- `scripts/rollback-zash-agent-restart-v1.2.182.sh` — 537 bytes — sha256 `f6dae41f4f06413e`
+- `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh` — 575 bytes — sha256 `7fab28e74115a66d`
+- `scripts/rollback-zash-agent-strict-v1.2.185.sh` — 539 bytes — sha256 `04351bb8fc42738d`
+- `scripts/rollback-zash-agent-watchdog-v1.2.180.sh` — 1625 bytes — sha256 `741a49bfacf3a4f3`
+- `scripts/rollback-zash-agent-watchdog-v1.2.184.sh` — 468 bytes — sha256 `4fe645d9c1d18e0b`
+- `src/App.vue` — 3344 bytes — sha256 `54651f3cfd428398`
+- `src/api/agent.ts` — 42255 bytes — sha256 `22c0a27d8e9b13d6`
+- `src/api/geoip.ts` — 6471 bytes — sha256 `a321e25c47c36c4a`
+- `src/api/index.ts` — 11651 bytes — sha256 `5e287725f3d761b1`
+- `src/api/latency.ts` — 1817 bytes — sha256 `76b2ee23d81b0d9d`
+- `src/assets/NotoColorEmoji-flagsonly.ttf` — 913564 bytes — sha256 `bccb829e97ca4467`
+- `src/assets/TwemojiMozilla-flags.woff2` — 78308 bytes — sha256 `c030920068cc493d`
+- `src/assets/load-fonts.ts` — 1466 bytes — sha256 `86a65a2cbf4a254a`
+- `src/assets/main.css` — 6646 bytes — sha256 `3550f11d8ae75105`
+- `src/assets/metacubex.jpg` — 14267 bytes — sha256 `93c2062fb4b5047a`
+- `src/assets/sing-box.svg` — 3828 bytes — sha256 `2f14bc985fe00cec`
+- `src/assets/theme.css` — 1369 bytes — sha256 `d067c977e521b35c`
+- `src/components/common/BackendVersion.vue` — 526 bytes — sha256 `cb9b7630b41622a8`
+- `src/components/common/CollapseCard.vue` — 1745 bytes — sha256 `f6cc5598b85e65dc`
+- `src/components/common/DialogWrapper.vue` — 1292 bytes — sha256 `dd303cbd6b6b17e3`
+- `src/components/common/GlobalSearchModal.vue` — 11114 bytes — sha256 `d3ceb6104855162e`
+- `src/components/common/ImportSettings.vue` — 3314 bytes — sha256 `abdf6335fba46deb`
+- `src/components/common/PageTitleBar.vue` — 2250 bytes — sha256 `24fab684868460d8`
+- `src/components/common/ProviderIconBadge.vue` — 1967 bytes — sha256 `03c0918191ef427f`
+- `src/components/common/QrCodeSvg.vue` — 935 bytes — sha256 `feb7b35070b3d9fb`
+- `src/components/common/TextInput.vue` — 3216 bytes — sha256 `3142b279f2e2ed28`
+- `src/components/common/TopologyActionButtons.vue` — 2149 bytes — sha256 `cd5646ac2876be7f`
+- `src/components/common/VirtualScroller.vue` — 1892 bytes — sha256 `a35de06e55efd7f9`
+- `src/components/connections/ConnectionCard.tsx` — 6195 bytes — sha256 `157d4976f00e1aa9`
+- `src/components/connections/ConnectionCardList.vue` — 963 bytes — sha256 `37698f9bd53c907a`
+- `src/components/connections/ConnectionDetails.vue` — 3439 bytes — sha256 `27e50a7737841479`
+- `src/components/connections/ConnectionTable.vue` — 21631 bytes — sha256 `0c09cfb51fee20c7`
+- `src/components/connections/SourceIPStats.vue` — 4438 bytes — sha256 `c4e9cf33db8b80c7`
+- `src/components/logs/LogsCard.vue` — 1306 bytes — sha256 `f33f63703d68c7b1`
+- `src/components/overview/BasicCharts.vue` — 4795 bytes — sha256 `df4b5f70b38773b9`
+- `src/components/overview/ChartsCard.vue` — 852 bytes — sha256 `f24043c665cc55bf`
+- `src/components/overview/ConnectionHistory.vue` — 6107 bytes — sha256 `eca3ffba27b8d21c`
+- `src/components/overview/ConnectionStatus.vue` — 3567 bytes — sha256 `8817daa627ecc567`
+- `src/components/overview/ConnectionsCharts.vue` — 1093 bytes — sha256 `ea58dbdbaa9e8b0b`
+- `src/components/overview/IPCheck.vue` — 11999 bytes — sha256 `c32ce9497409d113`
+- `src/components/overview/MemoryCharts.vue` — 902 bytes — sha256 `396cbff356d2f2a6`
+- `src/components/overview/NetcrazeTrafficCard.vue` — 98510 bytes — sha256 `feb2313737162326`
+- `src/components/overview/NetworkCard.vue` — 562 bytes — sha256 `883c8420ed3ffa96`
+- `src/components/overview/ProxiesCharts.vue` — 6988 bytes — sha256 `ee37af9e3b39d1a5`
+- `src/components/overview/ProxiesClientCharts.vue` — 15258 bytes — sha256 `ecc1950503e62cf1`
+- `src/components/overview/ProxiesRuleCharts.vue` — 63339 bytes — sha256 `834047092e06d83d`
+- `src/components/overview/ProxiesSourcesCharts.vue` — 15679 bytes — sha256 `d1b74a1aeef3f7c0`
+- `src/components/overview/RouterHealth.vue` — 4028 bytes — sha256 `99c719b0956b1ba6`
+- `src/components/overview/SpeedCharts.vue` — 1123 bytes — sha256 `0c4ba6446d027bb1`
+- `src/components/overview/StatisticsStats.vue` — 2274 bytes — sha256 `ad666de1be6aa128`
+- `src/components/proxies/LatencyTag.vue` — 2697 bytes — sha256 `940a0cd357b2c224`
+- `src/components/proxies/ProxiesByProvider.vue` — 1807 bytes — sha256 `0aa0983344da1a9c`
+- `src/components/proxies/ProxiesContent.vue` — 843 bytes — sha256 `6a31bf3ef4474b3f`
+- `src/components/proxies/ProxyGroup.vue` — 6350 bytes — sha256 `a3f93ddb135aabf3`
+- `src/components/proxies/ProxyGroupForMobile.vue` — 7903 bytes — sha256 `cc56c5883dea79d4`
+- `src/components/proxies/ProxyGroupNow.vue` — 1861 bytes — sha256 `1245ab9a7f9b1a92`
+- `src/components/proxies/ProxyIcon.vue` — 881 bytes — sha256 `5117e84dade25044`
+- `src/components/proxies/ProxyName.vue` — 589 bytes — sha256 `3aa9e93e921fde24`
+- `src/components/proxies/ProxyNodeCard.vue` — 6095 bytes — sha256 `8ebc511f277a519d`
+- `src/components/proxies/ProxyNodeGrid.vue` — 262 bytes — sha256 `e007345b17b921ae`
+- `src/components/proxies/ProxyPreview.vue` — 7661 bytes — sha256 `48da348778324826`
+- `src/components/proxies/ProxyProvider.vue` — 38670 bytes — sha256 `55bffddb77f82f87`
+- `src/components/proxies/ProxyProvidersHealthSummary.vue` — 19815 bytes — sha256 `53ef5729eaa0949f`
+- `src/components/router/AgentCard.vue` — 78008 bytes — sha256 `2618642f08f3f6a1`
+- `src/components/router/ConnectionInfoCard.vue` — 4462 bytes — sha256 `40450f0fd50f7731`
+- `src/components/router/HostQosCard.vue` — 42849 bytes — sha256 `2280daece729744b`
+- `src/components/router/SystemCard.vue` — 16611 bytes — sha256 `f7bf63e00b007a10`
+- `src/components/rules/RuleCard.vue` — 8524 bytes — sha256 `d1b1a3e3e95ae582`
+- `src/components/rules/RuleProvider.vue` — 1680 bytes — sha256 `93a9dccf50eaa58b`
+- `src/components/rules/RulesTable.vue` — 5793 bytes — sha256 `360fbdc574019cbf`
+- `src/components/settings/BackendSettings.vue` — 8299 bytes — sha256 `12b1298355738152`
+- `src/components/settings/BackendSwitch.vue` — 1607 bytes — sha256 `6a39661f70f7cfcb`
+- `src/components/settings/ConnectionCardSettings.vue` — 3093 bytes — sha256 `0a0a5dfac4bb2943`
+- `src/components/settings/ConnectionsSettings.vue` — 2510 bytes — sha256 `32fe32552c5fcf20`
+- `src/components/settings/CustomTheme.vue` — 5396 bytes — sha256 `ddb7767165e82005`
+- `src/components/settings/DnsQuery.vue` — 2095 bytes — sha256 `3cd0f1c4c2832c45`
+- `src/components/settings/EditBackendModal.vue` — 5913 bytes — sha256 `afce58664eb2b9ca`
+- `src/components/settings/GeneralSettings.vue` — 3597 bytes — sha256 `7da0b944acbef2c2`
+- `src/components/settings/IconSettings.vue` — 3040 bytes — sha256 `2a600e9b54d09183`
+- `src/components/settings/LanguageSelect.vue` — 667 bytes — sha256 `d23ffa74800cd4f5`
+- `src/components/settings/MihomoConfigEditor.vue` — 360404 bytes — sha256 `37fdfa88e1afe623`
+- `src/components/settings/OverviewCard.vue` — 1368 bytes — sha256 `79b5af642eea6c82`
+- `src/components/settings/OverviewSettings.vue` — 4889 bytes — sha256 `51b0bf2c05d4bc3c`
+- `src/components/settings/ProxiesSettings.vue` — 7271 bytes — sha256 `46daa9518a3f6d8b`
+- `src/components/settings/SourceIPInput.vue` — 3949 bytes — sha256 `8d02b07d5171a775`
+- `src/components/settings/SourceIPLabels.vue` — 3531 bytes — sha256 `d79e7b0bec8e0a4b`
+- `src/components/settings/TableSettings.vue` — 1379 bytes — sha256 `34d59f94a76252c0`
+- `src/components/settings/ThemeSelector.vue` — 1703 bytes — sha256 `5732cade1a4659fd`
+- `src/components/settings/TunnelDescriptionsSettings.vue` — 8037 bytes — sha256 `28534894c00ab34e`
+- `src/components/settings/UpgradeCoreModal.vue` — 2211 bytes — sha256 `efd2ccb3c0081ce4`
+- `src/components/settings/ZashboardSettings.vue` — 10864 bytes — sha256 `a3db617d8a5789aa`
+- `src/components/sidebar/CommonCtrl.vue` — 796 bytes — sha256 `ea9918404c76957e`
+- `src/components/sidebar/ConnectionCtrl.tsx` — 6188 bytes — sha256 `1d5d63809db6e0bc`
+- `src/components/sidebar/ConnectionTabs.vue` — 981 bytes — sha256 `acaf7c9367967a68`
+- `src/components/sidebar/LogsCtrl.tsx` — 7215 bytes — sha256 `862e62f78c61eb46`
+- `src/components/sidebar/OverviewCarousel.vue` — 670 bytes — sha256 `77c210aae1c96423`
+- `src/components/sidebar/ProxiesCtrl.tsx` — 10137 bytes — sha256 `4feb7a8bc623f89c`
+- `src/components/sidebar/RulesCtrl.tsx` — 8259 bytes — sha256 `2be6de58a7baf30e`
+- `src/components/sidebar/SideBar.vue` — 7951 bytes — sha256 `7676e430a69c9c92`
+- `src/components/sidebar/SourceIPFilter.vue` — 2386 bytes — sha256 `eb318227260185ae`
+- `src/components/sidebar/VerticalInfos.vue` — 1649 bytes — sha256 `fb4a05cffe4f6b34`
+- `src/components/users/UserTrafficStats.vue` — 130962 bytes — sha256 `f8775425b2e65274`
+- `src/composables/bouncein.ts` — 974 bytes — sha256 `ad15dde1a12d8074`
+- `src/composables/bus.ts` — 119 bytes — sha256 `6fa856178e24cea0`
+- `src/composables/calculateMaxProxies.ts` — 545 bytes — sha256 `48ad0166ae06e9cc`
+- `src/composables/connections.ts` — 461 bytes — sha256 `706dfadd50af21ae`
+- `src/composables/keyboard.ts` — 1092 bytes — sha256 `8051aa9d67a78add`
+- `src/composables/overview.ts` — 504 bytes — sha256 `4ab86ba6679a5bfd`
+- `src/composables/proxies.ts` — 10536 bytes — sha256 `bd783b4e38552456`
+- `src/composables/renderProxies.ts` — 3210 bytes — sha256 `e923b9b215d06dca`
+- `src/composables/settings.ts` — 466 bytes — sha256 `852a7d059a30cc49`
+- `src/composables/statistics.ts` — 1374 bytes — sha256 `42305feb2d040bf5`
+- `src/composables/swipe.ts` — 3722 bytes — sha256 `139ce635c84f3f3f`
+- `src/composables/uiBuild.ts` — 5954 bytes — sha256 `27ae3adfea62a11e`
+- `src/composables/useSafePolling.ts` — 2231 bytes — sha256 `cc105eda0b2d4038`
+- `src/composables/userLimitProfiles.ts` — 5470 bytes — sha256 `ef248302dfc202e2`
+- `src/composables/userLimits.ts` — 31242 bytes — sha256 `1692fb3575ad815a`
+- `src/composables/userTraffic.ts` — 7291 bytes — sha256 `bb7a9bafff62e9ec`
+- `src/constant/index.ts` — 6651 bytes — sha256 `c092a31bb41b56a1`
+- `src/helper/autoImportSettings.ts` — 1845 bytes — sha256 `67b12531b4182795`
+- `src/helper/b64.ts` — 442 bytes — sha256 `17e25f27e9242ee4`
+- `src/helper/dayjs.ts` — 719 bytes — sha256 `5710ffcdbf07c5cf`
+- `src/helper/flagIcons.ts` — 707 bytes — sha256 `a8e53e1d7058657a`
+- `src/helper/index.ts` — 5628 bytes — sha256 `ba881ab02750d4c0`
+- `src/helper/indexeddb.ts` — 3605 bytes — sha256 `a5ddea793db90cb3`
+- `src/helper/mihomoConfigAdvanced.ts` — 14609 bytes — sha256 `46e6ee36c9a6b78c`
+- `src/helper/mihomoConfigDns.ts` — 13952 bytes — sha256 `39a5eacea0267fd4`
+- `src/helper/mihomoConfigGroups.ts` — 25554 bytes — sha256 `a4cfac388aceb82b`
+- `src/helper/mihomoConfigProviders.ts` — 23641 bytes — sha256 `f9d85b591118c1f4`
+- `src/helper/mihomoConfigProxies.ts` — 41042 bytes — sha256 `9fa6f017ec9ed3b1`
+- `src/helper/mihomoConfigRuleProviders.ts` — 13276 bytes — sha256 `11894216b4a6a04a`
+- `src/helper/mihomoConfigRules.ts` — 6587 bytes — sha256 `400fcc554229a679`
+- `src/helper/navFocus.ts` — 2361 bytes — sha256 `1f52bc92404f1f5e`
+- `src/helper/notification.ts` — 2553 bytes — sha256 `901c18083d7fac00`
+- `src/helper/providerHealth.ts` — 5763 bytes — sha256 `f6b7d3335839021f`
+- `src/helper/providerIcon.ts` — 2056 bytes — sha256 `09b2fbed4734c547`
+- `src/helper/proxyProto.ts` — 931 bytes — sha256 `01bec4c9898a42d9`
+- `src/helper/sourceip.ts` — 8307 bytes — sha256 `a2901d21bf33a2eb`
+- `src/helper/tooltip.ts` — 1730 bytes — sha256 `0648409fbe41f4e7`
+- `src/helper/topologyNav.ts` — 1424 bytes — sha256 `f322f2c24b1d089f`
+- `src/helper/tunnelDescriptions.ts` — 1389 bytes — sha256 `047a1f578484e41e`
+- `src/helper/utils.ts` — 2719 bytes — sha256 `7185a5f19fb25d4a`
+- `src/i18n/en.ts` — 129536 bytes — sha256 `860ee141d1bd3d8a`
+- `src/i18n/index.ts` — 330 bytes — sha256 `be5d98db93df0413`
+- `src/i18n/ru.ts` — 184941 bytes — sha256 `d252e2d7856db82b`
+- `src/i18n/zh.ts` — 119032 bytes — sha256 `08a470829304d87d`
+- `src/main.ts` — 474 bytes — sha256 `ba1b6c19c2fd4f8b`
+- `src/router/index.ts` — 3885 bytes — sha256 `0dae626b409940e4`
+- `src/store/agent.ts` — 4123 bytes — sha256 `7109bdc01e774d9f`
+- `src/store/config.ts` — 640 bytes — sha256 `3ca6aa1f5d5edb8e`
+- `src/store/connections.ts` — 7093 bytes — sha256 `0cee7a1691948581`
+- `src/store/globalSearch.ts` — 208 bytes — sha256 `ab10650a0041f78a`
+- `src/store/jobs.ts` — 1136 bytes — sha256 `306fd6c43909e3c4`
+- `src/store/logs.ts` — 1963 bytes — sha256 `a154fbd56b99a43a`
+- `src/store/overview.ts` — 2490 bytes — sha256 `d4b9ad66479fa45a`
+- `src/store/providerActivity.ts` — 35777 bytes — sha256 `4bffff3b01a00892`
+- `src/store/providerHealth.ts` — 8112 bytes — sha256 `654538aef6ee1057`
+- `src/store/proxies.ts` — 16863 bytes — sha256 `af5d892445f4945c`
+- `src/store/routerHostQos.ts` — 984 bytes — sha256 `d5db3773e792d820`
+- `src/store/rules.ts` — 6436 bytes — sha256 `ea24d81c5a65e7e8`
+- `src/store/settings.ts` — 13024 bytes — sha256 `a3191037692554ff`
+- `src/store/setup.ts` — 1474 bytes — sha256 `cf54626c78c84df9`
+- `src/store/smart.ts` — 341 bytes — sha256 `787a28f55b92efa6`
+- `src/store/userLimitProfiles.ts` — 1495 bytes — sha256 `4ed4c8e85b24d179`
+- `src/store/userLimitSnapshots.ts` — 576 bytes — sha256 `a7007b8e6e93cb85`
+- `src/store/userLimits.ts` — 1944 bytes — sha256 `163d11a36f8fc960`
+- `src/store/usersDbSync.ts` — 53243 bytes — sha256 `95e4b79799d621d5`
+- `src/types/global.d.ts` — 283 bytes — sha256 `3256ed6bcc25644f`
+- `src/types/index.d.ts` — 2711 bytes — sha256 `a9f9e868be9f02a4`
+- `src/views/ConnectionsPage.vue` — 796 bytes — sha256 `92fb8a8fd4c27342`
+- `src/views/HomePage.vue` — 8517 bytes — sha256 `516fd59adf3ee49d`
+- `src/views/LogsPage.vue` — 1393 bytes — sha256 `056e6d9330d3eeae`
+- `src/views/MihomoPage.vue` — 12247 bytes — sha256 `fe476a992ab02972`
+- `src/views/OverviewPage.vue` — 1037 bytes — sha256 `d86643d745569a0c`
+- `src/views/PoliciesPage.vue` — 12804 bytes — sha256 `74f35b4125f5d0bd`
+- `src/views/ProxiesPage.vue` — 7364 bytes — sha256 `4b0c054445231c75`
+- `src/views/ProxiesRoutePage.vue` — 261 bytes — sha256 `f7e7a240d165ae4f`
+- `src/views/ProxyProvidersRoutePage.vue` — 262 bytes — sha256 `5d342f4c1fe48ed2`
+- `src/views/RouterPage.vue` — 6418 bytes — sha256 `c374cade1336a308`
+- `src/views/RulesPage.vue` — 4072 bytes — sha256 `44383cadfbea55af`
+- `src/views/SettingsPage.vue` — 3839 bytes — sha256 `5623610c5a499e68`
+- `src/views/SetupPage.vue` — 7320 bytes — sha256 `fee002cd1664a14e`
+- `src/views/SubscriptionsPage.vue` — 43225 bytes — sha256 `61d3e22818c4a45e`
+- `src/views/TasksPage.vue` — 198714 bytes — sha256 `7a2e71feaf772699`
+- `src/views/TrafficPage.vue` — 7246 bytes — sha256 `7df7f2c3553d5538`
+- `src/views/UsersPage.vue` — 23905 bytes — sha256 `d79993b1fb236e97`
+- `tailwind.config.ts` — 632 bytes — sha256 `f7fdecbafb98d578`
+- `tsconfig.app.json` — 332 bytes — sha256 `3d96270a629ad08d`
+- `tsconfig.json` — 139 bytes — sha256 `3dd280df663fb5fb`
+- `tsconfig.node.json` — 414 bytes — sha256 `63982adea0579515`
+- `vite.config.ts` — 1675 bytes — sha256 `9dd6824c7617219a`

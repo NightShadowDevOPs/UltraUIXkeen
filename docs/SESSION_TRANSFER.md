@@ -19,3 +19,7 @@ Prepared router-agent-only release v1.2.187 to fix stale CPU in HA snapshot bund
 - `scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh`
 - `scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh`
 - `scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh`
+## v1.2.190 session note
+
+Provider access links table was polished: names are badges, columns are aligned, URL fields are shorter. This is UI-only and does not change router-agent provider/SSL mechanics.
+

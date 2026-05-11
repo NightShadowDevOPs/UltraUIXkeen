@@ -33,3 +33,7 @@
 
 - Mihomo core/TUN/QoS/routing/provider SSL.
 - Home Assistant/HA DB/native Energy/SmartLife boiler.
+
+## v1.2.190
+
+UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.

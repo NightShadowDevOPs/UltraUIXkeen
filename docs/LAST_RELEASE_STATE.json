@@ -1,31 +1,23 @@
 {
-  "package": "ui-mihomo-ultra",
-  "release_version": "v1.2.189",
-  "created_at": "2026-05-11T12:20:00+03:00",
-  "scope": "UI provider access links; providerPanelSshUrls users-db sync",
-  "runtime_marker": "0.6.37",
-  "touches": [
-    "src/views/TasksPage.vue",
-    "src/store/usersDbSync.ts",
-    "src/i18n/ru.ts",
-    "src/i18n/en.ts",
-    "package.json",
-    "docs/*"
-  ],
-  "does_not_touch": [
-    "Mihomo core",
-    "TUN",
-    "QoS/routing",
-    "provider SSL source logic",
-    "users-db limits",
-    "shapers.db",
-    "router reboot",
-    "Home Assistant",
-    "HA DB",
-    "native HA Energy",
-    "SmartLife boiler"
-  ],
-  "ssl_source": "subscription URL",
-  "panel_ssh_urls": "manual providerPanelSshUrls, local PC SSH tunnel addresses such as http://127.0.0.1:port/path",
-  "status": "prepared"
+  "project_slug": "ui-mihomo-ultra",
+  "project_name": "UI Mihomo Ultra / router-agent",
+  "release_version": "v1.2.190",
+  "release_title": "Provider panel links UI polish",
+  "created_at": "2026-05-11T12:20:00Z",
+  "scope": "UI-only provider table layout polish",
+  "runtime_mutation": false,
+  "router_agent_changed": false,
+  "home_assistant_touched": false,
+  "ha_db_touched": false,
+  "native_ha_energy_touched": false,
+  "smartlife_boiler_touched": false,
+  "ssl_source": "subscription_url_unchanged",
+  "gate_markers": {
+    "ARTIFACT_NAMING_STATUS": "OK",
+    "DOCS_PACKAGE_STATUS": "OK",
+    "TRANSFER_PACKAGE_STATUS": "OK",
+    "STATIC_SAFETY_STATUS": "OK",
+    "RELEASE_ARTIFACT_STATUS": "OK",
+    "BACKUP_SCRIPT_STATUS": "NOT_APPLICABLE_UI_ONLY"
+  }
 }

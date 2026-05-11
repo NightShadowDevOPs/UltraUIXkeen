@@ -11,3 +11,7 @@ v1.2.187 prepared a router-agent-only hotfix:
 - marker: `v1.2.187 ha_snapshot live CPU/load overlay`
 
 Do not touch Home Assistant, HA DB, native Energy, SmartLife boiler, Mihomo core, TUN, QoS/routing, provider SSL, users-db or shapers.db unless explicitly requested.
+## v1.2.190 bootstrap addition
+
+Current accepted direction: panels will be hidden from Internet access later; provider rows keep subscription URL, public panel URL and SSH/local panel URL separately. v1.2.190 only improves the visual layout of that table.
+

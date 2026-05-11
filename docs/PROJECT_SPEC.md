@@ -10,3 +10,7 @@ Current runtime focus:
 - Safe raw/manual router-agent installers are required because UI updater delivers frontend bundle and does not reliably deliver runtime scripts.
 
 v1.2.187 changes only router-agent `ha_snapshot` CPU/load mapping/cache behavior.
+
+## v1.2.190
+
+UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.

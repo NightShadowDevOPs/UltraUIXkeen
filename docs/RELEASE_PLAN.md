@@ -14,3 +14,7 @@ Gate markers:
 - STATIC_SAFETY_STATUS=OK
 - RELEASE_ARTIFACT_STATUS=OK
 - BACKUP_SCRIPT_STATUS=OK
+
+## v1.2.190
+
+UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.

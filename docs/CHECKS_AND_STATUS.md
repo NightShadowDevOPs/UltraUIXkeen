@@ -19,3 +19,14 @@
 ## Expected post-install check
 
 Run `scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh` or the compact command from release response. Expected output is no more than ~8 lines.
+## v1.2.190 checks
+
+- ARTIFACT_NAMING_STATUS=OK
+- DOCS_PACKAGE_STATUS=OK
+- TRANSFER_PACKAGE_STATUS=OK
+- STATIC_SAFETY_STATUS=OK
+- RELEASE_ARTIFACT_STATUS=OK
+- BACKUP_SCRIPT_STATUS=NOT_APPLICABLE_UI_ONLY
+- Runtime mutation: none.
+- Router-agent restart: not required.
+

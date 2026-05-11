@@ -1,0 +1,1552 @@
+[
+  {
+    "path": ".dockerignore",
+    "size": 14,
+    "sha256": "ece6a99d81ee033034768cd0386afeb08988d587012316c712d0e8523080cbc5"
+  },
+  {
+    "path": ".editorconfig",
+    "size": 153,
+    "sha256": "ff49ebd3061b15d895fd1c038e4c4d7568ba2ff61684669799ac34265c021882"
+  },
+  {
+    "path": ".gitattributes",
+    "size": 283,
+    "sha256": "49f3ab873cb03094c5ce384c8d1b83f782c80e32fc88ed8debde06d16aa5569f"
+  },
+  {
+    "path": ".gitignore",
+    "size": 312,
+    "sha256": "ca4dbc1d928039500e161a12245504bbf2e2ca731cb345b3d67247eb45abe3bc"
+  },
+  {
+    "path": ".lintstagedrc.yaml",
+    "size": 143,
+    "sha256": "662ce9bf9da8d4a6881f6a788129723dbcf21c9de873f958c7342abc8ce3a310"
+  },
+  {
+    "path": ".prettierrc.json",
+    "size": 249,
+    "sha256": "b8c784e3bbf6e74feac1ef54518cae41e0bb2f5fa87cd4ef2147dbe5883a8f31"
+  },
+  {
+    "path": "CHANGELOG.md",
+    "size": 6392,
+    "sha256": "74f72a066332163cf78f843a0bd4a04d2f594de08332a38ac9a8911c8c4f09ef"
+  },
+  {
+    "path": "CURRENT_CHAT_TRANSFER_NOTE.md",
+    "size": 1644,
+    "sha256": "a53f5c9ff52bd5beb90ee377dc9a8adba1f1b375d64e8b6cc596e12610dbfa3c"
+  },
+  {
+    "path": "Caddyfile",
+    "size": 67,
+    "sha256": "a826facbd32cbe27eada06e9a1e3850ed13e0383400d4a5e2852d6507fdbf3a3"
+  },
+  {
+    "path": "Dockerfile",
+    "size": 326,
+    "sha256": "d3e5b996940ff4ff9d79425364888f8a8db2de1b6a866bc44edf3d13c08e0d81"
+  },
+  {
+    "path": "LICENSE",
+    "size": 1063,
+    "sha256": "cb831c8556419547afef295adc764eaaa7fd8b366ef3b180ed5fbb927df8c2a8"
+  },
+  {
+    "path": "README.md",
+    "size": 790,
+    "sha256": "12b94e828194fe431948d8e79329210257ca70bc5d9f0a3bfdd180fb32c34083"
+  },
+  {
+    "path": "docs/AI_SESSION_BOOTSTRAP.md",
+    "size": 932,
+    "sha256": "c8b43aa7f978023a8460e845f3385fa0aa27265696aa71fc243ca56f4c4d8f6b"
+  },
+  {
+    "path": "docs/BUGS_AND_ISSUES.md",
+    "size": 1325,
+    "sha256": "dc9251621d5d5b48e3f4e4a8f3ce5ea0a650eb63bb1813a56902c40689debe48"
+  },
+  {
+    "path": "docs/BUILD_REPORT.md",
+    "size": 351,
+    "sha256": "5dc50a97482c71e6f762ba7e6c0e93d130ae22b948db527e0a5630d6308091d0"
+  },
+  {
+    "path": "docs/CHANGELOG.md",
+    "size": 1911,
+    "sha256": "3b3d0808d6cd2253e3fb8161951a7f23fdbe43594bae4d88600651cf7d075889"
+  },
+  {
+    "path": "docs/CHECKS_AND_STATUS.md",
+    "size": 955,
+    "sha256": "e1347443cac457888dcbe5b489f6bfc7e2faa33081dd9d2464b7b4b53c5635cb"
+  },
+  {
+    "path": "docs/DO_NOT_DO.md",
+    "size": 429,
+    "sha256": "a3ce52ab9f08e0450387db403dfbdbc38d2f7fbe5252e5a0f58effa358eb33be"
+  },
+  {
+    "path": "docs/FILES_MANIFEST.md",
+    "size": 24855,
+    "sha256": "b94f67f8357b543aa04a913f7cef3a4823e1998c69cbc2db8d6176eaba4fb9ed"
+  },
+  {
+    "path": "docs/LAST_RELEASE_STATE.json",
+    "size": 767,
+    "sha256": "acdaac06c8e87ae950217b17c5f2ebf78ee26a3bea4192881c90d180f0d01f05"
+  },
+  {
+    "path": "docs/NEXT_ACTIONS.md",
+    "size": 634,
+    "sha256": "c33eeda6d65eea671bd6abe45e66a35ca8fd730a6da4ac9f116eaf69bb7aef0f"
+  },
+  {
+    "path": "docs/NEXT_AI_SESSION_PROMPT.md",
+    "size": 724,
+    "sha256": "afe684edf055944aa762904df613a3e63d67d4a78825c14d40e33ac7a5d49329"
+  },
+  {
+    "path": "docs/PROJECT_MEMORY_DUMP.md",
+    "size": 549,
+    "sha256": "f9433eafea9a66d8bd4b87a889bc433997f86a80bc1be01abc56ec0b0c6e3d9e"
+  },
+  {
+    "path": "docs/PROJECT_SPEC.md",
+    "size": 597,
+    "sha256": "c337189a097d5706b69650627998dd98c8c46fb39ac98e5776be0172ad9ec216"
+  },
+  {
+    "path": "docs/README.md",
+    "size": 394,
+    "sha256": "48f5eaddbfbee5ae0b6dd5653f587c823373e50dda6793b8b36e2751b54b5049"
+  },
+  {
+    "path": "docs/README_v1.2.188.md",
+    "size": 914,
+    "sha256": "ab10908cdeb16787d4560a04b811d2332ced972b717ae3cb283d44d7a7109b56"
+  },
+  {
+    "path": "docs/README_v1.2.189.md",
+    "size": 266,
+    "sha256": "520e6d6788ea9dd8056e37f0e2c55f7853575167ace4bb9157a5711b2b0ddafa"
+  },
+  {
+    "path": "docs/README_v1.2.190.md",
+    "size": 297,
+    "sha256": "071bf814977d3fefd1a0d03b042e280db3f643f4bc2922ec9a04483de40117d7"
+  },
+  {
+    "path": "docs/RELEASE_META.json",
+    "size": 767,
+    "sha256": "acdaac06c8e87ae950217b17c5f2ebf78ee26a3bea4192881c90d180f0d01f05"
+  },
+  {
+    "path": "docs/RELEASE_PLAN.md",
+    "size": 666,
+    "sha256": "61f19e28e9b0f77408b219bd6c8c186b1db958287b1f39219e1884d8b20367fc"
+  },
+  {
+    "path": "docs/RULES_DIGEST.md",
+    "size": 578,
+    "sha256": "b89503d4d15a8ebe3345abab37b4b7d3b4b500171317938c1f018c3543afbef8"
+  },
+  {
+    "path": "docs/SESSION_TRANSFER.md",
+    "size": 889,
+    "sha256": "93a2f7aca8a87f8e853fd5923bc5760c02506535dbb72c8625303dc803bb9600"
+  },
+  {
+    "path": "docs/TASKS_DONE.md",
+    "size": 992,
+    "sha256": "fa6cf68280d58f112690ab7d90cc46948c4cbb764e04a2936cea7c039b888bc0"
+  },
+  {
+    "path": "docs/backup.md",
+    "size": 526,
+    "sha256": "b31695cdca72bea6d9387fe253d04cab7f3d60009494b968480de35281218e4d"
+  },
+  {
+    "path": "docs/bugs_and_issues.md",
+    "size": 906,
+    "sha256": "43f3cf7bf95e48626033537f29dd38ee5518b3ee0d51a1133337ff1a3fe092ce"
+  },
+  {
+    "path": "docs/changelog.md",
+    "size": 1745,
+    "sha256": "9fed8b55f82637de02758f23981b45f1d08c3353fae882b3ade033889a02ff4e"
+  },
+  {
+    "path": "docs/chat-transfer.md",
+    "size": 248,
+    "sha256": "7cf76a7ffe55478279c216d4911c9f8c1ceff4c3a5624fce4be23da04f38f031"
+  },
+  {
+    "path": "docs/chat_transfer.md",
+    "size": 886,
+    "sha256": "60527b9b3cbe4867319fd8bc0fe5bd5ecf5b5b15a7e0ac41a27e2444dd6f0764"
+  },
+  {
+    "path": "docs/chat_transfer_v1.2.188.md",
+    "size": 1026,
+    "sha256": "99abac52c28662f4d5ad1d6bd68f294507f45cb48454f449805b489495449afe"
+  },
+  {
+    "path": "docs/chat_transfer_v1.2.189.md",
+    "size": 1644,
+    "sha256": "a53f5c9ff52bd5beb90ee377dc9a8adba1f1b375d64e8b6cc596e12610dbfa3c"
+  },
+  {
+    "path": "docs/chat_transfer_v1.2.190.md",
+    "size": 926,
+    "sha256": "bf4152ffd5a5c6cc6ae55524722a2ff39068fe058526dbe96c866981d8faf80f"
+  },
+  {
+    "path": "docs/current-state.md",
+    "size": 297,
+    "sha256": "c717b5aa17739d3007470b4ca8aae3b720fbe257b1e45cb74aff29ea3d7bb6f9"
+  },
+  {
+    "path": "docs/files_manifest_v1.2.190.json",
+    "size": 47693,
+    "sha256": "af52973e41be83b9b09b71aa3b9e7db69d3ba6cc0d54484849b7391850ec83fc"
+  },
+  {
+    "path": "docs/ha-export-bridge.md",
+    "size": 439,
+    "sha256": "76a1e9753a904876f21af74cc9922ae8683387b15225cb014ae8e96e14db5509"
+  },
+  {
+    "path": "docs/mihomo-config-management.md",
+    "size": 249,
+    "sha256": "27661b716f8076fdca86005560eea42efce86d64eff603db3d1656358175f43b"
+  },
+  {
+    "path": "docs/project_spec.md",
+    "size": 759,
+    "sha256": "b8726ab53e544b1949503ffa0629c82fd93097a8be80631276f5fb1733aafce8"
+  },
+  {
+    "path": "docs/provider-ssl-checks.md",
+    "size": 160,
+    "sha256": "fa678d88e4f6e33df75b2aeac6bba3d1c90c193c5a37e129a601b1905f12f7c5"
+  },
+  {
+    "path": "docs/release-v1.2.179.md",
+    "size": 581,
+    "sha256": "4031444688963c73f6f00e036a9027a73a3b89769ab2b59ef9f39e4ee1db6c7b"
+  },
+  {
+    "path": "docs/release-v1.2.180.md",
+    "size": 1111,
+    "sha256": "e4dfa0b10fe42240071211dff42934c05f0c592e130519c3b17fe8bb9f0d44d1"
+  },
+  {
+    "path": "docs/release-v1.2.181.md",
+    "size": 1318,
+    "sha256": "5562fe8f7c547be46110c727b1d64914d6bedc6ea1d9afb34b08b14122bbfde6"
+  },
+  {
+    "path": "docs/release-v1.2.182.md",
+    "size": 1160,
+    "sha256": "91dbfbf5430f1e352cb4fc075225132fbeca97a9b62205cef97654fb16f0bdb5"
+  },
+  {
+    "path": "docs/release-v1.2.183.md",
+    "size": 1750,
+    "sha256": "3165401477241719143cf5dcf186ed38ebdb22ef771fea7e7e7996548bc1b08b"
+  },
+  {
+    "path": "docs/release-v1.2.184.md",
+    "size": 587,
+    "sha256": "44f15accc680d0ecd64e116cbf4064b9130e6869f602d0cab1be49fe9210a291"
+  },
+  {
+    "path": "docs/release-v1.2.185.md",
+    "size": 1682,
+    "sha256": "1e49a7a3d08e6f7ad0518eba1f577a639041d2df610d24a956bb14cdc5c5ba45"
+  },
+  {
+    "path": "docs/release-v1.2.187.md",
+    "size": 1709,
+    "sha256": "4577ebbd5b7837a5612798308f0c62507494c5ea6e6113c5edccda72fab20417"
+  },
+  {
+    "path": "docs/release-v1.2.188.md",
+    "size": 2157,
+    "sha256": "d72bdd821ad54db0123ae1dd1b4a48b547a5fe2cb65effa998d1ac0b7fce9a89"
+  },
+  {
+    "path": "docs/release-v1.2.189.md",
+    "size": 3064,
+    "sha256": "19f38acd3b2b0ee938d5fb4a4e10ff1d8c50f4f14d3941036fa684352f48c5fa"
+  },
+  {
+    "path": "docs/release-v1.2.190.md",
+    "size": 1580,
+    "sha256": "6acc89cfb3a11b8cb37365e6777322ffe3ec1526bab6f2ca77499862afe24c8e"
+  },
+  {
+    "path": "docs/release_meta.json",
+    "size": 767,
+    "sha256": "acdaac06c8e87ae950217b17c5f2ebf78ee26a3bea4192881c90d180f0d01f05"
+  },
+  {
+    "path": "docs/release_meta_v1.2.188.json",
+    "size": 266,
+    "sha256": "063854a0b73b524b361370ea98f54806899741520665e3a2a3d1e9701cd7fc4c"
+  },
+  {
+    "path": "docs/release_meta_v1.2.189.json",
+    "size": 808,
+    "sha256": "16887a5a17df994efedc29cc3818c48339e8163e9e2486e1e9e858d73bfa6fb7"
+  },
+  {
+    "path": "docs/release_plan.md",
+    "size": 828,
+    "sha256": "34ef9d6e54b06b2fe8c6c74a38ac44083880b149475241f68c0a92cbe1cdde88"
+  },
+  {
+    "path": "docs/session_summary.md",
+    "size": 412,
+    "sha256": "f755a1dc98327afc316b2b6149555a03050cdf32140a8e4705b54e0906843f0b"
+  },
+  {
+    "path": "docs/tasks_done.md",
+    "size": 962,
+    "sha256": "df9fe8b9bf5a172cfd0484f6f4f21efdc5cb0e20d088f289f278562d86c9be81"
+  },
+  {
+    "path": "env.d.ts",
+    "size": 38,
+    "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+  },
+  {
+    "path": "eslint.config.js",
+    "size": 749,
+    "sha256": "c0b826d32044b044b63374299083533f1c86cf28b5133f27ba195034c103875f"
+  },
+  {
+    "path": "index.html",
+    "size": 865,
+    "sha256": "73cb210721b44e374343be2550f359e0d365309634583016e349c53e6075849e"
+  },
+  {
+    "path": "package.json",
+    "size": 2540,
+    "sha256": "8ed5c07f79f32dbcb814d5f74e6c0d7e9772aa0d8a8c8c05df6e319b4f55d454"
+  },
+  {
+    "path": "pnpm-lock.yaml",
+    "size": 242801,
+    "sha256": "d35fc542d16635a936b15819a4d3d22d45fdd2212af442c1eeff82b0beaeca85"
+  },
+  {
+    "path": "postcss.config.js",
+    "size": 124,
+    "sha256": "e49a388576c4fca23b4c524173e752572abeee4cf0e636088a917204b39bb903"
+  },
+  {
+    "path": "public/apple-touch-icon.png",
+    "size": 1556,
+    "sha256": "1eb59e46390931b43abdb0746de0cc497f0022ec667dc513ef49a0c5f1bea228"
+  },
+  {
+    "path": "public/favicon.ico",
+    "size": 1823,
+    "sha256": "492e8cf10b21b4484ad96c16285d2bf7bb8f8b372c1502878ba1b1f6c3873173"
+  },
+  {
+    "path": "public/favicon.svg",
+    "size": 1211,
+    "sha256": "303f0bf729e33967667ddcd66b718dc3ba2f54abe387fe2b6f63e806e589ec52"
+  },
+  {
+    "path": "public/icon.svg",
+    "size": 1217,
+    "sha256": "fbf65ed03158c62c2e7bfb70b875a850063786a9421915aa8bb6ad54ba70e53e"
+  },
+  {
+    "path": "public/pwa-192x192.png",
+    "size": 2580,
+    "sha256": "7ab62d63f1a033733f81ff5f5ef0fc12a694a566623e8060d2107bcc561441f6"
+  },
+  {
+    "path": "public/pwa-512x512.png",
+    "size": 7404,
+    "sha256": "ceb00eb50e8bf9bb3d23826f69f8f937ed8f7eaec6ca2ee67cc1d9f04d03422e"
+  },
+  {
+    "path": "public/pwa-maskable-192x192.png",
+    "size": 1451,
+    "sha256": "09faa994a626e9b1c42f6c05001f1e0bf8c083f90f77ca6e2a9e03a4861e21b2"
+  },
+  {
+    "path": "public/pwa-maskable-512x512.png",
+    "size": 4711,
+    "sha256": "44517d6237a7cb80664b4d8b9f7ba6d9333e1a1a987f7ceb99f58634d9218e31"
+  },
+  {
+    "path": "readme/mobile.png",
+    "size": 232046,
+    "sha256": "f4365dc510ac7641c1179e635342519348bf73dce9caed8f2ed7935562df01c0"
+  },
+  {
+    "path": "readme/pc.png",
+    "size": 625674,
+    "sha256": "c687ad28645baf64c02288498defd1bf03ee4eaf19ab1ac7eaf40bc4eb34bc4f"
+  },
+  {
+    "path": "router-agent/README.md",
+    "size": 859,
+    "sha256": "f2d39a42109ac7b6681b0983146680145734c986a0e00f1a2eecefb17829d2fd"
+  },
+  {
+    "path": "router-agent/install-ha-cache-first.sh",
+    "size": 4962,
+    "sha256": "b25461a0b9129eec553b96671cc5998c1f293619b0e8fb0a8dbb3ae7236d38d2"
+  },
+  {
+    "path": "router-agent/install-ha-snapshot-cpu-hotfix.sh",
+    "size": 4998,
+    "sha256": "44b5628b648ddf438a5b2df867c6412556316bc7220ad84626c55303fe83392f"
+  },
+  {
+    "path": "router-agent/install-maintenance.sh",
+    "size": 2161,
+    "sha256": "f9648c01db87b29154b69753898baf423dc36568e4deaf4d44dcc8f19ba1079c"
+  },
+  {
+    "path": "router-agent/install-provider-links-hotfix.sh",
+    "size": 3491,
+    "sha256": "12479bcea153f8d0f6b7ebf92cee984e7582516e00d070ea956f3f927ffa82c6"
+  },
+  {
+    "path": "router-agent/install-restart-agent.sh",
+    "size": 1032,
+    "sha256": "e3083aeebbf063ca3ebe0dcb0b29777ecc6344b86b38633fef760e5432db991e"
+  },
+  {
+    "path": "router-agent/install-strict-hotfix.sh",
+    "size": 3085,
+    "sha256": "ec5a728b068b5abd5d36340f28514fbca4487ad549bfcf07d1c82d66715fdf9f"
+  },
+  {
+    "path": "router-agent/install-watchdog.sh",
+    "size": 2400,
+    "sha256": "304c3c5c1a03c5ec363f90c202445763c92f4bed11f29a495cdb56a89f9831f1"
+  },
+  {
+    "path": "router-agent/install.sh",
+    "size": 277460,
+    "sha256": "d2f1e85e7904f7f28035f803a7d36b4cf15defbf5b6162d9c699a6f6bbb9c743"
+  },
+  {
+    "path": "router-agent/maintenance.sh",
+    "size": 4273,
+    "sha256": "14e46fcb491c373b286e0c312f8c2e3a627c0b7f5f662d360408e1c7ba0ff279"
+  },
+  {
+    "path": "router-agent/restart-agent.sh",
+    "size": 4587,
+    "sha256": "c9943fbb3709efa9d3247c368c01c2dd6bb30951b75292f9e0a475bd0772d47d"
+  },
+  {
+    "path": "router-agent/watchdog.sh",
+    "size": 6413,
+    "sha256": "1266b717046dd01442bbc408a6c5ca81fae64b785dde0803a750462faee47a27"
+  },
+  {
+    "path": "scripts/apply-zash-agent-cache-first-v1.2.186.sh",
+    "size": 283,
+    "sha256": "5a6eb5627baba7bbd0c04319a2397bdb591e4776d5babb8bec0de849c5c1615b"
+  },
+  {
+    "path": "scripts/apply-zash-agent-maintenance-v1.2.181.sh",
+    "size": 715,
+    "sha256": "8c83116be74609a3826925b670cb619a2c5503559db361f0d4141b0651b72c77"
+  },
+  {
+    "path": "scripts/apply-zash-agent-restart-v1.2.182.sh",
+    "size": 710,
+    "sha256": "09542f694c0482d5281050d6e60684ed4dbd5b94ac286e6d0c6713e9c59c2084"
+  },
+  {
+    "path": "scripts/apply-zash-agent-snapshot-cpu-v1.2.187.sh",
+    "size": 292,
+    "sha256": "67bdbd6612f682bbc8cfa72a32bf24d7998675d4fe0c2de5d95a264f85f85596"
+  },
+  {
+    "path": "scripts/apply-zash-agent-strict-v1.2.185.sh",
+    "size": 277,
+    "sha256": "15f2c057c8d4561a43f7850b2871dd694ba3d4acaac66b5ef6162bfc4e34864e"
+  },
+  {
+    "path": "scripts/apply-zash-agent-watchdog-v1.2.180.sh",
+    "size": 1784,
+    "sha256": "606e0e7c5c1a68ead067b7858c76bc8dd554c87ef40bf203e59e5c39659e3801"
+  },
+  {
+    "path": "scripts/apply-zash-agent-watchdog-v1.2.184.sh",
+    "size": 674,
+    "sha256": "3c06b1b1014de03acbae83718a66029088cd5abc945fa1846561a7aab4fdda54"
+  },
+  {
+    "path": "scripts/backup-ui-version-state-v1.2.183.sh",
+    "size": 607,
+    "sha256": "5b620d0c1686d4a617d605700bbaff7f6944f2a32a285e168728ddc2c81c1252"
+  },
+  {
+    "path": "scripts/backup-zash-agent-cache-first-v1.2.186.sh",
+    "size": 528,
+    "sha256": "af1958f9a2a71651a2e07bd4779ce7bf5f873857af08a3b52274e39570e9c258"
+  },
+  {
+    "path": "scripts/backup-zash-agent-maintenance-v1.2.181.sh",
+    "size": 546,
+    "sha256": "114c73c2473734a93912a15176c29b9c5c91c9d7cf515590a045374740938dad"
+  },
+  {
+    "path": "scripts/backup-zash-agent-restart-v1.2.182.sh",
+    "size": 592,
+    "sha256": "e80bfe2c0a0999f78e69e79a7934328f030602fc162c4b9445431aa276dd4de2"
+  },
+  {
+    "path": "scripts/backup-zash-agent-snapshot-cpu-v1.2.187.sh",
+    "size": 532,
+    "sha256": "df405de827b2e2a8fa182e1523c8a91ae96c78bd205958871c9d7b7dc0e1c0ea"
+  },
+  {
+    "path": "scripts/backup-zash-agent-strict-v1.2.185.sh",
+    "size": 508,
+    "sha256": "b3848238f42f598fcfa2f213bf3b2aea99487890d6505cd8f4172a67bfa1b475"
+  },
+  {
+    "path": "scripts/backup-zash-agent-watchdog-v1.2.180.sh",
+    "size": 834,
+    "sha256": "d8888fe8d88d81e3d4817a07124bf2bafd4c994c6d55e972a7c9c9843a75e407"
+  },
+  {
+    "path": "scripts/backup-zash-agent-watchdog-v1.2.184.sh",
+    "size": 353,
+    "sha256": "5aa35e804642601db34c68f7f46312ee02130e888cfb9e1d23f19f9b9f313a91"
+  },
+  {
+    "path": "scripts/check-provider-links-v1.2.188.sh",
+    "size": 1229,
+    "sha256": "81b75e12315cef08b28a24dd634b8776d8e4f6f920954d6b6e4776283fa63835"
+  },
+  {
+    "path": "scripts/check-provider-links-v1.2.189.sh",
+    "size": 1289,
+    "sha256": "ad1a9bc2bc0b3f88cb24280bf503c5c52d7b042b341d92910b8b7f6576169caa"
+  },
+  {
+    "path": "scripts/check-ui-version-v1.2.183.sh",
+    "size": 927,
+    "sha256": "3ab1a965adba3a423295750363cb4cca82d95237188d3b23bf5c7ed715ada3ca"
+  },
+  {
+    "path": "scripts/check-zash-agent-cache-first-v1.2.186.sh",
+    "size": 574,
+    "sha256": "ad7ab36fbd0ba056e73eb050baa87063adf60656b017f95ddf08037eb5a29513"
+  },
+  {
+    "path": "scripts/check-zash-agent-maintenance-v1.2.181.sh",
+    "size": 1933,
+    "sha256": "4d4c3afe5bfe1170a93ef8baf1a508f17adc1bf794716a0b727b35e0c687c1b7"
+  },
+  {
+    "path": "scripts/check-zash-agent-restart-v1.2.182.sh",
+    "size": 1438,
+    "sha256": "ed8b912a1823ee623d2f0f63ab00cc6a689fa2083a7f50e13ac05740fc8ac0c4"
+  },
+  {
+    "path": "scripts/check-zash-agent-snapshot-cpu-v1.2.187.sh",
+    "size": 923,
+    "sha256": "0684d778c1547f2d98f4aee73f24b8cf9d394aacc3d13cde9b5c632c34eda9b5"
+  },
+  {
+    "path": "scripts/check-zash-agent-strict-v1.2.185.sh",
+    "size": 655,
+    "sha256": "5e61c9c49b6962fb282a97791a752864fc292374b155755539ded7b60d18569a"
+  },
+  {
+    "path": "scripts/check-zash-agent-watchdog-v1.2.180.sh",
+    "size": 2275,
+    "sha256": "5823e30fd9f161ae36d649988d158b7f19d5f22db769dde1d4c4b46c6a037329"
+  },
+  {
+    "path": "scripts/check-zash-agent-watchdog-v1.2.184.sh",
+    "size": 441,
+    "sha256": "cb845fe237f4726cdabbd391d3ac7c63865c788721f42ff79ad0361428ca2049"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-cache-first-v1.2.186.sh",
+    "size": 572,
+    "sha256": "feb71eb77373ac24fe99f8ab9e822433ff4faa24c34ed208ebc454b4be560101"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-maintenance-v1.2.181.sh",
+    "size": 516,
+    "sha256": "237866cc36e5c1173e12a5ac195cfa036add7d08f78f2816fe81c3fc3ed89c21"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-restart-v1.2.182.sh",
+    "size": 537,
+    "sha256": "f6dae41f4f06413eaf836ee42ee4e4496b89294ccec25eaa93f8d4a026f98286"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-snapshot-cpu-v1.2.187.sh",
+    "size": 575,
+    "sha256": "7fab28e74115a66d14895ce65479d0962c0fd0a21d9f4d0168c3828ed6f0a1d7"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-strict-v1.2.185.sh",
+    "size": 539,
+    "sha256": "04351bb8fc42738d2c6696bef2f3948b3565bbc62199d3d81942a04ab7985c89"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-watchdog-v1.2.180.sh",
+    "size": 1625,
+    "sha256": "741a49bfacf3a4f3f61c6c787c1c3e08db7dec43d3926baea32fb5d7c61cdff2"
+  },
+  {
+    "path": "scripts/rollback-zash-agent-watchdog-v1.2.184.sh",
+    "size": 468,
+    "sha256": "4fe645d9c1d18e0ba34876bc625f7f1ca753753e460ad9ab520c0440c0a22d17"
+  },
+  {
+    "path": "src/App.vue",
+    "size": 3344,
+    "sha256": "54651f3cfd428398110573fb00998043695d29f46d7d65c982dc62ff8ba12d05"
+  },
+  {
+    "path": "src/api/agent.ts",
+    "size": 42255,
+    "sha256": "22c0a27d8e9b13d6a8090ca72a83d37d9242bf4f8cdc36d73cbcd36443bf5afd"
+  },
+  {
+    "path": "src/api/geoip.ts",
+    "size": 6471,
+    "sha256": "a321e25c47c36c4aeb50311b30b82eea8c81917a239971a4e92f457a5ec55f85"
+  },
+  {
+    "path": "src/api/index.ts",
+    "size": 11651,
+    "sha256": "5e287725f3d761b1c02823dead634220deaf385f1c2b3258268162d0facf0ac5"
+  },
+  {
+    "path": "src/api/latency.ts",
+    "size": 1817,
+    "sha256": "76b2ee23d81b0d9d82b40717717fb9ce61f9da284bb44fb672cb7ceacfdc6271"
+  },
+  {
+    "path": "src/assets/NotoColorEmoji-flagsonly.ttf",
+    "size": 913564,
+    "sha256": "bccb829e97ca446771231993cf5bff3449974851201c497be6d6d52e906aae7b"
+  },
+  {
+    "path": "src/assets/TwemojiMozilla-flags.woff2",
+    "size": 78308,
+    "sha256": "c030920068cc493d59cc8c21ff29000b7a3676c40414cba7e7a5780d02f41cbf"
+  },
+  {
+    "path": "src/assets/load-fonts.ts",
+    "size": 1466,
+    "sha256": "86a65a2cbf4a254a13de6f870c1d64b705d72d1120ef60af0110d3c6239e9e0e"
+  },
+  {
+    "path": "src/assets/main.css",
+    "size": 6646,
+    "sha256": "3550f11d8ae75105e4071e315e14a019949056d40d6056ddb994acdb9d2a67d8"
+  },
+  {
+    "path": "src/assets/metacubex.jpg",
+    "size": 14267,
+    "sha256": "93c2062fb4b5047a40d23696e4a21b123fde84a00c733c3b6a9ce813a3442983"
+  },
+  {
+    "path": "src/assets/sing-box.svg",
+    "size": 3828,
+    "sha256": "2f14bc985fe00cecda1213ee74dade3a357d880e6d57c196f254f810428524ae"
+  },
+  {
+    "path": "src/assets/theme.css",
+    "size": 1369,
+    "sha256": "d067c977e521b35c1a170286883fc05ebf7cc5b6bce8d71fd65418f1949af878"
+  },
+  {
+    "path": "src/components/common/BackendVersion.vue",
+    "size": 526,
+    "sha256": "cb9b7630b41622a860434b1e7fd2142835c1a47eaf162b37965d318ae9af8ed1"
+  },
+  {
+    "path": "src/components/common/CollapseCard.vue",
+    "size": 1745,
+    "sha256": "f6cc5598b85e65dc8a943e183633805b68ebd1288edb210b70720499c10b8612"
+  },
+  {
+    "path": "src/components/common/DialogWrapper.vue",
+    "size": 1292,
+    "sha256": "dd303cbd6b6b17e34d885b2b55896594460731ca898546389e18bc59cddce09d"
+  },
+  {
+    "path": "src/components/common/GlobalSearchModal.vue",
+    "size": 11114,
+    "sha256": "d3ceb6104855162e94ff6b6caa6a3ad32d20a114ffba815d74411d7e7db3de92"
+  },
+  {
+    "path": "src/components/common/ImportSettings.vue",
+    "size": 3314,
+    "sha256": "abdf6335fba46deb3539048d666819471be4ea5bb153362bff80fb1e154947f9"
+  },
+  {
+    "path": "src/components/common/PageTitleBar.vue",
+    "size": 2250,
+    "sha256": "24fab684868460d89be82517ae076d8a09a87a165e3c04652f2262c17f57a9f1"
+  },
+  {
+    "path": "src/components/common/ProviderIconBadge.vue",
+    "size": 1967,
+    "sha256": "03c0918191ef427f511f12edde024541ff2837a1c5e9d634db24d3a834e20655"
+  },
+  {
+    "path": "src/components/common/QrCodeSvg.vue",
+    "size": 935,
+    "sha256": "feb7b35070b3d9fb1d5e6f227965a94f25a94024fb667a9aeb8f00ebaebc0bf4"
+  },
+  {
+    "path": "src/components/common/TextInput.vue",
+    "size": 3216,
+    "sha256": "3142b279f2e2ed286283ab7b59e7b479e6507a5118901a7a1f080cef5e1dd07c"
+  },
+  {
+    "path": "src/components/common/TopologyActionButtons.vue",
+    "size": 2149,
+    "sha256": "cd5646ac2876be7fc6596f0eb5a8da37dfeab29e564b551cab9797c34dd2f1b8"
+  },
+  {
+    "path": "src/components/common/VirtualScroller.vue",
+    "size": 1892,
+    "sha256": "a35de06e55efd7f94b1ff459ddf344e7b6f9977f52c7393c126a043c755339ba"
+  },
+  {
+    "path": "src/components/connections/ConnectionCard.tsx",
+    "size": 6195,
+    "sha256": "157d4976f00e1aa90a6efbde49ee4833269e8cefef3b523231a93ef87c672e0e"
+  },
+  {
+    "path": "src/components/connections/ConnectionCardList.vue",
+    "size": 963,
+    "sha256": "37698f9bd53c907acaddb37b79d42a18d8cd7ddb69daa8c20045d07aaef2aeaa"
+  },
+  {
+    "path": "src/components/connections/ConnectionDetails.vue",
+    "size": 3439,
+    "sha256": "27e50a77378414791dc853b7798f80d1180d36fa72448888d2caf87c9af52c48"
+  },
+  {
+    "path": "src/components/connections/ConnectionTable.vue",
+    "size": 21631,
+    "sha256": "0c09cfb51fee20c7c131648ecf3ccaec864afe13c3c693a88fdee58d85f3e13e"
+  },
+  {
+    "path": "src/components/connections/SourceIPStats.vue",
+    "size": 4438,
+    "sha256": "c4e9cf33db8b80c7c2e40d09f91407a3696568ad294ec83edcbb58f2fb32955a"
+  },
+  {
+    "path": "src/components/logs/LogsCard.vue",
+    "size": 1306,
+    "sha256": "f33f63703d68c7b1b2506ac0ddb1830eac85b80ee88b8508235846ab1caf705b"
+  },
+  {
+    "path": "src/components/overview/BasicCharts.vue",
+    "size": 4795,
+    "sha256": "df4b5f70b38773b9fb3ff446730c911fa51c625e2a8b0be6cb3a89e116bb18f1"
+  },
+  {
+    "path": "src/components/overview/ChartsCard.vue",
+    "size": 852,
+    "sha256": "f24043c665cc55bfb5521bb8f865d368b983301bfe2919e6c0e3fea54860e3bb"
+  },
+  {
+    "path": "src/components/overview/ConnectionHistory.vue",
+    "size": 6107,
+    "sha256": "eca3ffba27b8d21cd7ad53cf47eccdb55160b4970efd31b5313ff1798fcd7f8f"
+  },
+  {
+    "path": "src/components/overview/ConnectionStatus.vue",
+    "size": 3567,
+    "sha256": "8817daa627ecc567e30a82de125ebce238b001c7bbbbe0c53c30e2437e7fc14b"
+  },
+  {
+    "path": "src/components/overview/ConnectionsCharts.vue",
+    "size": 1093,
+    "sha256": "ea58dbdbaa9e8b0bc77af5ebba925123d26e7654da67bf08e90b34c360bffbb9"
+  },
+  {
+    "path": "src/components/overview/IPCheck.vue",
+    "size": 11999,
+    "sha256": "c32ce9497409d1137a44396c8904d8a16ef1678c84298b3292e994b5eff686a7"
+  },
+  {
+    "path": "src/components/overview/MemoryCharts.vue",
+    "size": 902,
+    "sha256": "396cbff356d2f2a6d885d7e244b3fd2023e8af66a02d6126b98bcb755b41f99d"
+  },
+  {
+    "path": "src/components/overview/NetcrazeTrafficCard.vue",
+    "size": 98510,
+    "sha256": "feb23137371623268a7399121d07b9a5d3701eb96bb774334a7e306b820d655f"
+  },
+  {
+    "path": "src/components/overview/NetworkCard.vue",
+    "size": 562,
+    "sha256": "883c8420ed3ffa96e04d6dd3a5a5a4090e9f43791051c8ec922cd334e7c738d9"
+  },
+  {
+    "path": "src/components/overview/ProxiesCharts.vue",
+    "size": 6988,
+    "sha256": "ee37af9e3b39d1a5f0ce9cf3ce5021690b54520483782a0afac09aa061d5deb3"
+  },
+  {
+    "path": "src/components/overview/ProxiesClientCharts.vue",
+    "size": 15258,
+    "sha256": "ecc1950503e62cf14e945b41ba7c7818bbe6bc113262176ef323932ae6abb83c"
+  },
+  {
+    "path": "src/components/overview/ProxiesRuleCharts.vue",
+    "size": 63339,
+    "sha256": "834047092e06d83d8105958c33efc7a9b73a9bb0761c085c83860b3f8b356704"
+  },
+  {
+    "path": "src/components/overview/ProxiesSourcesCharts.vue",
+    "size": 15679,
+    "sha256": "d1b74a1aeef3f7c0a438e335058f8921ea98e24554414f78b3c4e5943c411470"
+  },
+  {
+    "path": "src/components/overview/RouterHealth.vue",
+    "size": 4028,
+    "sha256": "99c719b0956b1ba6c895550bdf1c0cd8d3da2c8ef2562cc62101dae9276d9231"
+  },
+  {
+    "path": "src/components/overview/SpeedCharts.vue",
+    "size": 1123,
+    "sha256": "0c4ba6446d027bb1f5fc0a1d69dcf2b8739d6fbf29511f104a5820d124929474"
+  },
+  {
+    "path": "src/components/overview/StatisticsStats.vue",
+    "size": 2274,
+    "sha256": "ad666de1be6aa128e7afaffcfe123f354a72bbd027bf2238358926375bb3c058"
+  },
+  {
+    "path": "src/components/proxies/LatencyTag.vue",
+    "size": 2697,
+    "sha256": "940a0cd357b2c224d266a2e9d7657e87b2034445901c34ce21bfdc74c1e59898"
+  },
+  {
+    "path": "src/components/proxies/ProxiesByProvider.vue",
+    "size": 1807,
+    "sha256": "0aa0983344da1a9c83361a1e72353549d8cdebb4a08330aca886ea9545a77450"
+  },
+  {
+    "path": "src/components/proxies/ProxiesContent.vue",
+    "size": 843,
+    "sha256": "6a31bf3ef4474b3f947a977a792f8386d34c44b2216d4765af6a801f27c0deef"
+  },
+  {
+    "path": "src/components/proxies/ProxyGroup.vue",
+    "size": 6350,
+    "sha256": "a3f93ddb135aabf3336185f23e7b966f91180a58328e321bfc5b5097fa86cdfd"
+  },
+  {
+    "path": "src/components/proxies/ProxyGroupForMobile.vue",
+    "size": 7903,
+    "sha256": "cc56c5883dea79d4cd9eae0871aa6841296621a9dc164f04226089f7a6e4ca5e"
+  },
+  {
+    "path": "src/components/proxies/ProxyGroupNow.vue",
+    "size": 1861,
+    "sha256": "1245ab9a7f9b1a92831908a11e17f84079646ffccfcb5a50944dbbce085a1cf1"
+  },
+  {
+    "path": "src/components/proxies/ProxyIcon.vue",
+    "size": 881,
+    "sha256": "5117e84dade250443d6fdb4bdba9e0decc0830acbd71d927a85a64bb587882ef"
+  },
+  {
+    "path": "src/components/proxies/ProxyName.vue",
+    "size": 589,
+    "sha256": "3aa9e93e921fde246b90f2a808cc63bb4d6e177fac96039b6919e7803f5975eb"
+  },
+  {
+    "path": "src/components/proxies/ProxyNodeCard.vue",
+    "size": 6095,
+    "sha256": "8ebc511f277a519d4095ea1801f23bffad3562d261f03ddf9cd97d39111cb396"
+  },
+  {
+    "path": "src/components/proxies/ProxyNodeGrid.vue",
+    "size": 262,
+    "sha256": "e007345b17b921ae85da14ae131b78a1dd6a4b9c68e006f1d0b3e7b7c3f63b80"
+  },
+  {
+    "path": "src/components/proxies/ProxyPreview.vue",
+    "size": 7661,
+    "sha256": "48da34877832482685faf5294f712f317448a944068c995b88057c98c0b17121"
+  },
+  {
+    "path": "src/components/proxies/ProxyProvider.vue",
+    "size": 38670,
+    "sha256": "55bffddb77f82f878f5f8c49d63c880263c27f5a1a205b890e2f2caadf2cddba"
+  },
+  {
+    "path": "src/components/proxies/ProxyProvidersHealthSummary.vue",
+    "size": 19815,
+    "sha256": "53ef5729eaa0949fee1c11cc2a9f8610e6b4b23d542c7c43e27053fa0d7a426d"
+  },
+  {
+    "path": "src/components/router/AgentCard.vue",
+    "size": 78008,
+    "sha256": "2618642f08f3f6a1da53dfa16274406baf5ff84533c955be9d840a4b7e6dfac8"
+  },
+  {
+    "path": "src/components/router/ConnectionInfoCard.vue",
+    "size": 4462,
+    "sha256": "40450f0fd50f773168ea4d0203c53b8a49dfac10436001bf27fdfedcd12329ec"
+  },
+  {
+    "path": "src/components/router/HostQosCard.vue",
+    "size": 42849,
+    "sha256": "2280daece729744b0b2ae1a9fe3465022674763b04dddcacb82537844838d861"
+  },
+  {
+    "path": "src/components/router/SystemCard.vue",
+    "size": 16611,
+    "sha256": "f7bf63e00b007a10162a65a0e2636e65272b15cb1b938dcfcf22bbe12e8a15ef"
+  },
+  {
+    "path": "src/components/rules/RuleCard.vue",
+    "size": 8524,
+    "sha256": "d1b1a3e3e95ae582a92a5932fc619a90663a52baa66745872deb48409cbca288"
+  },
+  {
+    "path": "src/components/rules/RuleProvider.vue",
+    "size": 1680,
+    "sha256": "93a9dccf50eaa58b445807e5410e23629f7e3a81aec1f77fd53008c6fc9fe021"
+  },
+  {
+    "path": "src/components/rules/RulesTable.vue",
+    "size": 5793,
+    "sha256": "360fbdc574019cbfce5bd75debf331c81029ca7b894ac09883e15741c5abc432"
+  },
+  {
+    "path": "src/components/settings/BackendSettings.vue",
+    "size": 8299,
+    "sha256": "12b12983557381528d52c0789cc83fe74aa16e0d10704c94eaf39517ebebb35c"
+  },
+  {
+    "path": "src/components/settings/BackendSwitch.vue",
+    "size": 1607,
+    "sha256": "6a39661f70f7cfcbb15c8a41cdc92c0f4e1a9a2f66fd4b0e94a4d05a135a61fd"
+  },
+  {
+    "path": "src/components/settings/ConnectionCardSettings.vue",
+    "size": 3093,
+    "sha256": "0a0a5dfac4bb29432be2e71564259ffab75d4c7f0a366c7aeb414510ab8081f1"
+  },
+  {
+    "path": "src/components/settings/ConnectionsSettings.vue",
+    "size": 2510,
+    "sha256": "32fe32552c5fcf207b0e753aca043698cababd72143fdf217364a94fa27b565e"
+  },
+  {
+    "path": "src/components/settings/CustomTheme.vue",
+    "size": 5396,
+    "sha256": "ddb7767165e820054211d3cd8c9b767ee640ab3500f172646c478014ec12e9e4"
+  },
+  {
+    "path": "src/components/settings/DnsQuery.vue",
+    "size": 2095,
+    "sha256": "3cd0f1c4c2832c4522b0c610ad26e2ba381dff7ab22612728d593678381143d0"
+  },
+  {
+    "path": "src/components/settings/EditBackendModal.vue",
+    "size": 5913,
+    "sha256": "afce58664eb2b9cac126979a3775d27084e660e188b9ace78ebbd292dd6d845a"
+  },
+  {
+    "path": "src/components/settings/GeneralSettings.vue",
+    "size": 3597,
+    "sha256": "7da0b944acbef2c2dd53e3c9fb8c3a96d7baa7b63818d9fe13f15d3c6a0bfbe5"
+  },
+  {
+    "path": "src/components/settings/IconSettings.vue",
+    "size": 3040,
+    "sha256": "2a600e9b54d091836f847a2a05c0a5b956c80e5749a4b4a4a22e1943de6447dd"
+  },
+  {
+    "path": "src/components/settings/LanguageSelect.vue",
+    "size": 667,
+    "sha256": "d23ffa74800cd4f59ad71bcb532f8acaa8f0259ead277444bff1767419c27d2a"
+  },
+  {
+    "path": "src/components/settings/MihomoConfigEditor.vue",
+    "size": 360404,
+    "sha256": "37fdfa88e1afe623eecd462216b2151d2498d001ca6a4fc82d6cabdae935f3be"
+  },
+  {
+    "path": "src/components/settings/OverviewCard.vue",
+    "size": 1368,
+    "sha256": "79b5af642eea6c821092d2acc181a4d7331e006b28accc7e910e111ae533e662"
+  },
+  {
+    "path": "src/components/settings/OverviewSettings.vue",
+    "size": 4889,
+    "sha256": "51b0bf2c05d4bc3cefa1b78eaa0a4066eed70ecb1637d3775eed896043bbf26a"
+  },
+  {
+    "path": "src/components/settings/ProxiesSettings.vue",
+    "size": 7271,
+    "sha256": "46daa9518a3f6d8b02c2ec2febf3e5768e034d1c97f6fe4e63063c3b6f45ff00"
+  },
+  {
+    "path": "src/components/settings/SourceIPInput.vue",
+    "size": 3949,
+    "sha256": "8d02b07d5171a775686a0337e81df248900f31dffe08d17a1a55e15492f0dd57"
+  },
+  {
+    "path": "src/components/settings/SourceIPLabels.vue",
+    "size": 3531,
+    "sha256": "d79e7b0bec8e0a4ba8737907a27300c6f4f118af1274d1e3b51cab28a23743d8"
+  },
+  {
+    "path": "src/components/settings/TableSettings.vue",
+    "size": 1379,
+    "sha256": "34d59f94a76252c00e0de0582adda8a2cf16cfc1e4774cfa3e938977323a8088"
+  },
+  {
+    "path": "src/components/settings/ThemeSelector.vue",
+    "size": 1703,
+    "sha256": "5732cade1a4659fd1ae29e5b197a1664331e3690046a8527e69995063907eb40"
+  },
+  {
+    "path": "src/components/settings/TunnelDescriptionsSettings.vue",
+    "size": 8037,
+    "sha256": "28534894c00ab34eebe9096a2d587f3f67325e1c62c1d9bfefc57b4aeababf8f"
+  },
+  {
+    "path": "src/components/settings/UpgradeCoreModal.vue",
+    "size": 2211,
+    "sha256": "efd2ccb3c0081ce4716021d8df4e43d04738fbdf6a478dfea24e0239782575da"
+  },
+  {
+    "path": "src/components/settings/ZashboardSettings.vue",
+    "size": 10864,
+    "sha256": "a3db617d8a5789aae257ff041f1f3f596b92361c6f280fbd59c03dc496c61ba3"
+  },
+  {
+    "path": "src/components/sidebar/CommonCtrl.vue",
+    "size": 796,
+    "sha256": "ea9918404c76957e066b50a247ff437b054f7196e36db2541815bacecd201395"
+  },
+  {
+    "path": "src/components/sidebar/ConnectionCtrl.tsx",
+    "size": 6188,
+    "sha256": "1d5d63809db6e0bc65e82997c80d08340dd954927951639c7cdc6886640d2dc0"
+  },
+  {
+    "path": "src/components/sidebar/ConnectionTabs.vue",
+    "size": 981,
+    "sha256": "acaf7c9367967a68ca135ebef0b507f7465600e38debacebd07d12b0d8395716"
+  },
+  {
+    "path": "src/components/sidebar/LogsCtrl.tsx",
+    "size": 7215,
+    "sha256": "862e62f78c61eb4673becda2015071ba6789d599d57d99bf24f4e8a1d6dea056"
+  },
+  {
+    "path": "src/components/sidebar/OverviewCarousel.vue",
+    "size": 670,
+    "sha256": "77c210aae1c96423fac7162dcdd01b9e3187907a3016c7bef97f64c0e9cc4b5e"
+  },
+  {
+    "path": "src/components/sidebar/ProxiesCtrl.tsx",
+    "size": 10137,
+    "sha256": "4feb7a8bc623f89c95d1b2b4550f309cc7ed61aa883d845b383def33f5a139a6"
+  },
+  {
+    "path": "src/components/sidebar/RulesCtrl.tsx",
+    "size": 8259,
+    "sha256": "2be6de58a7baf30e244410982e2935f134d52eff04b67a438ee237eb11919698"
+  },
+  {
+    "path": "src/components/sidebar/SideBar.vue",
+    "size": 7951,
+    "sha256": "7676e430a69c9c92059f6f1e01157252e19ddaed62a7aaf617b7cd92b1aae514"
+  },
+  {
+    "path": "src/components/sidebar/SourceIPFilter.vue",
+    "size": 2386,
+    "sha256": "eb318227260185ae59536300318f057eb265ff92053a62db6168cf3ae51a2203"
+  },
+  {
+    "path": "src/components/sidebar/VerticalInfos.vue",
+    "size": 1649,
+    "sha256": "fb4a05cffe4f6b34b30f9c49a345b13d56a4ed955828a0cd6c1a4493d4199cfe"
+  },
+  {
+    "path": "src/components/users/UserTrafficStats.vue",
+    "size": 130962,
+    "sha256": "f8775425b2e65274414aedacb425ee6ff7d65100e212df5c8ac0f756d8f406ff"
+  },
+  {
+    "path": "src/composables/bouncein.ts",
+    "size": 974,
+    "sha256": "ad15dde1a12d807442b4cd8234a9e899900bcadba964ef4092de91df45746e80"
+  },
+  {
+    "path": "src/composables/bus.ts",
+    "size": 119,
+    "sha256": "6fa856178e24cea08a1f0886a00c56e4a5320ec2f8520156dd2b654d168c4bcf"
+  },
+  {
+    "path": "src/composables/calculateMaxProxies.ts",
+    "size": 545,
+    "sha256": "48ad0166ae06e9cc3dad9502af5ecec6846d6ce8eb57e60d98c11b5bb24a950b"
+  },
+  {
+    "path": "src/composables/connections.ts",
+    "size": 461,
+    "sha256": "706dfadd50af21aeb0be3198061c3527b7148ff18bc955081845aa70afb8d51b"
+  },
+  {
+    "path": "src/composables/keyboard.ts",
+    "size": 1092,
+    "sha256": "8051aa9d67a78add3a39324d6927ed6c24ba63255696e94713186e64028bb9bf"
+  },
+  {
+    "path": "src/composables/overview.ts",
+    "size": 504,
+    "sha256": "4ab86ba6679a5bfd590c3cc40bafd59a5490569b7bdbf084e946566f70aa65c0"
+  },
+  {
+    "path": "src/composables/proxies.ts",
+    "size": 10536,
+    "sha256": "bd783b4e385524567696a2b831b2c975b3322b90a26fd07605fd894a6ae42379"
+  },
+  {
+    "path": "src/composables/renderProxies.ts",
+    "size": 3210,
+    "sha256": "e923b9b215d06dcae9f013a4929ac7a2422cbde3f23495c79b2a99338f69af26"
+  },
+  {
+    "path": "src/composables/settings.ts",
+    "size": 466,
+    "sha256": "852a7d059a30cc49375688a9b0473e838d2db9a8d1d4cf48d06ed5a7b904a5d2"
+  },
+  {
+    "path": "src/composables/statistics.ts",
+    "size": 1374,
+    "sha256": "42305feb2d040bf5ddb55d14b01fdcfb643ab5867c1519881850ebd6e1999b4c"
+  },
+  {
+    "path": "src/composables/swipe.ts",
+    "size": 3722,
+    "sha256": "139ce635c84f3f3fb4f0a3ec3521619136d31fad5726063afbb7ddf0da60d72c"
+  },
+  {
+    "path": "src/composables/uiBuild.ts",
+    "size": 5954,
+    "sha256": "27ae3adfea62a11ec51f8c5175f6b4fc4870d4d9e1c4c9479ff94ef04d6ba450"
+  },
+  {
+    "path": "src/composables/useSafePolling.ts",
+    "size": 2231,
+    "sha256": "cc105eda0b2d4038359eb24c805ef5efa91eb5df47a06f44e40a7be2ee507249"
+  },
+  {
+    "path": "src/composables/userLimitProfiles.ts",
+    "size": 5470,
+    "sha256": "ef248302dfc202e21ef1b7f7d2a32e7a620a5ec432377bc8b1624a2421abeeff"
+  },
+  {
+    "path": "src/composables/userLimits.ts",
+    "size": 31242,
+    "sha256": "1692fb3575ad815a554b833ed769627b886bb566ee5b905eeff8ad79552a8a95"
+  },
+  {
+    "path": "src/composables/userTraffic.ts",
+    "size": 7291,
+    "sha256": "bb7a9bafff62e9ec399b17cd47b5d20c0a3e737c3444b8e0ba012e1094684cf4"
+  },
+  {
+    "path": "src/constant/index.ts",
+    "size": 6651,
+    "sha256": "c092a31bb41b56a169e386ba208c935b2d1168dd420398c1a7447c815245eef5"
+  },
+  {
+    "path": "src/helper/autoImportSettings.ts",
+    "size": 1845,
+    "sha256": "67b12531b4182795aa45d2b83f565226a6139a81318b1302c989e487415508c5"
+  },
+  {
+    "path": "src/helper/b64.ts",
+    "size": 442,
+    "sha256": "17e25f27e9242ee428101ad596497a9cd0de2d9251a3dcc84ef68c936b2aebee"
+  },
+  {
+    "path": "src/helper/dayjs.ts",
+    "size": 719,
+    "sha256": "5710ffcdbf07c5cf2504a973c12f892f6de8a6151380d65087f1109d99eddfda"
+  },
+  {
+    "path": "src/helper/flagIcons.ts",
+    "size": 707,
+    "sha256": "a8e53e1d7058657ab427e5db371bb4ec11d5332e43f414c3adb7da65bfb4954a"
+  },
+  {
+    "path": "src/helper/index.ts",
+    "size": 5628,
+    "sha256": "ba881ab02750d4c0e0bef120c3e7c0570d5dd13ac339948d19f75175d959f826"
+  },
+  {
+    "path": "src/helper/indexeddb.ts",
+    "size": 3605,
+    "sha256": "a5ddea793db90cb39f92bc47005f51627e0c7019a43d74157ff4c1df18385954"
+  },
+  {
+    "path": "src/helper/mihomoConfigAdvanced.ts",
+    "size": 14609,
+    "sha256": "46e6ee36c9a6b78cc87f682d7bbe62eb493edec453f81b74df710609dada68bf"
+  },
+  {
+    "path": "src/helper/mihomoConfigDns.ts",
+    "size": 13952,
+    "sha256": "39a5eacea0267fd46ac8600a7db0746be07085b6b64b8d2a0e51fce4d554d24a"
+  },
+  {
+    "path": "src/helper/mihomoConfigGroups.ts",
+    "size": 25554,
+    "sha256": "a4cfac388aceb82bfbc240acb465258ed9414983fe3c61d44f19166a7a16b7e0"
+  },
+  {
+    "path": "src/helper/mihomoConfigProviders.ts",
+    "size": 23641,
+    "sha256": "f9d85b591118c1f4ccb4e4f5b87cca626926d5aca1cfc73faf150fb4f32ba70f"
+  },
+  {
+    "path": "src/helper/mihomoConfigProxies.ts",
+    "size": 41042,
+    "sha256": "9fa6f017ec9ed3b11729bee587d087ed0a2ebdf5f27aff831a77611223d1f027"
+  },
+  {
+    "path": "src/helper/mihomoConfigRuleProviders.ts",
+    "size": 13276,
+    "sha256": "11894216b4a6a04aa7afbb4b8df3b07b772e52d0b7c5290596bc0b5ad621920d"
+  },
+  {
+    "path": "src/helper/mihomoConfigRules.ts",
+    "size": 6587,
+    "sha256": "400fcc554229a6795570097a2c22cd69eed6bcc91b0a8ead72fad62ae934837f"
+  },
+  {
+    "path": "src/helper/navFocus.ts",
+    "size": 2361,
+    "sha256": "1f52bc92404f1f5eab01aa9643835f63c8846b4c7d4390c1db5383c6fef8229a"
+  },
+  {
+    "path": "src/helper/notification.ts",
+    "size": 2553,
+    "sha256": "901c18083d7fac004a7598708ae053cb95fc24381e1634671817948ce58abbb0"
+  },
+  {
+    "path": "src/helper/providerHealth.ts",
+    "size": 5763,
+    "sha256": "f6b7d3335839021f47557c799d7bd69c980f71fdbedcd2819f0eb51d31c705a7"
+  },
+  {
+    "path": "src/helper/providerIcon.ts",
+    "size": 2056,
+    "sha256": "09b2fbed4734c547f08d40e9b15210bfaf2a19b5bc34dcf785093d7aee25f914"
+  },
+  {
+    "path": "src/helper/proxyProto.ts",
+    "size": 931,
+    "sha256": "01bec4c9898a42d9e6b609c92fb1cb8f2cb98ab7ac17c37b4d4bc3e77d6e46e3"
+  },
+  {
+    "path": "src/helper/sourceip.ts",
+    "size": 8307,
+    "sha256": "a2901d21bf33a2ebfe0cca580855305c7718f7b6224ecd6ecfbba0baecff9d51"
+  },
+  {
+    "path": "src/helper/tooltip.ts",
+    "size": 1730,
+    "sha256": "0648409fbe41f4e7fcfc1222f5f5ebf82c349160d9b9f24c19546d954e44545c"
+  },
+  {
+    "path": "src/helper/topologyNav.ts",
+    "size": 1424,
+    "sha256": "f322f2c24b1d089f26a04fa82929d90332950b632f36c6d9ce8d71c125bb7eab"
+  },
+  {
+    "path": "src/helper/tunnelDescriptions.ts",
+    "size": 1389,
+    "sha256": "047a1f578484e41ea62cba57410af383abe24c2d38acdd41155b50bba03046ea"
+  },
+  {
+    "path": "src/helper/utils.ts",
+    "size": 2719,
+    "sha256": "7185a5f19fb25d4a751e58f9ca3ca58fd827f27f145f3075ec356d3f8ac3f1a5"
+  },
+  {
+    "path": "src/i18n/en.ts",
+    "size": 129536,
+    "sha256": "860ee141d1bd3d8a666589b1758eee0423a72e8cf41263dda727cd65e7df9f5a"
+  },
+  {
+    "path": "src/i18n/index.ts",
+    "size": 330,
+    "sha256": "be5d98db93df04132a79bac13a4fe7fea1babf6ab0c795f01a0f8274efc84027"
+  },
+  {
+    "path": "src/i18n/ru.ts",
+    "size": 184941,
+    "sha256": "d252e2d7856db82b8075b3c721c5622cea9ef72855648ba5a303bb23ab51a37a"
+  },
+  {
+    "path": "src/i18n/zh.ts",
+    "size": 119032,
+    "sha256": "08a470829304d87dac84fff6c926b062d98f0623890858455b40f04f7342c859"
+  },
+  {
+    "path": "src/main.ts",
+    "size": 474,
+    "sha256": "ba1b6c19c2fd4f8ba71a4b852fab15b1c8bd8349c67bbc397ef408c751987c2b"
+  },
+  {
+    "path": "src/router/index.ts",
+    "size": 3885,
+    "sha256": "0dae626b409940e4590e4e266990b0bd4d1196b743966b853e70e755901a7fa5"
+  },
+  {
+    "path": "src/store/agent.ts",
+    "size": 4123,
+    "sha256": "7109bdc01e774d9f80c74ff9a5657b36b55d68b0e1be151485d70abc7753f21d"
+  },
+  {
+    "path": "src/store/config.ts",
+    "size": 640,
+    "sha256": "3ca6aa1f5d5edb8ed411ebe048a07dc8b367b066396f67ec5784cbf860299251"
+  },
+  {
+    "path": "src/store/connections.ts",
+    "size": 7093,
+    "sha256": "0cee7a16919485814f1834da592893a3b0587e67d06d981fbc2fef09e8d3b1e9"
+  },
+  {
+    "path": "src/store/globalSearch.ts",
+    "size": 208,
+    "sha256": "ab10650a0041f78a7de3b09d922872ddd84bb378878a108c74bdc5b78b36381f"
+  },
+  {
+    "path": "src/store/jobs.ts",
+    "size": 1136,
+    "sha256": "306fd6c43909e3c4193303d069af3db52854d337627d3b398dd061eea592d3e8"
+  },
+  {
+    "path": "src/store/logs.ts",
+    "size": 1963,
+    "sha256": "a154fbd56b99a43a64637590f9e94b0f6d4ea9988668f575f54f3cc445de8e6d"
+  },
+  {
+    "path": "src/store/overview.ts",
+    "size": 2490,
+    "sha256": "d4b9ad66479fa45a4ed777fefba730ca689536c485c748ecebedf0230d1c3de5"
+  },
+  {
+    "path": "src/store/providerActivity.ts",
+    "size": 35777,
+    "sha256": "4bffff3b01a00892bde1a7bb3b674b35366575f44f7e93cb3177f5d0d511b768"
+  },
+  {
+    "path": "src/store/providerHealth.ts",
+    "size": 8112,
+    "sha256": "654538aef6ee1057a51e018bcde02dfa937b2b90bb20d8ba125668454769f6eb"
+  },
+  {
+    "path": "src/store/proxies.ts",
+    "size": 16863,
+    "sha256": "af5d892445f4945c85bd83eee6db153617f630627b4719fbf8a92864ad7df1d0"
+  },
+  {
+    "path": "src/store/routerHostQos.ts",
+    "size": 984,
+    "sha256": "d5db3773e792d820ef74ed0382426fa24c47704bd54d8e2fe3c686476d731a56"
+  },
+  {
+    "path": "src/store/rules.ts",
+    "size": 6436,
+    "sha256": "ea24d81c5a65e7e8c5988aff35536bea96e50847b8e6b814db677bf04380676e"
+  },
+  {
+    "path": "src/store/settings.ts",
+    "size": 13024,
+    "sha256": "a3191037692554ff77d9f13f81746217d436469960ab967459e63a08cad77d35"
+  },
+  {
+    "path": "src/store/setup.ts",
+    "size": 1474,
+    "sha256": "cf54626c78c84df9fd725a2895ec0821b87ff627603427b28e6e81de9c56a5a0"
+  },
+  {
+    "path": "src/store/smart.ts",
+    "size": 341,
+    "sha256": "787a28f55b92efa6e6809f84152220276cd4ee74c2e3cd78609018cb68f08015"
+  },
+  {
+    "path": "src/store/userLimitProfiles.ts",
+    "size": 1495,
+    "sha256": "4ed4c8e85b24d1796c921c3f296218c4da4f85c3054f93861a1a957512d79b67"
+  },
+  {
+    "path": "src/store/userLimitSnapshots.ts",
+    "size": 576,
+    "sha256": "a7007b8e6e93cb8566ab35d07c8cec781f57fa62e3b6f21cb3838f502b661fe8"
+  },
+  {
+    "path": "src/store/userLimits.ts",
+    "size": 1944,
+    "sha256": "163d11a36f8fc960f80bae343ea6f8de356a9b1592c112eaf4e927c5f8e53602"
+  },
+  {
+    "path": "src/store/usersDbSync.ts",
+    "size": 53243,
+    "sha256": "95e4b79799d621d5a5b5b25976a7a8fe21350a8a3449d1c54d59e9dfca019f0f"
+  },
+  {
+    "path": "src/types/global.d.ts",
+    "size": 283,
+    "sha256": "3256ed6bcc25644fbedbcf6f31513bae0de7602df731415f73d3ef34cb0eb12e"
+  },
+  {
+    "path": "src/types/index.d.ts",
+    "size": 2711,
+    "sha256": "a9f9e868be9f02a477341b376f70b144148c08cdc1ea4c4567fe548e72ffda34"
+  },
+  {
+    "path": "src/views/ConnectionsPage.vue",
+    "size": 796,
+    "sha256": "92fb8a8fd4c27342e9913e40d96f04e0d1f4d64e11442c42a9cdcf1ed360a249"
+  },
+  {
+    "path": "src/views/HomePage.vue",
+    "size": 8517,
+    "sha256": "516fd59adf3ee49de1a59b9d69b6b44cc0656ed40021fee59c1f41084101c9a5"
+  },
+  {
+    "path": "src/views/LogsPage.vue",
+    "size": 1393,
+    "sha256": "056e6d9330d3eeae594dcf96d367a51b9d029d4fb9454738e492c05edd581775"
+  },
+  {
+    "path": "src/views/MihomoPage.vue",
+    "size": 12247,
+    "sha256": "fe476a992ab0297290a005d05cefbea05c42256756128d642d5248040788480c"
+  },
+  {
+    "path": "src/views/OverviewPage.vue",
+    "size": 1037,
+    "sha256": "d86643d745569a0ccc5778779bd4a8982708c584c87c956ac925452585d80a36"
+  },
+  {
+    "path": "src/views/PoliciesPage.vue",
+    "size": 12804,
+    "sha256": "74f35b4125f5d0bda5c0c9d11f016b6319b948b7a2e8a7ab44a9c29549895990"
+  },
+  {
+    "path": "src/views/ProxiesPage.vue",
+    "size": 7364,
+    "sha256": "4b0c054445231c759e2f42f942681b22bb7f83cd772de90f0096f63df25b62e9"
+  },
+  {
+    "path": "src/views/ProxiesRoutePage.vue",
+    "size": 261,
+    "sha256": "f7e7a240d165ae4f9ed7b55af9b4c88fedcabdbd6a2f482345705e743e07c3ff"
+  },
+  {
+    "path": "src/views/ProxyProvidersRoutePage.vue",
+    "size": 262,
+    "sha256": "5d342f4c1fe48ed28aece398721f347ab82b575cd45907014822299f329bfe04"
+  },
+  {
+    "path": "src/views/RouterPage.vue",
+    "size": 6418,
+    "sha256": "c374cade1336a30844c338011c1c338bec3c55dc86e15fa3f04f8f21653b409a"
+  },
+  {
+    "path": "src/views/RulesPage.vue",
+    "size": 4072,
+    "sha256": "44383cadfbea55afd7273fde7e548883e2869792fffabfa077adc2c4a129d8f6"
+  },
+  {
+    "path": "src/views/SettingsPage.vue",
+    "size": 3839,
+    "sha256": "5623610c5a499e6819afc5daa43430a57c7d3865a1cca45c1be2d0ac1b828f10"
+  },
+  {
+    "path": "src/views/SetupPage.vue",
+    "size": 7320,
+    "sha256": "fee002cd1664a14e0a86b5572835c9e2dda047a565645a93c7fd611629656fbd"
+  },
+  {
+    "path": "src/views/SubscriptionsPage.vue",
+    "size": 43225,
+    "sha256": "61d3e22818c4a45e414a5358bf6753eeb58fb8886a1be275353678acf269941b"
+  },
+  {
+    "path": "src/views/TasksPage.vue",
+    "size": 198714,
+    "sha256": "7a2e71feaf7726996c99e03f86255d5dd48fdb75fb2e68d29703474d891f4602"
+  },
+  {
+    "path": "src/views/TrafficPage.vue",
+    "size": 7246,
+    "sha256": "7df7f2c3553d553834984d667b7841b66d9546d15ba4f842fd19091dfc61ad31"
+  },
+  {
+    "path": "src/views/UsersPage.vue",
+    "size": 23905,
+    "sha256": "d79993b1fb236e9771d3dbb34506a182ff7fe53d66c45ec5d61d239b7b6ed86b"
+  },
+  {
+    "path": "tailwind.config.ts",
+    "size": 632,
+    "sha256": "f7fdecbafb98d5786a6ad3e4623a722f247faca7685e7edcb3f3449e2f38dad7"
+  },
+  {
+    "path": "tsconfig.app.json",
+    "size": 332,
+    "sha256": "3d96270a629ad08d3e6a16ca06f50ff557af0340006ec2f5fbe776d21d6a4e8a"
+  },
+  {
+    "path": "tsconfig.json",
+    "size": 139,
+    "sha256": "3dd280df663fb5fbe9e85e5981289d27a7120b97a852827dd16e0ac296836d1b"
+  },
+  {
+    "path": "tsconfig.node.json",
+    "size": 414,
+    "sha256": "63982adea05795155f81565c93d73c4347dd4b1ab7d73c05ac765f4210e2a9f3"
+  },
+  {
+    "path": "vite.config.ts",
+    "size": 1675,
+    "sha256": "9dd6824c7617219a53bcf7ed142a48cfc8bba3914bd58c6ea852d27345757f0d"
+  }
+]

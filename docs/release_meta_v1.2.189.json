@@ -1,6 +1,6 @@
 {
   "package": "ui-mihomo-ultra",
-  "release_version": "v1.2.189",
+  "release_version": "v1.2.190",
   "created_at": "2026-05-11T12:20:00+03:00",
   "scope": "UI provider access links; providerPanelSshUrls users-db sync",
   "runtime_marker": "0.6.37",

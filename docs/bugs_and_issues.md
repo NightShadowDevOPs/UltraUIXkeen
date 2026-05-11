@@ -9,3 +9,7 @@
 
 - Проверить 3–5 последовательных samples после установки: `status_cpu` и `snapshot_cpu` должны быть близкими, без постоянного `50`.
 - Если endpoint снова начнёт залипать, использовать установленный watchdog/restart helper, не трогая Mihomo core.
+
+## v1.2.190
+
+UI-only provider links layout polish. Provider names are badges, columns are aligned, URL inputs are shorter. Runtime/router-agent logic unchanged.
