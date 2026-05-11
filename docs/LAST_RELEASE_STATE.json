@@ -1,20 +1,23 @@
 {
   "project_slug": "ui-mihomo-ultra",
-  "release_version": "v1.2.192",
-  "runtime_agent_version": "0.6.37",
+  "release_version": "v1.2.193",
+  "title": "Provider Hosting Recurring Payments UI",
   "status": "prepared",
-  "scope": "ui-only provider table layout",
-  "router_runtime_changed": false,
-  "home_assistant_changed": false,
-  "mihomo_core_changed": false,
-  "provider_ssl_logic_changed": false,
-  "users_db_changed": false,
-  "shapers_db_changed": false,
-  "checks": {
-    "col_count": 5,
-    "th_count": 5,
-    "provider_name_badge": true,
-    "short_url_input": true,
-    "table_fixed": true
-  }
+  "runtime_router_agent_version": "0.6.37",
+  "changes": {
+    "hosting_due_date_periods": true,
+    "hosting_paid_button": true,
+    "colored_days_left_badges": true,
+    "users_db_providerHostingPeriodMonths": true
+  },
+  "not_touched": [
+    "Mihomo core",
+    "TUN",
+    "QoS/routing",
+    "provider SSL check runtime",
+    "Home Assistant",
+    "HA DB",
+    "SmartLife boiler",
+    "native Home Assistant Energy"
+  ]
 }

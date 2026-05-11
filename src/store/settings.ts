@@ -294,6 +294,7 @@ export const proxyProviderPanelSshUrlMap = useStorage<Record<string, string>>('c
 
 // Shared (synced via router-agent users DB): optional hosting payment due date per proxy-provider (YYYY-MM-DD)
 export const proxyProviderHostingDueDateMap = useStorage<Record<string, string>>('config/proxy-provider-hosting-due-date-map', {})
+export const proxyProviderHostingPeriodMonthsMap = useStorage<Record<string, number>>('config/proxy-provider-hosting-period-months-map', {})
 
 // Shared (synced via router-agent users DB): optional per-provider icon (country flag or globe)
 // Values: '' (unset), 'globe', or ISO 3166-1 alpha-2 like 'RU', 'US'

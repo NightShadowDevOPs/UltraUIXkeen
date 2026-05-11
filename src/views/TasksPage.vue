@@ -120,6 +120,8 @@
 							<th class="align-middle whitespace-nowrap">{{ $t('provider') }}</th>
 							<th class="align-middle whitespace-nowrap">{{ $t('providerAccessLinks') }}</th>
 							<th class="align-middle whitespace-nowrap">{{ $t('hostingPaymentDue') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('hostingPaymentPeriod') }}</th>
+							<th class="align-middle whitespace-nowrap">{{ $t('hostingPaymentLeft') }}</th>
 							<th class="align-middle whitespace-nowrap">{{ $t('sslWarnDays') }}</th>
 							<th class="align-middle whitespace-nowrap">{{ $t('sslExpires') }}</th>
 						  </tr>
@@ -189,21 +191,45 @@
 							  </div>
 							</td>
 							<td class="align-middle">
-							  <div class="flex w-[150px] flex-col gap-1">
-								<input
-								  type="date"
-								  class="input input-bordered input-xs w-36"
-								  :value="proxyProviderHostingDueDateMap[p.name] || ''"
-								  @input="onProviderHostingDueDateInput(p.name, $event)"
-								/>
-								<span
-								  class="truncate text-[10px] font-semibold"
-								  :class="hostingPaymentInfo(p.name).cls"
-								  :title="hostingPaymentInfo(p.name).title"
+							  <input
+								type="date"
+								class="input input-bordered input-xs w-32"
+								:value="proxyProviderHostingDueDateMap[p.name] || ''"
+								@input="onProviderHostingDueDateInput(p.name, $event)"
+							  />
+							</td>
+							<td class="align-middle">
+							  <div class="flex w-[150px] items-center gap-1.5">
+								<select
+								  class="select select-bordered select-xs w-[92px]"
+								  :value="String(getProviderHostingPeriodMonths(p.name))"
+								  @change="onProviderHostingPeriodInput(p.name, $event)"
 								>
-								  {{ hostingPaymentInfo(p.name).text }}
-								</span>
+								  <option value="0">{{ $t('hostingPeriodOnce') }}</option>
+								  <option value="1">{{ $t('hostingPeriod1m') }}</option>
+								  <option value="3">{{ $t('hostingPeriod3m') }}</option>
+								  <option value="6">{{ $t('hostingPeriod6m') }}</option>
+								  <option value="12">{{ $t('hostingPeriod12m') }}</option>
+								</select>
+								<button
+								  type="button"
+								  class="btn btn-ghost btn-xs w-[50px] px-1"
+								  :disabled="getProviderHostingPeriodMonths(p.name) <= 0"
+								  :title="$t('hostingPaymentMarkPaidHint')"
+								  @click="markProviderHostingPaid(p.name)"
+								>
+								  {{ $t('hostingPaymentMarkPaid') }}
+								</button>
 							  </div>
+							</td>
+							<td class="align-middle">
+							  <span
+								class="badge badge-sm w-[118px] justify-center truncate px-2 text-[10px] font-semibold"
+								:class="hostingPaymentInfo(p.name).cls"
+								:title="hostingPaymentInfo(p.name).title"
+							  >
+								{{ hostingPaymentInfo(p.name).text }}
+							  </span>
 							</td>
 							<td class="align-middle">
 							  <div class="flex w-[140px] items-center gap-1.5">
@@ -1962,7 +1988,7 @@ import { countryCodeToFlagEmoji, normalizeProviderIcon } from '@/helper/provider
 import { FLAG_CODES } from '@/helper/flagIcons'
 import { activeBackend, backendList } from '@/store/setup'
 import { agentEnabled, agentUrl } from '@/store/agent'
-import { proxyProviderHostingDueDateMap, proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
+import { proxyProviderHostingDueDateMap, proxyProviderHostingPeriodMonthsMap, proxyProviderIconMap, proxyProviderPanelSshUrlMap, proxyProviderPanelUrlMap, proxyProviderSslWarnDaysMap, sslNearExpiryDaysDefault } from '@/store/settings'
 import { agentProvidersSslCacheReady, agentProvidersSslRefreshPending, agentProvidersSslRefreshing, fetchAgentProviders, panelSslCheckedAt, panelSslNotAfterByName, panelSslProbeError, panelSslProbeLoading, probePanelSsl, refreshAgentProviderSslCache } from '@/store/providerHealth'
 import { proxyProviederList } from '@/store/proxies'
 import { userLimitProfiles } from '@/store/userLimitProfiles'
@@ -2432,18 +2458,74 @@ const onProviderHostingDueDateInput = (name: string, event: Event) => {
   setProviderHostingDueDate(name, value)
 }
 
+const getProviderHostingPeriodMonths = (name: string): number => {
+  const k = String(name || '').trim()
+  const raw = Number((proxyProviderHostingPeriodMonthsMap.value || {})[k] || 0)
+  return [0, 1, 3, 6, 12].includes(raw) ? raw : 0
+}
+
+const setProviderHostingPeriodMonths = (name: string, value: string | number) => {
+  const k = String(name || '').trim()
+  if (!k) return
+  const raw = Number(value || 0)
+  const months = [0, 1, 3, 6, 12].includes(raw) ? raw : 0
+  proxyProviderHostingPeriodMonthsMap.value = {
+    ...(proxyProviderHostingPeriodMonthsMap.value || {}),
+    [k]: months,
+  }
+}
+
+const onProviderHostingPeriodInput = (name: string, ev: Event) => {
+  const target = ev.target as HTMLSelectElement | null
+  setProviderHostingPeriodMonths(name, target?.value || '0')
+}
+
+const addMonthsClamped = (date: Date, months: number): Date => {
+  const d = new Date(date.getTime())
+  const day = d.getDate()
+  d.setDate(1)
+  d.setMonth(d.getMonth() + months)
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  d.setDate(Math.min(day, lastDay))
+  return d
+}
+
+const toLocalIsoDate = (date: Date): string => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const markProviderHostingPaid = (name: string) => {
+  const months = getProviderHostingPeriodMonths(name)
+  if (months <= 0) return
+  const raw = String((proxyProviderHostingDueDateMap.value || {})[String(name || '').trim()] || '').trim()
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00`) : new Date()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  let next = addMonthsClamped(base, months)
+  let guard = 0
+  while (next <= today && guard < 24) {
+    next = addMonthsClamped(next, months)
+    guard += 1
+  }
+  setProviderHostingDueDate(name, toLocalIsoDate(next))
+}
+
 const hostingPaymentInfo = (name: string) => {
   const raw = String((proxyProviderHostingDueDateMap.value || {})[String(name || '').trim()] || '').trim()
-  if (!raw) return { text: t('hostingPaymentNotSet'), cls: 'text-base-content/45', title: '' }
+  if (!raw) return { text: t('hostingPaymentNotSet'), cls: 'badge-ghost', title: '' }
   const due = new Date(`${raw}T00:00:00`)
-  if (Number.isNaN(due.getTime())) return { text: t('hostingPaymentBadDate'), cls: 'text-error', title: raw }
+  if (Number.isNaN(due.getTime())) return { text: t('hostingPaymentBadDate'), cls: 'badge-warning', title: raw }
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const days = Math.ceil((due.getTime() - today.getTime()) / 86400000)
-  if (days < 0) return { text: t('hostingPaymentExpired', { days: Math.abs(days) }), cls: 'text-error', title: raw }
-  if (days === 0) return { text: t('hostingPaymentToday'), cls: 'text-error', title: raw }
-  if (days <= 7) return { text: t('hostingPaymentWarn', { days }), cls: 'text-warning', title: raw }
-  return { text: t('hostingPaymentOk', { days }), cls: 'text-success', title: raw }
+  if (days < 0) return { text: t('hostingPaymentExpired', { days: Math.abs(days) }), cls: 'badge-error text-error-content', title: raw }
+  if (days === 0) return { text: t('hostingPaymentToday'), cls: 'badge-error text-error-content', title: raw }
+  if (days <= 7) return { text: t('hostingPaymentWarn', { days }), cls: 'badge-warning text-warning-content', title: raw }
+  if (days <= 30) return { text: t('hostingPaymentOk', { days }), cls: 'badge-info text-info-content', title: raw }
+  return { text: t('hostingPaymentOk', { days }), cls: 'badge-success text-success-content', title: raw }
 }
 
 // ---- Provider icon (flag/globe) ----
