@@ -1,24 +1,7 @@
 {
-  "project_slug": "ui-mihomo-ultra",
-  "release_version": "v1.2.194",
-  "title": "Provider Hosting Persistence Status UI",
-  "status": "prepared",
-  "runtime_router_agent_version": "0.6.37",
-  "changes": {
-    "hosting_payment_save_status_badge": true,
-    "hosting_payment_save_now_button": true,
-    "hosting_payment_saved_count": true,
-    "users_db_bootstrap_includes_providerHosting_fields": true,
-    "compact_persistence_check_script": true
-  },
-  "not_touched": [
-    "Mihomo core",
-    "TUN",
-    "QoS/routing",
-    "provider SSL check runtime",
-    "Home Assistant",
-    "HA DB",
-    "SmartLife boiler",
-    "native Home Assistant Energy"
-  ]
+  "project": "UI Mihomo Ultra / router-agent",
+  "release_version": "v1.2.195",
+  "runtime_baseline_before": "v1.2.194 plus accepted router-agent hotfixes through v1.2.188/v1.2.187 where installed",
+  "runtime_change": "no automatic Mihomo core switch; scripts stage/test/apply only when explicitly invoked",
+  "next_step": "Run canary status/stage/test first. Apply v1.19.25 only if staged binary and config test pass. Keep sniffing and browser QUIC disabled during first observation window."
 }

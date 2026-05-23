@@ -1,21 +1,24 @@
 {
   "project_slug": "ui-mihomo-ultra",
   "project_name": "UI Mihomo Ultra / router-agent",
-  "release_version": "v1.2.194",
-  "release_title": "Provider Hosting Persistence Status UI",
-  "release_type": "ui-only",
-  "created_at": "2026-05-11",
-  "base_version": "v1.2.191",
-  "artifact_naming_status": "OK",
-  "docs_package_status": "OK",
-  "transfer_package_status": "OK",
-  "static_safety_status": "OK",
-  "release_artifact_status": "OK",
-  "backup_script_status": "OK:scripts/backup-ui-mihomo-ultra-v1.2.192.sh",
+  "release_version": "v1.2.195",
+  "release_title": "Mihomo Core v1.19.25 Canary Tools",
+  "release_type": "router-core-canary-docs",
+  "created_at": "2026-05-23",
   "scope": [
-    "Provider table layout polish on Tasks/Providers UI",
-    "No router-agent runtime mutation",
-    "No Mihomo core/TUN/QoS/routing/provider SSL changes",
-    "No Home Assistant changes"
-  ]
+    "safe staged Mihomo v1.19.25 download/check workflow",
+    "no automatic core replacement without explicit apply token",
+    "config-test and rollback helpers for router-side update rehearsal",
+    "documentation for sniffing/QUIC cautious rollout"
+  ],
+  "safety": {
+    "router_agent_runtime_changed": false,
+    "mihomo_core_changed": false,
+    "mihomo_core_apply_requires_manual_token": true,
+    "tun_changed": false,
+    "sniffing_changed": false,
+    "qos_or_routing_changed": false,
+    "home_assistant_changed": false,
+    "secrets_included": false
+  }
 }
